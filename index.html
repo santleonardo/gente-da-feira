@@ -37,6 +37,31 @@
         <button onclick="toggleForm()" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
     </section>
 
+    <section id="form-perfil" class="p-6 bg-white shadow-lg m-4 rounded-xl hidden">
+        <div class="text-center mb-4">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl border-2 border-red-700 text-red-700">👤</div>
+            <h2 class="font-bold text-xl text-gray-800">Criar Meu Perfil</h2>
+            <p class="text-xs text-gray-500">Identifique-se para a comunidade de Feira</p>
+        </div>
+        
+        <div class="space-y-3">
+            <input type="text" id="perfil-nome" placeholder="Seu nome ou apelido" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-red-600">
+            <select id="perfil-bairro" class="w-full p-3 border rounded-lg outline-none">
+                <option value="">Onde você mora em Feira?</option>
+                <option value="Tomba">Tomba</option>
+                <option value="SIM">SIM</option>
+                <option value="Centro">Centro</option>
+                <option value="Cidade Nova">Cidade Nova</option>
+                <option value="Campo Limpo">Campo Limpo</option>
+                <option value="Humildes">Humildes</option>
+            </select>
+            <textarea id="perfil-bio" placeholder="Conte um pouco sobre você (Ex: Profissional de marketing, morador do Tomba...)" class="w-full p-3 border rounded-lg h-24"></textarea>
+            
+            <button onclick="salvarPerfil()" class="bg-red-700 text-white w-full py-3 rounded-lg font-bold shadow-md hover:bg-red-800 transition">Salvar Perfil</button>
+            <button onclick="togglePerfil()" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+        </div>
+    </section>
+
     <main id="feed-container" class="p-4 space-y-4">
         <div class="bg-white p-4 rounded-lg shadow animate-pulse text-center text-gray-400">
             Carregando informações de Feira...
@@ -46,15 +71,15 @@
     <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 z-20">
         <button onclick="location.reload()" class="flex flex-col items-center text-red-700">
             <span>🏠</span>
-            <span class="text-xs">Início</span>
+            <span class="text-xs font-medium">Início</span>
         </button>
         <button onclick="toggleForm()" class="flex flex-col items-center text-gray-500">
             <span class="text-xl">➕</span>
-            <span class="text-xs">Avisar</span>
+            <span class="text-xs font-medium">Avisar</span>
         </button>
-        <button class="flex flex-col items-center text-gray-500">
-            <span>👤</span>
-            <span class="text-xs">Perfil</span>
+        <button onclick="togglePerfil()" class="flex flex-col items-center text-gray-500">
+            <span class="text-xl">👤</span>
+            <span class="text-xs font-medium">Perfil</span>
         </button>
     </footer>
 
