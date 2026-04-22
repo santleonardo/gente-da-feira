@@ -12,7 +12,7 @@
 </head>
 <body class="bg-gray-100 pb-20">
 
-    <header class="bg-white p-4 shadow-sm sticky top-0 z-10">
+    <header class="bg-white p-4 shadow-sm sticky top-0 z-20">
         <h1 class="text-xl font-bold text-center text-red-700">Gente da Feira</h1>
     </header>
 
@@ -20,50 +20,45 @@
         <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Global</button>
         <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Minha Zona</button>
     </nav>
+
     <section id="form-post" class="p-4 bg-white shadow-md m-4 rounded-lg hidden">
-    <h2 class="font-bold mb-2">Novo Aviso</h2>
-    <input type="text" id="post-author" placeholder="Seu nome" class="w-full p-2 border rounded mb-2">
-    <select id="post-zona" class="w-full p-2 border rounded mb-2">
-        <option value="Centro">Centro</option>
-        <option value="Tomba">Tomba</option>
-        <option value="SIM">SIM</option>
-        <option value="Cidade Nova">Cidade Nova</option>
-        <option value="Kalilândia">Kalilândia</option>
-        <option value="Humildes">Humildes</option>
-    </select>
-    <textarea id="post-content" placeholder="O que está acontecendo?" class="w-full p-2 border rounded mb-2"></textarea>
-    <button onclick="enviarPost()" class="bg-red-700 text-white w-full py-2 rounded font-bold">Publicar</button>
-    <button onclick="toggleForm()" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
-</section>
+        <h2 class="font-bold mb-2 text-red-700">Novo Aviso</h2>
+        <input type="text" id="post-author" placeholder="Seu nome" class="w-full p-2 border rounded mb-2 outline-none focus:border-red-500">
+        <select id="post-zona" class="w-full p-2 border rounded mb-2">
+            <option value="Centro">Centro</option>
+            <option value="Tomba">Tomba</option>
+            <option value="SIM">SIM</option>
+            <option value="Cidade Nova">Cidade Nova</option>
+            <option value="Kalilândia">Kalilândia</option>
+            <option value="Humildes">Humildes</option>
+        </select>
+        <textarea id="post-content" placeholder="O que está acontecendo?" class="w-full p-2 border rounded mb-2 h-24 outline-none focus:border-red-500"></textarea>
+        <button onclick="enviarPost()" class="bg-red-700 text-white w-full py-2 rounded font-bold">Publicar</button>
+        <button onclick="toggleForm()" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+    </section>
 
     <main id="feed-container" class="p-4 space-y-4">
-        <div class="bg-white p-4 rounded-lg shadow animate-pulse">Carregando informações da cidade...</div>
+        <div class="bg-white p-4 rounded-lg shadow animate-pulse text-center text-gray-400">
+            Carregando informações de Feira...
+        </div>
     </main>
 
-    <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3">
-        <button class="flex flex-col items-center text-red-700">
+    <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 z-20">
+        <button onclick="location.reload()" class="flex flex-col items-center text-red-700">
             <span>🏠</span>
             <span class="text-xs">Início</span>
         </button>
-       <button onclick="toggleForm()" class="flex flex-col items-center text-gray-500">
-    <span>➕</span>
-    <span class="text-xs">Avisar</span>
-</button>
+        <button onclick="toggleForm()" class="flex flex-col items-center text-gray-500">
+            <span class="text-xl">➕</span>
+            <span class="text-xs">Avisar</span>
+        </button>
         <button class="flex flex-col items-center text-gray-500">
             <span>👤</span>
             <span class="text-xs">Perfil</span>
         </button>
     </footer>
 
-    <script>
-        function mudarFeed(tipo) {
-            document.getElementById('tab-global').classList.toggle('active-tab', tipo === 'global');
-            document.getElementById('tab-zona').classList.toggle('active-tab', tipo === 'zona');
-            // Aqui você chamará a função do Supabase para filtrar os dados
-            console.log("Mudando para o feed: " + tipo);
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
 </body>
 </html>
