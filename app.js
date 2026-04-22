@@ -1,41 +1,58 @@
-// Configurações do Supabase (Substitua pelos seus dados depois)
+// 1. Configurações do Supabase
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
 
-// Inicializa o cliente Supabase
-// Nota: Para o MVP, usaremos a biblioteca via CDN no index.html
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 2. Inicializa o cliente (Corrigido para evitar erro de referência)
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Função para carregar o Feed
+// 3. Função para carregar o Feed REAL do banco de dados
 async function carregarFeed(tipo = 'global') {
     const container = document.getElementById('feed-container');
     
-    // Simulação de busca enquanto não conectamos as chaves
-    container.innerHTML = `<div class="bg-white p-4 rounded-lg shadow text-center">
-        <p class="text-gray-600">Olá Leonardo! A interface está pronta.</p>
-        <p class="text-sm text-red-500 font-bold mt-2">Conecte o Supabase para ver os posts de Feira.</p>
-    </div>`;
+    // Busca os posts na tabela 'posts' criada no Supabase
+    const { data, error } = await _supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Erro Supabase:", error);
+        container.innerHTML = `<p class="text-center text-red-500">Erro ao carregar avisos.</p>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-500">Nenhum aviso em Feira no momento.</p>`;
+        return;
+    }
+
+    // Renderiza os posts dinamicamente
+    container.innerHTML = data.map(post => `
+        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-700 mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-bold text-gray-800">${post.author_name}</span>
+                <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">${post.zona}</span>
+            </div>
+            <p class="text-gray-700">${post.content}</p>
+        </div>
+    `).join('');
 }
 
-// Executa ao carregar a página
-document.addEventListener('DOMContentLoaded', () => {
-    carregarFeed();
-});
-
-// Função para mostrar/esconder o formulário
+// 4. Função para mostrar/esconder o formulário
 function toggleForm() {
     const form = document.getElementById('form-post');
-    form.classList.toggle('hidden');
+    if (form) form.classList.toggle('hidden');
 }
 
-// Função para enviar o post para o Supabase
+// 5. Função para enviar o post (Corrigida a variável _supabase)
 async function enviarPost() {
     const author = document.getElementById('post-author').value;
     const zona = document.getElementById('post-zona').value;
     const content = document.getElementById('post-content').value;
 
     if (!author || !content) {
-        alert("Por favor, preencha seu nome e o aviso!");
+        alert("Leonardo, preencha o nome e o aviso!");
         return;
     }
 
@@ -44,11 +61,23 @@ async function enviarPost() {
         .insert([{ author_name: author, zona: zona, content: content }]);
 
     if (error) {
-        alert("Erro ao publicar: " + error.message);
+        alert("Erro ao publicar em Feira: " + error.message);
     } else {
-        alert("Publicado com sucesso em Feira!");
-        document.getElementById('post-content').value = ''; // Limpa o campo
-        toggleForm(); // Fecha o form
-        carregarFeed(); // Atualiza o feed
+        alert("Aviso publicado com sucesso!");
+        document.getElementById('post-content').value = ''; 
+        toggleForm(); 
+        carregarFeed(); // Atualiza para o novo post aparecer na hora
     }
 }
+
+// 6. Função para alternar abas (Necessário para o index.html)
+function mudarFeed(tipo) {
+    document.getElementById('tab-global').classList.toggle('active-tab', tipo === 'global');
+    document.getElementById('tab-zona').classList.toggle('active-tab', tipo === 'zona');
+    carregarFeed(tipo);
+}
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    carregarFeed();
+});
