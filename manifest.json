@@ -2,7 +2,7 @@
   "name": "Gente da Feira",
   "short_name": "GenteFeira",
   "description": "A rede social de utilidade e conexões de Feira de Santana",
-  "start_url": "/index.html",
+  "start_url": "/gente-da-feira/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#CC0000",
