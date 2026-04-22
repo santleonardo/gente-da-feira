@@ -2,32 +2,39 @@
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
 
-// 2. Inicializa o cliente (Corrigido para evitar erro de referência)
+// 2. Inicializa o cliente
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 3. Função para carregar o Feed REAL do banco de dados
+// 3. Função para carregar o Feed
 async function carregarFeed(tipo = 'global') {
     const container = document.getElementById('feed-container');
     
-    // Busca os posts na tabela 'posts' criada no Supabase
-    const { data, error } = await _supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let query = _supabase.from('posts').select('*').order('created_at', { ascending: false });
+
+    // Lógica para o filtro "Minha Zona" (Lê o bairro salvo no perfil do usuário)
+    if (tipo === 'zona') {
+        const bairroSalvo = localStorage.getItem('usuario_bairro');
+        if (bairroSalvo) {
+            query = query.eq('zona', bairroSalvo);
+        } else {
+            container.innerHTML = `<p class="text-center text-gray-500">Crie um perfil para filtrar seu bairro!</p>`;
+            return;
+        }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
-        console.error("Erro Supabase:", error);
         container.innerHTML = `<p class="text-center text-red-500">Erro ao carregar avisos.</p>`;
         return;
     }
 
     if (!data || data.length === 0) {
-        container.innerHTML = `<p class="text-center text-gray-500">Nenhum aviso em Feira no momento.</p>`;
+        container.innerHTML = `<p class="text-center text-gray-500">Nenhum aviso encontrado.</p>`;
         return;
     }
 
-    // Renderiza os posts dinamicamente
     container.innerHTML = data.map(post => `
         <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-700 mb-4">
             <div class="flex justify-between items-center mb-2">
@@ -39,45 +46,79 @@ async function carregarFeed(tipo = 'global') {
     `).join('');
 }
 
-// 4. Função para mostrar/esconder o formulário
+// 4. Funções de Interface (Toggle)
 function toggleForm() {
-    const form = document.getElementById('form-post');
-    if (form) form.classList.toggle('hidden');
+    document.getElementById('form-post').classList.toggle('hidden');
 }
 
-// 5. Função para enviar o post (Corrigida a variável _supabase)
+function togglePerfil() {
+    const perfil = document.getElementById('form-perfil');
+    const feed = document.getElementById('feed-container');
+    perfil.classList.toggle('hidden');
+    feed.classList.toggle('hidden');
+}
+
+// 5. Função para enviar Post (Usa localStorage para preencher nome)
 async function enviarPost() {
     const author = document.getElementById('post-author').value;
     const zona = document.getElementById('post-zona').value;
     const content = document.getElementById('post-content').value;
 
     if (!author || !content) {
-        alert("Leonardo, preencha o nome e o aviso!");
+        alert("Preencha todos os campos!");
         return;
     }
 
-    const { data, error } = await _supabase
-        .from('posts')
-        .insert([{ author_name: author, zona: zona, content: content }]);
+    const { error } = await _supabase.from('posts').insert([{ author_name: author, zona: zona, content: content }]);
 
     if (error) {
-        alert("Erro ao publicar em Feira: " + error.message);
+        alert("Erro: " + error.message);
     } else {
-        alert("Aviso publicado com sucesso!");
-        document.getElementById('post-content').value = ''; 
-        toggleForm(); 
-        carregarFeed(); // Atualiza para o novo post aparecer na hora
+        document.getElementById('post-content').value = '';
+        toggleForm();
+        carregarFeed();
     }
 }
 
-// 6. Função para alternar abas (Necessário para o index.html)
+// 6. Função para salvar Perfil no Supabase e no localStorage do Usuário
+async function salvarPerfil() {
+    const nome = document.getElementById('perfil-nome').value;
+    const bairro = document.getElementById('perfil-bairro').value;
+    const bio = document.getElementById('perfil-bio').value;
+
+    if (!nome || !bairro) {
+        alert("Nome e bairro são obrigatórios!");
+        return;
+    }
+
+    const { error } = await _supabase.from('profiles').insert([{ username: nome, bairro: bairro, bio: bio }]);
+
+    if (error) {
+        alert("Erro ao salvar: " + error.message);
+    } else {
+        // Salva no navegador do usuário para uso futuro
+        localStorage.setItem('usuario_nome', nome);
+        localStorage.setItem('usuario_bairro', bairro);
+        
+        alert("Perfil salvo!");
+        location.reload(); // Recarrega para aplicar o nome nos campos
+    }
+}
+
+// 7. Funções de inicialização e Abas
 function mudarFeed(tipo) {
     document.getElementById('tab-global').classList.toggle('active-tab', tipo === 'global');
     document.getElementById('tab-zona').classList.toggle('active-tab', tipo === 'zona');
     carregarFeed(tipo);
 }
 
-// Inicialização
 document.addEventListener('DOMContentLoaded', () => {
+    // Tenta recuperar nome salvo para facilitar a postagem
+    const nomeSalvo = localStorage.getItem('usuario_nome');
+    const bairroSalvo = localStorage.getItem('usuario_bairro');
+    
+    if (nomeSalvo) document.getElementById('post-author').value = nomeSalvo;
+    if (bairroSalvo) document.getElementById('post-zona').value = bairroSalvo;
+
     carregarFeed();
 });
