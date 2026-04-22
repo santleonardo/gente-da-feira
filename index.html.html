@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gente da Feira</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .active-tab { border-bottom: 3px solid #CC0000; color: #CC0000; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-gray-100 pb-20">
+
+    <header class="bg-white p-4 shadow-sm sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-center text-red-700">Gente da Feira</h1>
+    </header>
+
+    <nav class="flex bg-white border-b sticky top-[60px] z-10">
+        <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Global</button>
+        <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Minha Zona</button>
+    </nav>
+
+    <main id="feed-container" class="p-4 space-y-4">
+        <div class="bg-white p-4 rounded-lg shadow animate-pulse">Carregando informações da cidade...</div>
+    </main>
+
+    <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3">
+        <button class="flex flex-col items-center text-red-700">
+            <span>🏠</span>
+            <span class="text-xs">Início</span>
+        </button>
+        <button class="flex flex-col items-center text-gray-500">
+            <span>➕</span>
+            <span class="text-xs">Avisar</span>
+        </button>
+        <button class="flex flex-col items-center text-gray-500">
+            <span>👤</span>
+            <span class="text-xs">Perfil</span>
+        </button>
+    </footer>
+
+    <script>
+        function mudarFeed(tipo) {
+            document.getElementById('tab-global').classList.toggle('active-tab', tipo === 'global');
+            document.getElementById('tab-zona').classList.toggle('active-tab', tipo === 'zona');
+            // Aqui você chamará a função do Supabase para filtrar os dados
+            console.log("Mudando para o feed: " + tipo);
+        }
+    </script>
+</body>
+</html>
