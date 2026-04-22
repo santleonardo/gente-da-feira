@@ -21,3 +21,34 @@ async function carregarFeed(tipo = 'global') {
 document.addEventListener('DOMContentLoaded', () => {
     carregarFeed();
 });
+
+// Função para mostrar/esconder o formulário
+function toggleForm() {
+    const form = document.getElementById('form-post');
+    form.classList.toggle('hidden');
+}
+
+// Função para enviar o post para o Supabase
+async function enviarPost() {
+    const author = document.getElementById('post-author').value;
+    const zona = document.getElementById('post-zona').value;
+    const content = document.getElementById('post-content').value;
+
+    if (!author || !content) {
+        alert("Por favor, preencha seu nome e o aviso!");
+        return;
+    }
+
+    const { data, error } = await _supabase
+        .from('posts')
+        .insert([{ author_name: author, zona: zona, content: content }]);
+
+    if (error) {
+        alert("Erro ao publicar: " + error.message);
+    } else {
+        alert("Publicado com sucesso em Feira!");
+        document.getElementById('post-content').value = ''; // Limpa o campo
+        toggleForm(); // Fecha o form
+        carregarFeed(); // Atualiza o feed
+    }
+}
