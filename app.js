@@ -1,6 +1,6 @@
 // Configurações do Supabase (Substitua pelos seus dados depois)
-const SUPABASE_URL = 'SUA_URL_AQUI';
-const SUPABASE_KEY = 'SUA_CHAVE_ANON_AQUI';
+const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
 
 // Inicializa o cliente Supabase
 // Nota: Para o MVP, usaremos a biblioteca via CDN no index.html
