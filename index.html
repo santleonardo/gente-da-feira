@@ -20,6 +20,21 @@
         <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Global</button>
         <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Minha Zona</button>
     </nav>
+    <section id="form-post" class="p-4 bg-white shadow-md m-4 rounded-lg hidden">
+    <h2 class="font-bold mb-2">Novo Aviso</h2>
+    <input type="text" id="post-author" placeholder="Seu nome" class="w-full p-2 border rounded mb-2">
+    <select id="post-zona" class="w-full p-2 border rounded mb-2">
+        <option value="Centro">Centro</option>
+        <option value="Tomba">Tomba</option>
+        <option value="SIM">SIM</option>
+        <option value="Cidade Nova">Cidade Nova</option>
+        <option value="Kalilândia">Kalilândia</option>
+        <option value="Humildes">Humildes</option>
+    </select>
+    <textarea id="post-content" placeholder="O que está acontecendo?" class="w-full p-2 border rounded mb-2"></textarea>
+    <button onclick="enviarPost()" class="bg-red-700 text-white w-full py-2 rounded font-bold">Publicar</button>
+    <button onclick="toggleForm()" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+</section>
 
     <main id="feed-container" class="p-4 space-y-4">
         <div class="bg-white p-4 rounded-lg shadow animate-pulse">Carregando informações da cidade...</div>
