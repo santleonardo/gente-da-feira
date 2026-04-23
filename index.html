@@ -18,8 +18,8 @@
     </header>
 
     <nav class="flex bg-white border-b sticky top-[60px] z-10">
-        <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Global</button>
-        <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Minha Zona</button>
+        <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Feira Toda</button>
+        <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Meu Bairro</button>
     </nav>
 
     <section id="auth-screen" class="p-6 bg-white shadow-lg m-4 rounded-xl hidden">
@@ -38,6 +38,9 @@
     </section>
 
     <section id="user-dashboard" class="p-6 bg-white shadow-lg m-4 rounded-xl hidden">
+        <div class="flex justify-start mb-4">
+            <button onclick="location.reload()" class="text-gray-400 text-sm flex items-center gap-1">← Voltar</button>
+        </div>
         <div class="text-center mb-6">
             <div class="w-24 h-24 bg-red-50 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl border-4 border-red-700 overflow-hidden relative">
                 <img id="img-perfil" src="" class="hidden w-full h-full object-cover">
@@ -48,7 +51,7 @@
         </div>
         <div class="border-t pt-4 space-y-4">
             <p class="text-sm text-gray-600 italic text-center" id="dash-bio">Sua bio aparecerá aqui...</p>
-            <div class="flex gap-2">
+            <div id="dash-acoes" class="flex gap-2">
                 <button onclick="abrirEdicaoPerfil()" class="flex-1 py-3 border border-red-700 text-red-700 rounded-lg font-bold">Editar Perfil</button>
                 <button onclick="fazerLogout()" class="flex-1 py-3 bg-gray-800 text-white rounded-lg font-bold">Sair</button>
             </div>
