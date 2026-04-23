@@ -138,10 +138,13 @@ async function verPerfilPublico(userId) {
             ${pt.content}
         </div>`).join('') || "Sem postagens.";
 
-    // --- SEGURANÇA VISUAL: ESCONDER EDITAR DE TERCEIROS ---
+    // --- LOGICA DE PRIVACIDADE CORRIGIDA ---
     const { data: { session } } = await _supabase.auth.getSession();
     const acoesEl = document.getElementById('dash-acoes');
+    const logoutBtn = document.getElementById('btn-logout-global'); // Procure por um ID de logout global
+
     if (acoesEl) {
+        // Apenas o botão "Editar" deve sumir se não for o dono
         if (session && session.user.id === userId) {
             acoesEl.classList.remove('hidden');
         } else {
@@ -172,9 +175,9 @@ async function abrirEdicaoPerfil() {
 
 async function salvarPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return alert("Logue novamente.");
-
-    // Sempre usar session.user.id para garantir que o usuário só edite a si mesmo
+    if (!session) return;
+    
+    // Força o ID da sessão para garantir segurança
     const { error } = await _supabase.from('profiles').upsert({
         id: session.user.id, 
         username: document.getElementById('perfil-nome').value,
@@ -182,10 +185,12 @@ async function salvarPerfil() {
         bio: document.getElementById('perfil-bio').value,
         updated_at: new Date()
     });
-    if (error) alert(error.message); else {
-        alert("Perfil atualizado!");
-        location.reload();
-    }
+    if (error) alert(error.message); else location.reload();
+}
+
+async function fazerLogout() {
+    await _supabase.auth.signOut();
+    location.reload();
 }
 
 // --- 7. EXPOSIÇÃO GLOBAL ---
@@ -202,9 +207,24 @@ window.abrirPostagem = async () => {
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     const content = document.getElementById('post-content').value;
-    if(!content) return alert("Escreva algo!");
     await _supabase.from('posts').insert([{ content, user_id: session.user.id, author_name: document.getElementById('post-author').value, zona: document.getElementById('post-zona').value }]);
     document.getElementById('post-content').value = "";
     carregarFeed();
 };
-window.gerenciarBot
+window.gerenciarBotaoPerfil = gerenciarBotaoPerfil;
+window.verPerfilPublico = verPerfilPublico;
+window.abrirEdicaoPerfil = abrirEdicaoPerfil;
+window.salvarPerfil = salvarPerfil;
+window.reagir = reagir;
+window.comentar = comentar;
+window.fazerLogout = fazerLogout; // Garante que a função está disponível
+window.fazerLogin = async () => {
+    const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
+    if (error) alert(error.message); else location.reload();
+};
+window.fazerCadastro = async () => {
+    const { error } = await _supabase.auth.signUp({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
+    if (error) alert(error.message); else alert("Confirme seu e-mail!");
+};
+window.toggleForm = () => mostrarTela('feed-container');
+window.loginGitHub = async () => { await _supabase.auth.signInWithOAuth({ provider: 'github' }); };
