@@ -75,7 +75,6 @@ async function gerenciarBotaoPerfil() {
         const emojiEl = document.getElementById('emoji-perfil');
         
         if (p.avatar_url) {
-            // Timestamp (?t=) para forçar atualização da imagem se ela mudar
             imgEl.src = p.avatar_url + "?t=" + new Date().getTime();
             imgEl.classList.remove('hidden');
             emojiEl.classList.add('hidden');
@@ -103,6 +102,8 @@ async function abrirEdicaoPerfil() {
 
 async function salvarPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return alert("Sessão expirada. Faça login novamente.");
+
     const username = document.getElementById('perfil-nome').value;
     const bairro = document.getElementById('perfil-bairro').value;
     const bio = document.getElementById('perfil-bio').value;
@@ -117,23 +118,42 @@ async function salvarPerfil() {
         const fileExt = file.name.split('.').pop();
         const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
 
-        const { error: uploadError } = await _supabase.storage
-            .from('avatars')
-            .upload(fileName, file);
+        console.log("Tentando upload de:", fileName);
 
-        if (!uploadError) {
-            const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
-            avatar_url = data.publicUrl;
+        const { data: uploadData, error: uploadError } = await _supabase.storage
+            .from('avatars')
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type 
+            });
+
+        if (uploadError) {
+            console.error("Erro no Storage:", uploadError);
+            return alert("Erro no upload: " + uploadError.message);
         }
+
+        const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+        avatar_url = urlData.publicUrl;
+        console.log("URL gerada com sucesso:", avatar_url);
     }
 
-    const dadosUpdate = { id: session.user.id, username, bairro, bio };
+    const dadosUpdate = { 
+        id: session.user.id, 
+        username, 
+        bairro, 
+        bio,
+        updated_at: new Date()
+    };
+
     if (avatar_url) dadosUpdate.avatar_url = avatar_url;
 
-    const { error } = await _supabase.from('profiles').upsert(dadosUpdate);
+    const { error: dbError } = await _supabase.from('profiles').upsert(dadosUpdate);
 
-    if (error) alert("Erro ao salvar: " + error.message);
-    else {
+    if (dbError) {
+        console.error("Erro no Banco:", dbError);
+        alert("Erro ao salvar dados: " + dbError.message);
+    } else {
         alert("Perfil atualizado!");
         location.reload();
     }
