@@ -28,6 +28,17 @@ function mostrarTela(telaAtiva) {
     if (ativa) ativa.classList.remove('hidden');
 }
 
+// SEGURANÇA: Escapa HTML para evitar XSS em conteúdo gerado por usuários
+function escaparHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 // --- 3. FEED COM COMENTÁRIOS E REAÇÕES ---
 async function carregarFeed(tipo = 'global') {
     mostrarTela('feed-container');
@@ -67,20 +78,20 @@ async function carregarFeed(tipo = 'global') {
 
         const comentariosHTML = comentarios.data?.map(c => `
             <div class="bg-gray-50 p-2 rounded text-[10px] mb-1">
-                <span class="font-bold text-red-700">${c.author_name}:</span> ${c.content}
+                <span class="font-bold text-red-700">${escaparHTML(c.author_name)}:</span> ${escaparHTML(c.content)}
             </div>
         `).join('') || "";
 
         container.innerHTML += `
             <div class="bg-white p-4 rounded-lg shadow mb-4 border-l-4 border-red-700">
-                <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
+                <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="verPerfilPublico('${escaparHTML(post.user_id)}')">
                     ${fotoHTML}
                     <div>
-                        <p class="font-bold text-red-700 text-xs">${post.author_name}</p>
-                        <p class="text-[9px] text-gray-400 uppercase font-bold">${post.zona}</p>
+                        <p class="font-bold text-red-700 text-xs">${escaparHTML(post.author_name)}</p>
+                        <p class="text-[9px] text-gray-400 uppercase font-bold">${escaparHTML(post.zona)}</p>
                     </div>
                 </div>
-                <p class="text-gray-700 text-sm mb-4">${post.content}</p>
+                <p class="text-gray-700 text-sm mb-4">${escaparHTML(post.content)}</p>
                 <div class="flex justify-around border-t border-b py-2 mb-3 bg-gray-50 rounded">
                     <button onclick="reagir('${post.id}', '❤️')" class="text-sm">❤️ ${counts['❤️']}</button>
                     <button onclick="reagir('${post.id}', '😂')" class="text-sm">😂 ${counts['😂']}</button>
@@ -135,13 +146,12 @@ async function verPerfilPublico(userId) {
     const histEl = document.getElementById('historico-posts');
     histEl.innerHTML = posts?.map(pt => `
         <div class="bg-gray-50 p-3 rounded border-l-2 border-red-700 mb-2 text-xs">
-            ${pt.content}
+            ${escaparHTML(pt.content)}
         </div>`).join('') || "Sem postagens.";
 
-    // --- LOGICA DE PRIVACIDADE CORRIGIDA ---
+    // --- LOGICA DE PRIVACIDADE ---
     const { data: { session } } = await _supabase.auth.getSession();
     const acoesEl = document.getElementById('dash-acoes');
-    const logoutBtn = document.getElementById('btn-logout-global'); // Procure por um ID de logout global
 
     if (acoesEl) {
         // Apenas o botão "Editar" deve sumir se não for o dono
@@ -202,12 +212,35 @@ window.mudarFeed = (tipo) => {
 window.abrirPostagem = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
+
+    // Pré-seleciona o bairro do perfil do usuário
+    const { data: perfil } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
+    if (perfil?.bairro) {
+        const selectZona = document.getElementById('post-zona');
+        if (selectZona) selectZona.value = perfil.bairro;
+    }
+
     mostrarTela('form-post');
 };
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    const content = document.getElementById('post-content').value;
-    await _supabase.from('posts').insert([{ content, user_id: session.user.id, author_name: document.getElementById('post-author').value, zona: document.getElementById('post-zona').value }]);
+    if (!session) return mostrarTela('auth-screen');
+
+    const content = document.getElementById('post-content').value.trim();
+    if (!content) return alert("Escreva algo no aviso!");
+
+    // SEGURANÇA: author_name vem do banco (não do DOM, que pode ser manipulado)
+    const { data: perfil } = await _supabase.from('profiles').select('username').eq('id', session.user.id).single();
+    const authorName = perfil?.username || session.user.email;
+
+    const { error } = await _supabase.from('posts').insert([{
+        content,
+        user_id: session.user.id,
+        author_name: authorName,
+        zona: document.getElementById('post-zona').value
+    }]);
+
+    if (error) return alert("Erro ao publicar: " + error.message);
     document.getElementById('post-content').value = "";
     carregarFeed();
 };
