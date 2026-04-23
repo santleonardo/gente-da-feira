@@ -71,12 +71,11 @@ async function gerenciarBotaoPerfil() {
         document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
         document.getElementById('dash-bio').innerText = p.bio || "Sem bio definida.";
         
-        // CORREÇÃO DA IMAGEM: ID 'img-perfil' conforme seu HTML
         const imgEl = document.getElementById('img-perfil');
         const emojiEl = document.getElementById('emoji-perfil');
         
         if (p.avatar_url) {
-            // Adicionamos um timestamp (?t=...) para evitar que o navegador mostre a imagem antiga do cache
+            // Timestamp (?t=) para forçar atualização da imagem se ela mudar
             imgEl.src = p.avatar_url + "?t=" + new Date().getTime();
             imgEl.classList.remove('hidden');
             emojiEl.classList.add('hidden');
@@ -90,7 +89,6 @@ async function gerenciarBotaoPerfil() {
     }
 }
 
-// Preenche o formulário para facilitar a edição
 async function abrirEdicaoPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
     const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
@@ -114,7 +112,6 @@ async function salvarPerfil() {
 
     let avatar_url = null;
 
-    // Lógica de Upload para o Bucket 'avatars'
     if (fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileExt = file.name.split('.').pop();
@@ -127,8 +124,6 @@ async function salvarPerfil() {
         if (!uploadError) {
             const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
             avatar_url = data.publicUrl;
-        } else {
-            console.error("Erro upload:", uploadError);
         }
     }
 
@@ -137,20 +132,26 @@ async function salvarPerfil() {
 
     const { error } = await _supabase.from('profiles').upsert(dadosUpdate);
 
-    if (error) alert("Erro ao salvar perfil: " + error.message);
+    if (error) alert("Erro ao salvar: " + error.message);
     else {
-        alert("Perfil atualizado com sucesso!");
-        location.reload(); // Recarrega para aplicar todas as mudanças
+        alert("Perfil atualizado!");
+        location.reload();
     }
 }
 
 // --- 5. POSTAGENS ---
 async function abrirPostagem() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return mostrarTela('auth-screen');
+    if (!session) {
+        alert("Faça login para postar!");
+        return mostrarTela('auth-screen');
+    }
     
     const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (!p) return mostrarTela('form-perfil');
+    if (!p) {
+        alert("Crie seu perfil primeiro!");
+        return mostrarTela('form-perfil');
+    }
 
     document.getElementById('post-author').value = p.username;
     document.getElementById('post-zona').value = p.bairro;
@@ -191,20 +192,27 @@ async function carregarFeed(tipo = 'global') {
 
     const { data } = await query;
     const container = document.getElementById('feed-container');
-    container.innerHTML = data && data.length > 0 ? data.map(post => `
-        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-700 mb-4">
-            <div class="flex justify-between items-center mb-2 text-sm text-gray-500">
-                <span class="font-bold text-gray-800">${post.author_name}</span>
-                <span class="bg-gray-100 px-2 py-1 rounded">${post.zona}</span>
+    
+    if (data && data.length > 0) {
+        container.innerHTML = data.map(post => `
+            <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-700 mb-4">
+                <div class="flex justify-between items-center mb-2 text-sm text-gray-500">
+                    <span class="font-bold text-gray-800">${post.author_name}</span>
+                    <span class="bg-gray-100 px-2 py-1 rounded">${post.zona}</span>
+                </div>
+                <p class="text-gray-700">${post.content}</p>
             </div>
-            <p class="text-gray-700">${post.content}</p>
-        </div>
-    `).join('') : '<p class="text-center text-gray-400">Nenhum aviso no momento.</p>';
+        `).join('');
+    } else {
+        container.innerHTML = '<p class="text-center text-gray-400 py-10">Nenhum aviso no momento.</p>';
+    }
 }
 
 function mudarFeed(tipo) {
     document.getElementById('tab-global').classList.toggle('active-tab', tipo === 'global');
+    document.getElementById('tab-global').classList.toggle('text-gray-500', tipo !== 'global');
     document.getElementById('tab-zona').classList.toggle('active-tab', tipo === 'zona');
+    document.getElementById('tab-zona').classList.toggle('text-gray-500', tipo !== 'zona');
     carregarFeed(tipo);
 }
 
