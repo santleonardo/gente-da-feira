@@ -1,4 +1,4 @@
-console.log("Sistema Gente da Feira - Versão Integral Restaurada e Estabilizada");
+console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -6,11 +6,25 @@ const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
 
 let _supabase;
 
-// --- 2. INICIALIZAÇÃO ---
+// --- 2. INICIALIZAÇÃO COM REALTIME ---
 function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         console.log("Supabase conectado com sucesso!");
+        
+        // Ativando o canal de escuta em tempo real
+        _supabase
+            .channel('fluxo-avisos-feira')
+            .on(
+                'postgres_changes', 
+                { event: 'INSERT', schema: 'public', table: 'posts' }, 
+                (payload) => {
+                    console.log('Novo aviso detectado em Feira!', payload);
+                    carregarFeed(); // Recarrega o feed automaticamente para todos
+                }
+            )
+            .subscribe();
+
         carregarFeed();
     } else {
         setTimeout(inicializarSupabase, 500);
@@ -46,7 +60,6 @@ async function carregarFeed(apenasZona = false) {
 
     container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse font-medium">Buscando avisos em Feira de Santana...</p>';
 
-    // A correção principal: Usamos o perfil como opcional para evitar erro de conexão
     let query = _supabase
         .from('posts')
         .select(`*, profiles:user_id(username, bairro, avatar_url)`)
@@ -81,7 +94,6 @@ async function carregarFeed(apenasZona = false) {
     }
 
     for (const post of posts) {
-        // Busca reações e comentários de forma paralela para velocidade
         const [reactsRes, commentsRes] = await Promise.all([
             _supabase.from('reactions').select('emoji_type').eq('post_id', post.id),
             _supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
@@ -93,7 +105,6 @@ async function carregarFeed(apenasZona = false) {
         const div = document.createElement('div');
         div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4 transition-all hover:shadow-md";
         
-        // Fallback para nomes e fotos vazias
         const nomeUsuario = post.profiles?.username || "Morador de Feira";
         const bairroExibicao = post.zona || post.profiles?.bairro || "Geral";
         const avatarUrl = post.profiles?.avatar_url;
@@ -161,7 +172,6 @@ async function verPerfilPublico(userId) {
     const isDono = session?.user.id === userId;
     document.getElementById('dash-acoes').classList.toggle('hidden', !isDono);
 
-    // Carregamento do histórico de avisos do morador
     const { data: posts } = await _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     document.getElementById('dash-count').innerText = posts?.length || 0;
     
@@ -200,7 +210,7 @@ window.enviarPost = async () => {
     } else {
         document.getElementById('post-content').value = "";
         mostrarTela('feed-container');
-        carregarFeed();
+        // carregarFeed() será chamado automaticamente via Realtime
     }
 };
 
