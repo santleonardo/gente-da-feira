@@ -2,6 +2,8 @@ console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
+// IMPORTANTE: Substitua pela chave real (JWT longo) encontrada em: 
+// Project Settings -> API -> "anon public"
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
 
 let _supabase;
@@ -12,6 +14,7 @@ function inicializarSupabase() {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         console.log("Supabase conectado com sucesso!");
         
+        // Ativando o canal de escuta em tempo real para novos posts
         _supabase
             .channel('fluxo-avisos-feira')
             .on(
@@ -40,12 +43,9 @@ function mostrarTela(telaAtiva) {
     });
     const ativa = document.getElementById(telaAtiva);
     if (ativa) ativa.classList.remove('hidden');
-    
-    // Rolar para o topo ao trocar de tela
-    window.scrollTo(0, 0);
 }
 
-// Expõe para o HTML conseguir chamar via onclick
+// Expor para ser chamada do HTML
 window.mostrarTela = mostrarTela;
 
 function escaparHTML(str) {
@@ -153,7 +153,7 @@ async function carregarFeed(apenasZona = false) {
     }
 }
 
-// --- 5. DASHBOARD E PERFIL ---
+// --- 5. DASHBOARD E PERFIL (Global) ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
     const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
@@ -213,7 +213,6 @@ window.enviarPost = async () => {
     else {
         document.getElementById('post-content').value = "";
         mostrarTela('feed-container');
-        carregarFeed();
     }
 };
 
@@ -301,15 +300,10 @@ window.mudarFeed = (tipo) => {
     carregarFeed(!isGlobal);
 };
 
-// CORREÇÃO: Verifica login antes de abrir tela de postagem
 window.abrirPostagem = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (session) {
-        mostrarTela('form-post');
-    } else {
-        alert("Entre na sua conta para publicar um aviso.");
-        mostrarTela('auth-screen');
-    }
+    if (!session) return mostrarTela('auth-screen');
+    mostrarTela('form-post');
 };
 
 window.abrirEdicaoPerfil = () => {
