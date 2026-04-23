@@ -58,34 +58,49 @@ async function fazerLogout() {
     location.reload();
 }
 
-// --- 4. GESTÃO DE PERFIL (COM FOTO E BIO) ---
+// --- 4. GESTÃO DE PERFIL ---
+
+// Ver perfil próprio (Dono da conta)
 async function gerenciarBotaoPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
+    verPerfilPublico(session.user.id);
+}
 
-    const { data: perfis } = await _supabase.from('profiles').select('*').eq('id', session.user.id);
+// NOVA: Ver perfil de qualquer usuário (Público)
+async function verPerfilPublico(userId) {
+    const { data: p, error } = await _supabase.from('profiles').select('*').eq('id', userId).single();
 
-    if (perfis && perfis.length > 0) {
-        const p = perfis[0];
-        document.getElementById('dash-nome').innerText = p.username;
-        document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
-        document.getElementById('dash-bio').innerText = p.bio || "Sem bio definida.";
-        
-        const imgEl = document.getElementById('img-perfil');
-        const emojiEl = document.getElementById('emoji-perfil');
-        
-        if (p.avatar_url) {
-            imgEl.src = p.avatar_url + "?t=" + new Date().getTime();
-            imgEl.classList.remove('hidden');
-            emojiEl.classList.add('hidden');
-        } else {
-            imgEl.classList.add('hidden');
-            emojiEl.classList.remove('hidden');
-        }
-        mostrarTela('user-dashboard');
+    if (error || !p) return alert("Perfil não encontrado.");
+
+    // Preenche os dados na tela
+    document.getElementById('dash-nome').innerText = p.username;
+    document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
+    document.getElementById('dash-bio').innerText = p.bio || "Sem bio definida.";
+    
+    const imgEl = document.getElementById('img-perfil');
+    const emojiEl = document.getElementById('emoji-perfil');
+    
+    if (p.avatar_url) {
+        imgEl.src = p.avatar_url + "?t=" + new Date().getTime();
+        imgEl.classList.remove('hidden');
+        emojiEl.classList.add('hidden');
     } else {
-        mostrarTela('form-perfil');
+        imgEl.classList.add('hidden');
+        emojiEl.classList.remove('hidden');
     }
+
+    // Lógica de Privacidade: Só mostra botões de Editar/Sair se o perfil for do usuário logado
+    const { data: { session } } = await _supabase.auth.getSession();
+    const acoesEl = document.getElementById('dash-acoes');
+    
+    if (session && session.user.id === userId) {
+        if (acoesEl) acoesEl.classList.remove('hidden');
+    } else {
+        if (acoesEl) acoesEl.classList.add('hidden');
+    }
+
+    mostrarTela('user-dashboard');
 }
 
 async function abrirEdicaoPerfil() {
@@ -118,42 +133,23 @@ async function salvarPerfil() {
         const fileExt = file.name.split('.').pop();
         const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
 
-        console.log("Tentando upload de:", fileName);
-
-        const { data: uploadData, error: uploadError } = await _supabase.storage
+        const { error: uploadError } = await _supabase.storage
             .from('avatars')
-            .upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: false,
-                contentType: file.type 
-            });
+            .upload(fileName, file, { contentType: file.type });
 
-        if (uploadError) {
-            console.error("Erro no Storage:", uploadError);
-            return alert("Erro no upload: " + uploadError.message);
-        }
+        if (uploadError) return alert("Erro no upload: " + uploadError.message);
 
         const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(fileName);
         avatar_url = urlData.publicUrl;
-        console.log("URL gerada com sucesso:", avatar_url);
     }
 
-    const dadosUpdate = { 
-        id: session.user.id, 
-        username, 
-        bairro, 
-        bio,
-        updated_at: new Date()
-    };
-
+    const dadosUpdate = { id: session.user.id, username, bairro, bio, updated_at: new Date() };
     if (avatar_url) dadosUpdate.avatar_url = avatar_url;
 
     const { error: dbError } = await _supabase.from('profiles').upsert(dadosUpdate);
 
-    if (dbError) {
-        console.error("Erro no Banco:", dbError);
-        alert("Erro ao salvar dados: " + dbError.message);
-    } else {
+    if (dbError) alert("Erro ao salvar dados: " + dbError.message);
+    else {
         alert("Perfil atualizado!");
         location.reload();
     }
@@ -207,6 +203,9 @@ async function carregarFeed(tipo = 'global') {
         if (session) {
             const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
             if (p) query = query.eq('zona', p.bairro);
+        } else {
+            alert("Faça login para ver as notícias do seu bairro!");
+            return mudarFeed('global');
         }
     }
 
@@ -217,7 +216,9 @@ async function carregarFeed(tipo = 'global') {
         container.innerHTML = data.map(post => `
             <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-700 mb-4">
                 <div class="flex justify-between items-center mb-2 text-sm text-gray-500">
-                    <span class="font-bold text-gray-800">${post.author_name}</span>
+                    <span class="font-bold text-red-700 cursor-pointer hover:underline" onclick="verPerfilPublico('${post.user_id}')">
+                        ${post.author_name}
+                    </span>
                     <span class="bg-gray-100 px-2 py-1 rounded">${post.zona}</span>
                 </div>
                 <p class="text-gray-700">${post.content}</p>
