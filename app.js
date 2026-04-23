@@ -5,11 +5,11 @@ const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
 
 let _supabase;
 
-// --- INICIALIZAÇÃO ---
+// --- 1. INICIALIZAÇÃO ---
 function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase conectado!");
+        console.log("Supabase conectado com sucesso!");
         carregarFeed();
     } else {
         setTimeout(inicializarSupabase, 500);
@@ -17,7 +17,7 @@ function inicializarSupabase() {
 }
 document.addEventListener('DOMContentLoaded', inicializarSupabase);
 
-// --- NAVEGAÇÃO ---
+// --- 2. NAVEGAÇÃO ---
 function mostrarTela(telaAtiva) {
     const telas = ['feed-container', 'auth-screen', 'user-dashboard', 'form-perfil', 'form-post'];
     telas.forEach(id => {
@@ -28,7 +28,7 @@ function mostrarTela(telaAtiva) {
     if (ativa) ativa.classList.remove('hidden');
 }
 
-// --- AUTENTICAÇÃO ---
+// --- 3. AUTENTICAÇÃO (SOCIAL E MANUAL) ---
 async function loginGitHub() {
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'github',
@@ -37,19 +37,38 @@ async function loginGitHub() {
     if (error) alert("Erro GitHub: " + error.message);
 }
 
+async function fazerCadastro() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) return alert("Preencha e-mail e senha!");
+
+    const { error } = await _supabase.auth.signUp({ email, password });
+    if (error) alert("Erro no cadastro: " + error.message);
+    else alert("Cadastro solicitado! Verifique seu e-mail ou faça login se já confirmou.");
+}
+
+async function fazerLogin() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) return alert("Preencha e-mail e senha!");
+
+    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Erro no login: " + error.message);
+    else location.reload();
+}
+
 async function fazerLogout() {
     await _supabase.auth.signOut();
     location.reload();
 }
 
-// --- GESTÃO DE PERFIL ---
+// --- 4. GESTÃO DE PERFIL ---
 async function gerenciarBotaoPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
     
     if (!session) {
         mostrarTela('auth-screen');
     } else {
-        // Busca usando array para evitar o erro do .single()
         const { data: perfis } = await _supabase
             .from('profiles')
             .select('*')
@@ -82,22 +101,21 @@ async function salvarPerfil() {
         bio
     });
 
-    if (error) alert(error.message);
+    if (error) alert("Erro ao salvar: " + error.message);
     else {
         alert("Perfil atualizado!");
         location.reload();
     }
 }
 
-// --- POSTAGENS ---
+// --- 5. POSTAGENS ---
 async function abrirPostagem() {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
-        alert("Leonardo, você precisa entrar na sua conta para publicar!");
+        alert("Leonardo, você precisa entrar para publicar!");
         mostrarTela('auth-screen');
     } else {
         const { data: perfis } = await _supabase.from('profiles').select('*').eq('id', session.user.id);
-        
         if (!perfis || perfis.length === 0) {
             alert("Crie seu perfil primeiro!");
             mostrarTela('form-perfil');
@@ -115,7 +133,7 @@ async function enviarPost() {
     const content = document.getElementById('post-content').value;
     const { data: { session } } = await _supabase.auth.getSession();
 
-    if (!content) return alert("O que está acontecendo em Feira?");
+    if (!content) return alert("O que quer avisar à Feira?");
 
     const { error } = await _supabase.from('posts').insert([{ 
         author_name: author, 
@@ -124,16 +142,16 @@ async function enviarPost() {
         user_id: session.user.id 
     }]);
 
-    if (error) alert(error.message);
+    if (error) alert("Erro ao postar: " + error.message);
     else {
         document.getElementById('post-content').value = '';
+        mostrarTela('feed-container');
         carregarFeed();
     }
 }
 
-// --- FEED ---
+// --- 6. FEED ---
 async function carregarFeed(tipo = 'global') {
-    mostrarTela('feed-container');
     let query = _supabase.from('posts').select('*').order('created_at', { ascending: false });
 
     if (tipo === 'zona') {
