@@ -2,7 +2,9 @@ console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb'; 
+// IMPORTANTE: Substitua pela chave real (JWT longo) encontrada em: 
+// Project Settings -> API -> "anon public"
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
 
 let _supabase;
 
@@ -12,15 +14,15 @@ function inicializarSupabase() {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         console.log("Supabase conectado com sucesso!");
         
-        // Ativando o canal de escuta em tempo real
+        // Ativando o canal de escuta em tempo real para novos posts
         _supabase
             .channel('fluxo-avisos-feira')
             .on(
                 'postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'posts' }, 
                 (payload) => {
-                    console.log('Novo aviso detectado em Feira!', payload);
-                    carregarFeed(); // Recarrega o feed automaticamente para todos
+                    console.log('Novo aviso detectado!', payload);
+                    carregarFeed(); 
                 }
             )
             .subscribe();
@@ -53,7 +55,7 @@ function escaparHTML(str) {
         .replace(/'/g, '&#039;');
 }
 
-// --- 4. LÓGICA DO FEED (Renderização e Filtros) ---
+// --- 4. LÓGICA DO FEED ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
@@ -82,14 +84,14 @@ async function carregarFeed(apenasZona = false) {
         return container.innerHTML = `
             <div class="text-center p-10">
                 <p class="text-red-500 font-bold">Erro ao carregar o feed.</p>
-                <p class="text-xs text-gray-500">Verifique sua conexão ou as tabelas do banco.</p>
+                <p class="text-xs text-gray-500">Verifique a conexão ou as tabelas do banco.</p>
             </div>`;
     }
 
     container.innerHTML = "";
     
     if (posts.length === 0) {
-        container.innerHTML = "<p class='text-center p-10 text-gray-500'>Nenhum aviso encontrado nesta região.</p>";
+        container.innerHTML = "<p class='text-center p-10 text-gray-500'>Nenhum aviso encontrado.</p>";
         return;
     }
 
@@ -101,7 +103,6 @@ async function carregarFeed(apenasZona = false) {
 
         const reacts = reactsRes.data || [];
         const comments = commentsRes.data || [];
-
         const div = document.createElement('div');
         div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4 transition-all hover:shadow-md";
         
@@ -139,25 +140,25 @@ async function carregarFeed(apenasZona = false) {
             </div>
 
             <div class="flex gap-2">
-                <input type="text" id="comment-input-${post.id}" placeholder="Responder ao aviso..." 
-                       class="flex-1 text-xs p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-red-700">
+                <input type="text" id="comment-input-${post.id}" placeholder="Responder..." 
+                       class="flex-1 text-xs p-2.5 border border-gray-200 rounded-xl outline-none">
                 <button onclick="comentar(${post.id})" 
-                        class="bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition">Enviar</button>
+                        class="bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95">Enviar</button>
             </div>
         `;
         container.appendChild(div);
     }
 }
 
-// --- 5. PERFIL, DASHBOARD E HISTÓRICO ---
-async function verPerfilPublico(userId) {
+// --- 5. DASHBOARD E PERFIL (Global) ---
+window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
     const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
     
     if (perfil) {
-        document.getElementById('dash-nome').innerText = perfil.username || "Morador de Feira";
+        document.getElementById('dash-nome').innerText = perfil.username || "Morador";
         document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
-        document.getElementById('dash-bio').innerText = perfil.bio || "Este morador ainda não definiu uma bio.";
+        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio definida.";
         
         const img = document.getElementById('img-perfil');
         const emo = document.getElementById('emoji-perfil');
@@ -185,11 +186,11 @@ async function verPerfilPublico(userId) {
                     <span>${new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
             </div>
-        `).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Ainda não publicou nenhum aviso.</p>";
+        `).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso publicado.</p>";
     }
-}
+};
 
-// --- 6. INTERAÇÕES E PUBLICAÇÃO ---
+// --- 6. INTERAÇÕES ---
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -197,7 +198,7 @@ window.enviarPost = async () => {
     const content = document.getElementById('post-content').value;
     const zona = document.getElementById('post-zona').value;
 
-    if (!content.trim()) return alert("Por favor, descreva o aviso.");
+    if (!content.trim()) return alert("Descreva o aviso.");
 
     const { error } = await _supabase.from('posts').insert([{
         content: content,
@@ -205,12 +206,10 @@ window.enviarPost = async () => {
         zona: zona
     }]);
 
-    if (error) {
-        alert("Erro ao publicar aviso: " + error.message);
-    } else {
+    if (error) alert("Erro: " + error.message);
+    else {
         document.getElementById('post-content').value = "";
         mostrarTela('feed-container');
-        // carregarFeed() será chamado automaticamente via Realtime
     }
 };
 
@@ -240,19 +239,19 @@ window.comentar = async (postId) => {
     carregarFeed();
 };
 
-// --- 7. SISTEMA DE AUTENTICAÇÃO ---
+// --- 7. AUTENTICAÇÃO ---
 window.fazerLogin = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    if (error) alert("Erro no login: " + error.message); else location.reload();
+    if (error) alert("Erro: " + error.message); else location.reload();
 };
 
 window.fazerCadastro = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert("Erro no cadastro: " + error.message); else alert("Quase lá! Verifique sua caixa de e-mail.");
+    if (error) alert("Erro: " + error.message); else alert("Verifique seu e-mail.");
 };
 
 window.fazerLogout = async () => {
@@ -260,7 +259,7 @@ window.fazerLogout = async () => {
     location.reload();
 };
 
-// --- 8. GESTÃO DE PERFIL E UPLOAD ---
+// --- 8. GESTÃO DE PERFIL ---
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
@@ -276,11 +275,9 @@ window.salvarPerfil = async () => {
     const file = document.getElementById('perfil-upload').files[0];
     if (file) {
         const path = `${session.user.id}/${Date.now()}-${file.name}`;
-        const { data: up, error: upErr } = await _supabase.storage.from('avatars').upload(path, file);
+        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
         if (up) {
             updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-        } else {
-            console.error("Erro upload:", upErr);
         }
     }
 
@@ -291,12 +288,17 @@ window.salvarPerfil = async () => {
 // --- 9. CONTROLES GLOBAIS ---
 window.mudarFeed = (tipo) => {
     const isGlobal = tipo === 'global';
-    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
-    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    const tabGlobal = document.getElementById('tab-global');
+    const tabZona = document.getElementById('tab-zona');
+    
+    if (tabGlobal) tabGlobal.className = isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    if (tabZona) tabZona.className = !isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    
     carregarFeed(!isGlobal);
 };
 
 window.abrirPostagem = () => mostrarTela('form-post');
+
 window.abrirEdicaoPerfil = () => {
     _supabase.auth.getSession().then(({data: {session}}) => {
         if (session) {
