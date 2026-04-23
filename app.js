@@ -52,7 +52,6 @@ async function carregarFeed(tipo = 'global') {
 
     container.innerHTML = "";
     for (const post of posts) {
-        // Carrega avatar, reações e comentários para cada post
         const [autor, reacoes, comentarios] = await Promise.all([
             _supabase.from('profiles').select('avatar_url').eq('id', post.user_id).single(),
             _supabase.from('reactions').select('emoji_type').eq('post_id', post.id),
@@ -63,7 +62,6 @@ async function carregarFeed(tipo = 'global') {
             ? `<img src="${autor.data.avatar_url}" class="w-8 h-8 rounded-full border-2 border-red-700 object-cover">`
             : `<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs">👤</div>`;
 
-        // Contagem de reações
         const counts = { '❤️': 0, '😂': 0, '👎': 0, '👍': 0 };
         reacoes.data?.forEach(r => { if(counts[r.emoji_type] !== undefined) counts[r.emoji_type]++; });
 
@@ -83,16 +81,13 @@ async function carregarFeed(tipo = 'global') {
                     </div>
                 </div>
                 <p class="text-gray-700 text-sm mb-4">${post.content}</p>
-                
                 <div class="flex justify-around border-t border-b py-2 mb-3 bg-gray-50 rounded">
                     <button onclick="reagir('${post.id}', '❤️')" class="text-sm">❤️ ${counts['❤️']}</button>
                     <button onclick="reagir('${post.id}', '😂')" class="text-sm">😂 ${counts['😂']}</button>
                     <button onclick="reagir('${post.id}', '👍')" class="text-sm">👍 ${counts['👍']}</button>
                     <button onclick="reagir('${post.id}', '👎')" class="text-sm">👎 ${counts['👎']}</button>
                 </div>
-
                 <div class="mb-3">${comentariosHTML}</div>
-
                 <div class="flex gap-2">
                     <input type="text" id="in-coment-${post.id}" placeholder="Comentar..." class="flex-1 bg-gray-50 border rounded-full px-3 py-1 text-xs outline-none">
                     <button onclick="comentar('${post.id}')" class="bg-red-700 text-white px-3 py-1 rounded-full text-xs">OK</button>
@@ -143,6 +138,17 @@ async function verPerfilPublico(userId) {
             ${pt.content}
         </div>`).join('') || "Sem postagens.";
 
+    // --- SEGURANÇA VISUAL: ESCONDER EDITAR DE TERCEIROS ---
+    const { data: { session } } = await _supabase.auth.getSession();
+    const acoesEl = document.getElementById('dash-acoes');
+    if (acoesEl) {
+        if (session && session.user.id === userId) {
+            acoesEl.classList.remove('hidden');
+        } else {
+            acoesEl.classList.add('hidden');
+        }
+    }
+
     mostrarTela('user-dashboard');
 }
 
@@ -166,7 +172,9 @@ async function abrirEdicaoPerfil() {
 
 async function salvarPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return alert("Logue novamente.");
+
+    // Sempre usar session.user.id para garantir que o usuário só edite a si mesmo
     const { error } = await _supabase.from('profiles').upsert({
         id: session.user.id, 
         username: document.getElementById('perfil-nome').value,
@@ -174,7 +182,10 @@ async function salvarPerfil() {
         bio: document.getElementById('perfil-bio').value,
         updated_at: new Date()
     });
-    if (error) alert(error.message); else location.reload();
+    if (error) alert(error.message); else {
+        alert("Perfil atualizado!");
+        location.reload();
+    }
 }
 
 // --- 7. EXPOSIÇÃO GLOBAL ---
@@ -191,24 +202,9 @@ window.abrirPostagem = async () => {
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     const content = document.getElementById('post-content').value;
+    if(!content) return alert("Escreva algo!");
     await _supabase.from('posts').insert([{ content, user_id: session.user.id, author_name: document.getElementById('post-author').value, zona: document.getElementById('post-zona').value }]);
     document.getElementById('post-content').value = "";
     carregarFeed();
 };
-window.gerenciarBotaoPerfil = gerenciarBotaoPerfil;
-window.verPerfilPublico = verPerfilPublico;
-window.abrirEdicaoPerfil = abrirEdicaoPerfil;
-window.salvarPerfil = salvarPerfil;
-window.reagir = reagir;
-window.comentar = comentar;
-window.fazerLogin = async () => {
-    const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
-    if (error) alert(error.message); else location.reload();
-};
-window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
-window.fazerCadastro = async () => {
-    const { error } = await _supabase.auth.signUp({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
-    if (error) alert(error.message); else alert("Confirme seu e-mail!");
-};
-window.toggleForm = () => mostrarTela('feed-container');
-window.loginGitHub = async () => { await _supabase.auth.signInWithOAuth({ provider: 'github' }); };
+window.gerenciarBot
