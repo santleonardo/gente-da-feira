@@ -1,4 +1,24 @@
-// ... (mantenha as seções 1 a 5 iguais)
+// Adicione isto no topo para testar se o arquivo está lendo
+console.log("Sistema Gente da Feira Iniciado...");
+
+const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb';
+
+let _supabase;
+
+// Função para garantir que o Supabase existe antes de criar o cliente
+function inicializarSupabase() {
+    if (typeof supabase !== 'undefined') {
+        _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("Supabase conectado com sucesso!");
+        carregarFeed();
+    } else {
+        console.error("Erro: Biblioteca Supabase não encontrada. Tentando novamente...");
+        setTimeout(inicializarSupabase, 500);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', inicializarSupabase);// ... (mantenha as seções 1 a 5 iguais)
 
 // 6. Postagens (Protegidas por Login)
 async function abrirPostagem() {
