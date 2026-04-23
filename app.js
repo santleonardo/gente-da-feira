@@ -30,11 +30,10 @@ function mostrarTela(telaAtiva) {
 
 // --- 3. AUTENTICAÇÃO ---
 async function loginGitHub() {
-    const { error } = await _supabase.auth.signInWithOAuth({
+    await _supabase.auth.signInWithOAuth({
         provider: 'github',
         options: { redirectTo: window.location.origin + window.location.pathname }
     });
-    if (error) alert("Erro GitHub: " + error.message);
 }
 
 async function fazerCadastro() {
@@ -43,7 +42,7 @@ async function fazerCadastro() {
     if (!email || !password) return alert("Preencha e-mail e senha!");
     const { error } = await _supabase.auth.signUp({ email, password });
     if (error) alert("Erro: " + error.message);
-    else alert("Cadastro solicitado! Verifique seu e-mail.");
+    else alert("Verifique seu e-mail para confirmar o cadastro.");
 }
 
 async function fazerLogin() {
@@ -72,13 +71,18 @@ async function gerenciarBotaoPerfil() {
         document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
         document.getElementById('dash-bio').innerText = p.bio || "Sem bio definida.";
         
-        // Atualiza a imagem no Dashboard
+        // CORREÇÃO DA IMAGEM: ID 'img-perfil' conforme seu HTML
         const imgEl = document.getElementById('img-perfil');
         const emojiEl = document.getElementById('emoji-perfil');
+        
         if (p.avatar_url) {
-            imgEl.src = p.avatar_url;
+            // Adicionamos um timestamp (?t=...) para evitar que o navegador mostre a imagem antiga do cache
+            imgEl.src = p.avatar_url + "?t=" + new Date().getTime();
             imgEl.classList.remove('hidden');
             emojiEl.classList.add('hidden');
+        } else {
+            imgEl.classList.add('hidden');
+            emojiEl.classList.remove('hidden');
         }
         mostrarTela('user-dashboard');
     } else {
@@ -86,7 +90,7 @@ async function gerenciarBotaoPerfil() {
     }
 }
 
-// Abre o formulário já com os dados atuais para editar
+// Preenche o formulário para facilitar a edição
 async function abrirEdicaoPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
     const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
@@ -110,11 +114,11 @@ async function salvarPerfil() {
 
     let avatar_url = null;
 
-    // Se houver um arquivo selecionado, faz o upload
+    // Lógica de Upload para o Bucket 'avatars'
     if (fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileExt = file.name.split('.').pop();
-        const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+        const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await _supabase.storage
             .from('avatars')
@@ -123,6 +127,8 @@ async function salvarPerfil() {
         if (!uploadError) {
             const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
             avatar_url = data.publicUrl;
+        } else {
+            console.error("Erro upload:", uploadError);
         }
     }
 
@@ -131,30 +137,24 @@ async function salvarPerfil() {
 
     const { error } = await _supabase.from('profiles').upsert(dadosUpdate);
 
-    if (error) alert("Erro ao salvar: " + error.message);
+    if (error) alert("Erro ao salvar perfil: " + error.message);
     else {
-        alert("Perfil atualizado!");
-        location.reload();
+        alert("Perfil atualizado com sucesso!");
+        location.reload(); // Recarrega para aplicar todas as mudanças
     }
 }
 
 // --- 5. POSTAGENS ---
 async function abrirPostagem() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) {
-        alert("Entre na sua conta para avisar!");
-        mostrarTela('auth-screen');
-    } else {
-        const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        if (!p) {
-            alert("Crie seu perfil primeiro!");
-            mostrarTela('form-perfil');
-        } else {
-            document.getElementById('post-author').value = p.username;
-            document.getElementById('post-zona').value = p.bairro;
-            mostrarTela('form-post');
-        }
-    }
+    if (!session) return mostrarTela('auth-screen');
+    
+    const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if (!p) return mostrarTela('form-perfil');
+
+    document.getElementById('post-author').value = p.username;
+    document.getElementById('post-zona').value = p.bairro;
+    mostrarTela('form-post');
 }
 
 async function enviarPost() {
