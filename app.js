@@ -28,7 +28,7 @@ function mostrarTela(telaAtiva) {
     if (ativa) ativa.classList.remove('hidden');
 }
 
-// --- 3. AUTENTICAÇÃO (SOCIAL E MANUAL) ---
+// --- 3. AUTENTICAÇÃO ---
 async function loginGitHub() {
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'github',
@@ -41,19 +41,16 @@ async function fazerCadastro() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     if (!email || !password) return alert("Preencha e-mail e senha!");
-
     const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert("Erro no cadastro: " + error.message);
-    else alert("Cadastro solicitado! Verifique seu e-mail ou faça login se já confirmou.");
+    if (error) alert("Erro: " + error.message);
+    else alert("Cadastro solicitado! Verifique seu e-mail.");
 }
 
 async function fazerLogin() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    if (!email || !password) return alert("Preencha e-mail e senha!");
-
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    if (error) alert("Erro no login: " + error.message);
+    if (error) alert("Erro: " + error.message);
     else location.reload();
 }
 
@@ -62,28 +59,44 @@ async function fazerLogout() {
     location.reload();
 }
 
-// --- 4. GESTÃO DE PERFIL ---
+// --- 4. GESTÃO DE PERFIL (COM FOTO E BIO) ---
 async function gerenciarBotaoPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
-    
-    if (!session) {
-        mostrarTela('auth-screen');
-    } else {
-        const { data: perfis } = await _supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
+    if (!session) return mostrarTela('auth-screen');
 
-        if (perfis && perfis.length > 0) {
-            const p = perfis[0];
-            document.getElementById('dash-nome').innerText = p.username;
-            document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
-            document.getElementById('dash-bio').innerText = p.bio;
-            mostrarTela('user-dashboard');
-        } else {
-            mostrarTela('form-perfil');
+    const { data: perfis } = await _supabase.from('profiles').select('*').eq('id', session.user.id);
+
+    if (perfis && perfis.length > 0) {
+        const p = perfis[0];
+        document.getElementById('dash-nome').innerText = p.username;
+        document.getElementById('dash-bairro').innerText = "Morador de " + p.bairro;
+        document.getElementById('dash-bio').innerText = p.bio || "Sem bio definida.";
+        
+        // Atualiza a imagem no Dashboard
+        const imgEl = document.getElementById('img-perfil');
+        const emojiEl = document.getElementById('emoji-perfil');
+        if (p.avatar_url) {
+            imgEl.src = p.avatar_url;
+            imgEl.classList.remove('hidden');
+            emojiEl.classList.add('hidden');
         }
+        mostrarTela('user-dashboard');
+    } else {
+        mostrarTela('form-perfil');
     }
+}
+
+// Abre o formulário já com os dados atuais para editar
+async function abrirEdicaoPerfil() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    
+    if (p) {
+        document.getElementById('perfil-nome').value = p.username;
+        document.getElementById('perfil-bairro').value = p.bairro;
+        document.getElementById('perfil-bio').value = p.bio || "";
+    }
+    mostrarTela('form-perfil');
 }
 
 async function salvarPerfil() {
@@ -91,15 +104,32 @@ async function salvarPerfil() {
     const username = document.getElementById('perfil-nome').value;
     const bairro = document.getElementById('perfil-bairro').value;
     const bio = document.getElementById('perfil-bio').value;
+    const fileInput = document.getElementById('perfil-upload');
 
-    if (!username || !bairro) return alert("Preencha nome e bairro!");
+    if (!username || !bairro) return alert("Nome e bairro são obrigatórios!");
 
-    const { error } = await _supabase.from('profiles').upsert({
-        id: session.user.id,
-        username,
-        bairro,
-        bio
-    });
+    let avatar_url = null;
+
+    // Se houver um arquivo selecionado, faz o upload
+    if (fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+
+        const { error: uploadError } = await _supabase.storage
+            .from('avatars')
+            .upload(fileName, file);
+
+        if (!uploadError) {
+            const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+            avatar_url = data.publicUrl;
+        }
+    }
+
+    const dadosUpdate = { id: session.user.id, username, bairro, bio };
+    if (avatar_url) dadosUpdate.avatar_url = avatar_url;
+
+    const { error } = await _supabase.from('profiles').upsert(dadosUpdate);
 
     if (error) alert("Erro ao salvar: " + error.message);
     else {
@@ -112,46 +142,43 @@ async function salvarPerfil() {
 async function abrirPostagem() {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
-        alert("Leonardo, você precisa entrar para publicar!");
+        alert("Entre na sua conta para avisar!");
         mostrarTela('auth-screen');
     } else {
-        const { data: perfis } = await _supabase.from('profiles').select('*').eq('id', session.user.id);
-        if (!perfis || perfis.length === 0) {
+        const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (!p) {
             alert("Crie seu perfil primeiro!");
             mostrarTela('form-perfil');
         } else {
-            document.getElementById('post-author').value = perfis[0].username;
-            document.getElementById('post-zona').value = perfis[0].bairro;
+            document.getElementById('post-author').value = p.username;
+            document.getElementById('post-zona').value = p.bairro;
             mostrarTela('form-post');
         }
     }
 }
 
 async function enviarPost() {
-    const author = document.getElementById('post-author').value;
-    const zona = document.getElementById('post-zona').value;
     const content = document.getElementById('post-content').value;
     const { data: { session } } = await _supabase.auth.getSession();
+    const author = document.getElementById('post-author').value;
+    const zona = document.getElementById('post-zona').value;
 
-    if (!content) return alert("O que quer avisar à Feira?");
+    if (!content) return alert("Escreva seu aviso!");
 
     const { error } = await _supabase.from('posts').insert([{ 
-        author_name: author, 
-        zona, 
-        content,
-        user_id: session.user.id 
+        author_name: author, zona, content, user_id: session.user.id 
     }]);
 
-    if (error) alert("Erro ao postar: " + error.message);
+    if (error) alert(error.message);
     else {
         document.getElementById('post-content').value = '';
-        mostrarTela('feed-container');
         carregarFeed();
     }
 }
 
 // --- 6. FEED ---
 async function carregarFeed(tipo = 'global') {
+    mostrarTela('feed-container');
     let query = _supabase.from('posts').select('*').order('created_at', { ascending: false });
 
     if (tipo === 'zona') {
