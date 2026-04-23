@@ -1,8 +1,8 @@
-console.log("Sistema Gente da Feira - Versão Original Restaurada (Sem GitHub)");
+console.log("Sistema Gente da Feira - Versão Integral Restaurada e Estabilizada");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb'; // Lembre-se de usar a chave que começa com eyJ
+const SUPABASE_KEY = 'sb_publishable_bAMTltQrNtH5oFtdgI2tZA_7TNIpXEb'; 
 
 let _supabase;
 
@@ -10,7 +10,7 @@ let _supabase;
 function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase conectado!");
+        console.log("Supabase conectado com sucesso!");
         carregarFeed();
     } else {
         setTimeout(inicializarSupabase, 500);
@@ -39,13 +39,14 @@ function escaparHTML(str) {
         .replace(/'/g, '&#039;');
 }
 
-// --- 4. LÓGICA DO FEED (A MAIOR PARTE DO CÓDIGO) ---
+// --- 4. LÓGICA DO FEED (Renderização e Filtros) ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
 
-    container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse">Carregando avisos de Feira...</p>';
+    container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse font-medium">Buscando avisos em Feira de Santana...</p>';
 
+    // A correção principal: Usamos o perfil como opcional para evitar erro de conexão
     let query = _supabase
         .from('posts')
         .select(`*, profiles:user_id(username, bairro, avatar_url)`)
@@ -55,73 +56,97 @@ async function carregarFeed(apenasZona = false) {
         const { data: { session } } = await _supabase.auth.getSession();
         if (session) {
             const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-            if (p?.bairro) query = query.eq('zona', p.bairro);
+            if (p?.bairro) {
+                query = query.eq('zona', p.bairro);
+            }
         }
     }
 
     const { data: posts, error } = await query;
+    
     if (error) {
-        console.error(error);
-        return container.innerHTML = "<p class='text-center text-red-500 p-10 font-bold'>Erro ao carregar o feed. Tente novamente.</p>";
+        console.error("Erro Supabase:", error);
+        return container.innerHTML = `
+            <div class="text-center p-10">
+                <p class="text-red-500 font-bold">Erro ao carregar o feed.</p>
+                <p class="text-xs text-gray-500">Verifique sua conexão ou as tabelas do banco.</p>
+            </div>`;
     }
 
     container.innerHTML = "";
+    
+    if (posts.length === 0) {
+        container.innerHTML = "<p class='text-center p-10 text-gray-500'>Nenhum aviso encontrado nesta região.</p>";
+        return;
+    }
+
     for (const post of posts) {
-        const { data: reacts } = await _supabase.from('reactions').select('emoji_type').eq('post_id', post.id);
-        const { data: comments } = await _supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true });
+        // Busca reações e comentários de forma paralela para velocidade
+        const [reactsRes, commentsRes] = await Promise.all([
+            _supabase.from('reactions').select('emoji_type').eq('post_id', post.id),
+            _supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
+        ]);
+
+        const reacts = reactsRes.data || [];
+        const comments = commentsRes.data || [];
 
         const div = document.createElement('div');
-        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4";
+        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4 transition-all hover:shadow-md";
         
+        // Fallback para nomes e fotos vazias
         const nomeUsuario = post.profiles?.username || "Morador de Feira";
-        const bairroUsuario = post.profiles?.bairro || post.zona || "Feira de Santana";
+        const bairroExibicao = post.zona || post.profiles?.bairro || "Geral";
         const avatarUrl = post.profiles?.avatar_url;
 
         div.innerHTML = `
             <div class="flex items-center gap-3 mb-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
-                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border">
-                    ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '👤'}
+                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                    ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '<span class="text-gray-400 text-xl">👤</span>'}
                 </div>
                 <div>
                     <h3 class="font-bold text-sm text-gray-800">${escaparHTML(nomeUsuario)}</h3>
-                    <p class="text-[10px] text-red-600 font-black uppercase">${escaparHTML(bairroUsuario)}</p>
+                    <p class="text-[10px] text-red-600 font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
                 </div>
             </div>
-            <p class="text-gray-700 text-sm leading-relaxed mb-4">${escaparHTML(post.content)}</p>
-            <div class="flex gap-4 border-t border-b py-2 mb-3">
-                <button onclick="reagir(${post.id}, '❤️')" class="reaction-btn text-sm flex items-center gap-1">
-                    ❤️ <span class="font-bold">${reacts?.filter(r => r.emoji_type === '❤️').length || 0}</span>
+            <p class="text-gray-700 text-sm leading-relaxed mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
+            
+            <div class="flex gap-6 border-t border-b py-2 mb-3">
+                <button onclick="reagir(${post.id}, '❤️')" class="reaction-btn text-sm flex items-center gap-1.5 grayscale hover:grayscale-0">
+                    ❤️ <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '❤️').length}</span>
                 </button>
-                <button onclick="reagir(${post.id}, '👍')" class="reaction-btn text-sm flex items-center gap-1">
-                    👍 <span class="font-bold">${reacts?.filter(r => r.emoji_type === '👍').length || 0}</span>
+                <button onclick="reagir(${post.id}, '👍')" class="reaction-btn text-sm flex items-center gap-1.5 grayscale hover:grayscale-0">
+                    👍 <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '👍').length}</span>
                 </button>
             </div>
-            <div class="space-y-2 mb-3 text-xs" id="list-comments-${post.id}">
-                ${comments?.map(c => `
-                    <div class="bg-gray-50 p-2 rounded border-l-2 border-gray-200">
-                        <span class="font-bold text-red-700">Vizinho:</span> ${escaparHTML(c.content)}
+
+            <div class="space-y-2 mb-3">
+                ${comments.map(c => `
+                    <div class="bg-gray-50 p-2.5 rounded-lg border-l-2 border-red-100 text-[13px]">
+                        <span class="font-bold text-red-800">Resposta:</span> ${escaparHTML(c.content)}
                     </div>
-                `).join('') || ''}
+                `).join('')}
             </div>
+
             <div class="flex gap-2">
-                <input type="text" id="comment-input-${post.id}" placeholder="Escrever resposta..." class="flex-1 text-xs p-2 border rounded-lg outline-none focus:border-red-700">
-                <button onclick="comentar(${post.id})" class="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-700 hover:text-white transition">Enviar</button>
+                <input type="text" id="comment-input-${post.id}" placeholder="Responder ao aviso..." 
+                       class="flex-1 text-xs p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-red-700">
+                <button onclick="comentar(${post.id})" 
+                        class="bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition">Enviar</button>
             </div>
-            <p class="text-[9px] text-gray-300 mt-2 text-right">${new Date(post.created_at).toLocaleDateString('pt-BR')}</p>
         `;
         container.appendChild(div);
     }
 }
 
-// --- 5. DASHBOARD E PERFIL ---
+// --- 5. PERFIL, DASHBOARD E HISTÓRICO ---
 async function verPerfilPublico(userId) {
     mostrarTela('user-dashboard');
     const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
     
     if (perfil) {
-        document.getElementById('dash-nome').innerText = perfil.username || "Morador";
-        document.getElementById('dash-bairro').innerText = perfil.bairro || "FSA";
-        document.getElementById('dash-bio').innerText = perfil.bio || "Sem biografia.";
+        document.getElementById('dash-nome').innerText = perfil.username || "Morador de Feira";
+        document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
+        document.getElementById('dash-bio').innerText = perfil.bio || "Este morador ainda não definiu uma bio.";
         
         const img = document.getElementById('img-perfil');
         const emo = document.getElementById('emoji-perfil');
@@ -133,26 +158,28 @@ async function verPerfilPublico(userId) {
     }
 
     const { data: { session } } = await _supabase.auth.getSession();
-    document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
+    const isDono = session?.user.id === userId;
+    document.getElementById('dash-acoes').classList.toggle('hidden', !isDono);
 
+    // Carregamento do histórico de avisos do morador
     const { data: posts } = await _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     document.getElementById('dash-count').innerText = posts?.length || 0;
     
     const hist = document.getElementById('historico-posts');
     if (hist) {
-        hist.innerHTML = posts?.map(p => `
-            <div class="bg-white p-3 rounded-lg border shadow-sm text-sm mb-2">
+        hist.innerHTML = posts?.length ? posts.map(p => `
+            <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-sm mb-3">
                 <p class="text-gray-700">${escaparHTML(p.content)}</p>
                 <div class="flex justify-between mt-2 text-[9px] font-bold text-gray-400 uppercase">
-                    <span>${p.zona}</span>
+                    <span class="text-red-600">${p.zona}</span>
                     <span>${new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
             </div>
-        `).join('') || "Ainda não postou nada.";
+        `).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Ainda não publicou nenhum aviso.</p>";
     }
 }
 
-// --- 6. AÇÕES DO USUÁRIO ---
+// --- 6. INTERAÇÕES E PUBLICAÇÃO ---
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -160,7 +187,7 @@ window.enviarPost = async () => {
     const content = document.getElementById('post-content').value;
     const zona = document.getElementById('post-zona').value;
 
-    if (!content.trim()) return alert("O aviso não pode estar vazio.");
+    if (!content.trim()) return alert("Por favor, descreva o aviso.");
 
     const { error } = await _supabase.from('posts').insert([{
         content: content,
@@ -168,8 +195,9 @@ window.enviarPost = async () => {
         zona: zona
     }]);
 
-    if (error) alert("Erro: " + error.message);
-    else {
+    if (error) {
+        alert("Erro ao publicar aviso: " + error.message);
+    } else {
         document.getElementById('post-content').value = "";
         mostrarTela('feed-container');
         carregarFeed();
@@ -183,6 +211,7 @@ window.reagir = async (postId, emoji) => {
     await _supabase.from('reactions').upsert({
         post_id: postId, user_id: session.user.id, emoji_type: emoji
     }, { onConflict: 'post_id,user_id' });
+    
     carregarFeed();
 };
 
@@ -201,19 +230,19 @@ window.comentar = async (postId) => {
     carregarFeed();
 };
 
-// --- 7. AUTH E PERFIL ---
+// --- 7. SISTEMA DE AUTENTICAÇÃO ---
 window.fazerLogin = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message); else location.reload();
+    if (error) alert("Erro no login: " + error.message); else location.reload();
 };
 
 window.fazerCadastro = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert(error.message); else alert("Confirme seu e-mail!");
+    if (error) alert("Erro no cadastro: " + error.message); else alert("Quase lá! Verifique sua caixa de e-mail.");
 };
 
 window.fazerLogout = async () => {
@@ -221,6 +250,7 @@ window.fazerLogout = async () => {
     location.reload();
 };
 
+// --- 8. GESTÃO DE PERFIL E UPLOAD ---
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
@@ -235,24 +265,45 @@ window.salvarPerfil = async () => {
 
     const file = document.getElementById('perfil-upload').files[0];
     if (file) {
-        const path = `${session.user.id}/${Date.now()}`;
-        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
-        if (up) updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+        const path = `${session.user.id}/${Date.now()}-${file.name}`;
+        const { data: up, error: upErr } = await _supabase.storage.from('avatars').upload(path, file);
+        if (up) {
+            updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+        } else {
+            console.error("Erro upload:", upErr);
+        }
     }
 
     const { error } = await _supabase.from('profiles').upsert(updates);
-    if (error) alert(error.message); else verPerfilPublico(session.user.id);
+    if (error) alert("Erro ao salvar: " + error.message); else verPerfilPublico(session.user.id);
 };
 
-// --- 8. FUNÇÕES GLOBAIS ---
+// --- 9. CONTROLES GLOBAIS ---
 window.mudarFeed = (tipo) => {
-    document.getElementById('tab-global').className = tipo === 'global' ? 'flex-1 py-3 active-tab' : 'flex-1 py-3 text-gray-500';
-    document.getElementById('tab-zona').className = tipo === 'zona' ? 'flex-1 py-3 active-tab' : 'flex-1 py-3 text-gray-500';
-    carregarFeed(tipo === 'zona');
+    const isGlobal = tipo === 'global';
+    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    carregarFeed(!isGlobal);
 };
+
 window.abrirPostagem = () => mostrarTela('form-post');
-window.abrirEdicaoPerfil = () => mostrarTela('form-perfil');
+window.abrirEdicaoPerfil = () => {
+    _supabase.auth.getSession().then(({data: {session}}) => {
+        if (session) {
+            _supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data: p}) => {
+                if (p) {
+                    document.getElementById('perfil-nome').value = p.username || "";
+                    document.getElementById('perfil-bairro').value = p.bairro || "";
+                    document.getElementById('perfil-bio').value = p.bio || "";
+                }
+                mostrarTela('form-perfil');
+            });
+        }
+    });
+};
+
 window.toggleForm = () => mostrarTela('feed-container');
+
 window.gerenciarBotaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (session) verPerfilPublico(session.user.id); else mostrarTela('auth-screen');
