@@ -9,8 +9,7 @@
     <style>
         .active-tab { border-bottom: 3px solid #CC0000; color: #CC0000; font-weight: bold; }
         .hidden { display: none; }
-        /* Suaviza a transição das reações */
-        .reaction-btn { transition: transform 0.2s; }
+        .reaction-btn { transition: transform 0.2s; cursor: pointer; }
         .reaction-btn:active { transform: scale(1.4); }
     </style>
 </head>
@@ -40,4 +39,85 @@
         </div>
     </section>
 
-    <section id="user-dashboard" class="p-6
+    <section id="user-dashboard" class="p-6 bg-white shadow-lg m-4 rounded-xl hidden">
+        <div class="flex justify-start mb-4">
+            <button onclick="location.reload()" class="text-gray-400 text-sm flex items-center gap-1">← Voltar</button>
+        </div>
+        <div class="text-center mb-6">
+            <div class="w-24 h-24 bg-red-50 rounded-full mx-auto mb-2 flex items-center justify-center text-3xl border-4 border-red-700 overflow-hidden relative">
+                <img id="img-perfil" src="" class="hidden w-full h-full object-cover">
+                <span id="emoji-perfil">👤</span>
+            </div>
+            <h2 id="dash-nome" class="font-bold text-2xl text-gray-800">Seu Nome</h2>
+            <p id="dash-bairro" class="text-red-700 font-bold"></p>
+            <div class="mt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border px-3 py-1 rounded-full inline-block">
+                <span id="dash-count" class="text-red-700">0</span> Avisos
+            </div>
+        </div>
+        <div class="border-t pt-4 space-y-4">
+            <p class="text-sm text-gray-600 italic text-center" id="dash-bio">Sua bio aparecerá aqui...</p>
+            <div id="dash-acoes" class="flex gap-2">
+                <button onclick="abrirEdicaoPerfil()" class="flex-1 py-3 border border-red-700 text-red-700 rounded-lg font-bold">Editar</button>
+                <button onclick="fazerLogout()" class="flex-1 py-3 bg-gray-800 text-white rounded-lg font-bold">Sair</button>
+            </div>
+        </div>
+        <div class="mt-8 border-t pt-6">
+            <h3 class="text-[10px] font-bold text-gray-400 uppercase mb-4 tracking-widest text-center">Meus Avisos</h3>
+            <div id="historico-posts" class="space-y-4"></div>
+        </div>
+    </section>
+
+    <section id="form-perfil" class="p-6 bg-white shadow-lg m-4 rounded-xl hidden">
+        <h2 class="font-bold text-xl text-center mb-4">Seu Perfil</h2>
+        <div class="space-y-4">
+            <div class="bg-gray-50 p-3 rounded-lg border-2 border-dashed border-gray-300 text-center">
+                <label class="block text-xs text-gray-500 mb-2 font-bold uppercase">Foto</label>
+                <input type="file" id="perfil-upload" accept="image/*" class="text-xs w-full">
+            </div>
+            <input type="text" id="perfil-nome" placeholder="Nome" class="w-full p-3 border rounded-lg">
+            <select id="perfil-bairro" class="w-full p-3 border rounded-lg">
+                <option value="Centro">Centro</option>
+                <option value="Tomba">Tomba</option>
+                <option value="SIM">SIM</option>
+                <option value="Cidade Nova">Cidade Nova</option>
+                <option value="Campo Limpo">Campo Limpo</option>
+            </select>
+            <textarea id="perfil-bio" placeholder="Sua Bio" class="w-full p-3 border rounded-lg h-24"></textarea>
+            <button onclick="salvarPerfil()" class="bg-red-700 text-white w-full py-3 rounded-lg font-bold">Salvar</button>
+            <button onclick="location.reload()" class="w-full text-gray-400 text-sm py-2">Cancelar</button>
+        </div>
+    </section>
+
+    <section id="form-post" class="p-4 bg-white shadow-md m-4 rounded-lg hidden">
+        <h2 class="font-bold mb-2 text-red-700 text-lg uppercase">📢 Novo Aviso</h2>
+        <input type="text" id="post-author" readonly class="w-full p-2 border rounded mb-2 bg-gray-50 text-gray-500">
+        <select id="post-zona" class="w-full p-2 border rounded mb-2">
+            <option value="Centro">Centro</option>
+            <option value="Tomba">Tomba</option>
+            <option value="SIM">SIM</option>
+            <option value="Cidade Nova">Cidade Nova</option>
+            <option value="Campo Limpo">Campo Limpo</option>
+        </select>
+        <textarea id="post-content" placeholder="O que está acontecendo?" class="w-full p-2 border rounded mb-2 h-24 outline-none"></textarea>
+        <button onclick="enviarPost()" class="bg-red-700 text-white w-full py-3 rounded font-bold shadow-lg">Publicar</button>
+        <button onclick="toggleForm()" class="w-full py-2 text-gray-500 text-sm mt-2">Cancelar</button>
+    </section>
+
+    <main id="feed-container" class="p-4 space-y-4"></main>
+
+    <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 z-20">
+        <button onclick="location.reload()" class="flex flex-col items-center text-red-700">
+            <span>🏠</span><span class="text-[10px] font-bold">INÍCIO</span>
+        </button>
+        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-400">
+            <span>➕</span><span class="text-[10px] font-bold">AVISAR</span>
+        </button>
+        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-400">
+            <span>👤</span><span class="text-[10px] font-bold">PERFIL</span>
+        </button>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=4.0"></script>
+</body>
+</html>
