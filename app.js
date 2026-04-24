@@ -87,7 +87,6 @@ async function carregarFeed(apenasZona = false) {
     const { data: posts, error: postErr } = await query;
     if (postErr) return console.error("Erro ao carregar posts:", postErr);
 
-    // Busca otimizada para evitar erro 400
     const { data: allComments } = await _supabase.from('comments').select(`*, profiles:user_id(username)`).order('created_at', { ascending: true });
     const { data: allReacts } = await _supabase.from('reactions').select('*');
 
@@ -224,7 +223,6 @@ window.verPerfilPublico = async function(userId) {
         else { img.classList.add('hidden'); emo.classList.remove('hidden'); }
     }
 
-    // Atualiza contagem e lista de avisos do usuário
     document.getElementById('dash-count').innerText = posts ? posts.length : 0;
     const historico = document.getElementById('historico-posts');
     historico.innerHTML = posts?.length ? posts.map(p => `
@@ -278,6 +276,14 @@ window.fazerLogin = async () => {
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
     if (error) alert(error.message); else location.reload();
+};
+
+window.fazerCadastro = async () => {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signUp({ email, password });
+    if (error) alert(error.message); 
+    else alert("Conta criada! Verifique seu e-mail ou faça login.");
 };
 
 window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
