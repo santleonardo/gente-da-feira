@@ -11,7 +11,6 @@ function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
-        // Escuta Realtime: Força recarregamento do feed para processar Joins de perfis
         _supabase
             .channel('fluxo-avisos-feira')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => carregarFeed())
@@ -56,17 +55,14 @@ window.prepararResposta = (postId, commentId, username) => {
     
     if(nameSpan) nameSpan.innerText = username;
     if(indicator) indicator.classList.remove('hidden');
-    
-    // Scroll suave para o input no mobile
     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 window.cancelarResposta = (postId) => {
     const input = document.getElementById(`comment-input-${postId}`);
     const indicator = document.getElementById(`reply-indicator-${postId}`);
-    
     input.setAttribute('data-parent-id', "");
-    input.placeholder = "Escreva um comentário...";
+    input.placeholder = "Responder...";
     if(indicator) indicator.classList.add('hidden');
 };
 
@@ -77,7 +73,6 @@ async function carregarFeed(apenasZona = false) {
 
     const { data: { session } } = await _supabase.auth.getSession();
 
-    // Busca Posts com Perfil do Autor
     let query = _supabase
         .from('posts')
         .select(`*, profiles:user_id(username, bairro, avatar_url)`)
@@ -89,10 +84,10 @@ async function carregarFeed(apenasZona = false) {
     }
 
     const { data: posts, error: postErr } = await query;
-    if (postErr) return console.error("Erro ao carregar posts:", postErr);
+    if (postErr) return console.error("Erro posts:", postErr);
 
-    // Busca todos os comentários e reações (Joins incluídos)
-    const { data: allComments } = await _supabase.from('comments').select(`*, profiles:user_id(username, avatar_url)`).order('created_at', { ascending: true });
+    // CORREÇÃO DO ERRO 400: Busca simples e organiza no JS
+    const { data: allComments } = await _supabase.from('comments').select(`*, profiles:user_id(username)`).order('created_at', { ascending: true });
     const { data: allReacts } = await _supabase.from('reactions').select('*');
 
     container.innerHTML = "";
@@ -102,20 +97,14 @@ async function carregarFeed(apenasZona = false) {
         const postReacts = (allReacts || []).filter(r => r.post_id === post.id);
         const mainComments = postComments.filter(c => !c.parent_id);
 
-        // Função interna para renderizar as threads recursivamente
         const renderReplies = (parentId) => {
-            const filhos = postComments.filter(c => c.parent_id === parentId);
-            return filhos.map(r => `
+            return postComments.filter(c => c.parent_id === parentId).map(r => `
                 <div class="ml-5 mt-2 border-l-2 border-gray-200 pl-3 py-1">
-                    <div class="flex items-start gap-2">
-                        <div class="flex-1">
-                            <p class="text-[11px] text-gray-700">
-                                <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
-                            </p>
-                            <button onclick="prepararResposta('${post.id}', '${r.id}', '${escaparHTML(r.profiles?.username || "Morador")}')" 
-                                    class="text-[9px] font-black uppercase text-gray-400 hover:text-black">Responder</button>
-                        </div>
-                    </div>
+                    <p class="text-[11px] text-gray-700">
+                        <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
+                    </p>
+                    <button onclick="prepararResposta('${post.id}', '${r.id}', '${escaparHTML(r.profiles?.username || "Morador")}')" 
+                            class="text-[9px] font-black uppercase text-gray-400">Responder</button>
                     ${renderReplies(r.id)}
                 </div>`).join('');
         };
@@ -133,7 +122,7 @@ async function carregarFeed(apenasZona = false) {
                         <p class="text-[10px] text-black font-black uppercase bg-[#FFD700] px-1 rounded w-fit">${escaparHTML(post.zona || "Geral")}</p>
                     </div>
                 </div>
-                ${session?.user.id === post.user_id ? `<button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500">🗑️</button>` : ''}
+                ${session?.user.id === post.user_id ? `<button onclick="excluirPost(${post.id})" class="text-gray-300">🗑️</button>` : ''}
             </div>
             <p class="text-gray-700 text-sm mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
             
@@ -142,27 +131,26 @@ async function carregarFeed(apenasZona = false) {
                 <button onclick="reagir(${post.id}, '👍')" class="text-xs">👍 ${postReacts.filter(r => r.emoji_type === '👍').length}</button>
             </div>
 
-            <div class="space-y-3 mb-3">
+            <div class="space-y-2 mb-3">
                 ${mainComments.map(c => `
-                    <div class="bg-gray-50 p-2 rounded-lg">
-                        <p class="text-xs text-gray-700">
-                            <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
-                        </p>
+                    <div class="bg-gray-50 p-2 rounded-lg text-xs">
+                        <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
+                        <br>
                         <button onclick="prepararResposta('${post.id}', '${c.id}', '${escaparHTML(c.profiles?.username || "Morador")}')" 
                                 class="text-[9px] font-black uppercase text-gray-400 mt-1">Responder</button>
                         ${renderReplies(c.id)}
                     </div>`).join('')}
             </div>
 
-            <div class="mt-4">
-                <div id="reply-indicator-${post.id}" class="hidden flex justify-between items-center text-[10px] font-black text-white bg-black px-3 py-1 rounded-t-lg w-full">
-                    <span>RESPONDENDO A <span id="reply-to-name-${post.id}" class="text-feira-amarelo"></span></span>
-                    <button onclick="cancelarResposta('${post.id}')" class="text-white">✕</button>
+            <div class="flex flex-col gap-1">
+                <div id="reply-indicator-${post.id}" class="hidden text-[10px] font-black text-white bg-black px-2 py-1 rounded-t-lg w-fit">
+                    Respondendo a <span id="reply-to-name-${post.id}"></span>
+                    <button onclick="cancelarResposta('${post.id}')" class="ml-2 text-feira-amarelo">✕</button>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Escreva um comentário..." 
-                           class="flex-1 text-xs p-2.5 border rounded-xl outline-none focus:border-black transition-all">
-                    <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black active:scale-95 transition-transform">ENVIAR</button>
+                    <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Responder..." 
+                           class="flex-1 text-xs p-2.5 border rounded-xl outline-none">
+                    <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black">ENVIAR</button>
                 </div>
             </div>
         `;
@@ -181,7 +169,6 @@ window.comentar = async (postId) => {
     
     if (!content) return;
 
-    // IMPORTANTE: parent_id deve ser null se for um comentário principal
     const { error } = await _supabase.from('comments').insert([{ 
         post_id: postId, 
         user_id: session.user.id, 
@@ -189,111 +176,71 @@ window.comentar = async (postId) => {
         parent_id: (parentId && parentId !== "") ? parentId : null
     }]);
 
-    if (error) {
-        console.error("Erro ao comentar:", error.message);
-        alert("Erro ao enviar comentário.");
-    } else {
-        input.value = "";
-        cancelarResposta(postId);
-        // O Realtime atualizará a tela automaticamente
-    }
+    if (error) alert("Erro ao comentar: " + error.message);
+    else { input.value = ""; cancelarResposta(postId); }
 };
 
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
-
     const content = document.getElementById('post-content').value.trim();
     const zona = document.getElementById('post-zona').value;
     if (!content) return;
-
-    const { error } = await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
-    if (error) alert(error.message);
-    else {
-        document.getElementById('post-content').value = ""; 
-        mostrarTela('feed-container');
-    }
+    await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
+    document.getElementById('post-content').value = ""; 
+    mostrarTela('feed-container');
 };
 
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
-    await _supabase.from('reactions').upsert({ 
-        post_id: postId, 
-        user_id: session.user.id, 
-        emoji_type: emoji 
-    }, { onConflict: 'post_id,user_id' });
+    await _supabase.from('reactions').upsert({ post_id: postId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'post_id,user_id' });
 };
 
 window.excluirPost = async (id) => {
-    if (confirm("Apagar aviso permanentemente?")) { 
-        await _supabase.from('posts').delete().eq('id', id);
-        carregarFeed();
-    }
+    if (confirm("Apagar aviso?")) { await _supabase.from('posts').delete().eq('id', id); carregarFeed(); }
 };
 
 // --- 7. PERFIL E DASHBOARD ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
-    
     const [{ data: perfil }, { data: posts }] = await Promise.all([
         _supabase.from('profiles').select('*').eq('id', userId).single(),
         _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false })
     ]);
-
     if (perfil) {
         document.getElementById('dash-nome').innerText = perfil.username || "Morador";
         document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
-        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio definida.";
+        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio.";
         const img = document.getElementById('img-perfil'), emo = document.getElementById('emoji-perfil');
         if (perfil.avatar_url) { img.src = perfil.avatar_url; img.classList.remove('hidden'); emo.classList.add('hidden'); }
         else { img.classList.add('hidden'); emo.classList.remove('hidden'); }
     }
-
     document.getElementById('dash-count').innerText = posts ? posts.length : 0;
     const historico = document.getElementById('historico-posts');
-    historico.innerHTML = posts?.length ? posts.map(p => `
-        <div class="bg-gray-50 p-3 rounded-xl border mb-2 text-sm">
-            <p class="text-gray-700">${escaparHTML(p.content)}</p>
-        </div>`).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso postado.</p>";
-
+    historico.innerHTML = posts?.length ? posts.map(p => `<div class="bg-gray-50 p-3 rounded-xl border mb-2 text-sm"><p>${escaparHTML(p.content)}</p></div>`).join('') : "Nenhum aviso.";
     const { data: { session } } = await _supabase.auth.getSession();
     document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
 };
 
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return;
-
-    const updates = {
-        id: session.user.id,
-        username: document.getElementById('perfil-nome').value,
-        bairro: document.getElementById('perfil-bairro').value,
-        bio: document.getElementById('perfil-bio').value,
-        updated_at: new Date()
-    };
-
+    const updates = { id: session.user.id, username: document.getElementById('perfil-nome').value, bairro: document.getElementById('perfil-bairro').value, bio: document.getElementById('perfil-bio').value };
     const fileInput = document.getElementById('perfil-upload');
     if (fileInput?.files[0]) {
         const file = fileInput.files[0];
-        const path = `${session.user.id}/${Date.now()}-${file.name}`;
+        const path = `${session.user.id}/${Date.now()}`;
         const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
         if (up) updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
     }
-
-    const { error } = await _supabase.from('profiles').upsert(updates);
-    if (error) alert(error.message); else verPerfilPublico(session.user.id);
+    await _supabase.from('profiles').upsert(updates);
+    verPerfilPublico(session.user.id);
 };
 
 window.abrirEdicaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return;
     const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (p) {
-        document.getElementById('perfil-nome').value = p.username || "";
-        document.getElementById('perfil-bairro').value = p.bairro || "";
-        document.getElementById('perfil-bio').value = p.bio || "";
-    }
+    if (p) { document.getElementById('perfil-nome').value = p.username; document.getElementById('perfil-bairro').value = p.bairro; document.getElementById('perfil-bio').value = p.bio; }
     mostrarTela('form-perfil');
 };
 
@@ -309,8 +256,7 @@ window.fazerCadastro = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert(error.message); 
-    else alert("Conta criada! Verifique seu e-mail para confirmar e faça login.");
+    if (error) alert(error.message); else alert("Confirme seu e-mail!");
 };
 
 window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
@@ -318,16 +264,12 @@ window.fazerLogout = async () => { await _supabase.auth.signOut(); location.relo
 // --- 9. CONTROLES GLOBAIS ---
 window.mudarFeed = (tipo) => {
     const isGlobal = tipo === 'global';
-    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
-    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
+    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black' : 'flex-1 py-3 text-gray-400';
+    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black' : 'flex-1 py-3 text-gray-400';
     carregarFeed(!isGlobal);
 };
 
-window.abrirPostagem = async () => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) mostrarTela('auth-screen'); else mostrarTela('form-post');
-};
-
+window.abrirPostagem = () => mostrarTela('form-post');
 window.gerenciarBotaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (session) verPerfilPublico(session.user.id); else mostrarTela('auth-screen');
