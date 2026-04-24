@@ -1,6 +1,6 @@
 /**
  * GENTE DA FEIRA - O HUB DE FEIRA DE SANTANA 2026
- * Versão: 4.9.0 (Restauração de Moderação e Exclusão)
+ * Versão: 4.9.1 (Filtro por Bairro & Moderação)
  */
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -28,6 +28,11 @@ function mostrarTela(id) {
         const el = document.getElementById(t);
         if(el) el.classList.add('hidden');
     });
+
+    // Controla a visibilidade das abas de filtro (só aparecem no feed)
+    const tabs = document.getElementById('feed-tabs');
+    if (id === 'feed-container') tabs?.classList.remove('hidden');
+    else tabs?.classList.add('hidden');
     
     const ativa = document.getElementById(id);
     if (ativa) {
@@ -50,13 +55,13 @@ function popularMenusBairros() {
     });
 }
 
-// --- MODERAÇÃO E EXCLUSÃO (RESTAURADO) ---
+// --- MODERAÇÃO E EXCLUSÃO ---
 
 window.excluirPost = async (id) => {
     if (confirm("Tem certeza que deseja apagar este aviso?")) {
         const { error } = await _supabase.from('posts').delete().eq('id', id);
         if (error) alert("Erro ao apagar post: " + error.message);
-        else carregarFeed();
+        else window.mudarFeed('Geral');
     }
 };
 
@@ -69,14 +74,41 @@ window.apagarComentario = async (id) => {
 };
 
 // --- FEED ENGINE ---
-async function carregarFeed() {
+
+window.mudarFeed = (tipo = 'Geral') => {
+    const btnGeral = document.getElementById('tab-geral');
+    const btnLocal = document.getElementById('tab-local');
+    
+    if (tipo === 'Geral') {
+        btnGeral?.classList.add('bg-feira-marinho', 'text-white');
+        btnGeral?.classList.remove('bg-white', 'text-gray-400', 'border');
+        btnLocal?.classList.add('bg-white', 'text-gray-400', 'border');
+        btnLocal?.classList.remove('bg-feira-marinho', 'text-white');
+    } else {
+        btnLocal?.classList.add('bg-feira-marinho', 'text-white');
+        btnLocal?.classList.remove('bg-white', 'text-gray-400', 'border');
+        btnGeral?.classList.add('bg-white', 'text-gray-400', 'border');
+        btnGeral?.classList.remove('bg-feira-marinho', 'text-white');
+    }
+
+    mostrarTela('feed-container');
+    carregarFeed(tipo);
+};
+
+async function carregarFeed(filtro = 'Geral') {
     const container = document.getElementById('feed-container');
-    container.innerHTML = '<div class="text-center p-10 opacity-30 font-black text-xs uppercase tracking-widest">Buscando em Feira...</div>';
+    container.innerHTML = '<div class="text-center p-10 opacity-30 font-black text-xs uppercase tracking-widest animate-pulse">Sintonizando Feira...</div>';
 
     const { data: { session } } = await _supabase.auth.getSession();
     const userIdLogado = session?.user?.id;
 
-    const { data: posts, error } = await _supabase
+    let bairroUsuario = null;
+    if (filtro === 'Local' && userIdLogado) {
+        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', userIdLogado).single();
+        bairroUsuario = p?.bairro;
+    }
+
+    let query = _supabase
         .from('posts')
         .select(`
             *,
@@ -86,7 +118,23 @@ async function carregarFeed() {
         `)
         .order('created_at', { ascending: false });
 
-    if (!error) renderizarFeed(posts || [], container, userIdLogado);
+    if (filtro === 'Local' && bairroUsuario) {
+        query = query.eq('zona', bairroUsuario);
+    }
+
+    const { data: posts, error } = await query;
+
+    if (!error) {
+        if (posts.length === 0 && filtro === 'Local') {
+            container.innerHTML = `
+                <div class="text-center p-20">
+                    <span class="text-4xl block mb-4">📭</span>
+                    <p class="text-gray-400 font-bold text-xs uppercase tracking-widest">Nada no bairro ${bairroUsuario || ''} ainda.</p>
+                </div>`;
+        } else {
+            renderizarFeed(posts || [], container, userIdLogado);
+        }
+    }
 }
 
 function renderizarFeed(posts, container, userIdLogado) {
@@ -260,12 +308,10 @@ window.enviarPost = async () => {
     if(!content || !session) return;
     await _supabase.from('posts').insert({ content, zona, user_id: session.user.id });
     document.getElementById('post-content').value = "";
-    mostrarTela('feed-container');
-    carregarFeed();
+    window.mudarFeed('Geral');
 };
 
 window.abrirThreads = (id) => document.getElementById(`thread-${id}`).classList.toggle('hidden');
-window.mudarFeed = () => { mostrarTela('feed-container'); carregarFeed(); };
 window.abrirPostagem = () => mostrarTela('form-post');
 window.gerenciarBotaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
@@ -274,7 +320,7 @@ window.gerenciarBotaoPerfil = async () => {
 
 async function verificarSessao() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (session) { mostrarTela('feed-container'); carregarFeed(); } else { mostrarTela('auth-screen'); }
+    if (session) { window.mudarFeed('Geral'); } else { mostrarTela('auth-screen'); }
 }
 
 window.tentarLogar = async () => {
