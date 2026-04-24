@@ -10,45 +10,48 @@
     <meta name="apple-mobile-web-app-title" content="Gente da Feira">
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#FFD700">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="theme-color" content="#8B6D45"> <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'feira-amarelo': '#FFD700',
-                        'feira-preto': '#000000',
-                        'feira-marinho': '#1e3a5f'
+                        'feira-bronze': '#8B6D45', // Cor da terra/artesanato
+                        'feira-bege': '#F4F4EC',   // Fundo suave
+                        'feira-marinho': '#1E3A5F', // Confiança e seriedade
+                        'feira-preto': '#1A1A1A'
                     }
                 }
             }
         }
     </script>
     <style>
-        .active-tab { border-bottom: 4px solid #000000; color: #000000; font-weight: 900; }
+        /* Estados ativos com a nova cor Bronze */
+        .active-tab { border-bottom: 4px solid #8B6D45; color: #8B6D45; font-weight: 900; }
         .hidden { display: none; }
         .animate-fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .reaction-btn { transition: transform 0.2s; cursor: pointer; display: inline-block; }
-        .reaction-btn:active { transform: scale(1.4); }
         
-        /* Impede scroll horizontal e organiza camadas */
-        body { overflow-x: hidden; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { 
+            background-color: #F4F4EC; /* Aplica o Bege no fundo */
+            overflow-x: hidden; 
+            touch-action: manipulation; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
         #feed-container { position: relative; z-index: 10; }
         header { z-index: 40; }
         footer { z-index: 50; }
 
-        /* Ajuste para inputs não darem zoom no iPhone ao focar */
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
-<body class="bg-gray-50 pb-24">
+<body class="pb-24">
 
-    <header class="bg-feira-amarelo p-4 shadow-md sticky top-0 z-40 flex justify-between items-center border-b-2 border-feira-preto">
+    <header class="bg-feira-bronze p-4 shadow-md sticky top-0 z-40 flex justify-between items-center border-b-2 border-feira-marinho">
         <div class="w-8"></div> 
-        <h1 class="text-xl font-black text-feira-preto uppercase tracking-widest">Gente da Feira</h1>
-        <button onclick="location.reload()" class="text-feira-preto text-xs active:rotate-180 transition-transform font-bold">🔄</button>
+        <h1 class="text-xl font-black text-white uppercase tracking-widest">Gente da Feira</h1>
+        <button onclick="location.reload()" class="text-white text-xs active:rotate-180 transition-transform font-bold">🔄</button>
     </header>
 
     <nav id="feed-nav" class="flex bg-white border-b sticky top-[62px] z-30">
@@ -62,18 +65,18 @@
             <p class="text-gray-500 text-sm">Acesse a rede oficial de Feira de Santana</p>
         </div>
         <div class="space-y-4 mb-6">
-            <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-amarelo">
-            <input type="password" id="auth-password" placeholder="Sua senha" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-amarelo">
+            <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-bronze">
+            <input type="password" id="auth-password" placeholder="Sua senha" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-bronze">
         </div>
         <div class="space-y-3">
-            <button onclick="fazerLogin()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition">ENTRAR</button>
-            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-preto text-feira-preto py-4 rounded-xl font-black hover:bg-white active:scale-95 transition">CRIAR NOVA CONTA</button>
+            <button onclick="fazerLogin()" class="w-full bg-feira-bronze text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition">ENTRAR</button>
+            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-marinho text-feira-marinho py-4 rounded-xl font-black hover:bg-white active:scale-95 transition">CRIAR NOVA CONTA</button>
         </div>
     </section>
 
     <section id="user-dashboard" class="hidden p-4 animate-fade-in">
         <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border border-gray-100">
-            <div class="bg-gradient-to-r from-feira-marinho to-feira-amarelo h-24"></div>
+            <div class="bg-gradient-to-r from-feira-marinho to-feira-bronze h-24"></div>
             <div class="px-6 pb-6 text-center -mt-12">
                 <div class="inline-block p-1 bg-white rounded-full mb-4 shadow-md">
                     <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white">
@@ -82,7 +85,7 @@
                     </div>
                 </div>
                 <h2 id="dash-nome" class="text-xl font-bold text-feira-marinho uppercase">...</h2>
-                <p id="dash-bairro" class="text-feira-preto font-black text-[10px] uppercase mb-4 bg-feira-amarelo inline-block px-2 py-1 rounded"></p>
+                <p id="dash-bairro" class="text-white font-black text-[10px] uppercase mb-4 bg-feira-bronze inline-block px-2 py-1 rounded"></p>
                 <p id="dash-bio" class="text-gray-500 text-sm italic px-4 mb-6 leading-tight"></p>
                 
                 <div class="grid grid-cols-2 gap-4 border-t pt-6">
@@ -91,7 +94,7 @@
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avisos</p>
                     </div>
                     <div>
-                        <p class="text-xl font-black text-feira-preto">FSA</p>
+                        <p class="text-xl font-black text-feira-bronze">FSA</p>
                         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Região</p>
                     </div>
                 </div>
@@ -106,7 +109,7 @@
     </section>
 
     <section id="form-perfil" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase border-b-4 border-feira-amarelo inline-block">Meu Perfil</h2>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase border-b-4 border-feira-bronze inline-block">Meu Perfil</h2>
         <div class="space-y-4">
             <div class="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
                 <p class="text-[10px] font-black text-gray-400 mb-2 uppercase">Alterar Foto</p>
@@ -114,49 +117,32 @@
             </div>
             <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Nome ou Empresa</label>
-                <input type="text" id="perfil-nome" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none">
+                <input type="text" id="perfil-nome" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-bronze outline-none">
             </div>
             <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Seu Bairro Principal</label>
-                <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none font-bold">
-                    <option value="Centro">Centro</option>
-                    <option value="Tomba">Tomba</option>
-                    <option value="SIM">SIM</option>
-                    <option value="Cidade Nova">Cidade Nova</option>
-                    <option value="Campo Limpo">Campo Limpo</option>
-                    <option value="Mangabeira">Mangabeira</option>
-                    <option value="George Américo">George Américo</option>
-                    <option value="Humildes">Humildes</option>
-                </select>
+                <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-bronze outline-none font-bold">
+                    </select>
             </div>
             <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Bio / Descrição</label>
-                <textarea id="perfil-bio" class="w-full p-3 border-2 rounded-lg h-24 focus:ring-2 focus:ring-feira-amarelo outline-none"></textarea>
+                <textarea id="perfil-bio" class="w-full p-3 border-2 rounded-lg h-24 focus:ring-2 focus:ring-feira-bronze outline-none"></textarea>
             </div>
-            <button onclick="salvarPerfil()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition uppercase tracking-widest">SALVAR</button>
+            <button onclick="salvarPerfil()" class="w-full bg-feira-bronze text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition uppercase tracking-widest">SALVAR</button>
             <button onclick="window.mostrarTela('user-dashboard')" class="w-full py-2 text-gray-400 text-[10px] font-black uppercase">Voltar</button>
         </div>
     </section>
 
     <section id="form-post" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase italic border-b-4 border-feira-amarelo inline-block">Novo Aviso</h2>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase italic border-b-4 border-feira-bronze inline-block">Novo Aviso</h2>
         <div class="space-y-4">
             <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Onde está acontecendo?</label>
                 <select id="post-zona" class="w-full p-3 border-2 rounded-lg bg-gray-50 font-black text-feira-preto">
-                    <option value="Geral">Toda a Feira (Geral)</option>
-                    <option value="Centro">Centro</option>
-                    <option value="Tomba">Tomba</option>
-                    <option value="SIM">SIM</option>
-                    <option value="Cidade Nova">Cidade Nova</option>
-                    <option value="Campo Limpo">Campo Limpo</option>
-                    <option value="Mangabeira">Mangabeira</option>
-                    <option value="George Américo">George Américo</option>
-                    <option value="Humildes">Humildes</option>
-                </select>
+                    </select>
             </div>
-            <textarea id="post-content" placeholder="O que a cidade precisa saber agora?" class="w-full p-4 border-2 rounded-xl h-40 outline-none focus:ring-2 focus:ring-feira-amarelo font-medium"></textarea>
-            <button onclick="enviarPost()" class="bg-feira-preto text-feira-amarelo w-full py-4 rounded-xl font-black shadow-lg text-lg active:scale-95 transition uppercase tracking-widest">PUBLICAR NO FEED</button>
+            <textarea id="post-content" placeholder="O que a cidade precisa saber agora?" class="w-full p-4 border-2 rounded-xl h-40 outline-none focus:ring-2 focus:ring-feira-bronze font-medium"></textarea>
+            <button onclick="enviarPost()" class="bg-feira-bronze text-white w-full py-4 rounded-xl font-black shadow-lg text-lg active:scale-95 transition uppercase tracking-widest">PUBLICAR NO FEED</button>
             <button onclick="window.mostrarTela('feed-container')" class="w-full py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
         </div>
     </section>
@@ -164,16 +150,16 @@
     <main id="feed-container" class="p-4 space-y-4 animate-fade-in min-h-screen"></main>
 
     <footer class="fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-        <button onclick="window.mostrarTela('feed-container')" class="flex flex-col items-center text-feira-preto">
+        <button onclick="window.mostrarTela('feed-container')" class="flex flex-col items-center text-feira-marinho">
             <span class="text-2xl">🏠</span><span class="text-[9px] font-black uppercase tracking-tighter">Início</span>
         </button>
-        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-300 hover:text-feira-preto transition">
-            <div class="bg-feira-preto text-feira-amarelo w-10 h-10 rounded-full flex items-center justify-center -mt-6 shadow-lg border-4 border-white">
+        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-300 hover:text-feira-bronze transition">
+            <div class="bg-feira-bronze text-white w-10 h-10 rounded-full flex items-center justify-center -mt-6 shadow-lg border-4 border-white">
                 <span class="text-xl">+</span>
             </div>
             <span class="text-[9px] font-black uppercase tracking-tighter mt-1">Avisar</span>
         </button>
-        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-300 hover:text-feira-preto transition">
+        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-300 hover:text-feira-marinho transition">
             <span class="text-2xl">👤</span><span class="text-[9px] font-black uppercase tracking-tighter">Perfil</span>
         </button>
     </footer>
