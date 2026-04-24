@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gente da Feira</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#8B6D45">
+    <meta name="theme-color" content="#FFD700">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'feira-bronze': '#8B6D45',
-                        'feira-bege': '#F4F4EC',
+                        'feira-amarelo': '#FFD700',
+                        'feira-preto': '#000000',
                         'feira-marinho': '#1e3a5f'
                     }
                 }
@@ -21,25 +21,32 @@
         }
     </script>
     <style>
-        .active-tab { border-bottom: 3px solid #8B6D45; color: #8B6D45; font-weight: bold; }
+        /* Estilo para a aba ativa com a nova paleta */
+        .active-tab { border-bottom: 4px solid #000000; color: #000000; font-weight: 900; }
         .hidden { display: none; }
         .animate-fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .reaction-btn { transition: transform 0.2s; cursor: pointer; }
+        
+        /* Efeito de clique nas reações */
+        .reaction-btn { transition: transform 0.2s; cursor: pointer; display: inline-block; }
         .reaction-btn:active { transform: scale(1.4); }
+        
+        /* Garantia de cores clássicas para emojis de reação */
+        .emoji-red { color: #ff0000 !important; }
+        .emoji-classic { color: #ffcc00 !important; }
     </style>
 </head>
-<body class="bg-feira-bege pb-24">
+<body class="bg-gray-50 pb-24">
 
-    <header class="bg-white p-4 shadow-sm sticky top-0 z-20 flex justify-between items-center border-b-2 border-feira-bronze">
+    <header class="bg-feira-amarelo p-4 shadow-md sticky top-0 z-30 flex justify-between items-center border-b-2 border-feira-preto">
         <div class="w-8"></div> 
-        <h1 class="text-xl font-bold text-feira-bronze uppercase tracking-widest">Gente da Feira</h1>
-        <button onclick="window.mostrarTela('feed-container')" class="text-gray-400 text-xs active:rotate-180 transition-transform">🔄</button>
+        <h1 class="text-xl font-black text-feira-preto uppercase tracking-widest">Gente da Feira</h1>
+        <button onclick="window.mostrarTela('feed-container')" class="text-feira-preto text-xs active:rotate-180 transition-transform font-bold">🔄</button>
     </header>
 
-    <nav id="feed-nav" class="flex bg-white border-b sticky top-[60px] z-10">
+    <nav id="feed-nav" class="flex bg-white border-b sticky top-[62px] z-20">
         <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Feira Toda</button>
-        <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-500">Meu Bairro</button>
+        <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-400 font-bold">Meu Bairro</button>
     </nav>
 
     <section id="auth-screen" class="hidden p-8 text-center animate-fade-in">
@@ -48,27 +55,27 @@
             <p class="text-gray-500 text-sm">Acesse a rede oficial de Feira de Santana</p>
         </div>
         <div class="space-y-4 mb-6">
-            <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-feira-bronze">
-            <input type="password" id="auth-password" placeholder="Sua senha" class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-feira-bronze">
+            <input type="email" id="auth-email" placeholder="Seu e-mail" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-amarelo">
+            <input type="password" id="auth-password" placeholder="Sua senha" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-amarelo">
         </div>
         <div class="space-y-3">
-            <button onclick="fazerLogin()" class="w-full bg-feira-bronze text-white py-4 rounded-xl font-bold shadow-lg hover:bg-opacity-90 transition active:scale-95">Entrar</button>
-            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-bronze text-feira-bronze py-4 rounded-xl font-bold hover:bg-white transition active:scale-95">Criar Nova Conta</button>
+            <button onclick="fazerLogin()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg hover:bg-opacity-90 transition active:scale-95">ENTRAR</button>
+            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-preto text-feira-preto py-4 rounded-xl font-black hover:bg-white transition active:scale-95">CRIAR NOVA CONTA</button>
         </div>
     </section>
 
     <section id="user-dashboard" class="hidden p-4 animate-fade-in">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-            <div class="bg-gradient-to-r from-feira-marinho to-feira-bronze h-24"></div>
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border border-gray-100">
+            <div class="bg-gradient-to-r from-feira-marinho to-feira-amarelo h-24"></div>
             <div class="px-6 pb-6 text-center -mt-12">
-                <div class="inline-block p-1 bg-white rounded-full mb-4">
-                    <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-inner">
+                <div class="inline-block p-1 bg-white rounded-full mb-4 shadow-md">
+                    <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white">
                         <img id="img-perfil" class="w-full h-full object-cover hidden">
                         <span id="emoji-perfil" class="text-4xl">👤</span>
                     </div>
                 </div>
                 <h2 id="dash-nome" class="text-xl font-bold text-feira-marinho">...</h2>
-                <p id="dash-bairro" class="text-feira-bronze font-bold text-xs uppercase mb-4"></p>
+                <p id="dash-bairro" class="text-feira-preto font-black text-xs uppercase mb-4 bg-feira-amarelo inline-block px-2 py-1 rounded"></p>
                 <p id="dash-bio" class="text-gray-500 text-sm italic px-4 mb-6 leading-tight"></p>
                 
                 <div class="grid grid-cols-2 gap-4 border-t pt-6">
@@ -77,7 +84,7 @@
                         <p class="text-[10px] text-gray-400 font-bold uppercase">Avisos</p>
                     </div>
                     <div>
-                        <p class="text-xl font-black text-feira-bronze">FSA</p>
+                        <p class="text-xl font-black text-feira-preto">FSA</p>
                         <p class="text-[10px] text-gray-400 font-bold uppercase">Região</p>
                     </div>
                 </div>
@@ -92,10 +99,10 @@
     </section>
 
     <section id="form-perfil" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-bold mb-6 text-feira-bronze">Configurar Perfil</h2>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase">Configurar Perfil</h2>
         <div class="space-y-4">
-            <input type="text" id="perfil-nome" placeholder="Seu Nome ou Nome da Empresa" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-feira-bronze outline-none">
-            <select id="perfil-bairro" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-feira-bronze outline-none">
+            <input type="text" id="perfil-nome" placeholder="Seu Nome ou Nome da Empresa" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none">
+            <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none font-bold">
                 <option value="Centro">Centro</option>
                 <option value="Tomba">Tomba</option>
                 <option value="SIM">SIM</option>
@@ -103,15 +110,15 @@
                 <option value="Campo Limpo">Campo Limpo</option>
                 <option value="Mangabeira">Mangabeira</option>
             </select>
-            <textarea id="perfil-bio" placeholder="Sua bio..." class="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-feira-bronze outline-none"></textarea>
-            <button onclick="salvarPerfil()" class="w-full bg-feira-bronze text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">Salvar Alterações</button>
-            <button onclick="window.mostrarTela('user-dashboard')" class="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+            <textarea id="perfil-bio" placeholder="Sua bio..." class="w-full p-3 border-2 rounded-lg h-24 focus:ring-2 focus:ring-feira-amarelo outline-none"></textarea>
+            <button onclick="salvarPerfil()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition">SALVAR ALTERAÇÕES</button>
+            <button onclick="window.mostrarTela('user-dashboard')" class="w-full py-2 text-gray-500 text-sm font-bold">Cancelar</button>
         </div>
     </section>
 
     <section id="form-post" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-bold mb-6 text-feira-bronze italic">Novo Aviso</h2>
-        <select id="post-zona" class="w-full p-3 border rounded-lg mb-4 bg-gray-50 font-bold text-feira-bronze">
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase">Novo Aviso</h2>
+        <select id="post-zona" class="w-full p-3 border-2 rounded-lg mb-4 bg-gray-50 font-black text-feira-preto">
             <option value="Geral">Toda a Feira (Geral)</option>
             <option value="Centro">Centro</option>
             <option value="Tomba">Tomba</option>
@@ -119,22 +126,22 @@
             <option value="Cidade Nova">Cidade Nova</option>
             <option value="Campo Limpo">Campo Limpo</option>
         </select>
-        <textarea id="post-content" placeholder="O que está acontecendo agora?" class="w-full p-4 border rounded-xl mb-4 h-40 outline-none focus:ring-2 focus:ring-feira-bronze"></textarea>
-        <button onclick="enviarPost()" class="bg-feira-bronze text-white w-full py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">Publicar Aviso</button>
-        <button onclick="window.mostrarTela('feed-container')" class="w-full py-3 text-gray-400 text-sm mt-2">Cancelar</button>
+        <textarea id="post-content" placeholder="O que está acontecendo agora?" class="w-full p-4 border-2 rounded-xl mb-4 h-40 outline-none focus:ring-2 focus:ring-feira-amarelo"></textarea>
+        <button onclick="enviarPost()" class="bg-feira-amarelo text-feira-preto w-full py-4 rounded-xl font-black shadow-lg text-lg active:scale-95 transition">PUBLICAR AVISO</button>
+        <button onclick="window.mostrarTela('feed-container')" class="w-full py-3 text-gray-400 text-sm mt-2 font-bold">Cancelar</button>
     </section>
 
     <main id="feed-container" class="p-4 space-y-4 animate-fade-in"></main>
 
-    <footer class="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-        <button onclick="window.mostrarTela('feed-container')" class="flex flex-col items-center text-feira-bronze">
-            <span class="text-xl">🏠</span><span class="text-[10px] font-bold uppercase tracking-tighter">Início</span>
+    <footer class="fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <button onclick="window.mostrarTela('feed-container')" class="flex flex-col items-center text-feira-preto">
+            <span class="text-2xl">🏠</span><span class="text-[10px] font-black uppercase tracking-tighter">Início</span>
         </button>
-        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-400 hover:text-feira-bronze transition">
-            <span class="text-xl">➕</span><span class="text-[10px] font-bold uppercase tracking-tighter">Avisar</span>
+        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-400 hover:text-feira-preto transition">
+            <span class="text-2xl">➕</span><span class="text-[10px] font-black uppercase tracking-tighter">Avisar</span>
         </button>
-        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-400 hover:text-feira-bronze transition">
-            <span class="text-xl">👤</span><span class="text-[10px] font-bold uppercase tracking-tighter">Perfil</span>
+        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-400 hover:text-feira-preto transition">
+            <span class="text-2xl">👤</span><span class="text-[10px] font-black uppercase tracking-tighter">Perfil</span>
         </button>
     </footer>
 
