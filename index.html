@@ -34,10 +34,13 @@
         .reaction-btn:active { transform: scale(1.4); }
         
         /* Impede scroll horizontal e organiza camadas */
-        body { overflow-x: hidden; touch-action: manipulation; }
+        body { overflow-x: hidden; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         #feed-container { position: relative; z-index: 10; }
         header { z-index: 40; }
         footer { z-index: 50; }
+
+        /* Ajuste para inputs não darem zoom no iPhone ao focar */
+        input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
 <body class="bg-gray-50 pb-24">
