@@ -1,6 +1,6 @@
 /**
  * GENTE DA FEIRA - O HUB DE FEIRA DE SANTANA 2026
- * Versão: 4.8.0 (Unificação Total: Identidade, Storage & Social)
+ * Versão: 4.9.0 (Restauração de Moderação e Exclusão)
  */
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -50,7 +50,107 @@ function popularMenusBairros() {
     });
 }
 
-// --- SISTEMA DE IDENTIDADE (STORAGE & PROFILE) ---
+// --- MODERAÇÃO E EXCLUSÃO (RESTAURADO) ---
+
+window.excluirPost = async (id) => {
+    if (confirm("Tem certeza que deseja apagar este aviso?")) {
+        const { error } = await _supabase.from('posts').delete().eq('id', id);
+        if (error) alert("Erro ao apagar post: " + error.message);
+        else carregarFeed();
+    }
+};
+
+window.apagarComentario = async (id) => {
+    if (confirm("Deseja remover este comentário?")) {
+        const { error } = await _supabase.from('comments').delete().eq('id', id);
+        if (error) alert("Erro ao apagar comentário: " + error.message);
+        else carregarFeed();
+    }
+};
+
+// --- FEED ENGINE ---
+async function carregarFeed() {
+    const container = document.getElementById('feed-container');
+    container.innerHTML = '<div class="text-center p-10 opacity-30 font-black text-xs uppercase tracking-widest">Buscando em Feira...</div>';
+
+    const { data: { session } } = await _supabase.auth.getSession();
+    const userIdLogado = session?.user?.id;
+
+    const { data: posts, error } = await _supabase
+        .from('posts')
+        .select(`
+            *,
+            profiles:user_id (username, bairro, avatar_url),
+            reactions (emoji_type, user_id),
+            comments (*, profiles:user_id (username))
+        `)
+        .order('created_at', { ascending: false });
+
+    if (!error) renderizarFeed(posts || [], container, userIdLogado);
+}
+
+function renderizarFeed(posts, container, userIdLogado) {
+    container.innerHTML = "";
+    posts.forEach(post => {
+        const postEl = document.createElement('article');
+        postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-6 animate-fade-in";
+        
+        const isDonoPost = userIdLogado === post.user_id;
+        const btnDeletePost = isDonoPost ? `<button onclick="excluirPost('${post.id}')" class="text-[9px] text-red-300 font-bold uppercase hover:text-red-500 transition-colors">Apagar</button>` : '';
+
+        const avatar = post.profiles?.avatar_url 
+            ? `<img src="${post.profiles.avatar_url}" class="w-full h-full object-cover">`
+            : `<span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>`;
+
+        const reacoesHtml = EMOJIS.map(emoji => {
+            const count = post.reactions?.filter(r => r.emoji_type === emoji).length || 0;
+            return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1 active:scale-125 transition-transform">
+                <span class="text-sm">${emoji}</span>
+                <span class="text-[10px] font-black text-gray-400">${count || ''}</span>
+            </button>`;
+        }).join('');
+
+        postEl.innerHTML = `
+            <div class="flex items-center gap-4 mb-5">
+                <div onclick="verPerfilPublico('${post.user_id}')" class="w-12 h-12 rounded-2xl bg-feira-yellow flex items-center justify-center shadow-md cursor-pointer overflow-hidden border-2 border-white">
+                    ${avatar}
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h4 class="font-black text-feira-marinho text-sm">${post.profiles?.username || 'Morador'}</h4>
+                            <span class="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-lg text-gray-400 uppercase tracking-tighter">${post.zona}</span>
+                        </div>
+                        ${btnDeletePost}
+                    </div>
+                </div>
+            </div>
+            <p class="text-gray-600 text-sm mb-6 leading-relaxed">${post.content}</p>
+            <div class="flex items-center justify-between pt-5 border-t border-gray-50">
+                <div class="flex gap-4">${reacoesHtml}</div>
+                <button onclick="abrirThreads('${post.id}')" class="text-[10px] font-black uppercase text-feira-marinho bg-feira-yellow/20 px-4 py-2 rounded-xl">Conversa (${post.comments?.length || 0})</button>
+            </div>
+            <div id="thread-${post.id}" class="hidden mt-4 space-y-2 pt-4 border-t border-dashed border-gray-100">
+                ${post.comments?.map(c => {
+                    const isDonoComentario = userIdLogado === c.user_id;
+                    const btnDeleteComentario = isDonoComentario ? `<button onclick="apagarComentario('${c.id}')" class="text-red-300 hover:text-red-500 font-bold ml-2">×</button>` : '';
+                    return `
+                    <div class="text-xs bg-gray-50 p-3 rounded-2xl flex justify-between items-center">
+                        <span><b>${c.profiles?.username || 'User'}:</b> ${c.content}</span>
+                        ${btnDeleteComentario}
+                    </div>`;
+                }).join('')}
+                <div class="flex gap-2 pt-2">
+                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-gray-50 border-none rounded-xl p-3 outline-none">
+                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-bold uppercase">OK</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(postEl);
+    });
+}
+
+// --- IDENTIDADE E PERFIL ---
 
 window.abrirEdicaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
@@ -67,25 +167,16 @@ window.abrirEdicaoPerfil = async () => {
 window.salvarPerfilCompleto = async () => {
     const btn = document.getElementById('btn-save-profile');
     const fileInput = document.getElementById('input-file');
-    const username = document.getElementById('edit-username').value;
-    const bio = document.getElementById('edit-bio').value;
-    const bairro = document.getElementById('edit-bairro').value;
-
+    const { data: { session } } = await _supabase.auth.getSession();
+    
     btn.disabled = true;
     btn.innerText = "Sincronizando...";
 
-    const { data: { session } } = await _supabase.auth.getSession();
     let avatar_url = null;
-
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await _supabase.storage
-            .from('avatars')
-            .upload(fileName, file);
-
+        const fileName = `${session.user.id}-${Date.now()}`;
+        const { error: uploadError } = await _supabase.storage.from('avatars').upload(fileName, file);
         if (!uploadError) {
             const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(fileName);
             avatar_url = publicUrl;
@@ -94,15 +185,14 @@ window.salvarPerfilCompleto = async () => {
 
     const updates = {
         id: session.user.id,
-        username,
-        bio,
-        bairro,
+        username: document.getElementById('edit-username').value,
+        bio: document.getElementById('edit-bio').value,
+        bairro: document.getElementById('edit-bairro').value,
         updated_at: new Date()
     };
     if(avatar_url) updates.avatar_url = avatar_url;
 
     const { error } = await _supabase.from('profiles').upsert(updates);
-
     if (error) {
         alert("Erro: " + error.message);
         btn.disabled = false;
@@ -146,72 +236,7 @@ window.verPerfilPublico = async (uid) => {
     }
 };
 
-// --- FEED ENGINE ---
-async function carregarFeed() {
-    const container = document.getElementById('feed-container');
-    container.innerHTML = '<div class="text-center p-10 opacity-30 font-black text-xs uppercase tracking-widest">Buscando em Feira...</div>';
-
-    const { data: posts, error } = await _supabase
-        .from('posts')
-        .select(`
-            *,
-            profiles:user_id (username, bairro, avatar_url),
-            reactions (emoji_type, user_id),
-            comments (*, profiles:user_id (username))
-        `)
-        .order('created_at', { ascending: false });
-
-    if (!error) renderizarFeed(posts || [], container);
-}
-
-function renderizarFeed(posts, container) {
-    container.innerHTML = "";
-    posts.forEach(post => {
-        const postEl = document.createElement('article');
-        postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-6 animate-fade-in";
-        
-        const avatar = post.profiles?.avatar_url 
-            ? `<img src="${post.profiles.avatar_url}" class="w-full h-full object-cover">`
-            : `<span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>`;
-
-        const reacoesHtml = EMOJIS.map(emoji => {
-            const count = post.reactions?.filter(r => r.emoji_type === emoji).length || 0;
-            return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1 active:scale-125 transition-transform">
-                <span class="text-sm">${emoji}</span>
-                <span class="text-[10px] font-black text-gray-400">${count || ''}</span>
-            </button>`;
-        }).join('');
-
-        postEl.innerHTML = `
-            <div class="flex items-center gap-4 mb-5">
-                <div onclick="verPerfilPublico('${post.user_id}')" class="w-12 h-12 rounded-2xl bg-feira-yellow flex items-center justify-center shadow-md cursor-pointer overflow-hidden border-2 border-white">
-                    ${avatar}
-                </div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-black text-feira-marinho text-sm">${post.profiles?.username || 'Morador'}</h4>
-                        <span class="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-lg text-gray-400 uppercase tracking-tighter">${post.zona}</span>
-                    </div>
-                </div>
-            </div>
-            <p class="text-gray-600 text-sm mb-6 leading-relaxed">${post.content}</p>
-            <div class="flex items-center justify-between pt-5 border-t border-gray-50">
-                <div class="flex gap-4">${reacoesHtml}</div>
-                <button onclick="abrirThreads('${post.id}')" class="text-[10px] font-black uppercase text-feira-marinho bg-feira-yellow/20 px-4 py-2 rounded-xl">Conversa (${post.comments?.length || 0})</button>
-            </div>
-            <div id="thread-${post.id}" class="hidden mt-4 space-y-2 pt-4 border-t border-dashed border-gray-100">
-                ${post.comments?.map(c => `<div class="text-xs bg-gray-50 p-3 rounded-2xl"><b>${c.profiles?.username || 'User'}:</b> ${c.content}</div>`).join('')}
-                <div class="flex gap-2 pt-2">
-                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-gray-50 border-none rounded-xl p-3 outline-none">
-                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-bold uppercase">OK</button>
-                </div>
-            </div>
-        `;
-        container.appendChild(postEl);
-    });
-}
-
-// --- AÇÕES ---
+// --- AÇÕES SOCIAIS ---
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -229,9 +254,9 @@ window.comentar = async (postId) => {
 };
 
 window.enviarPost = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
     const content = document.getElementById('post-content').value;
     const zona = document.getElementById('post-zona').value;
-    const { data: { session } } = await _supabase.auth.getSession();
     if(!content || !session) return;
     await _supabase.from('posts').insert({ content, zona, user_id: session.user.id });
     document.getElementById('post-content').value = "";
@@ -240,7 +265,7 @@ window.enviarPost = async () => {
 };
 
 window.abrirThreads = (id) => document.getElementById(`thread-${id}`).classList.toggle('hidden');
-window.mudarFeed = (tipo) => { mostrarTela('feed-container'); carregarFeed(); };
+window.mudarFeed = () => { mostrarTela('feed-container'); carregarFeed(); };
 window.abrirPostagem = () => mostrarTela('form-post');
 window.gerenciarBotaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
@@ -253,9 +278,10 @@ async function verificarSessao() {
 }
 
 window.tentarLogar = async () => {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    const { error } = await _supabase.auth.signInWithPassword({ 
+        email: document.getElementById('auth-email').value, 
+        password: document.getElementById('auth-password').value 
+    });
     if (error) alert(error.message); else window.location.reload();
 };
 
@@ -267,7 +293,6 @@ window.previewImagem = (event) => {
         const preview = document.querySelector('#edit-profile-screen .w-24.h-24');
         preview.style.backgroundImage = `url(${reader.result})`;
         preview.style.backgroundSize = 'cover';
-        preview.style.backgroundPosition = 'center';
     };
     reader.readAsDataURL(event.target.files[0]);
 };
