@@ -527,7 +527,8 @@ window.fazerLogout = async () => {
 
 // --- 10. FUNÇÕES DE UTILIDADE ---
 window.mudarFeed = (tipo) => { 
-    carregarFeed(tipo !== 'global'); 
+    // Se o tipo for 'bairro', passamos 'true' para carregarFeed
+    carregarFeed(tipo === 'bairro'); 
 };
 
 window.abrirPostagem = async () => {
