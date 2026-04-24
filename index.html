@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -21,7 +22,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #FDFDF7; }
-        .hidden { display: none !important; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="text-gray-900 pb-20">
@@ -35,18 +36,17 @@
             <div class="text-center mb-6">
                 <span class="text-4xl">☀️</span>
                 <h2 class="text-2xl font-black mt-2 uppercase">Conectar</h2>
-                <p id="auth-status" class="text-[10px] text-gray-400 mt-2">Verificando conexão...</p>
             </div>
             <div class="space-y-4">
                 <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <input type="password" id="auth-password" placeholder="Senha" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 
-                <button onclick="executarLogin()" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">
+                <button onclick="handleAuth('login')" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">
                     Entrar
                 </button>
                 
-                <button onclick="executarCadastro()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase">
-                    Criar Nova Conta
+                <button onclick="handleAuth('signup')" class="w-full text-gray-400 py-2 text-xs font-bold uppercase">
+                    Criar Conta
                 </button>
             </div>
         </div>
@@ -61,48 +61,45 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+    <script src="app.js"></script>
+
     <script>
-        const URL_FSA = 'https://oecoggegxlortfcsnagd.supabase.co';
-        const KEY_FSA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
-        
-        // Inicializa globalmente para garantir que o botão encontre o cliente
-        const _supabase = supabase.createClient(URL_FSA, KEY_FSA);
-
-        window.onload = () => {
-            document.getElementById('auth-status').innerText = "Sistema Pronto 🚀";
-        };
-
-        async function executarLogin() {
+        // FUNÇÃO DE EMERGÊNCIA PARA GARANTIR O LOGIN
+        async function handleAuth(type) {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             const btn = document.getElementById('btn-login');
 
-            if(!email || !password) return alert("Ei conterrâneo, preencha tudo!");
+            if (!email || !password) {
+                alert("Preencha todos os campos, conterrâneo!");
+                return;
+            }
 
-            btn.innerText = "ENTRANDO...";
+            btn.innerText = "CARREGANDO...";
             btn.disabled = true;
 
-            const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+            try {
+                let result;
+                if (type === 'login') {
+                    result = await _supabase.auth.signInWithPassword({ email, password });
+                } else {
+                    result = await _supabase.auth.signUp({ email, password });
+                }
 
-            if (error) {
-                alert("Erro: " + error.message);
+                if (result.error) {
+                    alert("Erro: " + result.error.message);
+                } else {
+                    console.log("Sucesso!");
+                    location.reload(); // Recarrega para ativar o estado logado no app.js
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro de conexão com o Supabase.");
+            } finally {
                 btn.innerText = "ENTRAR";
                 btn.disabled = false;
-            } else {
-                window.location.reload(); // Recarrega para o app.js assumir o feed
             }
         }
-
-        async function executarCadastro() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const { error } = await _supabase.auth.signUp({ email, password });
-            if (error) alert(error.message); 
-            else alert("Quase lá! Verifique seu e-mail para confirmar a conta.");
-        }
     </script>
-
-    <script src="app.js"></script>
 </body>
 </html>
