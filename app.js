@@ -1,4 +1,4 @@
-console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
+console.log("Sistema Gente da Feira - Versão 1.5 (Threads + Upload + Realtime)");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -6,18 +6,16 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 let _supabase;
 
-// --- 2. INICIALIZAÇÃO COM REALTIME ---
+// --- 2. INICIALIZAÇÃO ---
 function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
+        // Escuta Realtime para novos posts e mudanças
         _supabase
             .channel('fluxo-avisos-feira')
-            .on(
-                'postgres_changes', 
-                { event: '*', schema: 'public', table: 'posts' }, 
-                (payload) => { carregarFeed(); }
-            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => carregarFeed())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => carregarFeed())
             .subscribe();
 
         carregarFeed();
@@ -27,7 +25,7 @@ function inicializarSupabase() {
 }
 document.addEventListener('DOMContentLoaded', inicializarSupabase);
 
-// --- 3. NAVEGAÇÃO E UI ---
+// --- 3. UI E NAVEGAÇÃO ---
 function mostrarTela(telaAtiva) {
     const telas = ['feed-container', 'auth-screen', 'user-dashboard', 'form-perfil', 'form-post'];
     telas.forEach(id => {
@@ -38,19 +36,39 @@ function mostrarTela(telaAtiva) {
     if (ativa) ativa.classList.remove('hidden');
 }
 window.mostrarTela = mostrarTela;
-window.toggleForm = () => mostrarTela('feed-container');
 
 function escaparHTML(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// --- 4. LÓGICA DO FEED ---
+// --- 4. LÓGICA DE THREADS (CONTROLES) ---
+window.prepararResposta = (postId, commentId, username) => {
+    const input = document.getElementById(`comment-input-${postId}`);
+    const indicator = document.getElementById(`reply-indicator-${postId}`);
+    const nameSpan = document.getElementById(`reply-to-name-${postId}`);
+    
+    input.setAttribute('data-parent-id', commentId);
+    input.placeholder = `Respondendo a ${username}...`;
+    input.focus();
+    
+    if(nameSpan) nameSpan.innerText = username;
+    if(indicator) indicator.classList.remove('hidden');
+};
+
+window.cancelarResposta = (postId) => {
+    const input = document.getElementById(`comment-input-${postId}`);
+    const indicator = document.getElementById(`reply-indicator-${postId}`);
+    
+    input.setAttribute('data-parent-id', "");
+    input.placeholder = "Responder...";
+    if(indicator) indicator.classList.add('hidden');
+};
+
+// --- 5. LÓGICA DO FEED ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
-
-    container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse font-medium uppercase text-xs tracking-widest">Buscando avisos em Feira de Santana...</p>';
 
     const { data: { session } } = await _supabase.auth.getSession();
 
@@ -65,63 +83,143 @@ async function carregarFeed(apenasZona = false) {
     }
 
     const { data: posts, error } = await query;
-    if (error) return container.innerHTML = `<p class="text-red-500 text-center p-10">Erro ao carregar o feed.</p>`;
+    if (error) return;
 
     container.innerHTML = "";
-    if (posts.length === 0) return container.innerHTML = "<p class='text-center p-10 text-gray-500'>Nenhum aviso encontrado.</p>";
 
     for (const post of posts) {
         const [reactsRes, commentsRes] = await Promise.all([
             _supabase.from('reactions').select('emoji_type').eq('post_id', post.id),
-            _supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
+            _supabase.from('comments').select('*, profiles:user_id(username)').eq('post_id', post.id).order('created_at', { ascending: true })
         ]);
 
         const reacts = reactsRes.data || [];
-        const comments = commentsRes.data || [];
-        const div = document.createElement('div');
-        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-[#FFD700] mb-4 transition-all hover:shadow-md";
-        
-        const avatarUrl = post.profiles?.avatar_url;
-        const eDono = session?.user.id === post.user_id;
+        const allComments = commentsRes.data || [];
+        const mainComments = allComments.filter(c => !c.parent_id);
 
+        // Função Recursiva para Threads
+        const renderReplies = (parentId) => {
+            const replies = allComments.filter(c => c.parent_id === parentId);
+            return replies.map(r => `
+                <div class="ml-6 mt-2 border-l-2 border-gray-200 pl-3 py-1">
+                    <p class="text-[11px] text-gray-700">
+                        <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
+                    </p>
+                    <button onclick="prepararResposta('${post.id}', '${r.id}', '${r.profiles?.username}')" 
+                            class="text-[9px] font-black uppercase text-gray-400 hover:text-black">Responder</button>
+                    ${renderReplies(r.id)}
+                </div>
+            `).join('');
+        };
+
+        const commentsHTML = mainComments.map(c => `
+            <div class="bg-gray-50 p-2 rounded-lg border-l-2 border-[#FFD700] text-xs mb-2">
+                <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
+                <br>
+                <button onclick="prepararResposta('${post.id}', '${c.id}', '${c.profiles?.username}')" 
+                        class="text-[9px] font-black uppercase text-gray-400 hover:text-black mt-1">Responder Thread</button>
+                ${renderReplies(c.id)}
+            </div>
+        `).join('');
+
+        const div = document.createElement('div');
+        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-[#FFD700] mb-4";
+        
         div.innerHTML = `
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
                     <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border">
-                        ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '<span class="text-gray-400">👤</span>'}
+                        ${post.profiles?.avatar_url ? `<img src="${post.profiles.avatar_url}" class="w-full h-full object-cover">` : '👤'}
                     </div>
                     <div>
                         <h3 class="font-bold text-sm text-gray-800">${escaparHTML(post.profiles?.username || "Morador")}</h3>
-                        <p class="text-[10px] text-black font-black uppercase tracking-tighter bg-[#FFD700] px-1 rounded">${escaparHTML(post.zona || "Geral")}</p>
+                        <p class="text-[10px] text-black font-black uppercase bg-[#FFD700] px-1 rounded">${escaparHTML(post.zona || "Geral")}</p>
                     </div>
                 </div>
-                ${eDono ? `<button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500">🗑️</button>` : ''}
+                ${session?.user.id === post.user_id ? `<button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500">🗑️</button>` : ''}
             </div>
             <p class="text-gray-700 text-sm mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
             
             <div class="flex gap-6 border-t border-b py-2 mb-3">
-                <button onclick="reagir(${post.id}, '❤️')" class="reaction-btn text-sm flex items-center gap-1.5">
-                    <span style="color: #ff0000;">❤️</span> <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '❤️').length}</span>
+                <button onclick="reagir(${post.id}, '❤️')" class="text-sm flex items-center gap-1">
+                    <span style="color:red">❤️</span> ${reacts.filter(r => r.emoji_type === '❤️').length}
                 </button>
-                <button onclick="reagir(${post.id}, '👍')" class="reaction-btn text-sm flex items-center gap-1.5">
-                    <span style="color: #ffcc00;">👍</span> <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '👍').length}</span>
+                <button onclick="reagir(${post.id}, '👍')" class="text-sm flex items-center gap-1">
+                    <span style="color:gold">👍</span> ${reacts.filter(r => r.emoji_type === '👍').length}
                 </button>
             </div>
 
-            <div class="space-y-2 mb-3">
-                ${comments.map(c => `<div class="bg-gray-50 p-2 rounded-lg border-l-2 border-yellow-400 text-xs"><b>Resp:</b> ${escaparHTML(c.content)}</div>`).join('')}
-            </div>
+            <div class="space-y-2 mb-3">${commentsHTML}</div>
 
-            <div class="flex gap-2">
-                <input type="text" id="comment-input-${post.id}" placeholder="Responder..." class="flex-1 text-xs p-2.5 border rounded-xl outline-none focus:ring-1 focus:ring-yellow-400">
-                <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black">ENVIAR</button>
+            <div class="flex flex-col gap-1">
+                <div id="reply-indicator-${post.id}" class="hidden text-[10px] font-black text-white bg-black px-2 py-1 rounded-t-lg w-fit">
+                    Respondendo a <span id="reply-to-name-${post.id}"></span>
+                    <button onclick="cancelarResposta('${post.id}')" class="ml-2 text-feira-amarelo">✕</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Responder..." 
+                           class="flex-1 text-xs p-2.5 border rounded-xl outline-none focus:ring-1 focus:ring-feira-amarelo">
+                    <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black">ENVIAR</button>
+                </div>
             </div>
         `;
         container.appendChild(div);
     }
 }
 
-// --- 5. DASHBOARD ---
+// --- 6. INTERAÇÕES ---
+window.comentar = async (postId) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+
+    const input = document.getElementById(`comment-input-${postId}`);
+    const parentId = input.getAttribute('data-parent-id') || null;
+    if (!input.value.trim()) return;
+
+    await _supabase.from('comments').insert([{ 
+        post_id: postId, 
+        user_id: session.user.id, 
+        content: input.value,
+        parent_id: parentId 
+    }]);
+
+    input.value = "";
+    cancelarResposta(postId);
+    // O realtime cuidará do reload automático
+};
+
+window.enviarPost = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+
+    const content = document.getElementById('post-content').value;
+    const zona = document.getElementById('post-zona').value;
+    if (!content.trim()) return;
+
+    await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
+    document.getElementById('post-content').value = ""; 
+    mostrarTela('feed-container');
+};
+
+window.reagir = async (postId, emoji) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+    await _supabase.from('reactions').upsert({ 
+        post_id: postId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    }, { onConflict: 'post_id,user_id' });
+    carregarFeed();
+};
+
+window.excluirPost = async (id) => {
+    if (confirm("Apagar aviso?")) { 
+        await _supabase.from('posts').delete().eq('id', id); 
+        carregarFeed(); 
+    }
+};
+
+// --- 7. PERFIL E DASHBOARD ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
     const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
@@ -134,62 +232,9 @@ window.verPerfilPublico = async function(userId) {
         else { img.classList.add('hidden'); emo.classList.remove('hidden'); }
     }
     const { data: { session } } = await _supabase.auth.getSession();
-    const isDono = session?.user.id === userId;
-    document.getElementById('dash-acoes').classList.toggle('hidden', !isDono);
-
-    const { data: posts } = await _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    document.getElementById('dash-count').innerText = posts?.length || 0;
-    document.getElementById('historico-posts').innerHTML = posts?.map(p => `
-        <div class="bg-white p-3 rounded-xl border mb-2 text-sm flex justify-between">
-            <p>${escaparHTML(p.content)}</p>
-            ${isDono ? `<button onclick="excluirPost(${p.id})" class="text-gray-300">🗑️</button>` : ''}
-        </div>`).join('') || "Sem avisos.";
+    document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
 };
 
-// --- 6. INTERAÇÕES ---
-window.excluirPost = async (id) => {
-    if (confirm("Apagar aviso?")) { await _supabase.from('posts').delete().eq('id', id); carregarFeed(); }
-};
-
-window.enviarPost = async () => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const content = document.getElementById('post-content').value, zona = document.getElementById('post-zona').value;
-    if (!content.trim()) return;
-    await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
-    document.getElementById('post-content').value = ""; mostrarTela('feed-container');
-};
-
-window.reagir = async (postId, emoji) => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return mostrarTela('auth-screen');
-    await _supabase.from('reactions').upsert({ post_id: postId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'post_id,user_id' });
-    carregarFeed();
-};
-
-window.comentar = async (postId) => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const input = document.getElementById(`comment-input-${postId}`);
-    if (!input.value.trim()) return;
-    await _supabase.from('comments').insert([{ post_id: postId, user_id: session.user.id, content: input.value }]);
-    input.value = ""; carregarFeed();
-};
-
-// --- 7. AUTENTICAÇÃO ---
-window.fazerLogin = async () => {
-    const email = document.getElementById('auth-email').value, password = document.getElementById('auth-password').value;
-    const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message); else location.reload();
-};
-
-window.fazerCadastro = async () => {
-    const email = document.getElementById('auth-email').value, password = document.getElementById('auth-password').value;
-    const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert(error.message); else alert("Verifique seu e-mail.");
-};
-
-window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
-
-// --- 8. GESTÃO DE PERFIL (COM UPLOAD RESTAURADO) ---
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
@@ -202,32 +247,17 @@ window.salvarPerfil = async () => {
         updated_at: new Date()
     };
 
-    // Restauração da lógica de upload de foto
+    // Lógica de Upload de Foto
     const fileInput = document.getElementById('perfil-upload');
-    if (fileInput && fileInput.files[0]) {
+    if (fileInput?.files[0]) {
         const file = fileInput.files[0];
         const path = `${session.user.id}/${Date.now()}-${file.name}`;
-        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
-        if (up) {
-            updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-        }
+        const { data: up, error: upErr } = await _supabase.storage.from('avatars').upload(path, file);
+        if (up) updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
     }
 
     const { error } = await _supabase.from('profiles').upsert(updates);
     if (error) alert(error.message); else verPerfilPublico(session.user.id);
-};
-
-// --- 9. CONTROLES GLOBAIS ---
-window.mudarFeed = (tipo) => {
-    const isGlobal = tipo === 'global';
-    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
-    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
-    carregarFeed(!isGlobal);
-};
-
-window.abrirPostagem = async () => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) mostrarTela('auth-screen'); else mostrarTela('form-post');
 };
 
 window.abrirEdicaoPerfil = () => {
@@ -243,6 +273,29 @@ window.abrirEdicaoPerfil = () => {
             });
         }
     });
+};
+
+// --- 8. AUTH ---
+window.fazerLogin = async () => {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (error) alert(error.message); else location.reload();
+};
+
+window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
+
+// --- 9. CONTROLES GLOBAIS ---
+window.mudarFeed = (tipo) => {
+    const isGlobal = tipo === 'global';
+    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
+    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
+    carregarFeed(!isGlobal);
+};
+
+window.abrirPostagem = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) mostrarTela('auth-screen'); else mostrarTela('form-post');
 };
 
 window.gerenciarBotaoPerfil = async () => {
