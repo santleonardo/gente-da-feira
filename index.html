@@ -44,7 +44,6 @@
                 <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <input type="password" id="auth-password" placeholder="Senha" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <button onclick="tentarLogar()" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Entrar</button>
-                <button onclick="tentarCadastrar()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase tracking-widest text-center">Criar Conta</button>
             </div>
         </div>
     </section>
@@ -62,70 +61,61 @@
     </section>
 
     <section id="user-dashboard" class="hidden p-4 max-w-xl mx-auto space-y-6">
-    <div class="bg-white p-8 rounded-[2.5rem] shadow-xl text-center border-t-8 border-feira-yellow relative">
-        <button onclick="fazerLogout()" class="absolute top-6 right-6 text-red-400 font-black text-[10px] uppercase">Sair</button>
-        <div class="w-24 h-24 bg-gray-100 rounded-[2rem] mx-auto mb-4 flex items-center justify-center overflow-hidden border-4 border-feira-bege shadow-inner text-3xl">
-            <img id="img-perfil" src="" class="w-full h-full object-cover hidden">
-            <span id="avatar-fallback">👤</span>
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl text-center border-t-8 border-feira-yellow relative">
+            <button onclick="fazerLogout()" class="absolute top-6 right-6 text-red-400 font-black text-[10px] uppercase">Sair</button>
+            <div class="w-24 h-24 bg-gray-100 rounded-[2rem] mx-auto mb-4 flex items-center justify-center overflow-hidden border-4 border-feira-bege shadow-inner text-3xl">
+                <img id="img-perfil" src="" class="w-full h-full object-cover hidden">
+                <span id="avatar-fallback">👤</span>
+            </div>
+            <h2 id="dash-nome" class="text-2xl font-black text-feira-marinho uppercase tracking-tighter"></h2>
+            <p id="dash-bairro" class="text-gray-400 font-bold text-xs uppercase tracking-widest"></p>
+            <p id="dash-bio" class="mt-4 text-gray-500 text-sm"></p>
+            <div id="edit-button-area"></div>
+            <div class="mt-6 flex justify-center gap-8 border-t pt-6">
+                <div><span id="dash-count" class="block font-black text-xl">0</span><small class="text-[9px] font-black text-gray-400 uppercase">Avisos</small></div>
+            </div>
         </div>
-        <h2 id="dash-nome" class="text-2xl font-black text-feira-marinho uppercase tracking-tighter"></h2>
-        <p id="dash-bairro" class="text-gray-400 font-bold text-xs uppercase tracking-widest"></p>
-        <p id="dash-bio" class="mt-4 text-gray-500 text-sm"></p>
-        
-        <div id="edit-button-area"></div>
+    </section>
 
-        <div class="mt-6 flex justify-center gap-8 border-t pt-6">
-            <div><span id="dash-count" class="block font-black text-xl">0</span><small class="text-[9px] font-black text-gray-400 uppercase">Avisos</small></div>
-        </div>
-    </div>
-    <div id="historico-posts" class="space-y-4"></div>
-</section>
     <section id="edit-profile-screen" class="hidden fixed inset-0 bg-white z-[80] p-6 overflow-y-auto">
-    <div class="max-w-xl mx-auto">
-        <div class="flex justify-between items-center mb-8">
-            <h3 class="font-black text-feira-marinho uppercase tracking-widest text-sm">Editar Minha Identidade</h3>
-            <button onclick="mostrarTela('user-dashboard')" class="text-gray-400 text-2xl">&times;</button>
-        </div>
-
-        <div class="space-y-6">
-            <div class="flex flex-col items-center gap-4 mb-8">
-                <div onclick="document.getElementById('input-file').click()" class="w-24 h-24 rounded-[2rem] bg-gray-100 border-4 border-dashed border-gray-200 flex items-center justify-center cursor-pointer overflow-hidden relative group">
-                    <span class="text-xs font-black text-gray-400 group-hover:hidden">Mudar Foto</span>
-                    <div class="hidden group-hover:flex absolute inset-0 bg-feira-yellow/20 items-center justify-center text-xl">📸</div>
+        <div class="max-w-xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="font-black text-feira-marinho uppercase tracking-widest text-sm">Editar Minha Identidade</h3>
+                <button onclick="mostrarTela('user-dashboard')" class="text-gray-400 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-6">
+                <div class="flex flex-col items-center gap-4 mb-8">
+                    <div onclick="document.getElementById('input-file').click()" class="w-24 h-24 rounded-[2rem] bg-gray-100 border-4 border-dashed border-gray-200 flex items-center justify-center cursor-pointer overflow-hidden relative group">
+                        <span class="text-xs font-black text-gray-400 group-hover:hidden">Mudar Foto</span>
+                        <div class="hidden group-hover:flex absolute inset-0 bg-feira-yellow/20 items-center justify-center text-xl">📸</div>
+                    </div>
+                    <input type="file" id="input-file" class="hidden" accept="image/*" onchange="previewImagem(event)">
                 </div>
-                <input type="file" id="input-file" class="hidden" accept="image/*" onchange="previewImagem(event)">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Nome de Exibição</label>
+                    <input type="text" id="edit-username" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Meu Bairro em Feira</label>
+                    <select id="edit-bairro" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1"></select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Biografia / O que eu faço</label>
+                    <textarea id="edit-bio" class="w-full h-24 p-4 bg-gray-50 rounded-2xl border-none outline-none resize-none mt-1 font-medium text-sm"></textarea>
+                </div>
+                <button id="btn-save-profile" onclick="salvarPerfilCompleto()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Guardar Alterações</button>
             </div>
-
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Nome de Exibição</label>
-                <input type="text" id="edit-username" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1">
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Meu Bairro em Feira</label>
-                <select id="edit-bairro" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1">
-                    </select>
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Biografia / O que eu faço</label>
-                <textarea id="edit-bio" class="w-full h-24 p-4 bg-gray-50 rounded-2xl border-none outline-none resize-none mt-1 font-medium text-sm"></textarea>
-            </div>
-
-            <button id="btn-save-profile" onclick="salvarPerfilCompleto()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Guardar Alterações</button>
         </div>
-    </div>
-</section>
-    <nav id="feed-tabs" class="hidden max-w-xl mx-auto px-4 pt-4 flex gap-2">
-    <button onclick="mudarFeed('Geral')" id="tab-geral" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-feira-marinho text-white shadow-md">
-        Feira Toda
-    </button>
-    <button onclick="mudarFeed('Local')" id="tab-local" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-white text-gray-400 border border-gray-100">
-        Meu Bairro
-    </button>
-</nav>
+    </section>
 
-<main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
+    <nav id="feed-tabs" class="hidden max-w-xl mx-auto px-4 pt-4 flex gap-2">
+        <button onclick="mudarFeed('Geral')" id="tab-geral" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md">
+            Feira Toda
+        </button>
+        <button onclick="mudarFeed('Local')" id="tab-local" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
+            Meu Bairro
+        </button>
+    </nav>
 
     <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
 
