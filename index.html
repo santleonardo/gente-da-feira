@@ -12,7 +12,8 @@
                     colors: {
                         'feira-yellow': '#FFD700', 
                         'feira-bege': '#FDFDF7',   
-                        'feira-marinho': '#1E3A5F'
+                        'feira-marinho': '#1E3A5F',
+                        'feira-bronze': '#CD7F32'
                     }
                 }
             }
@@ -23,6 +24,8 @@
         body { font-family: 'Inter', sans-serif; background-color: #FDFDF7; }
         .hidden { display: none !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="text-gray-900 pb-20">
@@ -35,13 +38,13 @@
         <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm border-t-8 border-feira-yellow">
             <div class="text-center mb-6">
                 <span class="text-4xl">☀️</span>
-                <h2 class="text-2xl font-black mt-2 uppercase tracking-tighter">Conectar</h2>
+                <h2 class="text-2xl font-black mt-2 uppercase tracking-tighter text-feira-marinho">Conectar</h2>
             </div>
             <div class="space-y-4">
                 <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <input type="password" id="auth-password" placeholder="Senha" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <button onclick="tentarLogar()" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Entrar</button>
-                <button onclick="tentarCadastrar()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase tracking-widest">Criar Conta</button>
+                <button onclick="tentarCadastrar()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase tracking-widest text-center">Criar Conta</button>
             </div>
         </div>
     </section>
@@ -52,17 +55,27 @@
                 <h3 class="font-black text-feira-marinho uppercase tracking-widest">Novo Aviso</h3>
                 <button onclick="mostrarTela('feed-container')" class="text-gray-400 text-3xl">&times;</button>
             </div>
-            <select id="post-zona" class="w-full p-4 mb-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho">
-                <option value="Geral">📍 Feira de Santana (Geral)</option>
-                <option value="Centro">Centro</option>
-                <option value="Tomba">Tomba</option>
-                <option value="SIM">SIM</option>
-                <option value="Cidade Nova">Cidade Nova</option>
-                <option value="Campo Limpo">Campo Limpo</option>
-            </select>
+            <select id="post-zona" class="w-full p-4 mb-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho"></select>
             <textarea id="post-content" placeholder="O que está acontecendo no bairro?" class="w-full h-40 p-4 bg-gray-50 rounded-2xl border-none outline-none resize-none mb-4" maxlength="300"></textarea>
-            <button onclick="enviarPostagem()" id="btn-postar" class="w-full bg-feira-yellow text-feira-marinho py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Publicar Agora</button>
+            <button onclick="enviarPost()" class="w-full bg-feira-yellow text-feira-marinho py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Publicar Agora</button>
         </div>
+    </section>
+
+    <section id="user-dashboard" class="hidden p-4 max-w-xl mx-auto space-y-6">
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl text-center border-t-8 border-feira-yellow relative">
+            <button onclick="fazerLogout()" class="absolute top-6 right-6 text-red-400 font-black text-[10px] uppercase">Sair</button>
+            <div class="w-24 h-24 bg-gray-100 rounded-[2rem] mx-auto mb-4 flex items-center justify-center overflow-hidden border-4 border-feira-bege shadow-inner text-3xl">
+                <img id="img-perfil" src="" class="w-full h-full object-cover hidden">
+                <span id="avatar-fallback">👤</span>
+            </div>
+            <h2 id="dash-nome" class="text-2xl font-black text-feira-marinho uppercase tracking-tighter"></h2>
+            <p id="dash-bairro" class="text-gray-400 font-bold text-xs uppercase tracking-widest"></p>
+            <p id="dash-bio" class="mt-4 text-gray-500 text-sm"></p>
+            <div class="mt-6 flex justify-center gap-8 border-t pt-6">
+                <div><span id="dash-count" class="block font-black text-xl">0</span><small class="text-[9px] font-black text-gray-400 uppercase">Avisos</small></div>
+            </div>
+        </div>
+        <div id="historico-posts" class="space-y-4"></div>
     </section>
 
     <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
@@ -74,31 +87,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        const URL_FSA = 'https://oecoggegxlortfcsnagd.supabase.co';
-        const KEY_FSA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
-        window._supabase = supabase.createClient(URL_FSA, KEY_FSA);
-
-        async function tentarLogar() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const btn = document.getElementById('btn-login');
-            if(!email || !password) return alert("Preencha os campos!");
-            btn.innerText = "ENTRANDO...";
-            btn.disabled = true;
-            const { error } = await window._supabase.auth.signInWithPassword({ email, password });
-            if (error) { alert(error.message); btn.innerText = "ENTRAR"; btn.disabled = false; }
-            else { window.location.reload(); }
-        }
-
-        async function tentarCadastrar() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const { error } = await window._supabase.auth.signUp({ email, password });
-            if (error) alert(error.message);
-            else alert("Verifique seu e-mail para confirmar a conta!");
-        }
-    </script>
     <script src="app.js"></script>
 </body>
 </html>
