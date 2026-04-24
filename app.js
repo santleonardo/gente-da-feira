@@ -401,19 +401,27 @@ window.reagir = async (id, emoji, isComment = false) => {
     }
 };
 
-// --- 8. PERFIL E DASHBOARD ---
+// --- 8. PERFIL E DASHBOARD (CORRIGIDO) ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
+    
+    // Busca dados do perfil e posts simultaneamente
     const [{ data: perfil }, { data: posts }] = await Promise.all([
-        _supabase.from('profiles').select('*').eq('id', userId).single(),
+        _supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
         _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false })
     ]);
 
     if (perfil) {
+        // Preenche os campos de visualização (Dashboard)
         document.getElementById('dash-nome').innerText = perfil.username || "Morador";
         document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
         document.getElementById('dash-bio').innerText = perfil.bio || "Sem informações adicionais.";
         
+        // Preenche os campos de edição (Formulário) para quando o usuário clicar em "Editar"
+        if (document.getElementById('perfil-nome')) document.getElementById('perfil-nome').value = perfil.username || "";
+        if (document.getElementById('perfil-bairro')) document.getElementById('perfil-bairro').value = perfil.bairro || "Feira de Santana";
+        if (document.getElementById('perfil-bio')) document.getElementById('perfil-bio').value = perfil.bio || "";
+
         const img = document.getElementById('img-perfil');
         const emo = document.getElementById('emoji-perfil');
         
@@ -434,37 +442,63 @@ window.verPerfilPublico = async function(userId) {
         : "<p class='text-center text-gray-400 text-[10px] py-10 uppercase font-black'>Nenhum aviso publicado.</p>";
 
     const { data: { session } } = await _supabase.auth.getSession();
-    document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
+    // Só mostra botões de edição se o perfil visualizado for do próprio usuário logado
+    const btnAcoes = document.getElementById('dash-acoes');
+    if (btnAcoes) btnAcoes.classList.toggle('hidden', session?.user.id !== userId);
 };
 
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
     
-    const btn = document.querySelector('#form-perfil button[onclick="salvarPerfil()"]');
-    btn.disabled = true; btn.innerText = "SALVANDO...";
+    // Seleção robusta do botão para feedback visual
+    const btn = document.querySelector('#form-perfil button[onclick="salvarPerfil()"]') || 
+                document.querySelector('button.bg-black.text-feira-bronze');
+    
+    if (btn) { btn.disabled = true; btn.innerText = "SALVANDO..."; }
 
     const updates = {
         id: session.user.id,
-        username: document.getElementById('perfil-nome').value,
+        username: document.getElementById('perfil-nome').value.trim(),
         bairro: document.getElementById('perfil-bairro').value,
-        bio: document.getElementById('perfil-bio').value,
+        bio: document.getElementById('perfil-bio').value.trim(),
         updated_at: new Date()
     };
 
-    const fileInput = document.getElementById('perfil-upload');
-    if (fileInput?.files[0]) {
-        const file = fileInput.files[0];
-        const path = `${session.user.id}/avatar-${Date.now()}`;
-        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
-        if (up) updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-    }
+    try {
+        // Lógica de Upload de Avatar
+        const fileInput = document.getElementById('perfil-upload');
+        if (fileInput?.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+            const filePath = `avatars/${fileName}`;
 
-    const { error } = await _supabase.from('profiles').upsert(updates);
-    btn.disabled = false; btn.innerText = "SALVAR ALTERAÇÕES";
-    
-    if (error) alert(error.message); 
-    else verPerfilPublico(session.user.id);
+            const { error: uploadError } = await _supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = _supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+            
+            updates.avatar_url = publicUrl;
+        }
+
+        const { error } = await _supabase.from('profiles').upsert(updates);
+        if (error) throw error;
+
+        alert("Perfil atualizado com sucesso!");
+        verPerfilPublico(session.user.id); // Recarrega os dados na tela
+        
+    } catch (err) {
+        console.error("Erro ao salvar perfil:", err);
+        alert("Erro ao salvar: " + err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "SALVAR ALTERAÇÕES"; }
+    }
 };
 
 // --- 9. AUTENTICAÇÃO ---
