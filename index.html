@@ -77,6 +77,42 @@
         </div>
         <div id="historico-posts" class="space-y-4"></div>
     </section>
+    <section id="edit-profile-screen" class="hidden fixed inset-0 bg-white z-[80] p-6 overflow-y-auto">
+    <div class="max-w-xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="font-black text-feira-marinho uppercase tracking-widest text-sm">Editar Minha Identidade</h3>
+            <button onclick="mostrarTela('user-dashboard')" class="text-gray-400 text-2xl">&times;</button>
+        </div>
+
+        <div class="space-y-6">
+            <div class="flex flex-col items-center gap-4 mb-8">
+                <div onclick="document.getElementById('input-file').click()" class="w-24 h-24 rounded-[2rem] bg-gray-100 border-4 border-dashed border-gray-200 flex items-center justify-center cursor-pointer overflow-hidden relative group">
+                    <span class="text-xs font-black text-gray-400 group-hover:hidden">Mudar Foto</span>
+                    <div class="hidden group-hover:flex absolute inset-0 bg-feira-yellow/20 items-center justify-center text-xl">📸</div>
+                </div>
+                <input type="file" id="input-file" class="hidden" accept="image/*" onchange="previewImagem(event)">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Nome de Exibição</label>
+                <input type="text" id="edit-username" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Meu Bairro em Feira</label>
+                <select id="edit-bairro" class="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-bold text-feira-marinho mt-1">
+                    </select>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-4">Biografia / O que eu faço</label>
+                <textarea id="edit-bio" class="w-full h-24 p-4 bg-gray-50 rounded-2xl border-none outline-none resize-none mt-1 font-medium text-sm"></textarea>
+            </div>
+
+            <button id="btn-save-profile" onclick="salvarPerfilCompleto()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Guardar Alterações</button>
+        </div>
+    </div>
+</section>
 
     <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
 
