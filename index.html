@@ -21,19 +21,12 @@
         }
     </script>
     <style>
-        /* Estilo para a aba ativa com a nova paleta */
         .active-tab { border-bottom: 4px solid #000000; color: #000000; font-weight: 900; }
         .hidden { display: none; }
         .animate-fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        /* Efeito de clique nas reações */
         .reaction-btn { transition: transform 0.2s; cursor: pointer; display: inline-block; }
         .reaction-btn:active { transform: scale(1.4); }
-        
-        /* Garantia de cores clássicas para emojis de reação */
-        .emoji-red { color: #ff0000 !important; }
-        .emoji-classic { color: #ffcc00 !important; }
     </style>
 </head>
 <body class="bg-gray-50 pb-24">
@@ -51,7 +44,7 @@
 
     <section id="auth-screen" class="hidden p-8 text-center animate-fade-in">
         <div class="mb-8">
-            <h2 class="text-2xl font-black text-feira-marinho">BEM-VINDO!</h2>
+            <h2 class="text-2xl font-black text-feira-marinho uppercase">BEM-VINDO!</h2>
             <p class="text-gray-500 text-sm">Acesse a rede oficial de Feira de Santana</p>
         </div>
         <div class="space-y-4 mb-6">
@@ -59,8 +52,8 @@
             <input type="password" id="auth-password" placeholder="Sua senha" class="w-full p-4 border-2 rounded-xl outline-none focus:ring-2 focus:ring-feira-amarelo">
         </div>
         <div class="space-y-3">
-            <button onclick="fazerLogin()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg hover:bg-opacity-90 transition active:scale-95">ENTRAR</button>
-            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-preto text-feira-preto py-4 rounded-xl font-black hover:bg-white transition active:scale-95">CRIAR NOVA CONTA</button>
+            <button onclick="fazerLogin()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition">ENTRAR</button>
+            <button onclick="fazerCadastro()" class="w-full border-2 border-feira-preto text-feira-preto py-4 rounded-xl font-black hover:bg-white active:scale-95 transition">CRIAR NOVA CONTA</button>
         </div>
     </section>
 
@@ -101,6 +94,10 @@
     <section id="form-perfil" class="hidden p-6 bg-white min-h-screen animate-fade-in">
         <h2 class="text-xl font-black mb-6 text-feira-preto uppercase">Configurar Perfil</h2>
         <div class="space-y-4">
+            <div class="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
+                <p class="text-xs font-bold text-gray-400 mb-2 uppercase">Foto de Perfil</p>
+                <input type="file" id="perfil-upload" accept="image/*" class="text-xs">
+            </div>
             <input type="text" id="perfil-nome" placeholder="Seu Nome ou Nome da Empresa" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none">
             <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none font-bold">
                 <option value="Centro">Centro</option>
@@ -117,7 +114,7 @@
     </section>
 
     <section id="form-post" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase">Novo Aviso</h2>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase italic">Novo Aviso</h2>
         <select id="post-zona" class="w-full p-3 border-2 rounded-lg mb-4 bg-gray-50 font-black text-feira-preto">
             <option value="Geral">Toda a Feira (Geral)</option>
             <option value="Centro">Centro</option>
