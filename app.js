@@ -1,10 +1,10 @@
 /**
  * GENTE DA FEIRA - O HUB DE FEIRA DE SANTANA 2026
- * Versão: 4.9.1 (Filtro por Bairro & Moderação)
+ * Versão: 4.9.2 (Reações em Threads & Filtros)
  */
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
 
 let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
@@ -29,7 +29,6 @@ function mostrarTela(id) {
         if(el) el.classList.add('hidden');
     });
 
-    // Controla a visibilidade das abas de filtro (só aparecem no feed)
     const tabs = document.getElementById('feed-tabs');
     if (id === 'feed-container') tabs?.classList.remove('hidden');
     else tabs?.classList.add('hidden');
@@ -108,13 +107,14 @@ async function carregarFeed(filtro = 'Geral') {
         bairroUsuario = p?.bairro;
     }
 
+    // Query atualizada para incluir comment_reactions
     let query = _supabase
         .from('posts')
         .select(`
             *,
             profiles:user_id (username, bairro, avatar_url),
             reactions (emoji_type, user_id),
-            comments (*, profiles:user_id (username))
+            comments (*, profiles:user_id (username), comment_reactions (emoji_type, user_id))
         `)
         .order('created_at', { ascending: false });
 
@@ -182,15 +182,30 @@ function renderizarFeed(posts, container, userIdLogado) {
                 ${post.comments?.map(c => {
                     const isDonoComentario = userIdLogado === c.user_id;
                     const btnDeleteComentario = isDonoComentario ? `<button onclick="apagarComentario('${c.id}')" class="text-red-300 hover:text-red-500 font-bold ml-2">×</button>` : '';
+                    
+                    // Renderização das reações da thread
+                    const reacoesComentarioHtml = EMOJIS.map(emoji => {
+                        const count = c.comment_reactions?.filter(r => r.emoji_type === emoji).length || 0;
+                        return `<button onclick="reagirComentario('${c.id}', '${emoji}')" class="flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
+                            <span class="text-[10px]">${emoji}</span>
+                            <span class="text-[9px] font-black text-gray-400">${count || ''}</span>
+                        </button>`;
+                    }).join('');
+
                     return `
-                    <div class="text-xs bg-gray-50 p-3 rounded-2xl flex justify-between items-center">
-                        <span><b>${c.profiles?.username || 'User'}:</b> ${c.content}</span>
-                        ${btnDeleteComentario}
+                    <div class="bg-gray-50 p-3 rounded-2xl space-y-2">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs text-gray-700"><b>${c.profiles?.username || 'User'}:</b> ${c.content}</span>
+                            ${btnDeleteComentario}
+                        </div>
+                        <div class="flex gap-3 border-t border-gray-100 pt-2">
+                            ${reacoesComentarioHtml}
+                        </div>
                     </div>`;
                 }).join('')}
                 <div class="flex gap-2 pt-2">
-                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-gray-50 border-none rounded-xl p-3 outline-none">
-                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-bold uppercase">OK</button>
+                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-white border border-gray-100 rounded-xl p-3 outline-none">
+                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-black uppercase">OK</button>
                 </div>
             </div>
         `;
@@ -198,25 +213,41 @@ function renderizarFeed(posts, container, userIdLogado) {
     });
 }
 
-// --- IDENTIDADE E PERFIL ---
+// --- AÇÕES SOCIAIS ---
 
-window.abrirEdicaoPerfil = async () => {
+window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
-    const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    
-    if(p) {
-        document.getElementById('edit-username').value = p.username || "";
-        document.getElementById('edit-bio').value = p.bio || "";
-        document.getElementById('edit-bairro').value = p.bairro || "Centro";
-        mostrarTela('edit-profile-screen');
-    }
+    if (!session) return mostrarTela('auth-screen');
+    await _supabase.from('reactions').insert({ post_id: postId, user_id: session.user.id, emoji_type: emoji });
+    carregarFeed();
 };
+
+window.reagirComentario = async (commentId, emoji) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+    await _supabase.from('comment_reactions').insert({ 
+        comment_id: commentId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    });
+    carregarFeed();
+};
+
+window.comentar = async (postId) => {
+    const input = document.getElementById(`in-${postId}`);
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!input.value || !session) return;
+    await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content: input.value });
+    input.value = "";
+    carregarFeed();
+};
+
+// --- RESTO DO CÓDIGO ---
 
 window.salvarPerfilCompleto = async () => {
     const btn = document.getElementById('btn-save-profile');
     const fileInput = document.getElementById('input-file');
     const { data: { session } } = await _supabase.auth.getSession();
-    
     btn.disabled = true;
     btn.innerText = "Sincronizando...";
 
@@ -241,13 +272,8 @@ window.salvarPerfilCompleto = async () => {
     if(avatar_url) updates.avatar_url = avatar_url;
 
     const { error } = await _supabase.from('profiles').upsert(updates);
-    if (error) {
-        alert("Erro: " + error.message);
-        btn.disabled = false;
-        btn.innerText = "Guardar Alterações";
-    } else {
-        location.reload();
-    }
+    if (error) { alert("Erro: " + error.message); btn.disabled = false; btn.innerText = "Guardar Alterações"; }
+    else { location.reload(); }
 };
 
 window.verPerfilPublico = async (uid) => {
@@ -263,14 +289,8 @@ window.verPerfilPublico = async (uid) => {
         const img = document.getElementById('img-perfil');
         const fallback = document.getElementById('avatar-fallback');
         
-        if(p.avatar_url) {
-            img.src = p.avatar_url;
-            img.classList.remove('hidden');
-            fallback.classList.add('hidden');
-        } else {
-            img.classList.add('hidden');
-            fallback.classList.remove('hidden');
-        }
+        if(p.avatar_url) { img.src = p.avatar_url; img.classList.remove('hidden'); fallback.classList.add('hidden'); }
+        else { img.classList.add('hidden'); fallback.classList.remove('hidden'); }
 
         const { data: { session } } = await _supabase.auth.getSession();
         const editArea = document.getElementById('edit-button-area');
@@ -279,26 +299,8 @@ window.verPerfilPublico = async (uid) => {
                 ? `<button onclick="abrirEdicaoPerfil()" class="mt-4 bg-feira-yellow text-feira-marinho px-6 py-2 rounded-xl font-black text-[10px] uppercase shadow-md">Editar Perfil</button>`
                 : '';
         }
-
         mostrarTela('user-dashboard');
     }
-};
-
-// --- AÇÕES SOCIAIS ---
-window.reagir = async (postId, emoji) => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return mostrarTela('auth-screen');
-    await _supabase.from('reactions').insert({ post_id: postId, user_id: session.user.id, emoji_type: emoji });
-    carregarFeed();
-};
-
-window.comentar = async (postId) => {
-    const input = document.getElementById(`in-${postId}`);
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!input.value || !session) return;
-    await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content: input.value });
-    input.value = "";
-    carregarFeed();
 };
 
 window.enviarPost = async () => {
