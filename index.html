@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gente da Feira</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gente da Feira">
+    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#FFD700">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,8 +32,12 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .reaction-btn { transition: transform 0.2s; cursor: pointer; display: inline-block; }
         .reaction-btn:active { transform: scale(1.4); }
-        /* Impede scroll horizontal indesejado */
+        
+        /* Impede scroll horizontal e organiza camadas */
         body { overflow-x: hidden; touch-action: manipulation; }
+        #feed-container { position: relative; z-index: 10; }
+        header { z-index: 40; }
+        footer { z-index: 50; }
     </style>
 </head>
 <body class="bg-gray-50 pb-24">
@@ -138,6 +147,9 @@
                     <option value="SIM">SIM</option>
                     <option value="Cidade Nova">Cidade Nova</option>
                     <option value="Campo Limpo">Campo Limpo</option>
+                    <option value="Mangabeira">Mangabeira</option>
+                    <option value="George Américo">George Américo</option>
+                    <option value="Humildes">Humildes</option>
                 </select>
             </div>
             <textarea id="post-content" placeholder="O que a cidade precisa saber agora?" class="w-full p-4 border-2 rounded-xl h-40 outline-none focus:ring-2 focus:ring-feira-amarelo font-medium"></textarea>
