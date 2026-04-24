@@ -63,11 +63,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
-        // Inicialização única para evitar conflitos
         const URL_FSA = 'https://oecoggegxlortfcsnagd.supabase.co';
         const KEY_FSA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
         
-        // Esta variável vai ser usada tanto aqui quanto no app.js
+        // Define na window para que o app.js use a MESMA instância
         window._supabase = supabase.createClient(URL_FSA, KEY_FSA);
 
         async function tentarLogar() {
@@ -75,19 +74,19 @@
             const password = document.getElementById('auth-password').value;
             const btn = document.getElementById('btn-login');
 
-            if(!email || !password) return alert("Ei conterrâneo, preencha tudo!");
+            if(!email || !password) return alert("Preencha os campos!");
 
-            btn.innerText = "A GUARDAR...";
+            btn.innerText = "A ENTRAR...";
             btn.disabled = true;
 
             try {
                 const { data, error } = await window._supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 
-                // Se deu certo, recarrega para o app.js ler a sessão
+                // Sucesso: Recarrega para o app.js assumir o feed logado
                 window.location.reload();
             } catch (err) {
-                alert("Erro ao entrar: " + err.message);
+                alert("Erro: " + err.message);
                 btn.innerText = "ENTRAR";
                 btn.disabled = false;
             }
@@ -96,13 +95,9 @@
         async function tentarCadastrar() {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
-            try {
-                const { error } = await window._supabase.auth.signUp({ email, password });
-                if (error) throw error;
-                alert("Verifica o teu e-mail para confirmar a conta!");
-            } catch (err) {
-                alert(err.message);
-            }
+            const { error } = await window._supabase.auth.signUp({ email, password });
+            if (error) alert(error.message); 
+            else alert("Verifique seu e-mail para confirmar a conta!");
         }
     </script>
 
