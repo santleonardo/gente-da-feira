@@ -1,4 +1,4 @@
-console.log("Sistema Gente da Feira - Versão 3.0 (Otimizada)");
+console.log("Sistema Gente da Feira - Versão 3.1 (Threads Elegantes + Emojis)");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -14,6 +14,9 @@ const BAIRROS_FSA = [
     "Muchila", "Novo Horizonte", "Papagaio", "Parque Ipê", "Ponto Central", "Queimadinha", 
     "Rua Nova", "Santa Mônica", "Santo Antônio dos Prazeres", "SIM", "Sobradinho", "Tomba"
 ].sort();
+
+// NOVA FUNCIONALIDADE: Emojis unificados para Posts e Comentários
+const EMOJIS = ["😍", "😂", "😡", "😢"];
 
 // --- 2. INICIALIZAÇÃO ---
 function inicializarSupabase() {
@@ -101,21 +104,26 @@ window.cancelarResposta = (postId) => {
     if(indicator) indicator.classList.add('hidden');
 };
 
-// --- 5. LÓGICA DO FEED (AJUSTE #1: QUERY ÚNICA) ---
+// --- 5. LÓGICA DO FEED ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
 
     const { data: { session } } = await _supabase.auth.getSession();
+    const currentUserId = session?.user?.id;
 
-    // Query Otimizada com JOINS
+    // Query Otimizada com JOINS (Agora busca reações também dentro dos comentários)
     let query = _supabase
         .from('posts')
         .select(`
             *, 
             profiles:user_id(username, bairro, avatar_url),
             reactions(emoji_type, user_id),
-            comments(*, profiles:user_id(username))
+            comments(
+                *, 
+                profiles:user_id(username),
+                reactions(emoji_type, user_id)
+            )
         `)
         .order('created_at', { ascending: false });
 
@@ -134,22 +142,50 @@ async function carregarFeed(apenasZona = false) {
         const postComments = post.comments || [];
         const mainComments = postComments.filter(c => !c.parent_id);
 
-        const renderReplies = (parentId) => {
-            const filhos = postComments.filter(c => c.parent_id === parentId);
-            return filhos.map(r => `
-                <div class="ml-5 mt-2 border-l-2 border-gray-200 pl-3 py-1">
-                    <p class="text-[11px] text-gray-700">
-                        <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
+        // FUNÇÃO RECURSIVA: Renderiza comentários e suas respostas em cascata
+        const renderComentario = (c, isReply = false) => {
+            const contagemReacoes = c.reactions || [];
+            const filhos = postComments.filter(filho => filho.parent_id === c.id);
+            
+            return `
+            <div class="${isReply ? 'ml-5 mt-2 border-l-2 border-gray-300 pl-3 py-1' : 'bg-gray-50 p-3 rounded-lg border-l-2 border-[#FFD700] mb-3'}">
+                
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] text-gray-700 leading-relaxed">
+                        <b class="text-black">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
                     </p>
-                    <button onclick="prepararResposta('${post.id}', '${r.id}', '${escaparHTML(r.profiles?.username || "Morador")}')" 
-                            class="text-[9px] font-black uppercase text-gray-400">Responder</button>
-                    ${renderReplies(r.id)}
-                </div>`).join('');
+                    ${c.user_id === currentUserId ? `
+                        <button onclick="apagarComentario('${c.id}')" class="text-gray-300 hover:text-red-500 text-[10px] ml-2 transition">🗑️</button>
+                    ` : ''}
+                </div>
+                
+                <div class="flex gap-3 mt-2 items-center">
+                    <button onclick="prepararResposta('${post.id}', '${c.id}', '${escaparHTML(c.profiles?.username || "Morador")}')" 
+                            class="text-[9px] font-black uppercase text-gray-400 hover:text-black transition">
+                        Responder
+                    </button>
+                    
+                    <div class="flex gap-2 border-l border-gray-300 pl-3">
+                        ${EMOJIS.map(e => `
+                            <button onclick="reagir('${c.id}', '${e}', true)" class="text-xs filter grayscale hover:grayscale-0 transition flex items-center gap-1">
+                                ${e} <span class="text-[9px] text-gray-500 font-bold">${contagemReacoes.filter(r => r.emoji_type === e).length || ''}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                ${filhos.length > 0 ? `
+                    <div class="mt-2 animate-fade-in">
+                        ${filhos.map(filho => renderComentario(filho, true)).join('')}
+                    </div>
+                ` : ''}
+            </div>`;
         };
 
         const div = document.createElement('div');
         div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-[#FFD700] mb-4 animate-fade-in";
         div.setAttribute('data-post-id', post.id);
+        
         div.innerHTML = `
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
@@ -168,25 +204,22 @@ async function carregarFeed(apenasZona = false) {
             </div>
             <p class="text-gray-700 text-sm mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
             
-            <div class="flex gap-6 border-t border-b py-2 mb-3">
-                <button onclick="reagir(${post.id}, '❤️')" class="text-xs">❤️ ${postReacts.filter(r => r.emoji_type === '❤️').length}</button>
-                <button onclick="reagir(${post.id}, '👍')" class="text-xs">👍 ${postReacts.filter(r => r.emoji_type === '👍').length}</button>
+            <div class="flex gap-4 border-t border-b border-gray-100 py-2 mb-3">
+                ${EMOJIS.map(e => `
+                    <button onclick="reagir('${post.id}', '${e}', false)" class="text-sm filter grayscale hover:grayscale-0 transition flex items-center gap-1">
+                        ${e} <span class="text-[10px] text-gray-500 font-bold">${postReacts.filter(r => r.emoji_type === e).length || ''}</span>
+                    </button>
+                `).join('')}
             </div>
 
-            <div class="space-y-3 mb-3">${mainComments.map(c => `
-                <div class="bg-gray-50 p-2 rounded-lg">
-                    <p class="text-xs text-gray-700">
-                        <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
-                    </p>
-                    <button onclick="prepararResposta('${post.id}', '${c.id}', '${escaparHTML(c.profiles?.username || "Morador")}')" 
-                            class="text-[9px] font-black uppercase text-gray-400 mt-1">Responder</button>
-                    ${renderReplies(c.id)}
-                </div>`).join('')}</div>
+            <div class="space-y-1 mb-3">
+                ${mainComments.length > 0 ? mainComments.map(c => renderComentario(c, false)).join('') : '<p class="text-xs text-gray-400 italic">Nenhum comentário ainda. Seja o primeiro!</p>'}
+            </div>
 
             <div class="mt-4">
                 <div id="reply-indicator-${post.id}" class="hidden flex justify-between items-center text-[10px] font-black text-white bg-black px-3 py-1 rounded-t-lg w-full">
-                    <span>RESPONDENDO A <span id="reply-to-name-${post.id}" class="text-feira-amarelo"></span></span>
-                    <button onclick="cancelarResposta('${post.id}')" class="text-white">✕</button>
+                    <span>RESPONDENDO A <span id="reply-to-name-${post.id}" class="text-[#FFD700]"></span></span>
+                    <button onclick="cancelarResposta('${post.id}')" class="text-white hover:text-red-400">✕</button>
                 </div>
                 <div class="flex gap-2">
                     <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Escreva um comentário..." 
@@ -246,10 +279,44 @@ window.enviarPost = async () => {
     }
 };
 
-window.reagir = async (postId, emoji) => {
+// NOVA FUNCIONALIDADE: Apagar próprio comentário
+window.apagarComentario = async (id) => {
+    if (!confirm("Deseja apagar seu comentário?")) return;
+    const { error } = await _supabase.from('comments').delete().eq('id', id);
+    if (error) alert("Erro ao apagar: " + error.message);
+    // Realtime cuidará de recarregar a tela
+};
+
+// ATUALIZAÇÃO: Reagir agora suporta Posts e Comentários de forma independente
+window.reagir = async (id, emoji, isComment = false) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
-    await _supabase.from('reactions').upsert({ post_id: postId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'post_id,user_id' });
+
+    const userId = session.user.id;
+    const campoId = isComment ? 'comment_id' : 'post_id';
+
+    // Procura se já existe uma reação desse usuário neste post ou comentário específico
+    const { data: existente } = await _supabase
+        .from('reactions')
+        .select('id, emoji_type')
+        .eq('user_id', userId)
+        .eq(campoId, id)
+        .maybeSingle();
+
+    if (existente) {
+        if (existente.emoji_type === emoji) {
+            // Se clicou no mesmo emoji, remove a reação
+            await _supabase.from('reactions').delete().eq('id', existente.id);
+        } else {
+            // Se clicou em outro, atualiza o emoji
+            await _supabase.from('reactions').update({ emoji_type: emoji }).eq('id', existente.id);
+        }
+    } else {
+        // Se não tinha reação, insere uma nova
+        const novaReacao = { user_id: userId, emoji_type: emoji };
+        novaReacao[campoId] = id;
+        await _supabase.from('reactions').insert([novaReacao]);
+    }
 };
 
 window.compartilharPost = (id) => {
@@ -323,7 +390,7 @@ window.salvarPerfil = async () => {
     if (error) alert(error.message); else verPerfilPublico(session.user.id);
 };
 
-// --- 8. AUTH (AJUSTE #3: SEM RELOAD) ---
+// --- 8. AUTH ---
 window.fazerLogin = async () => {
     const btn = document.querySelector('#auth-screen button[onclick="fazerLogin()"]');
     const email = document.getElementById('auth-email').value;
