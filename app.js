@@ -1,64 +1,41 @@
-console.log("Sistema Gente da Feira - Versão 2.0");
+console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
 
+// --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
+// IMPORTANTE: Substitua pela chave real (JWT longo) encontrada em: 
+// Project Settings -> API -> "anon public"
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
 
 let _supabase;
 
-// --- ESTADO GLOBAL DE NAVEGAÇÃO ---
-const estado = {
-    feedTipo: 'global',      // tipo de feed ativo
-    feedScroll: 0,           // posição do scroll ao sair do feed
-    ultimoPost: null,        // ID do último post publicado
-};
-
-// --- BAIRROS DE FEIRA DE SANTANA ---
-const BAIRROS = [
-    "Aeroporto", "Asa Branca", "Aviário", "Baraúnas", "Brasília",
-    "Campo Limpo", "Capuchinhos", "Centro", "Cidade Nova", "Conceição",
-    "Construção", "Corpo Santo", "Feira VI", "Feira VII", "Feira VIII",
-    "Feira IX", "Feira X", "Feira XI", "Feira XII", "George Américo",
-    "Governador João Durval", "Gravatá", "Humildes", "Invasão do Papagaio",
-    "Jardim Acácia", "Jardim Cruzeiro", "Jardim Esperança", "Jardim Imburana",
-    "João Durval Carneiro", "Limoeiro", "Mangabeira", "Muchila", "Novo Horizonte",
-    "Olhos d'Água", "Pampalona", "Papagaio", "Parque Ipê", "Parque Oeste",
-    "Ponto Central", "Queimadinha", "Renato Gonçalves", "Rua Nova",
-    "Santa Mônica", "Santo Antônio dos Prazeres", "São Benedito",
-    "São João", "Serraria Brasil", "SIM", "Sobradinho", "Subaé",
-    "Tomba", "Tomba II", "Zona Rural"
-].sort();
-
-// --- 1. INICIALIZAÇÃO ---
+// --- 2. INICIALIZAÇÃO COM REALTIME ---
 function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase conectado!");
-        popularSelectsBairro();
-        verificarHashURL();
-        carregarFeed(estado.feedTipo);
+        console.log("Supabase conectado com sucesso!");
+        
+        // Ativando o canal de escuta em tempo real para novos posts
+        _supabase
+            .channel('fluxo-avisos-feira')
+            .on(
+                'postgres_changes', 
+                { event: 'INSERT', schema: 'public', table: 'posts' }, 
+                (payload) => {
+                    console.log('Novo aviso detectado!', payload);
+                    carregarFeed(); 
+                }
+            )
+            .subscribe();
+
+        carregarFeed();
     } else {
         setTimeout(inicializarSupabase, 500);
     }
 }
 document.addEventListener('DOMContentLoaded', inicializarSupabase);
 
-// Popula todos os <select> de bairro dinamicamente
-function popularSelectsBairro() {
-    const selects = ['perfil-bairro', 'post-zona'];
-    selects.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.innerHTML = BAIRROS.map(b => `<option value="${b}">${b}</option>`).join('');
-    });
-}
-
-// --- 2. NAVEGAÇÃO POR ESTADO (sem location.reload) ---
+// --- 3. NAVEGAÇÃO E UI ---
 function mostrarTela(telaAtiva) {
-    // Salva scroll antes de sair do feed
-    if (document.getElementById('feed-container') &&
-        !document.getElementById('feed-container').classList.contains('hidden')) {
-        estado.feedScroll = window.scrollY;
-    }
     const telas = ['feed-container', 'auth-screen', 'user-dashboard', 'form-perfil', 'form-post'];
     telas.forEach(id => {
         const el = document.getElementById(id);
@@ -66,18 +43,11 @@ function mostrarTela(telaAtiva) {
     });
     const ativa = document.getElementById(telaAtiva);
     if (ativa) ativa.classList.remove('hidden');
-
-    // Restaura scroll ao voltar para o feed
-    if (telaAtiva === 'feed-container') {
-        setTimeout(() => window.scrollTo(0, estado.feedScroll), 50);
-    }
 }
 
-function voltarParaFeed() {
-    mostrarTela('feed-container');
-}
+// Expor para ser chamada do HTML
+window.mostrarTela = mostrarTela;
 
-// SEGURANÇA: Escapa HTML para evitar XSS
 function escaparHTML(str) {
     if (!str) return '';
     return String(str)
@@ -85,400 +55,275 @@ function escaparHTML(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
+        .replace(/'/g, '&#039;');
 }
 
-// Timestamp inteligente
-function tempoRelativo(dateStr) {
-    const agora = new Date();
-    const data = new Date(dateStr);
-    const diff = Math.floor((agora - data) / 1000); // segundos
-
-    if (diff < 60) return 'agora';
-    if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
-    if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
-    if (diff < 172800) return 'ontem';
-    if (diff < 604800) return `há ${Math.floor(diff / 86400)} dias`;
-    return data.toLocaleDateString('pt-BR');
-}
-
-// Loading em botão
-function setBotaoLoading(id, loading, textoOriginal, textoLoading = 'Aguarde...') {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    btn.disabled = loading;
-    btn.innerText = loading ? textoLoading : textoOriginal;
-    btn.style.opacity = loading ? '0.6' : '1';
-}
-
-// Contador de caracteres
-function atualizarContador() {
-    const el = document.getElementById('post-content');
-    const contador = document.getElementById('contador-caracteres');
-    if (el && contador) {
-        contador.innerText = `${el.value.length}/500`;
-    }
-}
-
-// --- 3. FEED ---
-async function carregarFeed(tipo = 'global') {
-    estado.feedTipo = tipo;
-    mostrarTela('feed-container');
+// --- 4. LÓGICA DO FEED ---
+async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
-    container.innerHTML = "<p class='text-center text-gray-400 py-10 italic'>Buscando novidades...</p>";
+    if (!container) return;
 
-    // Atualiza abas
-    document.getElementById('tab-global')?.classList.toggle('active-tab', tipo === 'global');
-    document.getElementById('tab-zona')?.classList.toggle('active-tab', tipo === 'zona');
+    container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse font-medium">Buscando avisos em Feira de Santana...</p>';
 
     let query = _supabase
         .from('posts')
-        .select(`
-            id, content, zona, author_name, user_id, created_at,
-            profiles!posts_user_id_fkey(avatar_url),
-            reactions(emoji_type),
-            comments(id, author_name, content, created_at)
-        `)
+        .select(`*, profiles:user_id(username, bairro, avatar_url)`)
         .order('created_at', { ascending: false });
 
-    if (tipo === 'zona') {
+    if (apenasZona) {
         const { data: { session } } = await _supabase.auth.getSession();
         if (session) {
             const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-            if (p?.bairro) query = query.eq('zona', p.bairro);
-        } else {
-            alert("Logue para ver seu bairro!");
-            return carregarFeed('global');
+            if (p?.bairro) {
+                query = query.eq('zona', p.bairro);
+            }
         }
     }
 
     const { data: posts, error } = await query;
-    if (error || !posts) return container.innerHTML = "<p class='text-center text-gray-400 py-10'>Erro ao carregar o feed.</p>";
+    
+    if (error) {
+        console.error("Erro Supabase:", error);
+        return container.innerHTML = `
+            <div class="text-center p-10">
+                <p class="text-red-500 font-bold">Erro ao carregar o feed.</p>
+                <p class="text-xs text-gray-500">Verifique a conexão ou as tabelas do banco.</p>
+            </div>`;
+    }
 
     container.innerHTML = "";
+    
+    if (posts.length === 0) {
+        container.innerHTML = "<p class='text-center p-10 text-gray-500'>Nenhum aviso encontrado.</p>";
+        return;
+    }
+
     for (const post of posts) {
-        container.innerHTML += renderizarCard(post);
-    }
+        const [reactsRes, commentsRes] = await Promise.all([
+            _supabase.from('reactions').select('emoji_type').eq('post_id', post.id),
+            _supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
+        ]);
 
-    // Rolar para post específico se vier de URL com hash
-    if (estado.ultimoPost) {
-        const el = document.getElementById(`post-${estado.ultimoPost}`);
-        if (el) { el.scrollIntoView({ behavior: 'smooth' }); estado.ultimoPost = null; }
-    }
-}
+        const reacts = reactsRes.data || [];
+        const comments = commentsRes.data || [];
+        const div = document.createElement('div');
+        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4 transition-all hover:shadow-md";
+        
+        const nomeUsuario = post.profiles?.username || "Morador de Feira";
+        const bairroExibicao = post.zona || post.profiles?.bairro || "Geral";
+        const avatarUrl = post.profiles?.avatar_url;
 
-// Renderiza um card de post
-function renderizarCard(post) {
-    const fotoHTML = post.profiles?.avatar_url
-        ? `<img src="${escaparHTML(post.profiles.avatar_url)}" class="w-8 h-8 rounded-full border-2 border-indigo-500 object-cover">`
-        : `<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs text-indigo-600 font-bold">👤</div>`;
-
-    const counts = { '💙': 0, '😊': 0, '👏': 0, '💡': 0 };
-    post.reactions?.forEach(r => { if (counts[r.emoji_type] !== undefined) counts[r.emoji_type]++; });
-
-    const comentariosHTML = post.comments?.length
-        ? post.comments.map(c => `
-            <div class="bg-indigo-50 p-2 rounded text-[10px] mb-1">
-                <span class="font-bold text-indigo-700">${escaparHTML(c.author_name)}:</span>
-                ${escaparHTML(c.content)}
-            </div>`).join('')
-        : '';
-
-    const shareURL = `${location.origin}${location.pathname}#post-${post.id}`;
-
-    return `
-        <div id="post-${escaparHTML(post.id)}" class="bg-white p-4 rounded-lg shadow-sm mb-4 border-l-4 border-indigo-400">
-            <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2 cursor-pointer" onclick="verPerfilPublico('${escaparHTML(post.user_id)}')">
-                    ${fotoHTML}
-                    <div>
-                        <p class="font-bold text-indigo-700 text-xs">${escaparHTML(post.author_name)}</p>
-                        <p class="text-[9px] text-gray-400 uppercase font-medium">${escaparHTML(post.zona)}</p>
-                    </div>
+        div.innerHTML = `
+            <div class="flex items-center gap-3 mb-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
+                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                    ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '<span class="text-gray-400 text-xl">👤</span>'}
                 </div>
-                <span class="text-[9px] text-gray-400">${tempoRelativo(post.created_at)}</span>
+                <div>
+                    <h3 class="font-bold text-sm text-gray-800">${escaparHTML(nomeUsuario)}</h3>
+                    <p class="text-[10px] text-red-600 font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
+                </div>
             </div>
-            <p class="text-gray-700 text-sm mb-4 leading-relaxed">${escaparHTML(post.content)}</p>
-            <div class="flex justify-around border-t border-b py-2 mb-3 bg-gray-50 rounded">
-                <button onclick="reagir('${post.id}', '💙')" class="text-sm hover:scale-110 transition-transform">💙 ${counts['💙']}</button>
-                <button onclick="reagir('${post.id}', '😊')" class="text-sm hover:scale-110 transition-transform">😊 ${counts['😊']}</button>
-                <button onclick="reagir('${post.id}', '👏')" class="text-sm hover:scale-110 transition-transform">👏 ${counts['👏']}</button>
-                <button onclick="reagir('${post.id}', '💡')" class="text-sm hover:scale-110 transition-transform">💡 ${counts['💡']}</button>
-                <button onclick="compartilhar('${escaparHTML(shareURL)}', '${escaparHTML(post.author_name)}')" class="text-sm hover:scale-110 transition-transform">🔗</button>
+            <p class="text-gray-700 text-sm leading-relaxed mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
+            
+            <div class="flex gap-6 border-t border-b py-2 mb-3">
+                <button onclick="reagir(${post.id}, '❤️')" class="reaction-btn text-sm flex items-center gap-1.5 grayscale hover:grayscale-0">
+                    ❤️ <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '❤️').length}</span>
+                </button>
+                <button onclick="reagir(${post.id}, '👍')" class="reaction-btn text-sm flex items-center gap-1.5 grayscale hover:grayscale-0">
+                    👍 <span class="font-bold text-gray-600">${reacts.filter(r => r.emoji_type === '👍').length}</span>
+                </button>
             </div>
-            <div id="comentarios-${post.id}" class="mb-3">${comentariosHTML}</div>
+
+            <div class="space-y-2 mb-3">
+                ${comments.map(c => `
+                    <div class="bg-gray-50 p-2.5 rounded-lg border-l-2 border-red-100 text-[13px]">
+                        <span class="font-bold text-red-800">Resposta:</span> ${escaparHTML(c.content)}
+                    </div>
+                `).join('')}
+            </div>
+
             <div class="flex gap-2">
-                <input type="text" id="in-coment-${post.id}" placeholder="Comentar..."
-                    class="flex-1 bg-gray-50 border border-gray-200 rounded-full px-3 py-1 text-xs outline-none focus:border-indigo-300"
-                    maxlength="300">
-                <button onclick="comentar('${post.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs hover:bg-indigo-700 transition-colors">OK</button>
+                <input type="text" id="comment-input-${post.id}" placeholder="Responder..." 
+                       class="flex-1 text-xs p-2.5 border border-gray-200 rounded-xl outline-none">
+                <button onclick="comentar(${post.id})" 
+                        class="bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95">Enviar</button>
             </div>
-        </div>`;
-}
-
-// Atualiza só o card afetado (sem recarregar o feed inteiro)
-async function atualizarCard(postId) {
-    const { data: post, error } = await _supabase
-        .from('posts')
-        .select(`
-            id, content, zona, author_name, user_id, created_at,
-            profiles!posts_user_id_fkey(avatar_url),
-            reactions(emoji_type),
-            comments(id, author_name, content, created_at)
-        `)
-        .eq('id', postId)
-        .single();
-
-    if (error || !post) return;
-    const cardEl = document.getElementById(`post-${postId}`);
-    if (cardEl) cardEl.outerHTML = renderizarCard(post);
-}
-
-// --- 4. INTERAÇÕES ---
-async function reagir(postId, emoji) {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return alert("Logue para reagir!");
-    await _supabase.from('reactions').upsert({
-        post_id: postId, user_id: session.user.id, emoji_type: emoji
-    });
-    atualizarCard(postId); // só o card, não o feed inteiro
-}
-
-async function comentar(postId) {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const input = document.getElementById(`in-coment-${postId}`);
-    if (!session) return alert("Logue para comentar!");
-    if (!input?.value.trim()) return alert("Escreva algo!");
-
-    const { data: p } = await _supabase.from('profiles').select('username').eq('id', session.user.id).single();
-    await _supabase.from('comments').insert({
-        post_id: postId,
-        user_id: session.user.id,
-        author_name: p?.username || session.user.email,
-        content: input.value.trim()
-    });
-    input.value = "";
-    atualizarCard(postId); // só o card
-}
-
-// Compartilhar via Web Share API ou copiar link
-function compartilhar(url, autor) {
-    if (navigator.share) {
-        navigator.share({ title: `Aviso de ${autor} — Gente da Feira`, url });
-    } else {
-        navigator.clipboard.writeText(url).then(() => alert("Link copiado!"));
+        `;
+        container.appendChild(div);
     }
 }
 
-// Verifica se a URL tem hash de post ao carregar
-function verificarHashURL() {
-    const hash = location.hash;
-    if (hash && hash.startsWith('#post-')) {
-        estado.ultimoPost = hash.replace('#post-', '');
-    }
-}
-
-// --- 5. PERFIL ---
-async function verPerfilPublico(userId) {
-    const { data: p } = await _supabase.from('profiles').select('*').eq('id', userId).single();
-    const { data: posts } = await _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-
-    if (!p) return alert("Perfil não encontrado.");
-
-    document.getElementById('dash-nome').innerText = p.username || 'Sem nome';
-    document.getElementById('dash-bairro').innerText = p.bairro ? "Morador de " + p.bairro : '';
-    document.getElementById('dash-bio').innerText = p.bio || "Sem bio.";
-    document.getElementById('dash-count').innerText = posts ? posts.length : 0;
-
-    const imgEl = document.getElementById('img-perfil');
-    const emojiEl = document.getElementById('emoji-perfil');
-    if (p.avatar_url) {
-        imgEl.src = p.avatar_url;
-        imgEl.classList.remove('hidden');
-        emojiEl.classList.add('hidden');
-    } else {
-        imgEl.classList.add('hidden');
-        emojiEl.classList.remove('hidden');
-    }
-
-    const histEl = document.getElementById('historico-posts');
-    histEl.innerHTML = posts?.map(pt => `
-        <div class="bg-indigo-50 p-3 rounded border-l-2 border-indigo-400 mb-2 text-xs">
-            <span class="text-gray-400 text-[9px]">${tempoRelativo(pt.created_at)}</span>
-            <p class="mt-1 text-gray-700">${escaparHTML(pt.content)}</p>
-        </div>`).join('') || "Sem postagens.";
-
-    const { data: { session } } = await _supabase.auth.getSession();
-    const acoesEl = document.getElementById('dash-acoes');
-    if (acoesEl) {
-        acoesEl.classList.toggle('hidden', !(session && session.user.id === userId));
-    }
-
+// --- 5. DASHBOARD E PERFIL (Global) ---
+window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
-}
-
-// --- 6. AUTH & GESTÃO ---
-async function gerenciarBotaoPerfil() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return mostrarTela('auth-screen');
-    verPerfilPublico(session.user.id);
-}
-
-async function abrirEdicaoPerfil() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (p) {
-        document.getElementById('perfil-nome').value = p.username || '';
-        document.getElementById('perfil-bairro').value = p.bairro || '';
-        document.getElementById('perfil-bio').value = p.bio || '';
+    const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
+    
+    if (perfil) {
+        document.getElementById('dash-nome').innerText = perfil.username || "Morador";
+        document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
+        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio definida.";
+        
+        const img = document.getElementById('img-perfil');
+        const emo = document.getElementById('emoji-perfil');
+        if (perfil.avatar_url) {
+            img.src = perfil.avatar_url; img.classList.remove('hidden'); emo.classList.add('hidden');
+        } else {
+            img.classList.add('hidden'); emo.classList.remove('hidden');
+        }
     }
-    mostrarTela('form-perfil');
-}
 
-async function salvarPerfil() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return;
+    const isDono = session?.user.id === userId;
+    document.getElementById('dash-acoes').classList.toggle('hidden', !isDono);
 
-    const btn = document.getElementById('btn-salvar-perfil');
-    if (btn) { btn.disabled = true; btn.innerText = 'Salvando...'; btn.style.opacity = '0.6'; }
-
-    const { error } = await _supabase.from('profiles').upsert({
-        id: session.user.id,
-        username: document.getElementById('perfil-nome').value.trim(),
-        bairro: document.getElementById('perfil-bairro').value,
-        bio: document.getElementById('perfil-bio').value.trim(),
-        updated_at: new Date()
-    });
-
-    if (btn) { btn.disabled = false; btn.innerText = 'Salvar'; btn.style.opacity = '1'; }
-
-    if (error) alert(error.message);
-    else { voltarParaFeed(); carregarFeed(estado.feedTipo); }
-}
-
-async function fazerLogout() {
-    await _supabase.auth.signOut();
-    estado.feedTipo = 'global';
-    carregarFeed('global');
-    mostrarTela('feed-container');
-}
-
-// --- 7. EXPOSIÇÃO GLOBAL ---
-window.mudarFeed = (tipo) => carregarFeed(tipo);
-window.atualizarContador = atualizarContador;
-
-window.abrirPostagem = async () => {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return mostrarTela('auth-screen');
-    const { data: perfil } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-    if (perfil?.bairro) {
-        const sel = document.getElementById('post-zona');
-        if (sel) sel.value = perfil.bairro;
+    const { data: posts } = await _supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    document.getElementById('dash-count').innerText = posts?.length || 0;
+    
+    const hist = document.getElementById('historico-posts');
+    if (hist) {
+        hist.innerHTML = posts?.length ? posts.map(p => `
+            <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-sm mb-3">
+                <p class="text-gray-700">${escaparHTML(p.content)}</p>
+                <div class="flex justify-between mt-2 text-[9px] font-bold text-gray-400 uppercase">
+                    <span class="text-red-600">${p.zona}</span>
+                    <span>${new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+            </div>
+        `).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso publicado.</p>";
     }
-    // Resetar contador de caracteres
-    const contador = document.getElementById('contador-caracteres');
-    if (contador) contador.innerText = '0/500';
-    const textarea = document.getElementById('post-content');
-    if (textarea) textarea.value = '';
-    mostrarTela('form-post');
 };
 
+// --- 6. INTERAÇÕES ---
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
 
-    const contentEl = document.getElementById('post-content');
-    const content = contentEl.value.trim();
+    const content = document.getElementById('post-content').value;
+    const zona = document.getElementById('post-zona').value;
 
-    if (content.length < 10) return alert("O aviso precisa ter pelo menos 10 caracteres.");
-    if (content.length > 500) return alert("O aviso não pode ter mais de 500 caracteres.");
+    if (!content.trim()) return alert("Descreva o aviso.");
 
-    const btn = document.getElementById('btn-publicar');
-    if (btn) { btn.disabled = true; btn.innerText = 'Publicando...'; btn.style.opacity = '0.6'; }
-
-    const { data: perfil } = await _supabase.from('profiles').select('username').eq('id', session.user.id).single();
-    const authorName = perfil?.username || session.user.email;
-
-    const { data: novoPost, error } = await _supabase.from('posts').insert([{
-        content,
+    const { error } = await _supabase.from('posts').insert([{
+        content: content,
         user_id: session.user.id,
-        author_name: authorName,
-        zona: document.getElementById('post-zona').value
-    }]).select().single();
+        zona: zona
+    }]);
 
-    if (error) {
-        alert("Erro ao publicar: " + error.message);
-        if (btn) { btn.disabled = false; btn.innerText = 'Publicar'; btn.style.opacity = '1'; }
-        return;
-    }
-
-    contentEl.value = "";
-    voltarParaFeed();
-    await carregarFeed(estado.feedTipo);
-
-    // Anti-flood: botão bloqueado por 30s após publicar
-    if (btn) {
-        let segundos = 30;
-        const intervalo = setInterval(() => {
-            segundos--;
-            btn.innerText = `Aguarde ${segundos}s`;
-            if (segundos <= 0) {
-                clearInterval(intervalo);
-                btn.disabled = false;
-                btn.innerText = 'Publicar';
-                btn.style.opacity = '1';
-            }
-        }, 1000);
-    }
-
-    // Rolar até o novo post
-    if (novoPost) {
-        setTimeout(() => {
-            const el = document.getElementById(`post-${novoPost.id}`);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
+    if (error) alert("Erro: " + error.message);
+    else {
+        document.getElementById('post-content').value = "";
+        mostrarTela('feed-container');
     }
 };
 
-window.compartilhar = compartilhar;
-window.gerenciarBotaoPerfil = gerenciarBotaoPerfil;
-window.verPerfilPublico = verPerfilPublico;
-window.abrirEdicaoPerfil = abrirEdicaoPerfil;
-window.salvarPerfil = salvarPerfil;
-window.reagir = reagir;
-window.comentar = comentar;
-window.fazerLogout = fazerLogout;
-window.voltarParaFeed = voltarParaFeed;
+window.reagir = async (postId, emoji) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
 
+    await _supabase.from('reactions').upsert({
+        post_id: postId, user_id: session.user.id, emoji_type: emoji
+    }, { onConflict: 'post_id,user_id' });
+    
+    carregarFeed();
+};
+
+window.comentar = async (postId) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+
+    const input = document.getElementById(`comment-input-${postId}`);
+    if (!input.value.trim()) return;
+
+    await _supabase.from('comments').insert([{
+        post_id: postId, user_id: session.user.id, content: input.value
+    }]);
+
+    input.value = "";
+    carregarFeed();
+};
+
+// --- 7. AUTENTICAÇÃO ---
 window.fazerLogin = async () => {
-    const btn = document.getElementById('btn-entrar');
-    if (btn) { btn.disabled = true; btn.innerText = 'Entrando...'; btn.style.opacity = '0.6'; }
-
-    const { error } = await _supabase.auth.signInWithPassword({
-        email: document.getElementById('auth-email').value,
-        password: document.getElementById('auth-password').value
-    });
-
-    if (btn) { btn.disabled = false; btn.innerText = 'Entrar'; btn.style.opacity = '1'; }
-
-    if (error) alert(error.message);
-    else { gerenciarBotaoPerfil(); }
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Erro: " + error.message); else location.reload();
 };
 
 window.fazerCadastro = async () => {
-    const btn = document.getElementById('btn-cadastrar');
-    if (btn) { btn.disabled = true; btn.innerText = 'Cadastrando...'; btn.style.opacity = '0.6'; }
-
-    const { error } = await _supabase.auth.signUp({
-        email: document.getElementById('auth-email').value,
-        password: document.getElementById('auth-password').value
-    });
-
-    if (btn) { btn.disabled = false; btn.innerText = 'Cadastrar'; btn.style.opacity = '1'; }
-
-    if (error) alert(error.message);
-    else alert("Confirme seu e-mail para ativar a conta!");
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signUp({ email, password });
+    if (error) alert("Erro: " + error.message); else alert("Verifique seu e-mail.");
 };
 
-window.toggleForm = () => voltarParaFeed();
-window.loginGitHub = async () => { await _supabase.auth.signInWithOAuth({ provider: 'github' }); };
+window.fazerLogout = async () => {
+    await _supabase.auth.signOut();
+    location.reload();
+};
+
+// --- 8. GESTÃO DE PERFIL ---
+window.salvarPerfil = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return;
+
+    const updates = {
+        id: session.user.id,
+        username: document.getElementById('perfil-nome').value,
+        bairro: document.getElementById('perfil-bairro').value,
+        bio: document.getElementById('perfil-bio').value,
+        updated_at: new Date()
+    };
+
+    const file = document.getElementById('perfil-upload').files[0];
+    if (file) {
+        const path = `${session.user.id}/${Date.now()}-${file.name}`;
+        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
+        if (up) {
+            updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+        }
+    }
+
+    const { error } = await _supabase.from('profiles').upsert(updates);
+    if (error) alert("Erro ao salvar: " + error.message); else verPerfilPublico(session.user.id);
+};
+
+// --- 9. CONTROLES GLOBAIS ---
+window.mudarFeed = (tipo) => {
+    const isGlobal = tipo === 'global';
+    const tabGlobal = document.getElementById('tab-global');
+    const tabZona = document.getElementById('tab-zona');
+    
+    if (tabGlobal) tabGlobal.className = isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    if (tabZona) tabZona.className = !isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    
+    carregarFeed(!isGlobal);
+};
+
+window.abrirPostagem = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+    mostrarTela('form-post');
+};
+
+window.abrirEdicaoPerfil = () => {
+    _supabase.auth.getSession().then(({data: {session}}) => {
+        if (session) {
+            _supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data: p}) => {
+                if (p) {
+                    document.getElementById('perfil-nome').value = p.username || "";
+                    document.getElementById('perfil-bairro').value = p.bairro || "";
+                    document.getElementById('perfil-bio').value = p.bio || "";
+                }
+                mostrarTela('form-perfil');
+            });
+        }
+    });
+};
+
+window.toggleForm = () => mostrarTela('feed-container');
+
+window.gerenciarBotaoPerfil = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (session) verPerfilPublico(session.user.id); else mostrarTela('auth-screen');
+};
