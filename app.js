@@ -107,7 +107,7 @@ async function carregarFeed(apenasZona = false) {
         const reacts = reactsRes.data || [];
         const comments = commentsRes.data || [];
         const div = document.createElement('div');
-        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-red-700 mb-4 transition-all hover:shadow-md";
+        div.className = "bg-white p-4 shadow-sm rounded-xl border-l-4 border-[#8B6D45] mb-4 transition-all hover:shadow-md";
         
         const nomeUsuario = post.profiles?.username || "Morador de Feira";
         const bairroExibicao = post.zona || post.profiles?.bairro || "Geral";
@@ -120,7 +120,7 @@ async function carregarFeed(apenasZona = false) {
                 </div>
                 <div>
                     <h3 class="font-bold text-sm text-gray-800">${escaparHTML(nomeUsuario)}</h3>
-                    <p class="text-[10px] text-red-600 font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
+                    <p class="text-[10px] text-[#8B6D45] font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
                 </div>
             </div>
             <p class="text-gray-700 text-sm leading-relaxed mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
@@ -136,8 +136,8 @@ async function carregarFeed(apenasZona = false) {
 
             <div class="space-y-2 mb-3">
                 ${comments.map(c => `
-                    <div class="bg-gray-50 p-2.5 rounded-lg border-l-2 border-red-100 text-[13px]">
-                        <span class="font-bold text-red-800">Resposta:</span> ${escaparHTML(c.content)}
+                    <div class="bg-gray-50 p-2.5 rounded-lg border-l-2 border-[#8B6D45]/30 text-[13px]">
+                        <span class="font-bold text-[#1e3a5f]">Resposta:</span> ${escaparHTML(c.content)}
                     </div>
                 `).join('')}
             </div>
@@ -146,7 +146,7 @@ async function carregarFeed(apenasZona = false) {
                 <input type="text" id="comment-input-${post.id}" placeholder="Responder..." 
                        class="flex-1 text-xs p-2.5 border border-gray-200 rounded-xl outline-none">
                 <button onclick="comentar(${post.id})" 
-                        class="bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95">Enviar</button>
+                        class="bg-[#8B6D45] text-white px-4 py-2 rounded-xl text-xs font-bold active:scale-95 hover:bg-[#6f5637]">Enviar</button>
             </div>
         `;
         container.appendChild(div);
@@ -185,7 +185,7 @@ window.verPerfilPublico = async function(userId) {
             <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-sm mb-3">
                 <p class="text-gray-700">${escaparHTML(p.content)}</p>
                 <div class="flex justify-between mt-2 text-[9px] font-bold text-gray-400 uppercase">
-                    <span class="text-red-600">${p.zona}</span>
+                    <span class="text-[#8B6D45]">${p.zona}</span>
                     <span>${new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
             </div>
@@ -294,8 +294,8 @@ window.mudarFeed = (tipo) => {
     const tabGlobal = document.getElementById('tab-global');
     const tabZona = document.getElementById('tab-zona');
     
-    if (tabGlobal) tabGlobal.className = isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
-    if (tabZona) tabZona.className = !isGlobal ? 'flex-1 py-3 active-tab text-red-700 font-bold' : 'flex-1 py-3 text-gray-500';
+    if (tabGlobal) tabGlobal.className = isGlobal ? 'flex-1 py-3 active-tab text-[#8B6D45] font-bold' : 'flex-1 py-3 text-gray-500';
+    if (tabZona) tabZona.className = !isGlobal ? 'flex-1 py-3 active-tab text-[#8B6D45] font-bold' : 'flex-1 py-3 text-gray-500';
     
     carregarFeed(!isGlobal);
 };
