@@ -41,11 +41,11 @@
                 <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 <input type="password" id="auth-password" placeholder="Senha" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-feira-yellow border-none">
                 
-                <button onclick="executarLogin()" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">
+                <button onclick="tentarLogar()" id="btn-login" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">
                     Entrar
                 </button>
                 
-                <button onclick="executarCadastro()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase">
+                <button onclick="tentarCadastrar()" class="w-full text-gray-400 py-2 text-xs font-bold uppercase">
                     Criar Nova Conta
                 </button>
             </div>
@@ -63,38 +63,46 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
+        // Inicialização única para evitar conflitos
         const URL_FSA = 'https://oecoggegxlortfcsnagd.supabase.co';
         const KEY_FSA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
         
-        const _supabase = supabase.createClient(URL_FSA, KEY_FSA);
+        // Esta variável vai ser usada tanto aqui quanto no app.js
+        window._supabase = supabase.createClient(URL_FSA, KEY_FSA);
 
-        async function executarLogin() {
+        async function tentarLogar() {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             const btn = document.getElementById('btn-login');
 
             if(!email || !password) return alert("Ei conterrâneo, preencha tudo!");
 
-            btn.innerText = "ENTRANDO...";
+            btn.innerText = "A GUARDAR...";
             btn.disabled = true;
 
-            const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                alert("Erro: " + error.message);
+            try {
+                const { data, error } = await window._supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                
+                // Se deu certo, recarrega para o app.js ler a sessão
+                window.location.reload();
+            } catch (err) {
+                alert("Erro ao entrar: " + err.message);
                 btn.innerText = "ENTRAR";
                 btn.disabled = false;
-            } else {
-                window.location.reload();
             }
         }
 
-        async function executarCadastro() {
+        async function tentarCadastrar() {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
-            const { error } = await _supabase.auth.signUp({ email, password });
-            if (error) alert(error.message); 
-            else alert("Verifique seu e-mail para confirmar a conta.");
+            try {
+                const { error } = await window._supabase.auth.signUp({ email, password });
+                if (error) throw error;
+                alert("Verifica o teu e-mail para confirmar a conta!");
+            } catch (err) {
+                alert(err.message);
+            }
         }
     </script>
 
