@@ -436,35 +436,63 @@ window.verPerfilPublico = async function(userId) {
     const { data: { session } } = await _supabase.auth.getSession();
     document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
 };
-
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return alert("Sessão expirada. Por favor, faça login novamente.");
     
     const btn = document.querySelector('#form-perfil button[onclick="salvarPerfil()"]');
-    btn.disabled = true; btn.innerText = "SALVANDO...";
+    
+    // Captura dos elementos com verificação
+    const nomeInput = document.getElementById('perfil-nome');
+    const bairroSelect = document.getElementById('perfil-bairro');
+    const bioInput = document.getElementById('perfil-bio');
+    const fileInput = document.getElementById('perfil-upload');
+
+    if (!nomeInput || !bairroSelect) {
+        return alert("Erro crítico: Campos do formulário não encontrados.");
+    }
+
+    btn.disabled = true; 
+    btn.innerText = "SALVANDO...";
 
     const updates = {
         id: session.user.id,
-        username: document.getElementById('perfil-nome').value,
-        bairro: document.getElementById('perfil-bairro').value,
-        bio: document.getElementById('perfil-bio').value,
+        username: nomeInput.value.trim(),
+        bairro: bairroSelect.value,
+        bio: bioInput ? bioInput.value.trim() : "",
         updated_at: new Date()
     };
 
-    const fileInput = document.getElementById('perfil-upload');
-    if (fileInput?.files[0]) {
+    // Lógica de Upload de Foto Melhorada
+    if (fileInput?.files && fileInput.files[0]) {
         const file = fileInput.files[0];
-        const path = `${session.user.id}/avatar-${Date.now()}`;
-        const { data: up } = await _supabase.storage.from('avatars').upload(path, file);
-        if (up) updates.avatar_url = _supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+        const fileExt = file.name.split('.').pop(); // Pega a extensão (png, jpg)
+        const path = `${session.user.id}/avatar-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await _supabase.storage.from('avatars').upload(path, file);
+        
+        if (uploadError) {
+            console.error("Erro no upload:", uploadError);
+            alert("Erro ao enviar a foto. Tentando salvar o restante...");
+        } else {
+            const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(path);
+            updates.avatar_url = publicUrl;
+        }
     }
 
+    // Salvando no Banco de Dados
     const { error } = await _supabase.from('profiles').upsert(updates);
-    btn.disabled = false; btn.innerText = "SALVAR ALTERAÇÕES";
     
-    if (error) alert(error.message); 
-    else verPerfilPublico(session.user.id);
+    btn.disabled = false; 
+    btn.innerText = "SALVAR ALTERAÇÕES";
+    
+    if (error) {
+        alert("Erro ao salvar perfil: " + error.message);
+    } else {
+        alert("Perfil atualizado com sucesso!");
+        // Redireciona para o dashboard para ver as mudanças
+        verPerfilPublico(session.user.id);
+    }
 };
 
 // --- 9. AUTENTICAÇÃO ---
