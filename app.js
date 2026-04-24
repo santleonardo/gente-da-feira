@@ -1,6 +1,6 @@
 /**
  * GENTE DA FEIRA - O HUB DE FEIRA DE SANTANA 2026
- * Versão: 4.7.0 (Threads, Reações & Perfil)
+ * Versão: 4.8.0 (Identidade, Storage & Social Engine)
  */
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', inicializarApp);
 
 // --- NAVEGAÇÃO & UI ---
 function mostrarTela(id) {
-    const telas = ['feed-container', 'auth-screen', 'user-dashboard', 'form-post'];
+    const telas = ['feed-container', 'auth-screen', 'user-dashboard', 'form-post', 'edit-profile-screen'];
     telas.forEach(t => document.getElementById(t)?.classList.add('hidden'));
     
     const ativa = document.getElementById(id);
@@ -35,15 +35,112 @@ function mostrarTela(id) {
 }
 
 function popularMenusBairros() {
-    const select = document.getElementById('post-zona');
-    if (!select) return;
-    select.innerHTML = '<option value="Geral">📍 Toda a Cidade</option>';
-    BAIRROS_FSA.forEach(b => {
-        const opt = document.createElement('option');
-        opt.value = b; opt.textContent = b;
-        select.appendChild(opt);
+    const selects = [document.getElementById('post-zona'), document.getElementById('edit-bairro')];
+    selects.forEach(select => {
+        if (!select) return;
+        select.innerHTML = select.id === 'post-zona' ? '<option value="Geral">📍 Toda a Cidade</option>' : '';
+        BAIRROS_FSA.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b; opt.textContent = b;
+            select.appendChild(opt);
+        });
     });
 }
+
+// --- IDENTIDADE & PERFIL (v4.8.0) ---
+
+window.abrirEdicaoPerfil = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const { data: p } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    
+    if(p) {
+        document.getElementById('edit-username').value = p.username || "";
+        document.getElementById('edit-bio').value = p.bio || "";
+        document.getElementById('edit-bairro').value = p.bairro || "Centro";
+        mostrarTela('edit-profile-screen');
+    }
+};
+
+window.salvarPerfilCompleto = async () => {
+    const btn = document.getElementById('btn-save-profile');
+    const fileInput = document.getElementById('input-file');
+    const username = document.getElementById('edit-username').value;
+    const bio = document.getElementById('edit-bio').value;
+    const bairro = document.getElementById('edit-bairro').value;
+
+    btn.disabled = true;
+    btn.innerText = "A GUARDAR...";
+
+    const { data: { session } } = await _supabase.auth.getSession();
+    let avatar_url = null;
+
+    // Upload da imagem para o bucket 'avatars'
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await _supabase.storage
+            .from('avatars')
+            .upload(fileName, file);
+
+        if (!uploadError) {
+            const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+            avatar_url = publicUrl;
+        }
+    }
+
+    const updates = {
+        id: session.user.id,
+        username,
+        bio,
+        bairro,
+        updated_at: new Date()
+    };
+    if(avatar_url) updates.avatar_url = avatar_url;
+
+    const { error } = await _supabase.from('profiles').upsert(updates);
+
+    if (error) {
+        alert("Erro ao salvar: " + error.message);
+        btn.disabled = false;
+        btn.innerText = "Guardar Alterações";
+    } else {
+        location.reload();
+    }
+};
+
+window.verPerfilPublico = async (uid) => {
+    const { data: p } = await _supabase.from('profiles').select('*').eq('id', uid).single();
+    if (p) {
+        document.getElementById('dash-nome').innerText = p.username || "Morador";
+        document.getElementById('dash-bairro').innerText = p.bairro || "Feira de Santana";
+        document.getElementById('dash-bio').innerText = p.bio || "Olá, sou de Feira!";
+        
+        const img = document.getElementById('img-perfil');
+        const fallback = document.getElementById('avatar-fallback');
+        
+        if(p.avatar_url) {
+            img.src = p.avatar_url;
+            img.classList.remove('hidden');
+            fallback.classList.add('hidden');
+        } else {
+            img.classList.add('hidden');
+            fallback.classList.remove('hidden');
+        }
+
+        // Mostrar botão editar apenas se for o dono
+        const { data: { session } } = await _supabase.auth.getSession();
+        const editArea = document.getElementById('edit-button-area');
+        if(editArea) {
+            editArea.innerHTML = (session && session.user.id === uid) 
+                ? `<button onclick="abrirEdicaoPerfil()" class="mt-4 bg-gray-100 text-feira-marinho px-6 py-2 rounded-xl font-black text-[10px] uppercase">Editar Perfil</button>`
+                : '';
+        }
+
+        mostrarTela('user-dashboard');
+    }
+};
 
 // --- FEED & SOCIAL ENGINE ---
 async function carregarFeed(filtro = 'Geral') {
@@ -66,8 +163,6 @@ async function carregarFeed(filtro = 'Geral') {
 
 function renderizarFeed(posts, container) {
     container.innerHTML = "";
-    const currentUid = JSON.parse(localStorage.getItem('sb-oecoggegxlortfcsnagd-auth-token'))?.user?.id;
-
     posts.forEach(post => {
         const postEl = document.createElement('article');
         postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-6 animate-fade-in";
@@ -80,10 +175,14 @@ function renderizarFeed(posts, container) {
             </button>`;
         }).join('');
 
+        const avatar = post.profiles?.avatar_url 
+            ? `<img src="${post.profiles.avatar_url}" class="w-full h-full object-cover">`
+            : `<span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>`;
+
         postEl.innerHTML = `
             <div class="flex items-center gap-4 mb-5">
-                <div onclick="verPerfilPublico('${post.user_id}')" class="w-12 h-12 rounded-2xl bg-feira-yellow flex items-center justify-center shadow-md cursor-pointer">
-                    <span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>
+                <div onclick="verPerfilPublico('${post.user_id}')" class="w-12 h-12 rounded-2xl bg-feira-yellow flex items-center justify-center shadow-md cursor-pointer overflow-hidden">
+                    ${avatar}
                 </div>
                 <div class="flex-1">
                     <div class="flex justify-between items-center">
@@ -98,7 +197,7 @@ function renderizarFeed(posts, container) {
                 <button onclick="abrirThreads('${post.id}')" class="text-[10px] font-black uppercase text-feira-marinho bg-feira-yellow/10 px-4 py-2 rounded-xl">Conversa (${post.comments?.length || 0})</button>
             </div>
             <div id="thread-${post.id}" class="hidden mt-4 space-y-2">
-                ${post.comments?.map(c => `<div class="text-xs bg-gray-50 p-3 rounded-2xl"><b>${c.profiles?.username}:</b> ${c.content}</div>`).join('')}
+                ${post.comments?.map(c => `<div class="text-xs bg-gray-50 p-3 rounded-2xl"><b>${c.profiles?.username || 'User'}:</b> ${c.content}</div>`).join('')}
                 <div class="flex gap-2 pt-2">
                     <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-white border-none rounded-xl p-2 outline-none shadow-inner">
                     <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-3 rounded-xl font-bold uppercase">Enviar</button>
@@ -109,7 +208,7 @@ function renderizarFeed(posts, container) {
     });
 }
 
-// --- AÇÕES ---
+// --- AÇÕES GERAIS ---
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -120,7 +219,7 @@ window.reagir = async (postId, emoji) => {
 window.comentar = async (postId) => {
     const input = document.getElementById(`in-${postId}`);
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!input.value) return;
+    if (!input.value || !session) return;
     await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content: input.value });
     input.value = "";
     carregarFeed();
@@ -130,20 +229,11 @@ window.enviarPost = async () => {
     const content = document.getElementById('post-content').value;
     const zona = document.getElementById('post-zona').value;
     const { data: { session } } = await _supabase.auth.getSession();
+    if(!content || !session) return;
     await _supabase.from('posts').insert({ content, zona, user_id: session.user.id });
     document.getElementById('post-content').value = "";
     mostrarTela('feed-container');
     carregarFeed();
-};
-
-window.verPerfilPublico = async (uid) => {
-    const { data: p } = await _supabase.from('profiles').select('*').eq('id', uid).single();
-    if (p) {
-        document.getElementById('dash-nome').innerText = p.username || "Morador";
-        document.getElementById('dash-bairro').innerText = p.bairro || "Feira de Santana";
-        document.getElementById('dash-bio').innerText = p.bio || "Sem biografia.";
-        mostrarTela('user-dashboard');
-    }
 };
 
 window.abrirThreads = (id) => document.getElementById(`thread-${id}`).classList.toggle('hidden');
@@ -159,11 +249,17 @@ async function verificarSessao() {
     if (session) { mostrarTela('feed-container'); carregarFeed(); } else { mostrarTela('auth-screen'); }
 }
 
-window.tentarLogar = async () => {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message); else window.location.reload();
-};
-
 window.fazerLogout = async () => { if(confirm("Sair?")) { await _supabase.auth.signOut(); location.reload(); }};
+
+// Helper para preview de imagem local
+window.previewImagem = (event) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        const preview = document.querySelector('#edit-profile-screen .w-24.h-24');
+        preview.style.backgroundImage = `url(${reader.result})`;
+        preview.style.backgroundSize = 'cover';
+        preview.style.backgroundPosition = 'center';
+        preview.querySelector('span').classList.add('hidden');
+    };
+    reader.readAsDataURL(event.target.files[0]);
+};
