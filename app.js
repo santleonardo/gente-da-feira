@@ -168,18 +168,25 @@ window.comentar = async (postId) => {
     const input = document.getElementById(`comment-input-${postId}`);
     const parentId = input.getAttribute('data-parent-id');
     const content = input.value.trim();
+    
     if (!content) return;
 
-    await _supabase.from('comments').insert([{ 
+    // AJUSTE AQUI: Se parentId for vazio, enviamos NULL para o Supabase
+    const { error } = await _supabase.from('comments').insert([{ 
         post_id: postId, 
         user_id: session.user.id, 
         content: content,
         parent_id: (parentId && parentId !== "") ? parentId : null
     }]);
 
-    input.value = "";
-    cancelarResposta(postId);
-    // O Realtime atualizará o feed automaticamente
+    if (error) {
+        console.error("Erro ao comentar:", error.message);
+        alert("Erro ao enviar: " + error.message);
+    } else {
+        input.value = "";
+        cancelarResposta(postId);
+        // O Realtime atualizará a tela sozinho
+    }
 };
 
 window.enviarPost = async () => {
