@@ -1,4 +1,4 @@
-console.log("Sistema Gente da Feira - Versão 1.5 (Threads + Upload + Realtime)");
+console.log("Sistema Gente da Feira - Versão 2.1 (Threads + Perfil + Realtime)");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -11,7 +11,7 @@ function inicializarSupabase() {
     if (typeof supabase !== 'undefined') {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
-        // Escuta Realtime para posts, comentários e reações
+        // Escuta Realtime: Força recarregamento do feed para processar Joins de perfis
         _supabase
             .channel('fluxo-avisos-feira')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => carregarFeed())
@@ -53,10 +53,12 @@ window.prepararResposta = (postId, commentId, username) => {
     input.setAttribute('data-parent-id', commentId);
     input.placeholder = `Respondendo a ${username}...`;
     input.focus();
-    input.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Ajuste para mobile
     
     if(nameSpan) nameSpan.innerText = username;
     if(indicator) indicator.classList.remove('hidden');
+    
+    // Scroll suave para o input no mobile
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 window.cancelarResposta = (postId) => {
@@ -64,7 +66,7 @@ window.cancelarResposta = (postId) => {
     const indicator = document.getElementById(`reply-indicator-${postId}`);
     
     input.setAttribute('data-parent-id', "");
-    input.placeholder = "Responder...";
+    input.placeholder = "Escreva um comentário...";
     if(indicator) indicator.classList.add('hidden');
 };
 
@@ -75,6 +77,7 @@ async function carregarFeed(apenasZona = false) {
 
     const { data: { session } } = await _supabase.auth.getSession();
 
+    // Busca Posts com Perfil do Autor
     let query = _supabase
         .from('posts')
         .select(`*, profiles:user_id(username, bairro, avatar_url)`)
@@ -88,7 +91,8 @@ async function carregarFeed(apenasZona = false) {
     const { data: posts, error: postErr } = await query;
     if (postErr) return console.error("Erro ao carregar posts:", postErr);
 
-    const { data: allComments } = await _supabase.from('comments').select(`*, profiles:user_id(username)`).order('created_at', { ascending: true });
+    // Busca todos os comentários e reações (Joins incluídos)
+    const { data: allComments } = await _supabase.from('comments').select(`*, profiles:user_id(username, avatar_url)`).order('created_at', { ascending: true });
     const { data: allReacts } = await _supabase.from('reactions').select('*');
 
     container.innerHTML = "";
@@ -98,15 +102,20 @@ async function carregarFeed(apenasZona = false) {
         const postReacts = (allReacts || []).filter(r => r.post_id === post.id);
         const mainComments = postComments.filter(c => !c.parent_id);
 
-        // Função interna para renderizar as threads (recursivo)
+        // Função interna para renderizar as threads recursivamente
         const renderReplies = (parentId) => {
-            return postComments.filter(c => c.parent_id === parentId).map(r => `
+            const filhos = postComments.filter(c => c.parent_id === parentId);
+            return filhos.map(r => `
                 <div class="ml-5 mt-2 border-l-2 border-gray-200 pl-3 py-1">
-                    <p class="text-[11px] text-gray-700">
-                        <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
-                    </p>
-                    <button onclick="prepararResposta('${post.id}', '${r.id}', '${r.profiles?.username}')" 
-                            class="text-[9px] font-black uppercase text-gray-400 hover:text-black">Responder</button>
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <p class="text-[11px] text-gray-700">
+                                <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
+                            </p>
+                            <button onclick="prepararResposta('${post.id}', '${r.id}', '${escaparHTML(r.profiles?.username || "Morador")}')" 
+                                    class="text-[9px] font-black uppercase text-gray-400 hover:text-black">Responder</button>
+                        </div>
+                    </div>
                     ${renderReplies(r.id)}
                 </div>`).join('');
         };
@@ -133,26 +142,27 @@ async function carregarFeed(apenasZona = false) {
                 <button onclick="reagir(${post.id}, '👍')" class="text-xs">👍 ${postReacts.filter(r => r.emoji_type === '👍').length}</button>
             </div>
 
-            <div class="space-y-2 mb-3">
+            <div class="space-y-3 mb-3">
                 ${mainComments.map(c => `
-                    <div class="bg-gray-50 p-2 rounded-lg text-xs">
-                        <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
-                        <br>
-                        <button onclick="prepararResposta('${post.id}', '${c.id}', '${c.profiles?.username}')" 
+                    <div class="bg-gray-50 p-2 rounded-lg">
+                        <p class="text-xs text-gray-700">
+                            <b class="text-feira-marinho">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
+                        </p>
+                        <button onclick="prepararResposta('${post.id}', '${c.id}', '${escaparHTML(c.profiles?.username || "Morador")}')" 
                                 class="text-[9px] font-black uppercase text-gray-400 mt-1">Responder</button>
                         ${renderReplies(c.id)}
                     </div>`).join('')}
             </div>
 
-            <div class="flex flex-col gap-1">
-                <div id="reply-indicator-${post.id}" class="hidden text-[10px] font-black text-white bg-black px-2 py-1 rounded-t-lg w-fit">
-                    Respondendo a <span id="reply-to-name-${post.id}"></span>
-                    <button onclick="cancelarResposta('${post.id}')" class="ml-2 text-feira-amarelo">✕</button>
+            <div class="mt-4">
+                <div id="reply-indicator-${post.id}" class="hidden flex justify-between items-center text-[10px] font-black text-white bg-black px-3 py-1 rounded-t-lg w-full">
+                    <span>RESPONDENDO A <span id="reply-to-name-${post.id}" class="text-feira-amarelo"></span></span>
+                    <button onclick="cancelarResposta('${post.id}')" class="text-white">✕</button>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Responder..." 
-                           class="flex-1 text-xs p-2.5 border rounded-xl outline-none">
-                    <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black">ENVIAR</button>
+                    <input type="text" id="comment-input-${post.id}" data-parent-id="" placeholder="Escreva um comentário..." 
+                           class="flex-1 text-xs p-2.5 border rounded-xl outline-none focus:border-black transition-all">
+                    <button onclick="comentar(${post.id})" class="bg-black text-[#FFD700] px-4 py-2 rounded-xl text-xs font-black active:scale-95 transition-transform">ENVIAR</button>
                 </div>
             </div>
         `;
@@ -171,7 +181,7 @@ window.comentar = async (postId) => {
     
     if (!content) return;
 
-    // AJUSTE AQUI: Se parentId for vazio, enviamos NULL para o Supabase
+    // IMPORTANTE: parent_id deve ser null se for um comentário principal
     const { error } = await _supabase.from('comments').insert([{ 
         post_id: postId, 
         user_id: session.user.id, 
@@ -181,11 +191,11 @@ window.comentar = async (postId) => {
 
     if (error) {
         console.error("Erro ao comentar:", error.message);
-        alert("Erro ao enviar: " + error.message);
+        alert("Erro ao enviar comentário.");
     } else {
         input.value = "";
         cancelarResposta(postId);
-        // O Realtime atualizará a tela sozinho
+        // O Realtime atualizará a tela automaticamente
     }
 };
 
@@ -197,19 +207,26 @@ window.enviarPost = async () => {
     const zona = document.getElementById('post-zona').value;
     if (!content) return;
 
-    await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
-    document.getElementById('post-content').value = ""; 
-    mostrarTela('feed-container');
+    const { error } = await _supabase.from('posts').insert([{ content, user_id: session.user.id, zona }]);
+    if (error) alert(error.message);
+    else {
+        document.getElementById('post-content').value = ""; 
+        mostrarTela('feed-container');
+    }
 };
 
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
-    await _supabase.from('reactions').upsert({ post_id: postId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'post_id,user_id' });
+    await _supabase.from('reactions').upsert({ 
+        post_id: postId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    }, { onConflict: 'post_id,user_id' });
 };
 
 window.excluirPost = async (id) => {
-    if (confirm("Apagar aviso?")) { 
+    if (confirm("Apagar aviso permanentemente?")) { 
         await _supabase.from('posts').delete().eq('id', id);
         carregarFeed();
     }
@@ -227,7 +244,7 @@ window.verPerfilPublico = async function(userId) {
     if (perfil) {
         document.getElementById('dash-nome').innerText = perfil.username || "Morador";
         document.getElementById('dash-bairro').innerText = perfil.bairro || "Feira de Santana";
-        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio.";
+        document.getElementById('dash-bio').innerText = perfil.bio || "Sem bio definida.";
         const img = document.getElementById('img-perfil'), emo = document.getElementById('emoji-perfil');
         if (perfil.avatar_url) { img.src = perfil.avatar_url; img.classList.remove('hidden'); emo.classList.add('hidden'); }
         else { img.classList.add('hidden'); emo.classList.remove('hidden'); }
@@ -238,7 +255,7 @@ window.verPerfilPublico = async function(userId) {
     historico.innerHTML = posts?.length ? posts.map(p => `
         <div class="bg-gray-50 p-3 rounded-xl border mb-2 text-sm">
             <p class="text-gray-700">${escaparHTML(p.content)}</p>
-        </div>`).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso ainda.</p>";
+        </div>`).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso postado.</p>";
 
     const { data: { session } } = await _supabase.auth.getSession();
     document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
@@ -293,7 +310,7 @@ window.fazerCadastro = async () => {
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signUp({ email, password });
     if (error) alert(error.message); 
-    else alert("Conta criada! Verifique seu e-mail ou faça login.");
+    else alert("Conta criada! Verifique seu e-mail para confirmar e faça login.");
 };
 
 window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
@@ -301,8 +318,8 @@ window.fazerLogout = async () => { await _supabase.auth.signOut(); location.relo
 // --- 9. CONTROLES GLOBAIS ---
 window.mudarFeed = (tipo) => {
     const isGlobal = tipo === 'global';
-    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
-    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black' : 'flex-1 py-3 text-gray-400 font-bold';
+    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
+    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
     carregarFeed(!isGlobal);
 };
 
