@@ -1,7 +1,7 @@
 console.log("Sistema Gente da Feira - Versão 2.0");
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc1MDM1OTUsImV4cCI6MjA1MzA3OTU5NX0.D9-b05xtFzJB0lRD0rrmfbM69fWJQsJyvqWREgCaCf0';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8';
 
 let _supabase;
 
