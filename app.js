@@ -1,4 +1,4 @@
-console.log("Sistema Gente da Feira - Versão 3.1 (Threads Elegantes + Emojis)");
+console.log("Sistema Gente da Feira - Versão 4.0 (Social + Threads + Emojis)");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -104,7 +104,7 @@ window.cancelarResposta = (postId) => {
     if(indicator) indicator.classList.add('hidden');
 };
 
-// --- 5. LÓGICA DO FEED ---
+// --- 5. LÓGICA DO FEED (INTEGRADA COM FILTROS SOCIAIS) ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
@@ -112,7 +112,17 @@ async function carregarFeed(apenasZona = false) {
     const { data: { session } } = await _supabase.auth.getSession();
     const currentUserId = session?.user?.id;
 
-    // Query Otimizada com JOINS (Agora busca reações também dentro dos comentários)
+    // NOVO: Buscar restrições de bloqueio antes de listar o feed
+    let IDsRestritos = [];
+    if (currentUserId) {
+        const { data: restricoes } = await _supabase
+            .from('restrictions')
+            .select('target_id')
+            .eq('user_id', currentUserId);
+        IDsRestritos = restricoes?.map(r => r.target_id) || [];
+    }
+
+    // Query Otimizada com JOINS
     let query = _supabase
         .from('posts')
         .select(`
@@ -128,8 +138,13 @@ async function carregarFeed(apenasZona = false) {
         .order('created_at', { ascending: false });
 
     if (apenasZona && session) {
-        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
+        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', currentUserId).single();
         if (p?.bairro) query = query.eq('zona', p.bairro);
+    }
+
+    // Filtra para não mostrar posts de usuários bloqueados
+    if (IDsRestritos.length > 0) {
+        query = query.not('user_id', 'in', `(${IDsRestritos.join(',')})`);
     }
 
     const { data: posts, error } = await query;
@@ -142,14 +157,13 @@ async function carregarFeed(apenasZona = false) {
         const postComments = post.comments || [];
         const mainComments = postComments.filter(c => !c.parent_id);
 
-        // FUNÇÃO RECURSIVA: Renderiza comentários e suas respostas em cascata
+        // FUNÇÃO RECURSIVA: Renderiza comentários e suas respostas em cascata (THREADS)
         const renderComentario = (c, isReply = false) => {
             const contagemReacoes = c.reactions || [];
             const filhos = postComments.filter(filho => filho.parent_id === c.id);
             
             return `
             <div class="${isReply ? 'ml-5 mt-2 border-l-2 border-gray-300 pl-3 py-1' : 'bg-gray-50 p-3 rounded-lg border-l-2 border-[#FFD700] mb-3'}">
-                
                 <div class="flex justify-between items-start">
                     <p class="text-[11px] text-gray-700 leading-relaxed">
                         <b class="text-black">${escaparHTML(c.profiles?.username || "Morador")}:</b> ${escaparHTML(c.content)}
@@ -197,9 +211,20 @@ async function carregarFeed(apenasZona = false) {
                         <p class="text-[10px] text-black font-black uppercase bg-[#FFD700] px-1 rounded w-fit">${escaparHTML(post.zona || "Geral")}</p>
                     </div>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex gap-3 items-center">
+                    <div class="relative group">
+                        <button class="text-gray-400 hover:text-black p-1 text-xl">⋮</button>
+                        <div class="hidden group-hover:block absolute right-0 bg-white shadow-2xl border rounded-xl w-40 z-[100] py-1 animate-fade-in">
+                            <button onclick="socialAction('${post.user_id}', 'follow')" class="w-full text-left px-4 py-2 text-[10px] font-black uppercase hover:bg-gray-50">➕ Seguir</button>
+                            <button onclick="socialAction('${post.user_id}', 'add_friend')" class="w-full text-left px-4 py-2 text-[10px] font-black uppercase hover:bg-gray-50">🤝 Add Amigo</button>
+                            <hr class="my-1">
+                            <button onclick="socialAction('${post.user_id}', 'mute')" class="w-full text-left px-4 py-2 text-[10px] font-black uppercase hover:bg-gray-50 text-orange-500">🔇 Silenciar</button>
+                            <button onclick="socialAction('${post.user_id}', 'block')" class="w-full text-left px-4 py-2 text-[10px] font-black uppercase hover:bg-red-50 text-red-600">🚫 Bloquear</button>
+                        </div>
+                    </div>
+
                     <button onclick="compartilharPost(${post.id})" class="text-gray-300 hover:text-black">🔗</button>
-                    ${session?.user.id === post.user_id ? `<button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500">🗑️</button>` : ''}
+                    ${currentUserId === post.user_id ? `<button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500">🗑️</button>` : ''}
                 </div>
             </div>
             <p class="text-gray-700 text-sm mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
@@ -213,7 +238,7 @@ async function carregarFeed(apenasZona = false) {
             </div>
 
             <div class="space-y-1 mb-3">
-                ${mainComments.length > 0 ? mainComments.map(c => renderComentario(c, false)).join('') : '<p class="text-xs text-gray-400 italic">Nenhum comentário ainda. Seja o primeiro!</p>'}
+                ${mainComments.length > 0 ? mainComments.map(c => renderComentario(c, false)).join('') : '<p class="text-xs text-gray-400 italic">Nenhum comentário ainda.</p>'}
             </div>
 
             <div class="mt-4">
@@ -232,7 +257,7 @@ async function carregarFeed(apenasZona = false) {
     });
 }
 
-// --- 6. INTERAÇÕES ---
+// --- 6. INTERAÇÕES DE CONTEÚDO ---
 window.comentar = async (postId) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -261,7 +286,6 @@ window.enviarPost = async () => {
     const zona = document.getElementById('post-zona').value;
     const btn = document.querySelector('#form-post button[onclick="enviarPost()"]');
 
-    // AJUSTE #6: Limite de Caracteres
     if (content.length < 10 || content.length > 500) {
         return alert("O aviso deve ter entre 10 e 500 caracteres.");
     }
@@ -272,22 +296,13 @@ window.enviarPost = async () => {
     
     btn.disabled = false; btn.innerText = "PUBLICAR AVISO";
     
-    if (error) alert("Erro ao postar. Tente novamente em 30 segundos.");
+    if (error) alert("Erro ao postar. Tente novamente.");
     else {
         document.getElementById('post-content').value = ""; 
         mostrarTela('feed-container');
     }
 };
 
-// NOVA FUNCIONALIDADE: Apagar próprio comentário
-window.apagarComentario = async (id) => {
-    if (!confirm("Deseja apagar seu comentário?")) return;
-    const { error } = await _supabase.from('comments').delete().eq('id', id);
-    if (error) alert("Erro ao apagar: " + error.message);
-    // Realtime cuidará de recarregar a tela
-};
-
-// ATUALIZAÇÃO: Reagir agora suporta Posts e Comentários de forma independente
 window.reagir = async (id, emoji, isComment = false) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
@@ -295,48 +310,44 @@ window.reagir = async (id, emoji, isComment = false) => {
     const userId = session.user.id;
     const campoId = isComment ? 'comment_id' : 'post_id';
 
-    // Procura se já existe uma reação desse usuário neste post ou comentário específico
-    const { data: existente } = await _supabase
-        .from('reactions')
-        .select('id, emoji_type')
-        .eq('user_id', userId)
-        .eq(campoId, id)
-        .maybeSingle();
+    const { data: existente } = await _supabase.from('reactions').select('id, emoji_type').eq('user_id', userId).eq(campoId, id).maybeSingle();
 
     if (existente) {
         if (existente.emoji_type === emoji) {
-            // Se clicou no mesmo emoji, remove a reação
             await _supabase.from('reactions').delete().eq('id', existente.id);
         } else {
-            // Se clicou em outro, atualiza o emoji
             await _supabase.from('reactions').update({ emoji_type: emoji }).eq('id', existente.id);
         }
     } else {
-        // Se não tinha reação, insere uma nova
         const novaReacao = { user_id: userId, emoji_type: emoji };
         novaReacao[campoId] = id;
         await _supabase.from('reactions').insert([novaReacao]);
     }
 };
 
-window.compartilharPost = (id) => {
-    const url = `${window.location.origin}${window.location.pathname}#post-${id}`;
-    if (navigator.share) {
-        navigator.share({ title: 'Gente da Feira', text: 'Veja este aviso:', url: url });
-    } else {
-        navigator.clipboard.writeText(url);
-        alert("Link do aviso copiado!");
+// --- 7. NOVAS FUNÇÕES SOCIAIS ---
+window.socialAction = async (targetId, actionType) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+    const userId = session.user.id;
+
+    if (userId === targetId) return alert("Ação inválida consigo mesmo.");
+
+    if (actionType === 'follow') {
+        await _supabase.from('connections').upsert({ requester_id: userId, target_id: targetId, status: 'following' });
+        alert("Seguindo!");
+    } else if (actionType === 'add_friend') {
+        await _supabase.from('connections').upsert({ requester_id: userId, target_id: targetId, status: 'friend_pending' });
+        alert("Solicitação enviada!");
+    } else if (actionType === 'mute' || actionType === 'block') {
+        if (confirm(`Confirmar esta ação?`)) {
+            await _supabase.from('restrictions').insert({ user_id: userId, target_id: targetId, type: actionType });
+            actionType === 'block' ? location.reload() : carregarFeed();
+        }
     }
 };
 
-window.excluirPost = async (id) => {
-    if (confirm("Apagar aviso permanentemente?")) { 
-        await _supabase.from('posts').delete().eq('id', id);
-        carregarFeed();
-    }
-};
-
-// --- 7. PERFIL E DASHBOARD ---
+// --- 8. PERFIL E DASHBOARD ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
     const [{ data: perfil }, { data: posts }] = await Promise.all([
@@ -354,10 +365,7 @@ window.verPerfilPublico = async function(userId) {
     }
     document.getElementById('dash-count').innerText = posts?.length || 0;
     const historico = document.getElementById('historico-posts');
-    historico.innerHTML = posts?.length ? posts.map(p => `
-        <div class="bg-gray-50 p-3 rounded-xl border mb-2 text-sm">
-            <p class="text-gray-700">${escaparHTML(p.content)}</p>
-        </div>`).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso postado.</p>";
+    historico.innerHTML = posts?.length ? posts.map(p => `<div class="bg-gray-50 p-3 rounded-xl border mb-2 text-sm"><p class="text-gray-700">${escaparHTML(p.content)}</p></div>`).join('') : "<p class='text-center text-gray-400 text-xs py-4'>Nenhum aviso.</p>";
 
     const { data: { session } } = await _supabase.auth.getSession();
     document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
@@ -390,52 +398,43 @@ window.salvarPerfil = async () => {
     if (error) alert(error.message); else verPerfilPublico(session.user.id);
 };
 
-// --- 8. AUTH ---
+// --- 9. AUTH ---
 window.fazerLogin = async () => {
     const btn = document.querySelector('#auth-screen button[onclick="fazerLogin()"]');
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    
     btn.disabled = true; btn.innerText = "ENTRANDO...";
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) {
-        alert(error.message);
-        btn.disabled = false; btn.innerText = "ENTRAR";
-    } else {
-        btn.disabled = false; btn.innerText = "ENTRAR";
-        mostrarTela('feed-container');
-        carregarFeed();
-    }
+    if (error) { alert(error.message); btn.disabled = false; btn.innerText = "ENTRAR"; } 
+    else { carregarFeed(); mostrarTela('feed-container'); }
 };
 
 window.fazerCadastro = async () => {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const { error } = await _supabase.auth.signUp({ email, password });
-    if (error) alert(error.message); 
-    else alert("Conta criada! Verifique seu e-mail.");
+    if (error) alert(error.message); else alert("Conta criada! Verifique seu e-mail.");
 };
 
-window.fazerLogout = async () => { 
-    await _supabase.auth.signOut(); 
-    mostrarTela('auth-screen');
-};
+window.fazerLogout = async () => { await _supabase.auth.signOut(); mostrarTela('auth-screen'); };
 
-// --- 9. CONTROLES GLOBAIS ---
-window.mudarFeed = (tipo) => {
-    const isGlobal = tipo === 'global';
-    document.getElementById('tab-global').className = isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
-    document.getElementById('tab-zona').className = !isGlobal ? 'flex-1 py-3 active-tab text-black font-black text-center' : 'flex-1 py-3 text-gray-400 font-bold text-center';
-    carregarFeed(!isGlobal);
-};
-
+// --- 10. CONTROLES GLOBAIS ---
+window.mudarFeed = (tipo) => { carregarFeed(tipo !== 'global'); };
 window.abrirPostagem = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) mostrarTela('auth-screen'); else mostrarTela('form-post');
 };
-
 window.gerenciarBotaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (session) verPerfilPublico(session.user.id); else mostrarTela('auth-screen');
+};
+window.apagarComentario = async (id) => {
+    if (confirm("Apagar seu comentário?")) await _supabase.from('comments').delete().eq('id', id);
+};
+window.excluirPost = async (id) => {
+    if (confirm("Apagar aviso permanentemente?")) { await _supabase.from('posts').delete().eq('id', id); carregarFeed(); }
+};
+window.compartilharPost = (id) => {
+    const url = `${window.location.origin}${window.location.pathname}#post-${id}`;
+    navigator.clipboard.writeText(url); alert("Link copiado!");
 };
