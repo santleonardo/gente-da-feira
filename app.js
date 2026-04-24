@@ -53,6 +53,7 @@ window.prepararResposta = (postId, commentId, username) => {
     input.setAttribute('data-parent-id', commentId);
     input.placeholder = `Respondendo a ${username}...`;
     input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Ajuste para mobile
     
     if(nameSpan) nameSpan.innerText = username;
     if(indicator) indicator.classList.remove('hidden');
@@ -97,9 +98,10 @@ async function carregarFeed(apenasZona = false) {
         const postReacts = (allReacts || []).filter(r => r.post_id === post.id);
         const mainComments = postComments.filter(c => !c.parent_id);
 
+        // Função interna para renderizar as threads (recursivo)
         const renderReplies = (parentId) => {
             return postComments.filter(c => c.parent_id === parentId).map(r => `
-                <div class="ml-6 mt-2 border-l-2 border-gray-200 pl-3 py-1">
+                <div class="ml-5 mt-2 border-l-2 border-gray-200 pl-3 py-1">
                     <p class="text-[11px] text-gray-700">
                         <b class="text-feira-marinho">${escaparHTML(r.profiles?.username || "Morador")}:</b> ${escaparHTML(r.content)}
                     </p>
@@ -177,6 +179,7 @@ window.comentar = async (postId) => {
 
     input.value = "";
     cancelarResposta(postId);
+    // O Realtime atualizará o feed automaticamente
 };
 
 window.enviarPost = async () => {
