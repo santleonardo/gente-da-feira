@@ -2,8 +2,6 @@ console.log("Sistema Gente da Feira - Versão Realtime Estabilizada");
 
 // --- 1. CONFIGURAÇÃO ---
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
-// IMPORTANTE: Substitua pela chave real (JWT longo) encontrada em: 
-// Project Settings -> API -> "anon public"
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
 
 let _supabase;
@@ -14,14 +12,13 @@ function inicializarSupabase() {
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         console.log("Supabase conectado com sucesso!");
         
-        // Ativando o canal de escuta em tempo real para novos posts
         _supabase
             .channel('fluxo-avisos-feira')
             .on(
                 'postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'posts' }, 
+                { event: '*', schema: 'public', table: 'posts' }, // Escuta INSERT e DELETE
                 (payload) => {
-                    console.log('Novo aviso detectado!', payload);
+                    console.log('Mudança detectada no feed!', payload);
                     carregarFeed(); 
                 }
             )
@@ -44,8 +41,6 @@ function mostrarTela(telaAtiva) {
     const ativa = document.getElementById(telaAtiva);
     if (ativa) ativa.classList.remove('hidden');
 }
-
-// Expor para ser chamada do HTML
 window.mostrarTela = mostrarTela;
 
 function escaparHTML(str) {
@@ -65,30 +60,23 @@ async function carregarFeed(apenasZona = false) {
 
     container.innerHTML = '<p class="text-center p-10 text-gray-400 animate-pulse font-medium">Buscando avisos em Feira de Santana...</p>';
 
+    // Obtém sessão atual para validar quem pode apagar posts
+    const { data: { session } } = await _supabase.auth.getSession();
+
     let query = _supabase
         .from('posts')
         .select(`*, profiles:user_id(username, bairro, avatar_url)`)
         .order('created_at', { ascending: false });
 
-    if (apenasZona) {
-        const { data: { session } } = await _supabase.auth.getSession();
-        if (session) {
-            const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-            if (p?.bairro) {
-                query = query.eq('zona', p.bairro);
-            }
-        }
+    if (apenasZona && session) {
+        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
+        if (p?.bairro) query = query.eq('zona', p.bairro);
     }
 
     const { data: posts, error } = await query;
     
     if (error) {
-        console.error("Erro Supabase:", error);
-        return container.innerHTML = `
-            <div class="text-center p-10">
-                <p class="text-red-500 font-bold">Erro ao carregar o feed.</p>
-                <p class="text-xs text-gray-500">Verifique a conexão ou as tabelas do banco.</p>
-            </div>`;
+        return container.innerHTML = `<div class="text-center p-10"><p class="text-red-500 font-bold">Erro ao carregar o feed.</p></div>`;
     }
 
     container.innerHTML = "";
@@ -112,16 +100,26 @@ async function carregarFeed(apenasZona = false) {
         const nomeUsuario = post.profiles?.username || "Morador de Feira";
         const bairroExibicao = post.zona || post.profiles?.bairro || "Geral";
         const avatarUrl = post.profiles?.avatar_url;
+        
+        // Verifica se o usuário logado é o dono deste post
+        const eDono = session?.user.id === post.user_id;
 
         div.innerHTML = `
-            <div class="flex items-center gap-3 mb-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
-                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                    ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '<span class="text-gray-400 text-xl">👤</span>'}
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="verPerfilPublico('${post.user_id}')">
+                    <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                        ${avatarUrl ? `<img src="${avatarUrl}" class="w-full h-full object-cover">` : '<span class="text-gray-400 text-xl">👤</span>'}
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-800">${escaparHTML(nomeUsuario)}</h3>
+                        <p class="text-[10px] text-[#8B6D45] font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="font-bold text-sm text-gray-800">${escaparHTML(nomeUsuario)}</h3>
-                    <p class="text-[10px] text-[#8B6D45] font-black uppercase tracking-tighter">${escaparHTML(bairroExibicao)}</p>
-                </div>
+                ${eDono ? `
+                    <button onclick="excluirPost(${post.id})" class="text-gray-300 hover:text-red-500 transition-colors p-2">
+                        <span class="text-lg">🗑️</span>
+                    </button>
+                ` : ''}
             </div>
             <p class="text-gray-700 text-sm leading-relaxed mb-4 whitespace-pre-wrap">${escaparHTML(post.content)}</p>
             
@@ -153,7 +151,7 @@ async function carregarFeed(apenasZona = false) {
     }
 }
 
-// --- 5. DASHBOARD E PERFIL (Global) ---
+// --- 5. DASHBOARD E PERFIL ---
 window.verPerfilPublico = async function(userId) {
     mostrarTela('user-dashboard');
     const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', userId).single();
@@ -183,7 +181,12 @@ window.verPerfilPublico = async function(userId) {
     if (hist) {
         hist.innerHTML = posts?.length ? posts.map(p => `
             <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-sm mb-3">
-                <p class="text-gray-700">${escaparHTML(p.content)}</p>
+                <div class="flex justify-between items-start">
+                    <p class="text-gray-700 flex-1">${escaparHTML(p.content)}</p>
+                    ${isDono ? `
+                        <button onclick="excluirPost(${p.id})" class="ml-2 text-gray-300 hover:text-red-500">🗑️</button>
+                    ` : ''}
+                </div>
                 <div class="flex justify-between mt-2 text-[9px] font-bold text-gray-400 uppercase">
                     <span class="text-[#8B6D45]">${p.zona}</span>
                     <span>${new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
@@ -194,6 +197,30 @@ window.verPerfilPublico = async function(userId) {
 };
 
 // --- 6. INTERAÇÕES ---
+
+// NOVA FUNÇÃO: Excluir Post
+window.excluirPost = async (postId) => {
+    if (!confirm("Tem certeza que deseja apagar este aviso em Feira?")) return;
+
+    const { error } = await _supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
+    if (error) {
+        alert("Erro ao excluir: " + error.message);
+    } else {
+        // Se estiver no dashboard do próprio usuário, atualiza o perfil dele também
+        const { data: { session } } = await _supabase.auth.getSession();
+        const estaNoDashboard = !document.getElementById('user-dashboard').classList.contains('hidden');
+        
+        if (estaNoDashboard && session) {
+            verPerfilPublico(session.user.id);
+        }
+        carregarFeed();
+    }
+};
+
 window.enviarPost = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
