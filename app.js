@@ -124,7 +124,7 @@ window.cancelarResposta = (postId) => {
     if(indicator) indicator.classList.add('hidden');
 };
 
-// --- 5. LÓGICA DO FEED E FILTROS SOCIAIS ---
+// --- 5. LÓGICA DO FEED E FILTROS ---
 async function carregarFeed(apenasZona = false) {
     const container = document.getElementById('feed-container');
     if (!container) return;
@@ -132,50 +132,47 @@ async function carregarFeed(apenasZona = false) {
     const { data: { session } } = await _supabase.auth.getSession();
     const currentUserId = session?.user?.id;
 
-    // Busca usuários bloqueados ou silenciados para filtrar o feed
-    let IDsRestritos = [];
-    if (currentUserId) {
-        const { data: restricoes } = await _supabase
-            .from('restrictions')
-            .select('target_id')
-            .eq('user_id', currentUserId);
-        IDsRestritos = restricoes?.map(r => r.target_id) || [];
-    }
-
-    // Query Robusta com Relacionamentos
+    // 1. Criar a query base
     let query = _supabase
         .from('posts')
         .select(`
             *, 
             profiles:user_id(username, bairro, avatar_url),
             reactions(emoji_type, user_id),
-            comments(
-                *, 
-                profiles:user_id(username),
-                reactions(emoji_type, user_id)
-            )
+            comments(*, profiles:user_id(username), reactions(emoji_type, user_id))
         `)
         .order('created_at', { ascending: false });
 
-    // Filtro de Bairro do Usuário
-    if (apenasZona && session) {
-        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', currentUserId).single();
-        if (p?.bairro && p.bairro !== 'Geral') {
-            query = query.eq('zona', p.bairro);
+    // 2. Aplicar Filtro de Bairro
+    if (apenasZona && currentUserId) {
+        const { data: userProfile } = await _supabase
+            .from('profiles')
+            .select('bairro')
+            .eq('id', currentUserId)
+            .single();
+
+        if (userProfile?.bairro && userProfile.bairro !== 'Geral') {
+            query = query.eq('zona', userProfile.bairro);
         }
     }
 
-    // Aplica filtro de bloqueio
-    if (IDsRestritos.length > 0) {
-        query = query.not('user_id', 'in', `(${IDsRestritos.join(',')})`);
+    // 3. Filtro de bloqueio
+    if (currentUserId) {
+        const { data: restricoes } = await _supabase
+            .from('restrictions')
+            .select('target_id')
+            .eq('user_id', currentUserId);
+        
+        const IDsBloqueados = restricoes?.map(r => r.target_id) || [];
+        if (IDsBloqueados.length > 0) {
+            query = query.not('user_id', 'in', `(${IDsBloqueados.join(',')})`);
+        }
     }
 
     const { data: posts, error } = await query;
-    if (error) {
-        console.error("Erro ao buscar feed:", error);
-        return;
-    }
+    if (error) return console.error("Erro no feed:", error);
 
+    // 4. Renderização
     container.innerHTML = "";
 
     posts.forEach(post => {
@@ -183,7 +180,6 @@ async function carregarFeed(apenasZona = false) {
         const postComments = post.comments || [];
         const mainComments = postComments.filter(c => !c.parent_id);
 
-        // FUNÇÃO RECURSIVA PARA COMENTÁRIOS (THREADS)
         const renderComentario = (c, level = 0) => {
             const isReply = level > 0;
             const contagemReacoes = c.reactions || [];
@@ -425,6 +421,14 @@ window.verPerfilPublico = async function(userId) {
             img.classList.add('hidden');
             emo.classList.remove('hidden');
         }
+
+        // Preencher formulário de edição caso seja o dono
+        const nomeInput = document.getElementById('perfil-nome');
+        const bairroSelect = document.getElementById('perfil-bairro');
+        const bioInput = document.getElementById('perfil-bio');
+        if(nomeInput) nomeInput.value = perfil.username || "";
+        if(bairroSelect) bairroSelect.value = perfil.bairro || "Geral";
+        if(bioInput) bioInput.value = perfil.bio || "";
     }
     
     document.getElementById('dash-count').innerText = posts?.length || 0;
@@ -436,61 +440,42 @@ window.verPerfilPublico = async function(userId) {
     const { data: { session } } = await _supabase.auth.getSession();
     document.getElementById('dash-acoes').classList.toggle('hidden', session?.user.id !== userId);
 };
+
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return alert("Sessão expirada. Por favor, faça login novamente.");
+    if (!session) return alert("Sessão expirada.");
     
     const btn = document.querySelector('#form-perfil button[onclick="salvarPerfil()"]');
-    
-    // Captura dos elementos com verificação
-    const nomeInput = document.getElementById('perfil-nome');
-    const bairroSelect = document.getElementById('perfil-bairro');
-    const bioInput = document.getElementById('perfil-bio');
-    const fileInput = document.getElementById('perfil-upload');
-
-    if (!nomeInput || !bairroSelect) {
-        return alert("Erro crítico: Campos do formulário não encontrados.");
-    }
-
-    btn.disabled = true; 
-    btn.innerText = "SALVANDO...";
+    btn.disabled = true; btn.innerText = "SALVANDO...";
 
     const updates = {
         id: session.user.id,
-        username: nomeInput.value.trim(),
-        bairro: bairroSelect.value,
-        bio: bioInput ? bioInput.value.trim() : "",
+        username: document.getElementById('perfil-nome').value.trim(),
+        bairro: document.getElementById('perfil-bairro').value,
+        bio: document.getElementById('perfil-bio').value.trim(),
         updated_at: new Date()
     };
 
-    // Lógica de Upload de Foto Melhorada
+    const fileInput = document.getElementById('perfil-upload');
     if (fileInput?.files && fileInput.files[0]) {
         const file = fileInput.files[0];
-        const fileExt = file.name.split('.').pop(); // Pega a extensão (png, jpg)
+        const fileExt = file.name.split('.').pop();
         const path = `${session.user.id}/avatar-${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await _supabase.storage.from('avatars').upload(path, file);
         
-        if (uploadError) {
-            console.error("Erro no upload:", uploadError);
-            alert("Erro ao enviar a foto. Tentando salvar o restante...");
-        } else {
+        if (!uploadError) {
             const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(path);
             updates.avatar_url = publicUrl;
         }
     }
 
-    // Salvando no Banco de Dados
     const { error } = await _supabase.from('profiles').upsert(updates);
+    btn.disabled = false; btn.innerText = "SALVAR ALTERAÇÕES";
     
-    btn.disabled = false; 
-    btn.innerText = "SALVAR ALTERAÇÕES";
-    
-    if (error) {
-        alert("Erro ao salvar perfil: " + error.message);
-    } else {
-        alert("Perfil atualizado com sucesso!");
-        // Redireciona para o dashboard para ver as mudanças
+    if (error) alert("Erro ao salvar: " + error.message);
+    else {
+        alert("Perfil atualizado!");
         verPerfilPublico(session.user.id);
     }
 };
@@ -505,7 +490,7 @@ window.fazerLogin = async () => {
     
     const { error } = await _supabase.auth.signInWithPassword({ email, password });
     if (error) {
-        alert("Dados incorretos. Verifique e tente novamente.");
+        alert("Dados incorretos.");
         btn.disabled = false; btn.innerText = "ENTRAR";
     } else {
         carregarFeed(); 
@@ -526,10 +511,7 @@ window.fazerLogout = async () => {
 };
 
 // --- 10. FUNÇÕES DE UTILIDADE ---
-window.mudarFeed = (tipo) => { 
-    // Se o tipo for 'bairro', passamos 'true' para carregarFeed
-    carregarFeed(tipo === 'bairro'); 
-};
+window.mudarFeed = (tipo) => carregarFeed(tipo === 'bairro');
 
 window.abrirPostagem = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
@@ -557,6 +539,6 @@ window.excluirPost = async (id) => {
 window.compartilharPost = (id) => {
     const url = `${window.location.origin}${window.location.pathname}#post-${id}`;
     navigator.clipboard.writeText(url).then(() => {
-        alert("Link do aviso copiado para a área de transferência!");
+        alert("Link do aviso copiado!");
     });
 };
