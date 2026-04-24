@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gente da Feira</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#FFD700">
@@ -27,22 +27,24 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .reaction-btn { transition: transform 0.2s; cursor: pointer; display: inline-block; }
         .reaction-btn:active { transform: scale(1.4); }
+        /* Impede scroll horizontal indesejado */
+        body { overflow-x: hidden; touch-action: manipulation; }
     </style>
 </head>
 <body class="bg-gray-50 pb-24">
 
-    <header class="bg-feira-amarelo p-4 shadow-md sticky top-0 z-30 flex justify-between items-center border-b-2 border-feira-preto">
+    <header class="bg-feira-amarelo p-4 shadow-md sticky top-0 z-40 flex justify-between items-center border-b-2 border-feira-preto">
         <div class="w-8"></div> 
         <h1 class="text-xl font-black text-feira-preto uppercase tracking-widest">Gente da Feira</h1>
-        <button onclick="window.mostrarTela('feed-container')" class="text-feira-preto text-xs active:rotate-180 transition-transform font-bold">🔄</button>
+        <button onclick="location.reload()" class="text-feira-preto text-xs active:rotate-180 transition-transform font-bold">🔄</button>
     </header>
 
-    <nav id="feed-nav" class="flex bg-white border-b sticky top-[62px] z-20">
+    <nav id="feed-nav" class="flex bg-white border-b sticky top-[62px] z-30">
         <button onclick="mudarFeed('global')" id="tab-global" class="flex-1 py-3 active-tab">Feira Toda</button>
         <button onclick="mudarFeed('zona')" id="tab-zona" class="flex-1 py-3 text-gray-400 font-bold">Meu Bairro</button>
     </nav>
 
-    <section id="auth-screen" class="hidden p-8 text-center animate-fade-in">
+    <section id="auth-screen" class="hidden p-8 text-center animate-fade-in pt-20">
         <div class="mb-8">
             <h2 class="text-2xl font-black text-feira-marinho uppercase">BEM-VINDO!</h2>
             <p class="text-gray-500 text-sm">Acesse a rede oficial de Feira de Santana</p>
@@ -67,78 +69,97 @@
                         <span id="emoji-perfil" class="text-4xl">👤</span>
                     </div>
                 </div>
-                <h2 id="dash-nome" class="text-xl font-bold text-feira-marinho">...</h2>
-                <p id="dash-bairro" class="text-feira-preto font-black text-xs uppercase mb-4 bg-feira-amarelo inline-block px-2 py-1 rounded"></p>
+                <h2 id="dash-nome" class="text-xl font-bold text-feira-marinho uppercase">...</h2>
+                <p id="dash-bairro" class="text-feira-preto font-black text-[10px] uppercase mb-4 bg-feira-amarelo inline-block px-2 py-1 rounded"></p>
                 <p id="dash-bio" class="text-gray-500 text-sm italic px-4 mb-6 leading-tight"></p>
                 
                 <div class="grid grid-cols-2 gap-4 border-t pt-6">
                     <div>
                         <p class="text-xl font-black text-feira-marinho" id="dash-count">0</p>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase">Avisos</p>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avisos</p>
                     </div>
                     <div>
                         <p class="text-xl font-black text-feira-preto">FSA</p>
-                        <p class="text-[10px] text-gray-400 font-bold uppercase">Região</p>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Região</p>
                     </div>
                 </div>
             </div>
         </div>
         <div id="dash-acoes" class="hidden space-y-2 mb-6">
-            <button onclick="abrirEdicaoPerfil()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-bold text-sm active:scale-95 transition">Editar Perfil</button>
-            <button onclick="fazerLogout()" class="w-full text-red-600 py-2 text-xs font-bold">Sair da Conta</button>
+            <button onclick="abrirEdicaoPerfil()" class="w-full bg-feira-preto text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest active:scale-95 transition">Editar Perfil</button>
+            <button onclick="fazerLogout()" class="w-full text-red-600 py-2 text-[10px] font-black uppercase tracking-widest">Sair da Conta</button>
         </div>
-        <h3 class="font-black text-gray-400 text-[10px] uppercase mb-4 tracking-widest px-2">Meus Avisos (Toque para apagar)</h3>
-        <div id="historico-posts" class="space-y-3 px-2"></div>
+        <h3 class="font-black text-gray-400 text-[10px] uppercase mb-4 tracking-widest px-2">Histórico de Atividade</h3>
+        <div id="historico-posts" class="space-y-3 px-2 pb-10"></div>
     </section>
 
     <section id="form-perfil" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase">Configurar Perfil</h2>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase border-b-4 border-feira-amarelo inline-block">Meu Perfil</h2>
         <div class="space-y-4">
             <div class="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
-                <p class="text-xs font-bold text-gray-400 mb-2 uppercase">Foto de Perfil</p>
-                <input type="file" id="perfil-upload" accept="image/*" class="text-xs">
+                <p class="text-[10px] font-black text-gray-400 mb-2 uppercase">Alterar Foto</p>
+                <input type="file" id="perfil-upload" accept="image/*" class="text-xs w-full">
             </div>
-            <input type="text" id="perfil-nome" placeholder="Seu Nome ou Nome da Empresa" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none">
-            <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none font-bold">
-                <option value="Centro">Centro</option>
-                <option value="Tomba">Tomba</option>
-                <option value="SIM">SIM</option>
-                <option value="Cidade Nova">Cidade Nova</option>
-                <option value="Campo Limpo">Campo Limpo</option>
-                <option value="Mangabeira">Mangabeira</option>
-            </select>
-            <textarea id="perfil-bio" placeholder="Sua bio..." class="w-full p-3 border-2 rounded-lg h-24 focus:ring-2 focus:ring-feira-amarelo outline-none"></textarea>
-            <button onclick="salvarPerfil()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition">SALVAR ALTERAÇÕES</button>
-            <button onclick="window.mostrarTela('user-dashboard')" class="w-full py-2 text-gray-500 text-sm font-bold">Cancelar</button>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Nome ou Empresa</label>
+                <input type="text" id="perfil-nome" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Seu Bairro Principal</label>
+                <select id="perfil-bairro" class="w-full p-3 border-2 rounded-lg focus:ring-2 focus:ring-feira-amarelo outline-none font-bold">
+                    <option value="Centro">Centro</option>
+                    <option value="Tomba">Tomba</option>
+                    <option value="SIM">SIM</option>
+                    <option value="Cidade Nova">Cidade Nova</option>
+                    <option value="Campo Limpo">Campo Limpo</option>
+                    <option value="Mangabeira">Mangabeira</option>
+                    <option value="George Américo">George Américo</option>
+                    <option value="Humildes">Humildes</option>
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Bio / Descrição</label>
+                <textarea id="perfil-bio" class="w-full p-3 border-2 rounded-lg h-24 focus:ring-2 focus:ring-feira-amarelo outline-none"></textarea>
+            </div>
+            <button onclick="salvarPerfil()" class="w-full bg-feira-amarelo text-feira-preto py-4 rounded-xl font-black shadow-lg active:scale-95 transition uppercase tracking-widest">SALVAR</button>
+            <button onclick="window.mostrarTela('user-dashboard')" class="w-full py-2 text-gray-400 text-[10px] font-black uppercase">Voltar</button>
         </div>
     </section>
 
     <section id="form-post" class="hidden p-6 bg-white min-h-screen animate-fade-in">
-        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase italic">Novo Aviso</h2>
-        <select id="post-zona" class="w-full p-3 border-2 rounded-lg mb-4 bg-gray-50 font-black text-feira-preto">
-            <option value="Geral">Toda a Feira (Geral)</option>
-            <option value="Centro">Centro</option>
-            <option value="Tomba">Tomba</option>
-            <option value="SIM">SIM</option>
-            <option value="Cidade Nova">Cidade Nova</option>
-            <option value="Campo Limpo">Campo Limpo</option>
-        </select>
-        <textarea id="post-content" placeholder="O que está acontecendo agora?" class="w-full p-4 border-2 rounded-xl mb-4 h-40 outline-none focus:ring-2 focus:ring-feira-amarelo"></textarea>
-        <button onclick="enviarPost()" class="bg-feira-amarelo text-feira-preto w-full py-4 rounded-xl font-black shadow-lg text-lg active:scale-95 transition">PUBLICAR AVISO</button>
-        <button onclick="window.mostrarTela('feed-container')" class="w-full py-3 text-gray-400 text-sm mt-2 font-bold">Cancelar</button>
+        <h2 class="text-xl font-black mb-6 text-feira-preto uppercase italic border-b-4 border-feira-amarelo inline-block">Novo Aviso</h2>
+        <div class="space-y-4">
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-gray-400 ml-1">Onde está acontecendo?</label>
+                <select id="post-zona" class="w-full p-3 border-2 rounded-lg bg-gray-50 font-black text-feira-preto">
+                    <option value="Geral">Toda a Feira (Geral)</option>
+                    <option value="Centro">Centro</option>
+                    <option value="Tomba">Tomba</option>
+                    <option value="SIM">SIM</option>
+                    <option value="Cidade Nova">Cidade Nova</option>
+                    <option value="Campo Limpo">Campo Limpo</option>
+                </select>
+            </div>
+            <textarea id="post-content" placeholder="O que a cidade precisa saber agora?" class="w-full p-4 border-2 rounded-xl h-40 outline-none focus:ring-2 focus:ring-feira-amarelo font-medium"></textarea>
+            <button onclick="enviarPost()" class="bg-feira-preto text-feira-amarelo w-full py-4 rounded-xl font-black shadow-lg text-lg active:scale-95 transition uppercase tracking-widest">PUBLICAR NO FEED</button>
+            <button onclick="window.mostrarTela('feed-container')" class="w-full py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
+        </div>
     </section>
 
-    <main id="feed-container" class="p-4 space-y-4 animate-fade-in"></main>
+    <main id="feed-container" class="p-4 space-y-4 animate-fade-in min-h-screen"></main>
 
-    <footer class="fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+    <footer class="fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
         <button onclick="window.mostrarTela('feed-container')" class="flex flex-col items-center text-feira-preto">
-            <span class="text-2xl">🏠</span><span class="text-[10px] font-black uppercase tracking-tighter">Início</span>
+            <span class="text-2xl">🏠</span><span class="text-[9px] font-black uppercase tracking-tighter">Início</span>
         </button>
-        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-400 hover:text-feira-preto transition">
-            <span class="text-2xl">➕</span><span class="text-[10px] font-black uppercase tracking-tighter">Avisar</span>
+        <button onclick="abrirPostagem()" class="flex flex-col items-center text-gray-300 hover:text-feira-preto transition">
+            <div class="bg-feira-preto text-feira-amarelo w-10 h-10 rounded-full flex items-center justify-center -mt-6 shadow-lg border-4 border-white">
+                <span class="text-xl">+</span>
+            </div>
+            <span class="text-[9px] font-black uppercase tracking-tighter mt-1">Avisar</span>
         </button>
-        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-400 hover:text-feira-preto transition">
-            <span class="text-2xl">👤</span><span class="text-[10px] font-black uppercase tracking-tighter">Perfil</span>
+        <button onclick="gerenciarBotaoPerfil()" class="flex flex-col items-center text-gray-300 hover:text-feira-preto transition">
+            <span class="text-2xl">👤</span><span class="text-[9px] font-black uppercase tracking-tighter">Perfil</span>
         </button>
     </footer>
 
