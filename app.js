@@ -107,15 +107,15 @@ async function carregarFeed(filtro = 'Geral') {
         const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', userIdLogado).single();
         bairroUsuario = p?.bairro;
     }
-
-    let query = _supabase
-        .from('posts')
-        .select(`
-            *,
-            profiles:user_id (username, bairro, avatar_url),
-            reactions (emoji_type, user_id),
-            comments (*, profiles:user_id (username))
-        `)
+let query = _supabase
+    .from('posts')
+    .select(`
+        *,
+        profiles:user_id (username, bairro, avatar_url),
+        reactions (emoji_type, user_id),
+        comments (*, profiles:user_id (username)),
+        comment_reactions (comment_id, emoji_type, user_id)
+    `)
         .order('created_at', { ascending: false });
 
     if (filtro === 'Local' && bairroUsuario) {
