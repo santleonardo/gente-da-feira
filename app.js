@@ -363,23 +363,28 @@ window.reagirComentario = async (commentId, emoji, postId) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
     
-    // 1. Envia a reação
-    await _supabase.from('comment_reactions').upsert({ 
-        comment_id: commentId, 
-        user_id: session.user.id, 
-        emoji_type: emoji 
-    }, { onConflict: 'comment_id, user_id, emoji_type' }); // Upsert evita duplicidade
+    try {
+        // Guardamos o estado da thread antes de enviar
+        localStorage.setItem('thread_aberta', postId);
 
-    // 2. Guarda que esta thread estava aberta
-    localStorage.setItem('thread_aberta', postId);
+        // Enviamos a reação para a tabela correta
+        const { error } = await _supabase.from('comment_reactions').insert({ 
+            comment_id: commentId, 
+            user_id: session.user.id, 
+            emoji_type: emoji 
+        });
 
-    // 3. Recarrega o feed
-    await carregarFeed();
+        // Se der erro de duplicidade (usuário já reagiu), nós removemos a reação (efeito toggle)
+        if (error && error.code === '23505') {
+            await _supabase.from('comment_reactions')
+                .delete()
+                .match({ comment_id: commentId, user_id: session.user.id, emoji_type: emoji });
+        }
 
-    // 4. Reabre a thread automaticamente após o reload
-    const threadId = localStorage.getItem('thread_aberta');
-    if (threadId) {
-        const el = document.getElementById(`thread-${threadId}`);
-        if (el) el.classList.remove('hidden');
+        // Recarregamos o feed para atualizar os números
+        await carregarFeed(document.getElementById('tab-local').classList.contains('bg-feira-marinho') ? 'Local' : 'Geral');
+        
+    } catch (err) {
+        console.error("Erro na operação de reação:", err);
     }
 };
