@@ -151,13 +151,18 @@ function renderizarFeed(posts, container, userIdLogado) {
             : `<span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>`;
 
         // Reações do Post Principal
-        const reacoesPostHtml = EMOJIS.map(emoji => {
-            const count = post.reactions?.filter(r => r.emoji_type === emoji).length || 0;
-            return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1">
-                <span class="text-sm">${emoji}</span>
-                <span class="text-[10px] font-black text-gray-400">${count || ''}</span>
-            </button>`;
-        }).join('');
+      const reacoesComentHtml = EMOJIS.map(emoji => {
+    const cCount = post.comment_reactions?.filter(cr => cr.comment_id === c.id && cr.emoji_type === emoji).length || 0;
+    
+    return `
+        <button 
+            onclick="this.style.opacity='0.3'; reagirComentario('${c.id}', '${emoji}', '${post.id}')" 
+            class="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+            <span class="text-[10px]">${emoji}</span>
+            <span class="text-[9px] font-bold text-gray-400">${cCount || ''}</span>
+        </button>
+    `;
+}).join('');
 
         postEl.innerHTML = `
             <div class="flex items-center gap-4 mb-5">
