@@ -52,34 +52,27 @@
         </div>
     </section>
 
-    <section id="edit-profile-screen" class="hidden min-h-screen p-6 animate-fade-in">
-        <div class="max-w-xl mx-auto bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-            <h2 class="text-xl font-black text-feira-marinho mb-8 uppercase tracking-tight">Configurações</h2>
-            
-            <div class="flex flex-col items-center mb-8">
-                <label for="foto-upload" class="relative cursor-pointer group">
-                    <div id="preview-avatar" class="w-28 h-28 rounded-full bg-gray-200 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center bg-cover bg-center">
-                        <span class="text-3xl">📸</span>
-                    </div>
-                </label>
-                <input type="file" id="foto-upload" class="hidden" accept="image/*" onchange="processarFoto(event)">
-                <p class="text-[10px] font-black text-gray-400 mt-4 uppercase tracking-widest">Toque na foto para mudar</p>
-            </div>
-
-            <div class="space-y-6">
-                <div>
-                    <label class="text-[10px] font-black uppercase text-gray-400 ml-2">Seu Nome/Apelido</label>
-                    <input id="edit-username" type="text" class="w-full p-4 mt-1 rounded-2xl bg-gray-50 border-none font-bold text-feira-marinho">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black uppercase text-gray-400 ml-2">Seu Bairro</label>
-                    <select id="edit-bairro" class="w-full p-4 mt-1 rounded-2xl bg-gray-50 border-none font-bold text-feira-marinho"></select>
-                </div>
-                <button onclick="salvarPerfilCompleto()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg mt-4">Guardar Alterações</button>
-                <button onclick="irParaHome()" class="w-full text-gray-400 py-2 text-[10px] font-bold uppercase">Cancelar</button>
-            </div>
+    <section id="edit-profile-screen" class="hidden min-h-screen p-6">
+    <div class="max-w-xl mx-auto bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+        <div class="flex flex-col items-center mb-8">
+            <label for="foto-upload" class="cursor-pointer relative">
+                <div id="preview-avatar" class="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg bg-cover bg-center"></div>
+                <div class="absolute bottom-0 right-0 bg-feira-marinho text-white p-1 rounded-full text-[8px] font-bold px-2 uppercase">Trocar</div>
+            </label>
+            <input type="file" id="foto-upload" class="hidden" accept="image/*" onchange="previewImagem(event)">
         </div>
-    </section>
+
+        <div class="space-y-4">
+            <input id="edit-username" type="text" placeholder="Seu Nome" class="w-full p-4 rounded-2xl bg-gray-50 border-none font-bold">
+            
+            <select id="edit-bairro" class="w-full p-4 rounded-2xl bg-gray-50 border-none font-bold">
+                </select>
+
+            <button onclick="salvarPerfilCompleto()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Salvar Perfil</button>
+            <button onclick="irParaHome()" class="w-full text-gray-400 py-2 text-[10px] font-bold uppercase">Cancelar</button>
+        </div>
+    </div>
+</section>
 
     <nav id="feed-tabs" class="hidden max-w-xl mx-auto px-4 pt-4 flex gap-2">
         <button onclick="mudarFeed('Geral')" id="tab-geral" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-feira-marinho text-white shadow-md">Feira Toda</button>
