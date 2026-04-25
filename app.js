@@ -237,7 +237,7 @@ function renderizarPosts(posts, container, currentUserId) {
         <p class="text-xs text-gray-600 mb-1">${c.content}</p>
         <div class="flex gap-2">${cReacoes}</div>
     </div>
-</div>`;
+</div>;
         container.appendChild(postEl);
     });
 }
