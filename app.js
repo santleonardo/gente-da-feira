@@ -199,6 +199,7 @@ function renderizarPosts(posts, container, currentUserId) {
                     <h4 class="font-black text-feira-marinho text-sm">${post.profiles?.username || 'Morador'}</h4>
                     <span class="text-[9px] font-bold text-gray-300 uppercase">${post.zona || 'Geral'}</span>
                 </div>
+                ${currentUserId === post.user_id ? `<button onclick="apagarPost('${post.id}')" class="text-[8px] text-red-500 hover:text-red-700 font-bold ml-auto">🗑️ Apagar</button>` : ''}
             </div>
             <p class="text-gray-600 text-sm mb-4 leading-relaxed">${post.content}</p>
             <div class="flex justify-between items-center pt-4 border-t border-gray-50">
