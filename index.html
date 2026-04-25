@@ -32,7 +32,7 @@
 
    <header class="p-6 flex justify-between items-center max-w-xl mx-auto">
     <h1 class="text-2xl font-black tracking-tighter text-feira-marinho italic underline decoration-feira-yellow decoration-4">GENTE DA <span class="text-feira-yellow">FEIRA</span></h1>
-    <button id="btn-sair" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-300 hover:text-red-400 transition-all">Sair</button>
+    <button id="btn-logout" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-all">Sair</button>
 </header>
 
 <section id="auth-screen" class="hidden p-6 max-w-sm mx-auto text-center animate-fade-in">
@@ -81,10 +81,9 @@
     <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
 
     <footer id="main-nav" class="hidden fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-50 shadow-2xl">
-        <button onclick="mudarFeed('Geral')" class="text-2xl">🏠</button>
-        <button onclick="abrirPostagem()" class="bg-feira-yellow w-14 h-14 rounded-2xl font-black -mt-10 border-4 border-white shadow-xl flex items-center justify-center text-feira-marinho text-2xl">+</button>
-        <button onclick="mostrarTela('edit-profile-screen')" class="text-2xl">👤</button>
-    </footer>
+    <button onclick="irParaHome()" class="text-2xl">🏠</button> <button onclick="abrirPostagem()" class="bg-feira-yellow w-14 h-14 rounded-2xl font-black -mt-10 border-4 border-white shadow-xl flex items-center justify-center text-feira-marinho text-2xl">+</button>
+    <button onclick="mostrarTela('edit-profile-screen')" class="text-2xl">👤</button>
+</footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
