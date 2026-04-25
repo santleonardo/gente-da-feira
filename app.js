@@ -255,6 +255,19 @@ window.apagarPost = async (postId) => {
         carregarFeed();
     }
 };
+
+window.apagarComentario = async (commentId, postId) => {
+    if (!confirm('Tem certeza que deseja apagar este comentário?')) return;
+    
+    const { error } = await _supabase.from('comments').delete().eq('id', commentId);
+    
+    if (error) {
+        alert('Erro ao apagar: ' + error.message);
+    } else {
+        localStorage.setItem('thread_aberta', postId);
+        carregarFeed();
+    }
+};
 window.abrirThreads = (id) => {
     const el = document.getElementById(`thread-${id}`);
     const isHidden = el.classList.toggle('hidden');
