@@ -114,6 +114,7 @@ let query = _supabase
         profiles:user_id (username, bairro, avatar_url),
         reactions (emoji_type, user_id),
         comments (*, profiles:user_id (username))
+        comment_reactions (comment_id, emoji_type)
     `)
     .order('created_at', { ascending: false });
     
