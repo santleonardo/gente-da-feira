@@ -7,6 +7,11 @@
     <title>Gente da Feira | Hub FSA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js')
+    .then(() => console.log('SW registrado'))
+    .catch(err => console.log('Erro SW:', err));
+}
         tailwind.config = { theme: { extend: { colors: { 'feira-yellow': '#FFD700', 'feira-bege': '#FDFDF7', 'feira-marinho': '#1E3A5F', 'feira-bronze': '#CD7F32' } } } }
     </script>
     <style>
