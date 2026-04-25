@@ -144,15 +144,16 @@ function renderizarFeed(posts, container, userIdLogado) {
         postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-6 animate-fade-in";
         
         const isDonoPost = userIdLogado === post.user_id;
-        const btnDeletePost = isDonoPost ? `<button onclick="excluirPost('${post.id}')" class="text-[9px] text-red-300 font-bold uppercase hover:text-red-500 transition-colors">Apagar</button>` : '';
+        const btnDeletePost = isDonoPost ? `<button onclick="excluirPost('${post.id}')" class="text-[9px] text-red-300 font-bold uppercase">Apagar</button>` : '';
 
         const avatar = post.profiles?.avatar_url 
             ? `<img src="${post.profiles.avatar_url}" class="w-full h-full object-cover">`
             : `<span class="font-black text-feira-marinho">${(post.profiles?.username || 'M')[0].toUpperCase()}</span>`;
 
-        const reacoesHtml = EMOJIS.map(emoji => {
+        // Reações do Post Principal
+        const reacoesPostHtml = EMOJIS.map(emoji => {
             const count = post.reactions?.filter(r => r.emoji_type === emoji).length || 0;
-            return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1 active:scale-125 transition-transform">
+            return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1">
                 <span class="text-sm">${emoji}</span>
                 <span class="text-[10px] font-black text-gray-400">${count || ''}</span>
             </button>`;
@@ -175,22 +176,39 @@ function renderizarFeed(posts, container, userIdLogado) {
             </div>
             <p class="text-gray-600 text-sm mb-6 leading-relaxed">${post.content}</p>
             <div class="flex items-center justify-between pt-5 border-t border-gray-50">
-                <div class="flex gap-4">${reacoesHtml}</div>
+                <div class="flex gap-4">${reacoesPostHtml}</div>
                 <button onclick="abrirThreads('${post.id}')" class="text-[10px] font-black uppercase text-feira-marinho bg-feira-yellow/20 px-4 py-2 rounded-xl">Conversa (${post.comments?.length || 0})</button>
             </div>
-            <div id="thread-${post.id}" class="hidden mt-4 space-y-2 pt-4 border-t border-dashed border-gray-100">
+            
+            <div id="thread-${post.id}" class="hidden mt-4 space-y-3 pt-4 border-t border-dashed border-gray-100">
                 ${post.comments?.map(c => {
                     const isDonoComentario = userIdLogado === c.user_id;
-                    const btnDeleteComentario = isDonoComentario ? `<button onclick="apagarComentario('${c.id}')" class="text-red-300 hover:text-red-500 font-bold ml-2">×</button>` : '';
+                    const reacoesComentHtml = EMOJIS.map(emoji => {
+                        // Filtra as reações específicas deste comentário
+                        const cCount = post.comment_reactions?.filter(cr => cr.comment_id === c.id && cr.emoji_type === emoji).length || 0;
+                        return `<button onclick="reagirComentario('${c.id}', '${emoji}', '${post.id}')" class="flex items-center gap-1 opacity-70 hover:opacity-100">
+                            <span class="text-[10px]">${emoji}</span>
+                            <span class="text-[9px] font-bold text-gray-400">${cCount || ''}</span>
+                        </button>`;
+                    }).join('');
+
                     return `
-                    <div class="text-xs bg-gray-50 p-3 rounded-2xl flex justify-between items-center">
-                        <span><b>${c.profiles?.username || 'User'}:</b> ${c.content}</span>
-                        ${btnDeleteComentario}
+                    <div class="bg-gray-50 p-4 rounded-2xl">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-gray-700 leading-snug">
+                                <b class="text-feira-marinho">${c.profiles?.username || 'User'}:</b> ${c.content}
+                            </span>
+                            ${isDonoComentario ? `<button onclick="apagarComentario('${c.id}')" class="text-red-300 font-bold ml-2">×</button>` : ''}
+                        </div>
+                        <div class="flex gap-3 mt-1">
+                            ${reacoesComentHtml}
+                        </div>
                     </div>`;
                 }).join('')}
+                
                 <div class="flex gap-2 pt-2">
-                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-gray-50 border-none rounded-xl p-3 outline-none">
-                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-bold uppercase">OK</button>
+                    <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-white border border-gray-100 rounded-xl p-3 outline-none focus:ring-1 focus:ring-feira-yellow">
+                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-black uppercase shadow-sm">Enviar</button>
                 </div>
             </div>
         `;
@@ -341,4 +359,18 @@ window.previewImagem = (event) => {
         preview.style.backgroundSize = 'cover';
     };
     reader.readAsDataURL(event.target.files[0]);
+};
+// ADICIONE ESTA NOVA FUNÇÃO NO FINAL DO SEU APP.JS
+window.reagirComentario = async (commentId, emoji, postId) => {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return mostrarTela('auth-screen');
+    
+    // Insere a reação na nova tabela que criamos no SQL
+    await _supabase.from('comment_reactions').insert({ 
+        comment_id: commentId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    });
+    
+    carregarFeed(); // Recarrega para mostrar o contador atualizado
 };
