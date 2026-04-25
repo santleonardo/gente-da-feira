@@ -143,7 +143,12 @@
             <div class="space-y-4">
                 <input type="text" id="profile-username" placeholder="Nome ou Empresa" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
                 <input type="text" id="profile-bio" placeholder="Sua Bio" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-                <input type="text" id="profile-avatar-url" placeholder="URL da Foto (Link)" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
+                <div class="mb-4">
+    <label class="block text-xs font-bold text-gray-600 mb-2">Foto de Perfil</label>
+    <input type="file" id="profile-avatar-file" accept="image/*" 
+           class="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl p-3">
+    <input type="hidden" id="profile-avatar-url">
+</div>
                 <select id="profile-bairro" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
                     <option value="Centro">Centro</option>
                     <option value="SIM">SIM</option>
