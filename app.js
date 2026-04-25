@@ -360,17 +360,27 @@ window.previewImagem = (event) => {
     };
     reader.readAsDataURL(event.target.files[0]);
 };
-// ADICIONE ESTA NOVA FUNÇÃO NO FINAL DO SEU APP.JS
 window.reagirComentario = async (commentId, emoji, postId) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return mostrarTela('auth-screen');
     
-    // Insere a reação na nova tabela que criamos no SQL
-    await _supabase.from('comment_reactions').insert({ 
+    // 1. Envia a reação
+    await _supabase.from('comment_reactions').upsert({ 
         comment_id: commentId, 
         user_id: session.user.id, 
         emoji_type: emoji 
-    });
-    
-    carregarFeed(); // Recarrega para mostrar o contador atualizado
+    }, { onConflict: 'comment_id, user_id, emoji_type' }); // Upsert evita duplicidade
+
+    // 2. Guarda que esta thread estava aberta
+    localStorage.setItem('thread_aberta', postId);
+
+    // 3. Recarrega o feed
+    await carregarFeed();
+
+    // 4. Reabre a thread automaticamente após o reload
+    const threadId = localStorage.getItem('thread_aberta');
+    if (threadId) {
+        const el = document.getElementById(`thread-${threadId}`);
+        if (el) el.classList.remove('hidden');
+    }
 };
