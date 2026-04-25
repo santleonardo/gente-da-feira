@@ -3,7 +3,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
-
+const BAIRROS_DISPONIVEIS = ['Centro', 'Mangabeira', 'Queimadinha', 'Campo Limpo', 'Tomba', 'SIM', 'Feira IX', 'George Américo', 'Brasília', 'Sobradinho', 'Conceição', 'Kalilândia', 'Aviário', 'Baraúnas', 'Santa Mônica', 'Papagaio', 'Jardim Acácia'];
 window.onload = async () => {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -49,11 +49,23 @@ window.abrirPostagem = () => {
 
 window.salvarPost = async () => {
     const content = document.getElementById('post-content').value.trim();
-    if (!content) return;
+    if (!content) return alert('Digite algo para publicar!');
+    
+    const checkboxes = document.querySelectorAll('input[name="bairro-publicar"]:checked');
+    const bairrosSelecionados = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (bairrosSelecionados.length === 0) return alert('Selecione pelo menos um bairro!');
+    
     const { data: { session } } = await _supabase.auth.getSession();
     
-    const { data: perfil } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-    await _supabase.from('posts').insert({ user_id: session.user.id, content: content, zona: perfil?.bairro || 'Geral' });
+    // Publicar em cada bairro selecionado
+    for (const bairro of bairrosSelecionados) {
+        await _supabase.from('posts').insert({ 
+            user_id: session.user.id, 
+            content: content, 
+            zona: bairro 
+        });
+    }
     
     document.getElementById('post-content').value = "";
     irParaHome();
