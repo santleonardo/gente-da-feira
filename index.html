@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <link rel="manifest" href="/gente-da-feira/manifest.json">
+<meta name="theme-color" content="#CC0000">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gente da Feira | Hub FSA</title>
@@ -176,5 +178,12 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/gente-da-feira/service-worker.js')
+      .then(() => console.log('Service Worker registrado'))
+      .catch(err => console.log('Erro no SW:', err));
+  }
+</script>
 </body>
 </html>
