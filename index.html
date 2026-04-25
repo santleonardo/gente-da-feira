@@ -6,109 +6,95 @@
     <title>Gente da Feira | Hub FSA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'feira-yellow': '#FFD700', 
-                        'feira-bege': '#FDFDF7',   
-                        'feira-marinho': '#1E3A5F',
-                        'feira-bronze': '#CD7F32'
-                    }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { colors: { 'feira-yellow': '#FFD700', 'feira-bege': '#FDFDF7', 'feira-marinho': '#1E3A5F', 'feira-bronze': '#CD7F32' } } } }
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #FDFDF7; }
         .hidden { display: none !important; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         button:active { transform: scale(0.95); transition: 0.1s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="text-gray-900 pb-24 overflow-x-hidden">
 
-   <header class="p-6 flex justify-between items-center max-w-xl mx-auto">
-    <h1 class="text-2xl font-black tracking-tighter text-feira-marinho italic underline decoration-feira-yellow decoration-4">GENTE DA <span class="text-feira-yellow">FEIRA</span></h1>
-    <button id="btn-logout" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-all">Sair</button>
-</header>
+    <header class="p-6 flex justify-between items-center max-w-xl mx-auto">
+        <h1 class="text-2xl font-black tracking-tighter text-feira-marinho italic underline decoration-feira-yellow decoration-4">GENTE DA <span class="text-feira-yellow">FEIRA</span></h1>
+        <button id="btn-sair" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-all">Sair</button>
+    </header>
 
-<section id="auth-screen" class="hidden p-6 max-w-sm mx-auto text-center animate-fade-in">
-    <div class="mb-10 mt-10">
-        <h2 class="text-3xl font-black text-feira-marinho">O portal da sua cidade.</h2>
-        <p class="text-gray-400 text-sm mt-2 font-medium">Conecte-se com Feira de Santana.</p>
-    </div>
-    <div class="space-y-3">
-        <input id="auth-email" type="email" placeholder="Seu e-mail" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow transition-all">
-        <input id="auth-password" type="password" placeholder="Sua senha" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow transition-all">
-        <div class="flex gap-2 pt-4">
-            <button onclick="fazerLogin()" class="flex-1 bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Entrar</button>
-            <button onclick="fazerCadastro()" class="flex-1 bg-white text-feira-marinho py-4 rounded-2xl font-black uppercase border border-gray-100">Criar Conta</button>
+    <section id="auth-screen" class="hidden p-6 max-w-sm mx-auto text-center animate-fade-in">
+        <div class="mb-10 mt-10">
+            <h2 class="text-3xl font-black text-feira-marinho">O portal da sua cidade.</h2>
+            <p class="text-gray-400 text-sm mt-2 font-medium">Conecte-se com Feira de Santana.</p>
         </div>
-    </div>
-<section id="view-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-32">
-    <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100 text-center">
-        <div id="view-avatar" class="w-24 h-24 rounded-3xl mx-auto mb-4 bg-feira-yellow bg-cover bg-center shadow-lg border-4 border-white flex items-center justify-center text-3xl font-black text-feira-marinho"></div>
-        
-        <h2 id="view-username" class="text-2xl font-black text-feira-marinho mb-1">---</h2>
-        <p id="view-bairro" class="text-xs font-bold text-feira-bronze uppercase tracking-widest mb-4">---</p>
-        <p id="view-bio" class="text-gray-500 text-sm italic mb-6 px-4">---</p>
-        
-        <button onclick="mostrarTela('edit-profile-screen')" class="w-full bg-gray-100 text-feira-marinho py-3 rounded-2xl font-black uppercase text-[10px] mb-8">Editar Informações</button>
-        
-        <div class="border-t border-dashed border-gray-100 pt-6 text-left">
-            <h3 class="font-black text-feira-marinho text-sm uppercase mb-4 tracking-tighter">Meus Avisos</h3>
-            <div id="meu-historico-feed" class="space-y-4"></div>
+        <div class="space-y-3">
+            <input id="auth-email" type="email" placeholder="Seu e-mail" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
+            <input id="auth-password" type="password" placeholder="Sua senha" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
+            <div class="flex gap-2 pt-4">
+                <button onclick="fazerLogin()" class="flex-1 bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Entrar</button>
+                <button onclick="fazerCadastro()" class="flex-1 bg-white text-feira-marinho py-4 rounded-2xl font-black uppercase border border-gray-100">Criar Conta</button>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<section id="edit-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-32">
-    <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100">
-        <h2 class="text-xl font-black text-feira-marinho mb-6 uppercase tracking-tighter">Ajustar Perfil</h2>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Nome ou Apelido</label>
-                <input type="text" id="profile-username" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
+    <section id="form-post" class="hidden p-6 max-w-xl mx-auto animate-fade-in">
+        <div class="flex justify-between items-center mb-6">
+            <button onclick="irParaHome()" class="text-xs font-black uppercase text-gray-400">Cancelar</button>
+            <h3 class="font-black text-feira-marinho uppercase tracking-widest text-xs">Novo Aviso</h3>
+            <div class="w-10"></div>
+        </div>
+        <textarea id="post-content" placeholder="O que está a acontecer no seu bairro?" class="w-full h-40 p-6 rounded-[2.5rem] bg-white border border-gray-50 shadow-sm outline-none text-lg resize-none"></textarea>
+        <button onclick="salvarPost()" class="w-full mt-4 bg-feira-yellow text-feira-marinho py-5 rounded-[2rem] font-black uppercase shadow-xl">Publicar em Feira</button>
+    </section>
+
+    <section id="view-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-10 animate-fade-in">
+        <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100 text-center">
+            <div id="view-avatar" class="w-24 h-24 rounded-3xl mx-auto mb-4 bg-feira-yellow bg-cover bg-center shadow-lg border-4 border-white flex items-center justify-center text-3xl font-black text-feira-marinho"></div>
+            <h2 id="view-username" class="text-2xl font-black text-feira-marinho mb-1">---</h2>
+            <p id="view-bairro" class="text-xs font-bold text-feira-bronze uppercase tracking-widest mb-4">---</p>
+            <p id="view-bio" class="text-gray-500 text-sm italic mb-6 px-4">---</p>
+            <button onclick="mostrarTela('edit-profile-screen')" class="w-full bg-gray-50 text-feira-marinho py-3 rounded-2xl font-black uppercase text-[10px] mb-8">Editar Meus Dados</button>
+            <div class="border-t border-dashed border-gray-100 pt-6 text-left">
+                <h3 class="font-black text-feira-marinho text-sm uppercase mb-4">Meu Histórico de Avisos</h3>
+                <div id="meu-historico-feed" class="space-y-4"></div>
             </div>
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Sua Bio (Frase curta)</label>
-                <input type="text" id="profile-bio" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-            </div>
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Link da Foto (URL)</label>
-                <input type="text" id="profile-avatar-url" placeholder="https://..." class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-            </div>
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Seu Bairro</label>
+        </div>
+    </section>
+
+    <section id="edit-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-10 animate-fade-in">
+        <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100">
+            <h2 class="text-xl font-black text-feira-marinho mb-6 uppercase tracking-tighter">Ajustar Perfil</h2>
+            <div class="space-y-4">
+                <input type="text" id="profile-username" placeholder="Nome ou Empresa" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
+                <input type="text" id="profile-bio" placeholder="Sua Bio" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
+                <input type="text" id="profile-avatar-url" placeholder="URL da Foto (Link)" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
                 <select id="profile-bairro" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
                     <option value="Centro">Centro</option>
-                    <option value="Tomba">Tomba</option>
                     <option value="SIM">SIM</option>
+                    <option value="Tomba">Tomba</option>
                     <option value="Cidade Nova">Cidade Nova</option>
                     <option value="Mangabeira">Mangabeira</option>
-                    <option value="Humildes">Humildes</option>
                 </select>
+                <button onclick="salvarPerfil()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Salvar Perfil</button>
+                <button onclick="mostrarPerfilProprio()" class="w-full text-gray-400 py-2 text-[10px] font-bold uppercase">Cancelar</button>
             </div>
-            <button onclick="salvarPerfil()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-all">Salvar Alterações</button>
-            <button onclick="mostrarPerfilProprio()" class="w-full text-gray-400 py-2 text-[10px] font-bold uppercase">Cancelar</button>
         </div>
-    </div>
-</section>
+    </section>
+
     <nav id="feed-tabs" class="hidden max-w-xl mx-auto px-4 pt-4 flex gap-2">
         <button onclick="mudarFeed('Geral')" id="tab-geral" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white shadow-md">Feira Toda</button>
         <button onclick="mudarFeed('Local')" id="tab-local" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-white text-gray-400 border border-gray-100">Meu Bairro</button>
     </nav>
-
     <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
 
     <footer id="main-nav" class="hidden fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-50 shadow-2xl">
-    <button onclick="irParaHome()" class="text-2xl">🏠</button> <button onclick="abrirPostagem()" class="bg-feira-yellow w-14 h-14 rounded-2xl font-black -mt-10 border-4 border-white shadow-xl flex items-center justify-center text-feira-marinho text-2xl">+</button>
-    <button onclick="mostrarTela('edit-profile-screen')" class="text-2xl">👤</button>
-</footer>
+        <button onclick="irParaHome()" class="text-2xl">🏠</button>
+        <button onclick="abrirPostagem()" class="bg-feira-yellow w-14 h-14 rounded-2xl font-black -mt-10 border-4 border-white shadow-xl flex items-center justify-center text-feira-marinho text-2xl">+</button>
+        <button onclick="mostrarPerfilProprio()" class="text-2xl">👤</button>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
