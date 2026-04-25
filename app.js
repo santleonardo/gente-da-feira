@@ -103,12 +103,36 @@ window.mostrarPerfilProprio = async () => {
 
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
+    const fileInput = document.getElementById('profile-avatar-file');
+    
+    let avatarUrl = document.getElementById('profile-avatar-url').value;
+    
+    // Se usuario selecionou uma imagem, fazer upload
+    if (fileInput?.files[0]) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await _supabase.storage
+            .from('avatars')
+            .upload(fileName, file, { upsert: true });
+        
+        if (uploadError) {
+            alert('Erro ao fazer upload: ' + uploadError.message);
+            return;
+        }
+        
+        const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+        avatarUrl = urlData.publicUrl;
+    }
+    
     await _supabase.from('profiles').update({
         username: document.getElementById('profile-username').value,
         bio: document.getElementById('profile-bio').value,
-        avatar_url: document.getElementById('profile-avatar-url').value,
+        avatar_url: avatarUrl,
         bairro: document.getElementById('profile-bairro').value
     }).eq('id', session.user.id);
+    
     mostrarPerfilProprio();
 };
 
