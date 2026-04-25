@@ -1,6 +1,6 @@
 /**
  * GENTE DA FEIRA - HUB FSA 2026
- * Versão 5.1 - Fix Estrutural de Reações
+ * Versão 5.2 - Motor Completo (Auth + Feed + Reações)
  */
 
 const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
@@ -9,25 +9,41 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
 
+// --- 1. INICIALIZAÇÃO & SEGURANÇA ---
 window.onload = async () => {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    await carregarFeed();
-    
-    // Ouvinte em tempo real
-    _supabase.channel('fsa-updates').on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        const queryAtiva = document.getElementById('tab-local')?.classList.contains('bg-feira-marinho') ? 'Local' : 'Geral';
-        carregarFeed(queryAtiva);
-    }).subscribe();
+
+    // Monitor de Login (A porta de entrada)
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            document.getElementById('main-nav')?.classList.remove('hidden');
+            document.getElementById('feed-tabs')?.classList.remove('hidden');
+            mostrarTela('feed-container');
+            carregarFeed();
+        } else {
+            mostrarTela('auth-screen');
+        }
+    });
+
+    // Realtime (Atualização automática de Feira)
+    _supabase.channel('fsa-updates').on('postgres_changes', { event: '*', schema: 'public' }, () => carregarFeed()).subscribe();
 };
 
+// --- 2. GESTÃO DE TELAS ---
+function mostrarTela(id) {
+    // Esconde todas as seções e o container principal
+    document.querySelectorAll('section, main').forEach(el => el.classList.add('hidden'));
+    // Mostra a tela desejada
+    const target = document.getElementById(id);
+    if (target) target.classList.remove('hidden');
+}
+
+// --- 3. CORE: CARREGAR FEED ---
 async function carregarFeed(filtro = 'Geral') {
     const container = document.getElementById('feed-container');
-    if (!container) return;
-
     const { data: { session } } = await _supabase.auth.getSession();
-    const userIdLogado = session?.user?.id;
-
-    // QUERY CORRIGIDA: comment_reactions agora está DENTRO de comments
+    
+    // Query Hierárquica (Ajuste que removeu o "Sintonizando")
     let query = _supabase
         .from('posts')
         .select(`
@@ -42,36 +58,28 @@ async function carregarFeed(filtro = 'Geral') {
         `)
         .order('created_at', { ascending: false });
 
-    if (filtro === 'Local' && userIdLogado) {
-        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', userIdLogado).single();
+    if (filtro === 'Local' && session) {
+        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
         if (p?.bairro) query = query.eq('zona', p.bairro);
     }
 
     const { data: posts, error } = await query;
+    if (error) return console.error("Erro FSA:", error);
 
-    if (error) {
-        console.error("Erro na Query:", error);
-        container.innerHTML = `<div class="text-center p-10 text-xs font-bold text-red-400 uppercase">Erro de Sincronia. Tente atualizar a página.</div>`;
-        return;
-    }
+    renderizarFeed(posts || [], container, session?.user?.id);
 
-    renderizarFeed(posts || [], container, userIdLogado);
-
-    // Reabrir thread se necessário
+    // Mantém a conversa aberta após atualizar
     const aberta = localStorage.getItem('thread_aberta');
-    if (aberta) {
-        const el = document.getElementById(`thread-${aberta}`);
-        if (el) el.classList.remove('hidden');
-    }
+    if (aberta) document.getElementById(`thread-${aberta}`)?.classList.remove('hidden');
 }
 
+// --- 4. RENDERIZAÇÃO VISUAL ---
 function renderizarFeed(posts, container, userIdLogado) {
     container.innerHTML = "";
     posts.forEach(post => {
         const postEl = document.createElement('article');
         postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-6 animate-fade-in";
         
-        // Reações do Post Principal
         const reacoesPostHtml = EMOJIS.map(emoji => {
             const count = post.reactions?.filter(r => r.emoji_type === emoji).length || 0;
             return `<button onclick="reagir('${post.id}', '${emoji}')" class="flex items-center gap-1">
@@ -98,37 +106,53 @@ function renderizarFeed(posts, container, userIdLogado) {
             
             <div id="thread-${post.id}" class="hidden mt-4 space-y-3 pt-4 border-t border-dashed border-gray-100">
                 ${post.comments?.map(c => {
-                    const reacoesComentHtml = EMOJIS.map(emoji => {
-                        // AQUI ESTAVA O ERRO: Buscamos as reações direto do objeto do comentário 'c'
-                        const cCount = c.comment_reactions?.filter(cr => cr.emoji_type === emoji).length || 0;
-                        return `
-                            <button onclick="this.style.opacity='0.3'; reagirComentario('${c.id}', '${emoji}', '${post.id}')" class="flex items-center gap-1 hover:bg-white p-1 rounded-md transition-all">
-                                <span class="text-[10px]">${emoji}</span>
-                                <span class="text-[9px] font-bold text-gray-400">${cCount || ''}</span>
-                            </button>`;
+                    const cReacoes = EMOJIS.map(emoji => {
+                        const count = c.comment_reactions?.filter(cr => cr.emoji_type === emoji).length || 0;
+                        return `<button onclick="this.style.opacity='0.3'; reagirComentario('${c.id}', '${emoji}', '${post.id}')" class="flex items-center gap-1">
+                            <span class="text-[10px]">${emoji}</span>
+                            <span class="text-[9px] font-bold text-gray-400">${count || ''}</span>
+                        </button>`;
                     }).join('');
-
-                    return `
-                    <div class="bg-gray-50 p-3 rounded-2xl">
-                        <p class="text-xs text-gray-600"><b class="text-feira-marinho">${c.profiles?.username || 'User'}:</b> ${c.content}</p>
-                        <div class="flex gap-3 mt-2">${reacoesComentHtml}</div>
+                    return `<div class="bg-gray-50 p-3 rounded-2xl">
+                        <p class="text-xs text-gray-600"><b>${c.profiles?.username || 'FSA'}:</b> ${c.content}</p>
+                        <div class="flex gap-3 mt-2">${cReacoes}</div>
                     </div>`;
                 }).join('')}
                 <div class="flex gap-2 pt-2">
                     <input id="in-${post.id}" type="text" placeholder="Responder..." class="flex-1 text-xs bg-gray-50 border-none rounded-xl p-3 outline-none">
-                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-black uppercase">Enviar</button>
+                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white text-[9px] px-4 rounded-xl font-black">ENVIAR</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         container.appendChild(postEl);
     });
 }
 
-// --- FUNÇÕES DE INTERAÇÃO ---
+// --- 5. AÇÕES DE AUTENTICAÇÃO ---
+window.fazerLogin = async () => {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Erro ao entrar: " + error.message);
+};
 
+window.fazerCadastro = async () => {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await _supabase.auth.signUp({ email, password });
+    if (error) alert(error.message); 
+    else alert("Conta criada! Verifique seu e-mail e faça login.");
+};
+
+window.fazerLogout = async () => { 
+    await _supabase.auth.signOut(); 
+    localStorage.clear();
+    location.reload(); 
+};
+
+// --- 6. AÇÕES DO FEED ---
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return alert("Faz login para reagir!");
+    if (!session) return mostrarTela('auth-screen');
     await _supabase.from('reactions').upsert({ post_id: postId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'post_id, user_id, emoji_type' });
     carregarFeed();
 };
@@ -136,28 +160,16 @@ window.reagir = async (postId, emoji) => {
 window.reagirComentario = async (commentId, emoji, postId) => {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
-    
     localStorage.setItem('thread_aberta', postId);
-    
-    const { error } = await _supabase.from('comment_reactions').upsert({ 
-        comment_id: commentId, 
-        user_id: session.user.id, 
-        emoji_type: emoji 
-    }, { onConflict: 'comment_id, user_id, emoji_type' });
-
-    if (error) console.error("Erro ao reagir:", error);
+    await _supabase.from('comment_reactions').upsert({ comment_id: commentId, user_id: session.user.id, emoji_type: emoji }, { onConflict: 'comment_id, user_id, emoji_type' });
     carregarFeed();
 };
 
 window.comentar = async (postId) => {
     const input = document.getElementById(`in-${postId}`);
-    const content = input.value.trim();
-    if (!content) return;
-    
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!session) return alert("Faz login para comentar!");
-
-    await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content });
+    if (!session || !input.value.trim()) return;
+    await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content: input.value });
     input.value = "";
     localStorage.setItem('thread_aberta', postId);
     carregarFeed();
@@ -169,9 +181,5 @@ window.abrirThreads = (id) => {
     if (!isHidden) localStorage.setItem('thread_aberta', id); else localStorage.removeItem('thread_aberta');
 };
 
-window.mudarFeed = (tipo) => {
-    const isGeral = tipo === 'Geral';
-    document.getElementById('tab-geral').className = isGeral ? 'flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white' : 'flex-1 py-3 text-gray-400 font-bold';
-    document.getElementById('tab-local').className = !isGeral ? 'flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white' : 'flex-1 py-3 text-gray-400 font-bold';
-    carregarFeed(tipo);
-};
+window.abrirPostagem = () => mostrarTela('form-post');
+window.mudarFeed = (tipo) => carregarFeed(tipo);
