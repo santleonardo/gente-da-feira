@@ -202,19 +202,18 @@ function renderizarPosts(posts, container, currentUserId) {
                 ${currentUserId === post.user_id ? `<button onclick="apagarPost('${post.id}')" class="text-[8px] text-red-500 hover:text-red-700 font-bold ml-auto">🗑️ Apagar</button>` : ''}
             </div>
             <p class="text-gray-600 text-sm mb-4 leading-relaxed">${post.content}</p>
-            <div class="flex justify-between items-center pt-4 border-t border-gray-50">
-                <div class="flex gap-4">${reacoesHtml}</div>
-                <button onclick="abrirThreads('${post.id}')" class="text-[9px] font-black uppercase text-feira-bronze bg-feira-bege px-3 py-1 rounded-full">
-                    Conversas (${post.comments?.length || 0})
-                </button>
-            </div>
-            <div id="thread-${post.id}" class="${threadAberta === post.id ? '' : 'hidden'} mt-4 pt-4 border-t border-dashed border-gray-100">
-                <div class="max-h-40 overflow-y-auto mb-4 no-scrollbar">${commentsHtml}</div>
-                <div class="flex gap-2">
-                    <input id="in-${post.id}" type="text" placeholder="Comentar..." class="flex-1 bg-gray-50 border-none rounded-xl p-3 text-xs focus:ring-1 ring-feira-yellow">
-                    <button onclick="comentar('${post.id}')" class="bg-feira-marinho text-white px-4 rounded-xl text-xs font-black">OK</button>
-                </div>
-            </div>`;
+            return `
+<div class="flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2">
+    <div class="w-6 h-6 rounded-lg bg-feira-yellow bg-cover bg-center shrink-0 flex items-center justify-center text-[10px] font-black" ${cAvatar}>${c.profiles?.avatar_url ? '' : (c.profiles?.username||'U')[0]}</div>
+    <div class="flex-1">
+        <div class="flex items-center justify-between">
+            <p class="text-[10px] font-black text-feira-marinho">${c.profiles?.username || 'Morador'}</p>
+            ${currentUserId === c.user_id ? `<button onclick="apagarComentario('${c.id}', '${post.id}')" class="text-[8px] text-red-500 hover:text-red-700">🗑️</button>` : ''}
+        </div>
+        <p class="text-xs text-gray-600 mb-1">${c.content}</p>
+        <div class="flex gap-2">${cReacoes}</div>
+    </div>
+</div>`;
         container.appendChild(postEl);
     });
 }
