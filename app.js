@@ -15,21 +15,35 @@ let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
 const BAIRROS_DISPONIVEIS = ['Centro', 'Mangabeira', 'Queimadinha', 'Campo Limpo', 'Tomba', 'SIM', 'Feira IX', 'George Américo', 'Brasília', 'Sobradinho', 'Conceição', 'Kalilândia', 'Aviário', 'Baraúnas', 'Santa Mônica', 'Papagaio', 'Jardim Acácia'];
 
-window.onload = async () => {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+_supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
 
-    _supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-            document.getElementById('btn-sair')?.classList.remove('hidden');
-            document.getElementById('main-nav')?.classList.remove('hidden');
-            irParaHome();
-        } else {
-            document.getElementById('btn-sair')?.classList.add('hidden');
-            document.getElementById('main-nav')?.classList.add('hidden');
-            document.getElementById('feed-tabs')?.classList.add('hidden');
-            mostrarTela('auth-screen');
+        // 🔥 GARANTE PROFILE
+        const { data: profile } = await _supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+        if (!profile) {
+            await _supabase.from('profiles').insert({
+                id: session.user.id,
+                username: 'Morador',
+                bairro: 'Centro'
+            });
         }
-    });
+
+        document.getElementById('btn-sair')?.classList.remove('hidden');
+        document.getElementById('main-nav')?.classList.remove('hidden');
+        irParaHome();
+
+    } else {
+        document.getElementById('btn-sair')?.classList.add('hidden');
+        document.getElementById('main-nav')?.classList.add('hidden');
+        document.getElementById('feed-tabs')?.classList.add('hidden');
+        mostrarTela('auth-screen');
+    }
+});
 
     _supabase.channel('fsa-updates').on('postgres_changes', { event: '*', schema: 'public' }, () => {
         if (!document.getElementById('feed-container').classList.contains('hidden')) {
