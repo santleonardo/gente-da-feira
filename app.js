@@ -520,16 +520,16 @@ window.verPerfil = async (userId) => {
 
     // 🔥 HISTÓRICO (SEMPRE VISÍVEL AGORA)
     if (historico) {
-        historico.style.display = 'block';
+    historico.style.display = 'block';
 
-        const tituloHistorico = historico.querySelector('h3');
-        if (tituloHistorico) {
-            tituloHistorico.innerText = isMeuPerfil
-                ? 'Meu Histórico de Avisos'
-                : 'Avisos deste usuário';
-        }
+    const tituloHistorico = historico.querySelector('h3');
+
+    if (tituloHistorico) {
+        tituloHistorico.innerText = isMeuPerfil 
+            ? 'Seus avisos'
+            : `Avisos de ${perfil.username || 'usuário'}`;
     }
-
+}
     // 🔥 FOLLOW BUTTON
     if (followBtn) followBtn.style.display = isMeuPerfil ? 'none' : 'block';
 
