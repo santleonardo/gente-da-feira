@@ -412,56 +412,60 @@ function renderizarPosts(posts, container, currentUserId) {
         commentsBox.className = 'max-h-40 overflow-y-auto mb-4';
 
         (post.comments || []).forEach(c => {
-            const cWrap = document.createElement('div');
-            cWrap.className = 'flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2';
+    const cWrap = document.createElement('div');
+    cWrap.className = 'flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2';
 
-            const cAvatar = document.createElement('div');
-            cAvatar.className = 'w-6 h-6 rounded-lg bg-feira-yellow flex items-center justify-center text-[10px] font-black';
+    const cAvatar = document.createElement('div');
+    cAvatar.className = 'w-6 h-6 rounded-lg bg-feira-yellow flex items-center justify-center text-[10px] font-black';
 
-            const cAvatarUrl = safeUrl(c.profiles?.avatar_url);
-            if (cAvatarUrl) {
-                cAvatar.style.backgroundImage = `url("${cAvatarUrl}")`;
-                cAvatar.style.backgroundSize = 'cover';
-            } else {
-                cAvatar.textContent = (c.profiles?.username || 'M')[0];
-            }
+    const cAvatarUrl = safeUrl(c.profiles?.avatar_url);
+    if (cAvatarUrl) {
+        cAvatar.style.backgroundImage = `url("${cAvatarUrl}")`;
+        cAvatar.style.backgroundSize = 'cover';
+    } else {
+        cAvatar.textContent = (c.profiles?.username || 'M')[0];
+    }
 
-            const cBody = document.createElement('div');
-            cBody.className = 'flex-1';
+    const cBody = document.createElement('div');
+    cBody.className = 'flex-1';
 
-            const cUser = document.createElement('p');
-            cUser.className = 'text-[10px] font-black';
-            cUser.textContent = c.profiles?.username || 'Morador';
+    const cUser = document.createElement('p');
+    cUser.className = 'text-[10px] font-black';
+    cUser.textContent = c.profiles?.username || 'Morador';
 
-            const cText = document.createElement('p');
-            cText.className = 'text-xs text-gray-600';
-            cText.textContent = c.content;
+    const cText = document.createElement('p');
+    cText.className = 'text-xs text-gray-600';
+    cText.textContent = c.content;
 
-            cBody.appendChild(cUser);
-cBody.appendChild(cText);
+    cBody.appendChild(cUser);
+    cBody.appendChild(cText);
 
-// ======================
-// 🔥 REAÇÕES DO COMENTÁRIO (FIX COMPLETO)
-// ======================
-const cReactions = document.createElement('div');
-cReactions.className = 'flex gap-2 mt-1';
+    // 🔥 REAÇÕES DO COMENTÁRIO
+    const cReactions = document.createElement('div');
+    cReactions.className = 'flex gap-2 mt-1';
 
-EMOJIS.forEach(e => {
-    const btn = document.createElement('button');
-    btn.className = 'text-[10px] flex items-center gap-1';
+    EMOJIS.forEach(e => {
+        const btn = document.createElement('button');
+        btn.className = 'text-[10px] flex items-center gap-1';
 
-    const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
+        const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
 
-    btn.textContent = count ? `${e} ${count}` : e;
+        btn.textContent = count ? `${e} ${count}` : e;
 
-    btn.addEventListener('click', () => {
-        reagirComentario(c.id, e, post.id);
+        btn.addEventListener('click', () => {
+            reagirComentario(c.id, e, post.id);
+        });
+
+        cReactions.appendChild(btn);
     });
 
-    cReactions.appendChild(btn);
-});
+    cBody.appendChild(cReactions);
 
-cBody.appendChild(cReactions);
+    // ✅ ESSENCIAL (você esqueceu isso)
+    cWrap.appendChild(cAvatar);
+    cWrap.appendChild(cBody);
+    commentsBox.appendChild(cWrap);
+});
 
         const inputWrap = document.createElement('div');
         inputWrap.className = 'flex gap-2';
