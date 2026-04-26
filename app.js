@@ -508,6 +508,8 @@ window.verPerfil = async (userId) => {
     }
 
     mostrarTela('view-profile-screen');
+document.getElementById('feed-tabs')?.classList.add('hidden');
+    
 
     // 🔥 CONTROLE DE UI
     const btnEditar = document.getElementById('btn-editar-perfil');
