@@ -218,19 +218,40 @@ async function carregarFeed(filtro = 'Geral', userIdFiltro = null) {
         )
     `).order('created_at', { ascending: false });
 
-    if (userIdFiltro) {
-        query = query.eq('user_id', userIdFiltro);
-    } else if (filtro === 'Local' && session) {
-        const { data: p } = await _supabase.from('profiles').select('bairro').eq('id', session.user.id).single();
-        if (p?.bairro) query = query.eq('zona', p.bairro);
-    }
+    // =========================
+// 🎯 FILTROS
+// =========================
 
-    const { data: posts, error } = await query;
-    
-    if (error) {
-        container.innerHTML = `<div class="p-6 text-center text-red-500 font-bold bg-red-50 rounded-2xl">Erro no Banco: ${error.message}</div>`;
+if (userIdFiltro) {
+    query = query.eq('user_id', userIdFiltro);
+
+} else if (filtro === 'Local' && session) {
+    const { data: p } = await _supabase
+        .from('profiles')
+        .select('bairro')
+        .eq('id', session.user.id)
+        .single();
+
+    if (p?.bairro) query = query.eq('zona', p.bairro);
+
+} else if (filtro === 'Seguindo' && session) {
+    // 🔥 pega quem você segue
+    const { data: seguindo } = await _supabase
+        .from('relationships')
+        .select('target_id')
+        .eq('user_id', session.user.id)
+        .eq('type', 'follow');
+
+    const ids = seguindo?.map(r => r.target_id) || [];
+
+    // evita erro de lista vazia
+    if (ids.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">Você ainda não segue ninguém.</p>';
         return;
     }
+
+    query = query.in('user_id', ids);
+}
 
     renderizarPosts(posts || [], container, session?.user?.id);
 }
