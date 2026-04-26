@@ -495,7 +495,7 @@ window.verPerfil = async (userId) => {
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
 
-    // AVATAR (corrigido)
+    // AVATAR
     const avatar = document.getElementById('view-avatar');
     if (avatar) {
         if (perfil.avatar_url) {
@@ -508,17 +508,33 @@ window.verPerfil = async (userId) => {
     }
 
     mostrarTela('view-profile-screen');
-document.getElementById('feed-tabs')?.classList.add('hidden');
-    
+    document.getElementById('feed-tabs')?.classList.add('hidden');
 
-    // 🔥 CONTROLE DE UI
+    // 🔥 ELEMENTOS
     const btnEditar = document.getElementById('btn-editar-perfil');
     const historico = document.getElementById('meu-historico-container');
     const followBtn = document.getElementById('follow-btn');
 
+    // 🔥 EDITAR PERFIL (só no seu)
     if (btnEditar) btnEditar.style.display = isMeuPerfil ? 'block' : 'none';
-    if (historico) historico.style.display = isMeuPerfil ? 'block' : 'none';
+
+    // 🔥 HISTÓRICO (SEMPRE VISÍVEL AGORA)
+    if (historico) {
+        historico.style.display = 'block';
+
+        const tituloHistorico = historico.querySelector('h3');
+        if (tituloHistorico) {
+            tituloHistorico.innerText = isMeuPerfil
+                ? 'Meu Histórico de Avisos'
+                : 'Avisos deste usuário';
+        }
+    }
+
+    // 🔥 FOLLOW BUTTON
     if (followBtn) followBtn.style.display = isMeuPerfil ? 'none' : 'block';
+
+    // 🔥 CARREGAR POSTS (AGORA PARA QUALQUER PERFIL)
+    carregarFeed('Geral', perfil.id);
 
     // FOLLOW SYSTEM
     if (!isMeuPerfil) {
