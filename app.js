@@ -138,6 +138,20 @@ window.salvarPerfil = async () => {
     
     mostrarPerfilProprio();
 };
+window.abrirEdicaoPerfil = async () => {
+    const { data: { session } } = await _supabase.auth.getSession();
+
+    if (!session) return;
+
+    // segurança: impede editar perfil de outro usuário
+    if (window.profileId && session.user.id !== window.profileId) {
+        alert('Você só pode editar seu próprio perfil.');
+        return;
+    }
+
+    mostrarTela('edit-profile-screen');
+};
+
 // --- FEED E DADOS ---
 async function carregarFeed(filtro = 'Geral', userIdFiltro = null) {
     const targetId = userIdFiltro ? 'meu-historico-feed' : 'feed-container';
