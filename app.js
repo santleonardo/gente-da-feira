@@ -74,14 +74,31 @@ window.salvarPost = async () => {
 // --- PERFIL ---
 window.mostrarPerfilProprio = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
-    const { data: perfil } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    
-    if (perfil) {
-        document.getElementById('view-username').innerText = perfil.username || "Morador";
-        document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
-        document.getElementById('view-bio').innerText = perfil.bio || "";
-        
-        const avatar = document.getElementById('view-avatar');
+    if (!session) return;
+
+    const { data: perfil } = await _supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+    if (!perfil) return;
+
+    // 🔑 DEFINE QUE É SEU PERFIL
+    window.profileId = null;
+
+    // =========================
+    // 🧠 DADOS DO PERFIL
+    // =========================
+    document.getElementById('view-username').innerText = perfil.username || "Morador";
+    document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
+    document.getElementById('view-bio').innerText = perfil.bio || "";
+
+    // =========================
+    // 🖼️ AVATAR
+    // =========================
+    const avatar = document.getElementById('view-avatar');
+    if (avatar) {
         if (perfil.avatar_url) {
             avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
             avatar.innerText = "";
@@ -89,20 +106,48 @@ window.mostrarPerfilProprio = async () => {
             avatar.style.backgroundImage = "none";
             avatar.innerText = (perfil.username || "M")[0];
         }
-
-        document.getElementById('profile-username').value = perfil.username || "";
-        document.getElementById('profile-bio').value = perfil.bio || "";
-        document.getElementById('profile-avatar-url').value = perfil.avatar_url || "";
-        document.getElementById('profile-bairro').value = perfil.bairro || "Centro";
-
-        document.getElementById('feed-tabs').classList.add('hidden');
-        mostrarTela('view-profile-screen');
-        carregarFeed('Geral', session.user.id);
-        window.profileId = null;
-
-const btn = document.getElementById('follow-btn');
-if (btn) btn.style.display = 'none';
     }
+
+    // =========================
+    // 🎬 TROCA DE TELA
+    // =========================
+    document.getElementById('feed-tabs')?.classList.add('hidden');
+    mostrarTela('view-profile-screen');
+
+    // =========================
+    // 🎛️ CONTROLE DE UI
+    // =========================
+    const btnEditar = document.getElementById('btn-editar-perfil');
+    const followBtn = document.getElementById('follow-btn');
+    const historico = document.getElementById('meu-historico-container');
+    const tituloHistorico = document.getElementById('titulo-historico');
+
+    // BOTÃO EDITAR (sempre visível no seu perfil)
+    if (btnEditar) btnEditar.style.display = 'block';
+
+    // FOLLOW (nunca aparece no seu perfil)
+    if (followBtn) followBtn.style.display = 'none';
+
+    // HISTÓRICO (sempre visível)
+    if (historico) historico.style.display = 'block';
+
+    // 🔥 RESET DO TÍTULO (ESSENCIAL)
+    if (tituloHistorico) {
+        tituloHistorico.innerText = 'Seus avisos';
+    }
+
+    // =========================
+    // 📦 CARREGAR SEUS POSTS
+    // =========================
+    carregarFeed('Geral', session.user.id);
+
+    // =========================
+    // ✏️ PREENCHER FORM DE EDIÇÃO
+    // =========================
+    document.getElementById('profile-username').value = perfil.username || "";
+    document.getElementById('profile-bio').value = perfil.bio || "";
+    document.getElementById('profile-avatar-url').value = perfil.avatar_url || "";
+    document.getElementById('profile-bairro').value = perfil.bairro || "Centro";
 };
 
 window.salvarPerfil = async () => {
