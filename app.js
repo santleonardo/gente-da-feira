@@ -491,3 +491,4 @@ if (btn) {
 
 await atualizarBotaoFollow();
 setupFollowButton();
+};
