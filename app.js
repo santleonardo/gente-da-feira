@@ -488,19 +488,14 @@ window.verPerfil = async (userId) => {
     const { data: { session } } = await _supabase.auth.getSession();
     const isMeuPerfil = session?.user?.id === perfil.id;
 
-    // 🔑 controle global
     window.profileId = isMeuPerfil ? null : perfil.id;
 
-    // =========================
-    // 🧠 DADOS DO PERFIL
-    // =========================
+    // TEXTO
     document.getElementById('view-username').innerText = perfil.username || "Morador";
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
 
-    // =========================
-    // 🖼️ AVATAR
-    // =========================
+    // AVATAR
     const avatar = document.getElementById('view-avatar');
     if (avatar) {
         if (perfil.avatar_url) {
@@ -512,49 +507,36 @@ window.verPerfil = async (userId) => {
         }
     }
 
-    // =========================
-    // 🎬 TROCA DE TELA
-    // =========================
     mostrarTela('view-profile-screen');
     document.getElementById('feed-tabs')?.classList.add('hidden');
 
-    // =========================
-    // 🎛️ CONTROLE DE UI
-    // =========================
+    // 🔥 ELEMENTOS
     const btnEditar = document.getElementById('btn-editar-perfil');
     const historico = document.getElementById('meu-historico-container');
-    const tituloHistorico = document.getElementById('titulo-historico');
     const followBtn = document.getElementById('follow-btn');
 
-    // BOTÃO EDITAR
-    if (btnEditar) {
-        btnEditar.style.display = isMeuPerfil ? 'block' : 'none';
-    }
+    // 🔥 EDITAR PERFIL (só no seu)
+    if (btnEditar) btnEditar.style.display = isMeuPerfil ? 'block' : 'none';
 
-    // HISTÓRICO (AGORA SEMPRE VISÍVEL)
+    // 🔥 HISTÓRICO (SEMPRE VISÍVEL AGORA)
     if (historico) {
-        historico.style.display = 'block';
-    }
+    historico.style.display = 'block';
 
-    // TÍTULO DINÂMICO 🔥
+    const tituloHistorico = historico.querySelector('h3');
+
     if (tituloHistorico) {
-        tituloHistorico.innerText = isMeuPerfil
+        tituloHistorico.innerText = isMeuPerfil 
             ? 'Seus avisos'
             : `Avisos de ${perfil.username || 'usuário'}`;
     }
+}
+    // 🔥 FOLLOW BUTTON
+    if (followBtn) followBtn.style.display = isMeuPerfil ? 'none' : 'block';
 
-    // =========================
-    // 📦 CARREGAR POSTS
-    // =========================
+    // 🔥 CARREGAR POSTS (AGORA PARA QUALQUER PERFIL)
     carregarFeed('Geral', perfil.id);
 
-    // =========================
-    // 🔥 FOLLOW SYSTEM
-    // =========================
-    if (followBtn) {
-        followBtn.style.display = isMeuPerfil ? 'none' : 'block';
-    }
-
+    // FOLLOW SYSTEM
     if (!isMeuPerfil) {
         followBtn.innerText = '...';
         await atualizarBotaoFollow();
