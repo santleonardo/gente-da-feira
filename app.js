@@ -455,3 +455,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// ==============================
+// 👤 VER PERFIL DE OUTRO USUÁRIO
+// ==============================
+
+window.verPerfil = async (userId) => {
+    const { data: perfil } = await _supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+    if (!perfil) return;
+
+    // SETA O ID GLOBAL
+    window.profileId = perfil.id;
+
+    // Preenche UI
+    document.getElementById('view-username').innerText = perfil.username || "Morador";
+    document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
+    document.getElementById('view-bio').innerText = perfil.bio || "";
+
+    const avatar = document.getElementById('view-avatar');
+    if (perfil.avatar_url) {
+        avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
+        avatar.innerText = "";
+    } else {
+        avatar.style.backgroundImage = "none";
+        avatar.innerText = (perfil.username || "M")[0];
+    }
+
+    document.getElementById('feed-tabs').classList.add('hidden');
+    mostrarTela('view-profile-screen');
+
+    atualizarBotaoFollow();
+};
