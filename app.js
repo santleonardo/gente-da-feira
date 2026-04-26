@@ -621,10 +621,10 @@ window.verPerfil = async (userId) => {
     // 🖼️ AVATAR
     // =========================
     const avatar = document.getElementById('view-avatar');
-    if (avatar) {
-        if (perfil.avatar_url) {
-            avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
-            avatar.innerText = "";
+if (avatar) {
+    if (perfil.avatar_url) {
+        avatar.style.backgroundImage = `url('${safeUrl(perfil.avatar_url)}')`;
+        avatar.innerText = "";
         } else {
             avatar.style.backgroundImage = "none";
             avatar.innerText = (perfil.username || "M")[0];
