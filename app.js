@@ -98,6 +98,8 @@ window.mostrarPerfilProprio = async () => {
         document.getElementById('feed-tabs').classList.add('hidden');
         mostrarTela('view-profile-screen');
         carregarFeed('Geral', session.user.id);
+        window.profileId = perfil.id;
+atualizarBotaoFollow();
     }
 };
 
