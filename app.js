@@ -418,15 +418,28 @@ async function verificarFollow(targetId) {
         .eq('type', 'follow');
 
     console.log('verificarFollow:', data, error);
+    console.log('USER LOGADO:', session.user.id);
+console.log('TARGET:', targetId);
+    console.log('RESULTADO QUERY:', data);
 
     return data && data.length > 0;
 }
 
 async function atualizarBotaoFollow() {
     const btn = document.getElementById('follow-btn');
-    if (!btn || !window.profileId) return;
+    if (!btn) return;
+
+    // estado neutro enquanto carrega
+    btn.innerText = '...';
+
+    if (!window.profileId) {
+        btn.style.display = 'none';
+        return;
+    }
 
     const seguindo = await verificarFollow(window.profileId);
+
+    btn.style.display = 'block';
     btn.innerText = seguindo ? 'Seguindo' : 'Seguir';
 }
 
@@ -467,12 +480,14 @@ window.verPerfil = async (userId) => {
     document.getElementById('view-username').innerText = perfil.username || "Morador";
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
+    
+mostrarTela('view-profile-screen');
 
-    const btn = document.getElementById('follow-btn');
-    if (btn) btn.style.display = 'block';
+const btn = document.getElementById('follow-btn');
+if (btn) {
+    btn.style.display = 'block';
+    btn.innerText = '...';
+}
 
-    mostrarTela('view-profile-screen');
-
-    atualizarBotaoFollow();
-    setupFollowButton();
-};
+await atualizarBotaoFollow();
+setupFollowButton();
