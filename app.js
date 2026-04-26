@@ -280,8 +280,17 @@ async function carregarFeed(filtro = 'Geral', userIdFiltro = null) {
     renderizarPosts(posts || [], container, session?.user?.id);
 }
 
+function safeAttr(str) {
+    return String(str).replace(/'/g, "\\'");
+}
+
+function safeUrl(url) {
+    if (!url) return '';
+    return String(url).replace(/"/g, '').replace(/'/g, '').replace(/\(/g, '').replace(/\)/g, '');
+}
+
 function renderizarPosts(posts, container, currentUserId) {
-    if (posts.length === 0) {
+    if (!posts || posts.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">Nenhum aviso encontrado.</p>';
         return;
     }
@@ -293,20 +302,23 @@ function renderizarPosts(posts, container, currentUserId) {
         const postEl = document.createElement('article');
         postEl.className = "bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-50 mb-4 animate-fade-in";
         
-        const avatarImg = post.profiles?.avatar_url 
-            ? `style="background-image: url('${post.profiles.avatar_url}')"` 
+        const avatarUrl = safeUrl(post.profiles?.avatar_url);
+        const avatarImg = avatarUrl 
+            ? `style="background-image: url('${avatarUrl}')"` 
             : "";
 
-        const iniciais = post.profiles?.avatar_url 
+        const username = escapeHtml(post.profiles?.username || "Morador");
+
+        const iniciais = avatarUrl 
             ? "" 
-            : (post.profiles?.username || "M")[0];
+            : username[0];
 
         const reacoesHtml = EMOJIS.map(e => {
             const count = post.reactions?.filter(r => r.emoji_type === e).length || 0;
             const jaReagiu = post.reactions?.some(r => r.user_id === currentUserId && r.emoji_type === e);
             
             return `
-                <button onclick="reagir('${post.id}', '${e}')" 
+                <button onclick="reagir('${safeAttr(post.id)}', '${safeAttr(e)}')" 
                     class="flex items-center gap-1 ${jaReagiu ? 'opacity-100' : 'opacity-30'}">
                     <span>${e}</span>
                     <span class="text-[10px] font-black">${count || ''}</span>
@@ -315,14 +327,18 @@ function renderizarPosts(posts, container, currentUserId) {
         }).join('');
 
         const commentsHtml = (post.comments || []).map(c => {
-            const cAvatar = c.profiles?.avatar_url 
-                ? `style="background-image: url('${c.profiles.avatar_url}')"` 
+            const cAvatarUrl = safeUrl(c.profiles?.avatar_url);
+            const cAvatar = cAvatarUrl 
+                ? `style="background-image: url('${cAvatarUrl}')"` 
                 : "";
+
+            const cUser = escapeHtml(c.profiles?.username || 'Morador');
+            const cContent = escapeHtml(c.content);
 
             const cReacoes = EMOJIS.map(e => {
                 const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
                 return `
-                    <button onclick="reagirComentario('${c.id}', '${e}', '${post.id}')" class="text-[10px]">
+                    <button onclick="reagirComentario('${safeAttr(c.id)}', '${safeAttr(e)}', '${safeAttr(post.id)}')" class="text-[10px]">
                         ${e} ${count || ''}
                     </button>
                 `;
@@ -332,18 +348,18 @@ function renderizarPosts(posts, container, currentUserId) {
             <div class="flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2">
                 <div class="w-6 h-6 rounded-lg bg-feira-yellow bg-cover bg-center flex items-center justify-center text-[10px] font-black"
                      ${cAvatar}>
-                     ${c.profiles?.avatar_url ? '' : (c.profiles?.username || 'U')[0]}
+                     ${cAvatarUrl ? '' : cUser[0]}
                 </div>
                 <div class="flex-1">
                     <div class="flex justify-between items-center">
                         <p class="text-[10px] font-black text-feira-marinho">
-                            ${c.profiles?.username || 'Morador'}
+                            ${cUser}
                         </p>
                         ${currentUserId === c.user_id 
-                            ? `<button onclick="apagarComentario('${c.id}', '${post.id}')" class="text-red-500 text-[10px]">🗑️</button>` 
+                            ? `<button onclick="apagarComentario('${safeAttr(c.id)}', '${safeAttr(post.id)}')" class="text-red-500 text-[10px]">🗑️</button>` 
                             : ''}
                     </div>
-                    <p class="text-xs text-gray-600">${c.content}</p>
+                    <p class="text-xs text-gray-600">${cContent}</p>
                     <div class="flex gap-2 mt-1">
                         ${cReacoes}
                     </div>
@@ -352,6 +368,8 @@ function renderizarPosts(posts, container, currentUserId) {
             `;
         }).join('');
 
+        const safeContent = escapeHtml(post.content);
+
         postEl.innerHTML = `
             <div class="flex items-center gap-4 mb-4">
                 <div class="w-10 h-10 rounded-xl bg-feira-yellow bg-cover bg-center flex items-center justify-center text-xs font-black"
@@ -359,40 +377,40 @@ function renderizarPosts(posts, container, currentUserId) {
                      ${iniciais}
                 </div>
                 <div>
-                    <h4 onclick="verPerfil('${post.user_id}')" 
+                    <h4 onclick="verPerfil('${safeAttr(post.user_id)}')" 
                         class="font-black text-feira-marinho text-sm cursor-pointer">
-                        ${post.profiles?.username || 'Morador'}
+                        ${username}
                     </h4>
                     <span class="text-[9px] text-gray-300 uppercase">
-                        ${post.zona || 'Geral'}
+                        ${escapeHtml(post.zona || 'Geral')}
                     </span>
                 </div>
                 ${currentUserId === post.user_id 
-                    ? `<button onclick="apagarPost('${post.id}')" class="ml-auto text-red-500 text-xs">🗑️</button>` 
+                    ? `<button onclick="apagarPost('${safeAttr(post.id)}')" class="ml-auto text-red-500 text-xs">🗑️</button>` 
                     : ''}
             </div>
 
             <p class="text-gray-600 text-sm mb-4">
-                ${post.content}
+                ${safeContent}
             </p>
 
             <div class="flex justify-between items-center pt-4 border-t">
                 <div class="flex gap-4">
                     ${reacoesHtml}
                 </div>
-                <button onclick="abrirThreads('${post.id}')" class="text-xs font-bold">
+                <button onclick="abrirThreads('${safeAttr(post.id)}')" class="text-xs font-bold">
                     Conversas (${post.comments?.length || 0})
                 </button>
             </div>
 
-            <div id="thread-${post.id}" class="${threadAberta === post.id ? '' : 'hidden'} mt-4">
+            <div id="thread-${safeAttr(post.id)}" class="${threadAberta === post.id ? '' : 'hidden'} mt-4">
                 <div class="max-h-40 overflow-y-auto mb-4">
                     ${commentsHtml}
                 </div>
                 <div class="flex gap-2">
-                    <input id="in-${post.id}" type="text" placeholder="Comentar..."
+                    <input id="in-${safeAttr(post.id)}" type="text" placeholder="Comentar..."
                         class="flex-1 bg-gray-50 rounded-xl p-2 text-xs">
-                    <button onclick="comentar('${post.id}')"
+                    <button onclick="comentar('${safeAttr(post.id)}')"
                         class="bg-feira-marinho text-white px-3 rounded-xl text-xs">
                         OK
                     </button>
