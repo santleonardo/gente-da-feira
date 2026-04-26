@@ -219,40 +219,54 @@ async function carregarFeed(filtro = 'Geral', userIdFiltro = null) {
     `).order('created_at', { ascending: false });
 
     // =========================
-// 🎯 FILTROS
-// =========================
+    // 🎯 FILTROS
+    // =========================
 
-if (userIdFiltro) {
-    query = query.eq('user_id', userIdFiltro);
+    if (userIdFiltro) {
+        query = query.eq('user_id', userIdFiltro);
 
-} else if (filtro === 'Local' && session) {
-    const { data: p } = await _supabase
-        .from('profiles')
-        .select('bairro')
-        .eq('id', session.user.id)
-        .single();
+    } else if (filtro === 'Local' && session) {
+        const { data: p } = await _supabase
+            .from('profiles')
+            .select('bairro')
+            .eq('id', session.user.id)
+            .single();
 
-    if (p?.bairro) query = query.eq('zona', p.bairro);
+        if (p?.bairro) query = query.eq('zona', p.bairro);
 
-} else if (filtro === 'Seguindo' && session) {
-    // 🔥 pega quem você segue
-    const { data: seguindo } = await _supabase
-        .from('relationships')
-        .select('target_id')
-        .eq('user_id', session.user.id)
-        .eq('type', 'follow');
+    } else if (filtro === 'Seguindo' && session) {
+        const { data: seguindo, error } = await _supabase
+            .from('relationships')
+            .select('target_id')
+            .eq('user_id', session.user.id)
+            .eq('type', 'follow');
 
-    const ids = seguindo?.map(r => r.target_id) || [];
+        if (error) {
+            console.error('Erro seguindo:', error);
+            container.innerHTML = '<p class="text-red-500 text-center">Erro ao carregar</p>';
+            return;
+        }
 
-    // evita erro de lista vazia
-    if (ids.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">Você ainda não segue ninguém.</p>';
+        const ids = (seguindo || []).map(r => r.target_id);
+
+        if (ids.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">Você ainda não segue ninguém.</p>';
+            return;
+        }
+
+        query = query.in('user_id', ids);
+    }
+
+    // ✅ EXECUTA QUERY (ESSENCIAL)
+    const { data: posts, error } = await query;
+
+    if (error) {
+        console.error('Erro no feed:', error);
+        container.innerHTML = `<p class="text-red-500 text-center">Erro ao carregar feed</p>`;
         return;
     }
 
-    query = query.in('user_id', ids);
-}
-
+    // ✅ RENDERIZA
     renderizarPosts(posts || [], container, session?.user?.id);
 }
 
