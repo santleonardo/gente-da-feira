@@ -52,10 +52,10 @@ window.onload = async () => {
     // ✅ REALTIME
     _supabase.channel('fsa-updates')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-            if (!document.getElementById('feed-container').classList.contains('hidden')) {
-                const tabAtual = document
-                    .getElementById('tab-local')
-                    .classList.contains('bg-feira-marinho')
+            const feedContainer = document.getElementById('feed-container');
+            if (feedContainer && !feedContainer.classList.contains('hidden')) {
+                const tabLocal = document.getElementById('tab-local');
+                const tabAtual = (tabLocal && tabLocal.classList.contains('bg-feira-marinho'))
                     ? 'Local'
                     : 'Geral';
 
@@ -94,6 +94,11 @@ window.salvarPost = async () => {
     if (bairrosSelecionados.length === 0) return alert('Selecione pelo menos um bairro!');
     
     const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (!session) {
+        alert('Você precisa estar logado!');
+        return;
+    }
     
     for (const bairro of bairrosSelecionados) {
         await _supabase.from('posts').insert({ 
@@ -134,10 +139,10 @@ window.mostrarPerfilProprio = async () => {
     // 🖼️ AVATAR
     // =========================
     const avatar = document.getElementById('view-avatar');
-if (avatar) {
-    if (perfil.avatar_url) {
-        avatar.style.backgroundImage = `url('${safeUrl(perfil.avatar_url)}')`;
-        avatar.innerText = "";
+    if (avatar) {
+        if (perfil.avatar_url) {
+            avatar.style.backgroundImage = `url('${safeUrl(perfil.avatar_url)}')`;
+            avatar.innerText = "";
         } else {
             avatar.style.backgroundImage = "none";
             avatar.innerText = (perfil.username || "M")[0];
@@ -188,6 +193,12 @@ if (avatar) {
 
 window.salvarPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (!session) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+    
     const fileInput = document.getElementById('profile-avatar-file');
     
     let avatarUrl = document.getElementById('profile-avatar-url').value;
@@ -219,6 +230,7 @@ window.salvarPerfil = async () => {
     
     mostrarPerfilProprio();
 };
+
 window.abrirEdicaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
 
@@ -438,60 +450,60 @@ function renderizarPosts(posts, container, currentUserId) {
         commentsBox.className = 'max-h-40 overflow-y-auto mb-4';
 
         (post.comments || []).forEach(c => {
-    const cWrap = document.createElement('div');
-    cWrap.className = 'flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2';
+            const cWrap = document.createElement('div');
+            cWrap.className = 'flex gap-3 bg-gray-50 p-3 rounded-2xl mb-2';
 
-    const cAvatar = document.createElement('div');
-    cAvatar.className = 'w-6 h-6 rounded-lg bg-feira-yellow flex items-center justify-center text-[10px] font-black';
+            const cAvatar = document.createElement('div');
+            cAvatar.className = 'w-6 h-6 rounded-lg bg-feira-yellow flex items-center justify-center text-[10px] font-black';
 
-    const cAvatarUrl = safeUrl(c.profiles?.avatar_url);
-    if (cAvatarUrl) {
-        cAvatar.style.backgroundImage = `url("${cAvatarUrl}")`;
-        cAvatar.style.backgroundSize = 'cover';
-    } else {
-        cAvatar.textContent = (c.profiles?.username || 'M')[0];
-    }
+            const cAvatarUrl = safeUrl(c.profiles?.avatar_url);
+            if (cAvatarUrl) {
+                cAvatar.style.backgroundImage = `url("${cAvatarUrl}")`;
+                cAvatar.style.backgroundSize = 'cover';
+            } else {
+                cAvatar.textContent = (c.profiles?.username || 'M')[0];
+            }
 
-    const cBody = document.createElement('div');
-    cBody.className = 'flex-1';
+            const cBody = document.createElement('div');
+            cBody.className = 'flex-1';
 
-    const cUser = document.createElement('p');
-    cUser.className = 'text-[10px] font-black';
-    cUser.textContent = c.profiles?.username || 'Morador';
+            const cUser = document.createElement('p');
+            cUser.className = 'text-[10px] font-black';
+            cUser.textContent = c.profiles?.username || 'Morador';
 
-    const cText = document.createElement('p');
-    cText.className = 'text-xs text-gray-600';
-    cText.textContent = c.content;
+            const cText = document.createElement('p');
+            cText.className = 'text-xs text-gray-600';
+            cText.textContent = c.content;
 
-    cBody.appendChild(cUser);
-    cBody.appendChild(cText);
+            cBody.appendChild(cUser);
+            cBody.appendChild(cText);
 
-    // 🔥 REAÇÕES DO COMENTÁRIO
-    const cReactions = document.createElement('div');
-    cReactions.className = 'flex gap-2 mt-1';
+            // 🔥 REAÇÕES DO COMENTÁRIO
+            const cReactions = document.createElement('div');
+            cReactions.className = 'flex gap-2 mt-1';
 
-    EMOJIS.forEach(e => {
-        const btn = document.createElement('button');
-        btn.className = 'text-[10px] flex items-center gap-1';
+            EMOJIS.forEach(e => {
+                const btn = document.createElement('button');
+                btn.className = 'text-[10px] flex items-center gap-1';
 
-        const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
+                const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
 
-        btn.textContent = count ? `${e} ${count}` : e;
+                btn.textContent = count ? `${e} ${count}` : e;
 
-        btn.addEventListener('click', () => {
-            reagirComentario(c.id, e, post.id);
+                btn.addEventListener('click', () => {
+                    reagirComentario(c.id, e, post.id);
+                });
+
+                cReactions.appendChild(btn);
+            });
+
+            cBody.appendChild(cReactions);
+
+            // ✅ ESSENCIAL (você esqueceu isso)
+            cWrap.appendChild(cAvatar);
+            cWrap.appendChild(cBody);
+            commentsBox.appendChild(cWrap);
         });
-
-        cReactions.appendChild(btn);
-    });
-
-    cBody.appendChild(cReactions);
-
-    // ✅ ESSENCIAL (você esqueceu isso)
-    cWrap.appendChild(cAvatar);
-    cWrap.appendChild(cBody);
-    commentsBox.appendChild(cWrap);
-});
 
         const inputWrap = document.createElement('div');
         inputWrap.className = 'flex gap-2';
@@ -546,21 +558,64 @@ function toggleThread(id) {
 // --- INTERAÇÕES ---
 window.reagir = async (postId, emoji) => {
     const { data: { session } } = await _supabase.auth.getSession();
-    const { error } = await _supabase.from('reactions').insert({ post_id: postId, user_id: session.user.id, emoji_type: emoji });
-    if (error && error.code === '23505') await _supabase.from('reactions').delete().match({ post_id: postId, user_id: session.user.id, emoji_type: emoji });
+    
+    if (!session) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+    
+    const { error } = await _supabase.from('reactions').insert({ 
+        post_id: postId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    });
+    
+    if (error && error.code === '23505') {
+        await _supabase.from('reactions').delete().match({ 
+            post_id: postId, 
+            user_id: session.user.id, 
+            emoji_type: emoji 
+        });
+    }
+    
     carregarFeed();
 };
 
 window.reagirComentario = async (commentId, emoji, postId) => {
     const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (!session) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+    
     localStorage.setItem('thread_aberta', postId);
-    const { error } = await _supabase.from('comment_reactions').insert({ comment_id: commentId, user_id: session.user.id, emoji_type: emoji });
-    if (error && error.code === '23505') await _supabase.from('comment_reactions').delete().match({ comment_id: commentId, user_id: session.user.id, emoji_type: emoji });
+    
+    const { error } = await _supabase.from('comment_reactions').insert({ 
+        comment_id: commentId, 
+        user_id: session.user.id, 
+        emoji_type: emoji 
+    });
+    
+    if (error && error.code === '23505') {
+        await _supabase.from('comment_reactions').delete().match({ 
+            comment_id: commentId, 
+            user_id: session.user.id, 
+            emoji_type: emoji 
+        });
+    }
+    
     carregarFeed();
 };
 
 window.comentar = async (postId, text) => {
     const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (!session) {
+        alert('Você precisa estar logado!');
+        return;
+    }
+    
     if (!text.trim()) return;
 
     await _supabase.from('comments').insert({
@@ -575,7 +630,9 @@ window.comentar = async (postId, text) => {
 
 window.apagarPost = async (postId) => {
     if (!confirm('Tem certeza que deseja apagar este aviso?')) return;
+    
     const { error } = await _supabase.from('posts').delete().eq('id', postId);
+    
     if (error) {
         alert('Erro ao apagar: ' + error.message);
     } else {
@@ -586,7 +643,9 @@ window.apagarPost = async (postId) => {
 
 window.apagarComentario = async (commentId, postId) => {
     if (!confirm('Tem certeza que deseja apagar este comentário?')) return;
+    
     const { error } = await _supabase.from('comments').delete().eq('id', commentId);
+    
     if (error) {
         alert('Erro ao apagar: ' + error.message);
     } else {
@@ -613,16 +672,28 @@ window.mudarFeed = (tipo) => {
 };
 
 window.fazerLogin = async () => {
-    const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
+    const { error } = await _supabase.auth.signInWithPassword({ 
+        email: document.getElementById('auth-email').value, 
+        password: document.getElementById('auth-password').value 
+    });
+    
     if (error) alert(error.message);
 };
 
 window.fazerCadastro = async () => {
-    const { error } = await _supabase.auth.signUp({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
-    if (error) alert(error.message); else alert("Verifique o e-mail!");
+    const { error } = await _supabase.auth.signUp({ 
+        email: document.getElementById('auth-email').value, 
+        password: document.getElementById('auth-password').value 
+    });
+    
+    if (error) alert(error.message); 
+    else alert("Verifique o e-mail!");
 };
 
-window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
+window.fazerLogout = async () => { 
+    await _supabase.auth.signOut(); 
+    location.reload(); 
+};
 
 // ==============================
 // 🔥 SISTEMA DE FOLLOW
@@ -635,7 +706,7 @@ async function seguirUsuario(targetId) {
     if (!session) return;
     if (session.user.id === targetId) return;
 
-    const { error } = await _supabase
+    await _supabase
         .from('relationships')
         .upsert({
             user_id: session.user.id,
@@ -643,8 +714,6 @@ async function seguirUsuario(targetId) {
             type: 'follow',
             status: 'accepted'
         }, { onConflict: 'user_id,target_id,type' });
-
-    console.log('seguirUsuario error:', error);
 }
 
 async function deixarDeSeguir(targetId) {
@@ -664,7 +733,7 @@ async function verificarFollow(targetId) {
 
     const { data, error } = await _supabase
         .from('relationships')
-        .select('id') // ✅ mais leve
+        .select('id')
         .eq('user_id', session.user.id)
         .eq('target_id', targetId)
         .eq('type', 'follow')
@@ -711,7 +780,7 @@ async function setupFollowButton() {
             await seguirUsuario(window.profileId);
         }
 
-        await atualizarBotaoFollow(); // ✅ correto
+        await atualizarBotaoFollow();
     };
 }
 
@@ -741,10 +810,10 @@ window.verPerfil = async (userId) => {
     // 🖼️ AVATAR
     // =========================
     const avatar = document.getElementById('view-avatar');
-if (avatar) {
-    if (perfil.avatar_url) {
-        avatar.style.backgroundImage = `url('${safeUrl(perfil.avatar_url)}')`;
-        avatar.innerText = "";
+    if (avatar) {
+        if (perfil.avatar_url) {
+            avatar.style.backgroundImage = `url('${safeUrl(perfil.avatar_url)}')`;
+            avatar.innerText = "";
         } else {
             avatar.style.backgroundImage = "none";
             avatar.innerText = (perfil.username || "M")[0];
