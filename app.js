@@ -280,16 +280,6 @@ async function carregarFeed(filtro = 'Geral', userIdFiltro = null) {
     renderizarPosts(posts || [], container, session?.user?.id);
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;')
-        .replace(/'/g,'&#039;');
-}
-
 function safeUrl(url) {
     if (!url) return '';
     const clean = String(url).trim();
@@ -556,12 +546,6 @@ window.apagarComentario = async (commentId, postId) => {
         localStorage.setItem('thread_aberta', postId);
         carregarFeed();
     }
-};
-
-window.abrirThreads = (id) => {
-    const el = document.getElementById(`thread-${id}`);
-    const isHidden = el.classList.toggle('hidden');
-    if (!isHidden) localStorage.setItem('thread_aberta', id); else localStorage.removeItem('thread_aberta');
 };
 
 window.mudarFeed = (tipo) => {
