@@ -1,16 +1,16 @@
 const CACHE_NAME = 'gente-da-feira-v1';
 
-// arquivos essenciais (App Shell)
+// arquivos essenciais (opcional)
 const ASSETS = [
-  '/gente-da-feira/',
-  '/gente-da-feira/index.html',
-  '/gente-da-feira/manifest.json',
-  '/gente-da-feira/icon-192.png',
-  '/gente-da-feira/icon-512.png',
-  '/gente-da-feira/app.js'
+  '/',
+  '/index.html',
+  '/app.js',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
-// instalação → salva cache inicial
+// instala
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
@@ -18,15 +18,13 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// ativação → limpa caches antigos
+// ativa
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
         keys.map(key => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
+          if (key !== CACHE_NAME) return caches.delete(key);
         })
       )
     )
@@ -34,19 +32,31 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// intercepta requisições
+// intercepta requests
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
+  // 🚫 nunca mexer com API (Supabase)
+  if (request.url.includes('supabase.co')) return;
+
+  // 🚫 só cacheia GET
+  if (request.method !== 'GET') return;
+
   event.respondWith(
-    fetch(request)
-      .then((response) => {
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+
+      return fetch(request).then(response => {
         const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(request, clone);
+        });
+
         return response;
-      })
-      .catch(() => {
-        return caches.match(request);
-      })
+      });
+    }).catch(() => {
+      return caches.match('/index.html'); // fallback offline
+    })
   );
 });
