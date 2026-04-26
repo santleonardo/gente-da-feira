@@ -438,13 +438,30 @@ function renderizarPosts(posts, container, currentUserId) {
             cText.textContent = c.content;
 
             cBody.appendChild(cUser);
-            cBody.appendChild(cText);
+cBody.appendChild(cText);
 
-            cWrap.appendChild(cAvatar);
-            cWrap.appendChild(cBody);
+// ======================
+// 🔥 REAÇÕES DO COMENTÁRIO (FIX COMPLETO)
+// ======================
+const cReactions = document.createElement('div');
+cReactions.className = 'flex gap-2 mt-1';
 
-            commentsBox.appendChild(cWrap);
-        });
+EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'text-[10px] flex items-center gap-1';
+
+    const count = c.comment_reactions?.filter(cr => cr.emoji_type === e).length || 0;
+
+    btn.textContent = count ? `${e} ${count}` : e;
+
+    btn.addEventListener('click', () => {
+        reagirComentario(c.id, e, post.id);
+    });
+
+    cReactions.appendChild(btn);
+});
+
+cBody.appendChild(cReactions);
 
         const inputWrap = document.createElement('div');
         inputWrap.className = 'flex gap-2';
