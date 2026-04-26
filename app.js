@@ -412,17 +412,18 @@ async function verificarFollow(targetId) {
 
     const { data, error } = await _supabase
         .from('relationships')
-        .select('*')
+        .select('id') // ✅ mais leve
         .eq('user_id', session.user.id)
         .eq('target_id', targetId)
-        .eq('type', 'follow');
+        .eq('type', 'follow')
+        .limit(1);
 
-    console.log('verificarFollow:', data, error);
-    console.log('USER LOGADO:', session.user.id);
-console.log('TARGET:', targetId);
-    console.log('RESULTADO QUERY:', data);
+    if (error) {
+        console.error('verificarFollow erro:', error.message);
+        return false;
+    }
 
-    return data && data.length > 0;
+    return data.length > 0;
 }
 
 async function atualizarBotaoFollow() {
@@ -458,7 +459,7 @@ async function setupFollowButton() {
             await seguirUsuario(window.profileId);
         }
 
-        setTimeout(() => atualizarBotaoFollow(), 200);
+        await atualizarBotaoFollow(); // ✅ correto
     };
 }
 
@@ -481,14 +482,14 @@ window.verPerfil = async (userId) => {
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
     
-mostrarTela('view-profile-screen');
+    mostrarTela('view-profile-screen');
 
-const btn = document.getElementById('follow-btn');
-if (btn) {
-    btn.style.display = 'block';
-    btn.innerText = '...';
-}
+    const btn = document.getElementById('follow-btn');
+    if (btn) {
+        btn.style.display = 'block';
+        btn.innerText = '...';
+    }
 
-await atualizarBotaoFollow();
-setupFollowButton();
+    await atualizarBotaoFollow();
+    setupFollowButton();
 };
