@@ -490,4 +490,5 @@ window.verPerfil = async (userId) => {
     mostrarTela('view-profile-screen');
 
     atualizarBotaoFollow();
+    setupFollowButton();
 };
