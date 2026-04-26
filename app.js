@@ -263,9 +263,10 @@ function renderizarPosts(posts, container, currentUserId) {
                 </div>
 
                 <div>
-                    <h4 class="font-black text-feira-marinho text-sm">
-                        ${post.profiles?.username || 'Morador'}
-                    </h4>
+                   <h4 onclick="verPerfil('${post.user_id}')" 
+    class="font-black text-feira-marinho text-sm cursor-pointer">
+    ${post.profiles?.username || 'Morador'}
+</h4>
                     <span class="text-[9px] text-gray-300 uppercase">
                         ${post.zona || 'Geral'}
                     </span>
