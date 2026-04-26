@@ -463,10 +463,6 @@ async function setupFollowButton() {
     };
 }
 
-// ==============================
-// 👤 VER PERFIL DE OUTRO USUÁRIO
-// ==============================
-
 window.verPerfil = async (userId) => {
     const { data: perfil } = await _supabase
         .from('profiles')
@@ -476,40 +472,43 @@ window.verPerfil = async (userId) => {
 
     if (!perfil) return;
 
-    window.profileId = perfil.id;
+    const { data: { session } } = await _supabase.auth.getSession();
+    const isMeuPerfil = session?.user?.id === perfil.id;
 
+    window.profileId = isMeuPerfil ? null : perfil.id;
+
+    // TEXTO
     document.getElementById('view-username').innerText = perfil.username || "Morador";
-document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
-document.getElementById('view-bio').innerText = perfil.bio || "";
-    
-const avatar = document.getElementById('view-avatar');
+    document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
+    document.getElementById('view-bio').innerText = perfil.bio || "";
 
-if (avatar) {
-    if (perfil.avatar_url) {
-        avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
-        avatar.innerText = "";
-    } else {
-        avatar.style.backgroundImage = "none";
-        avatar.innerText = (perfil.username || "M")[0];
-    }
-}
-
-if (perfil.avatar_url) {
-    avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
-    avatar.innerText = "";
-} else {
-    avatar.style.backgroundImage = "none";
-    avatar.innerText = (perfil.username || "M")[0];
-}
-
-mostrarTela('view-profile-screen');
-
-    const btn = document.getElementById('follow-btn');
-    if (btn) {
-        btn.style.display = 'block';
-        btn.innerText = '...';
+    // AVATAR (corrigido)
+    const avatar = document.getElementById('view-avatar');
+    if (avatar) {
+        if (perfil.avatar_url) {
+            avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
+            avatar.innerText = "";
+        } else {
+            avatar.style.backgroundImage = "none";
+            avatar.innerText = (perfil.username || "M")[0];
+        }
     }
 
-    await atualizarBotaoFollow();
-    setupFollowButton();
+    mostrarTela('view-profile-screen');
+
+    // 🔥 CONTROLE DE UI
+    const btnEditar = document.getElementById('btn-editar-perfil');
+    const historico = document.getElementById('meu-historico-container');
+    const followBtn = document.getElementById('follow-btn');
+
+    if (btnEditar) btnEditar.style.display = isMeuPerfil ? 'block' : 'none';
+    if (historico) historico.style.display = isMeuPerfil ? 'block' : 'none';
+    if (followBtn) followBtn.style.display = isMeuPerfil ? 'none' : 'block';
+
+    // FOLLOW SYSTEM
+    if (!isMeuPerfil) {
+        followBtn.innerText = '...';
+        await atualizarBotaoFollow();
+        setupFollowButton();
+    }
 };
