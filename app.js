@@ -381,3 +381,77 @@ window.fazerCadastro = async () => {
     if (error) alert(error.message); else alert("Verifique o e-mail!");
 };
 window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
+// ==============================
+// 🔥 SISTEMA DE FOLLOW
+// ==============================
+
+window.profileId = null;
+
+async function seguirUsuario(targetId) {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return;
+
+    if (session.user.id === targetId) return;
+
+    const { error } = await _supabase.from('relationships').insert({
+        user_id: session.user.id,
+        target_id: targetId,
+        type: 'follow',
+        status: 'accepted'
+    });
+
+    if (error) console.error(error.message);
+}
+
+async function deixarDeSeguir(targetId) {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return;
+
+    await _supabase.from('relationships')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('target_id', targetId)
+        .eq('type', 'follow');
+}
+
+async function verificarFollow(targetId) {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return false;
+
+    const { data } = await _supabase.from('relationships')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('target_id', targetId)
+        .eq('type', 'follow')
+        .maybeSingle();
+
+    return !!data;
+}
+
+async function atualizarBotaoFollow() {
+    const btn = document.getElementById('follow-btn');
+    if (!btn || !window.profileId) return;
+
+    const seguindo = await verificarFollow(window.profileId);
+    btn.innerText = seguindo ? 'Seguindo' : 'Seguir';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('follow-btn');
+
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            if (!window.profileId) return;
+
+            const seguindo = await verificarFollow(window.profileId);
+
+            if (seguindo) {
+                await deixarDeSeguir(window.profileId);
+            } else {
+                await seguirUsuario(window.profileId);
+            }
+
+            atualizarBotaoFollow();
+        });
+    }
+});
