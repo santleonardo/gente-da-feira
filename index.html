@@ -134,9 +134,16 @@
             <button id="follow-btn" class="w-full bg-feira-yellow text-feira-marinho py-3 rounded-2xl font-black uppercase text-xs">
   Seguir
 </button>
-            <button onclick="mostrarTela('edit-profile-screen')" class="w-full bg-gray-50 text-feira-marinho py-3 rounded-2xl font-black uppercase text-[10px] mb-8">Editar Meus Dados</button>
+            <button id="btn-editar-perfil"
+        onclick="mostrarTela('edit-profile-screen')"
+        class="w-full bg-gray-50 text-feira-marinho py-3 rounded-2xl font-black uppercase text-[10px] mb-8">
+    Editar Meus Dados
+</button>
             <div class="border-t border-dashed border-gray-100 pt-6 text-left">
-                <h3 class="font-black text-feira-marinho text-sm uppercase mb-4">Meu Histórico de Avisos</h3>
+               <h3 id="titulo-historico"
+    class="font-black text-feira-marinho text-sm uppercase mb-4">
+    Meu Histórico de Avisos
+</h3>
                 <div id="meu-historico-feed" class="space-y-4"></div>
             </div>
         </div>
