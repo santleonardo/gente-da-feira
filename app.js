@@ -1,4 +1,4 @@
-const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co';
+const SUPABASE_URL = 'https://oecoggegxlortfcsnagd.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lY29nZ2VneGxvcnRmY3NuYWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzIwMDYsImV4cCI6MjA5MjQ0ODAwNn0.ccE4T_tdNeA2FogKBQOWQM9snOiHEnjGIUvhD4qEFm8'; 
 
 let _supabase;
@@ -469,24 +469,12 @@ window.verPerfil = async (userId) => {
 
     if (!perfil) return;
 
-    // SETA O ID GLOBAL
     window.profileId = perfil.id;
 
-    // Preenche UI
     document.getElementById('view-username').innerText = perfil.username || "Morador";
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
 
-    const avatar = document.getElementById('view-avatar');
-    if (perfil.avatar_url) {
-        avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
-        avatar.innerText = "";
-    } else {
-        avatar.style.backgroundImage = "none";
-        avatar.innerText = (perfil.username || "M")[0];
-    }
-
-    document.getElementById('feed-tabs').classList.add('hidden');
     mostrarTela('view-profile-screen');
 
     atualizarBotaoFollow();
