@@ -98,9 +98,10 @@ window.mostrarPerfilProprio = async () => {
         document.getElementById('feed-tabs').classList.add('hidden');
         mostrarTela('view-profile-screen');
         carregarFeed('Geral', session.user.id);
-        window.profileId = perfil.id;
-        atualizarBotaoFollow();
-        setupFollowButton(); // ✅ CORRIGIDO: adicionado aqui também
+        window.profileId = null;
+
+const btn = document.getElementById('follow-btn');
+if (btn) btn.style.display = 'none';
     }
 };
 
