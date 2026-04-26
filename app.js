@@ -479,10 +479,20 @@ window.verPerfil = async (userId) => {
     window.profileId = perfil.id;
 
     document.getElementById('view-username').innerText = perfil.username || "Morador";
-    document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
-    document.getElementById('view-bio').innerText = perfil.bio || "";
+document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
+document.getElementById('view-bio').innerText = perfil.bio || "";
     
-    mostrarTela('view-profile-screen');
+const avatar = document.getElementById('view-avatar');
+
+if (perfil.avatar_url) {
+    avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
+    avatar.innerText = "";
+} else {
+    avatar.style.backgroundImage = "none";
+    avatar.innerText = (perfil.username || "M")[0];
+}
+
+mostrarTela('view-profile-screen');
 
     const btn = document.getElementById('follow-btn');
     if (btn) {
