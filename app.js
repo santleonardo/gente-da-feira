@@ -484,6 +484,16 @@ document.getElementById('view-bio').innerText = perfil.bio || "";
     
 const avatar = document.getElementById('view-avatar');
 
+if (avatar) {
+    if (perfil.avatar_url) {
+        avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
+        avatar.innerText = "";
+    } else {
+        avatar.style.backgroundImage = "none";
+        avatar.innerText = (perfil.username || "M")[0];
+    }
+}
+
 if (perfil.avatar_url) {
     avatar.style.backgroundImage = `url('${perfil.avatar_url}')`;
     avatar.innerText = "";
