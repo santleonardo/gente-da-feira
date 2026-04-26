@@ -522,11 +522,16 @@ window.reagirComentario = async (commentId, emoji, postId) => {
     carregarFeed();
 };
 
-window.comentar = async (postId) => {
-    const input = document.getElementById(`in-${postId}`);
+window.comentar = async (postId, text) => {
     const { data: { session } } = await _supabase.auth.getSession();
-    if (!input.value.trim()) return;
-    await _supabase.from('comments').insert({ post_id: postId, user_id: session.user.id, content: input.value });
+    if (!text.trim()) return;
+
+    await _supabase.from('comments').insert({
+        post_id: postId,
+        user_id: session.user.id,
+        content: text
+    });
+
     localStorage.setItem('thread_aberta', postId);
     carregarFeed();
 };
