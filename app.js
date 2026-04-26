@@ -463,6 +463,9 @@ window.verPerfil = async (userId) => {
     document.getElementById('view-bairro').innerText = perfil.bairro || "Feira";
     document.getElementById('view-bio').innerText = perfil.bio || "";
 
+    const btn = document.getElementById('follow-btn');
+    if (btn) btn.style.display = 'block';
+
     mostrarTela('view-profile-screen');
 
     atualizarBotaoFollow();
