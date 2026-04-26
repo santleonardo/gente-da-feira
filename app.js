@@ -51,7 +51,7 @@ _supabase.auth.onAuthStateChange(async (event, session) => {
             carregarFeed(tabAtual);
         }
     }).subscribe();
-};
+}
 
 function mostrarTela(id) {
     const telas = ['auth-screen', 'feed-container', 'form-post', 'view-profile-screen', 'edit-profile-screen'];
