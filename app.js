@@ -138,11 +138,6 @@ window.salvarPerfil = async () => {
     
     mostrarPerfilProprio();
 };
-window.salvarPerfil = async () => {
-    ...
-    mostrarPerfilProprio();
-};
-
 window.abrirEdicaoPerfil = async () => {
     const { data: { session } } = await _supabase.auth.getSession();
 
