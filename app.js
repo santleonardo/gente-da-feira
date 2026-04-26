@@ -434,8 +434,19 @@ window.abrirThreads = (id) => {
 };
 
 window.mudarFeed = (tipo) => {
-    document.getElementById('tab-geral').className = tipo === 'Geral' ? 'flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white shadow-md' : 'flex-1 py-3 text-gray-400 font-bold';
-    document.getElementById('tab-local').className = tipo !== 'Geral' ? 'flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white shadow-md' : 'flex-1 py-3 text-gray-400 font-bold';
+    const tabs = ['geral', 'local', 'seguindo'];
+
+    tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (!el) return;
+
+        if (t.toLowerCase() === tipo.toLowerCase()) {
+            el.className = 'flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white shadow-md';
+        } else {
+            el.className = 'flex-1 py-3 text-gray-400 font-bold';
+        }
+    });
+
     carregarFeed(tipo);
 };
 
