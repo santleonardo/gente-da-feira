@@ -15,43 +15,57 @@ let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
 const BAIRROS_DISPONIVEIS = ['Centro', 'Mangabeira', 'Queimadinha', 'Campo Limpo', 'Tomba', 'SIM', 'Feira IX', 'George Américo', 'Brasília', 'Sobradinho', 'Conceição', 'Kalilândia', 'Aviário', 'Baraúnas', 'Santa Mônica', 'Papagaio', 'Jardim Acácia'];
 
-_supabase.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
+let _supabase;
 
-        // 🔥 GARANTE PROFILE
-        const { data: profile } = await _supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', session.user.id)
-            .maybeSingle();
+window.onload = async () => {
 
-        if (!profile) {
-            await _supabase.from('profiles').insert({
-                id: session.user.id,
-                username: 'Morador',
-                bairro: 'Centro'
-            });
+    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ✅ AUTH LISTENER (COM PROFILE AUTO-CREATE)
+    _supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+
+            const { data: profile } = await _supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', session.user.id)
+                .maybeSingle();
+
+            if (!profile) {
+                await _supabase.from('profiles').insert({
+                    id: session.user.id,
+                    username: 'Morador',
+                    bairro: 'Centro'
+                });
+            }
+
+            document.getElementById('btn-sair')?.classList.remove('hidden');
+            document.getElementById('main-nav')?.classList.remove('hidden');
+            irParaHome();
+
+        } else {
+            document.getElementById('btn-sair')?.classList.add('hidden');
+            document.getElementById('main-nav')?.classList.add('hidden');
+            document.getElementById('feed-tabs')?.classList.add('hidden');
+            mostrarTela('auth-screen');
         }
+    });
 
-        document.getElementById('btn-sair')?.classList.remove('hidden');
-        document.getElementById('main-nav')?.classList.remove('hidden');
-        irParaHome();
+    // ✅ REALTIME
+    _supabase.channel('fsa-updates')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+            if (!document.getElementById('feed-container').classList.contains('hidden')) {
+                const tabAtual = document
+                    .getElementById('tab-local')
+                    .classList.contains('bg-feira-marinho')
+                    ? 'Local'
+                    : 'Geral';
 
-    } else {
-        document.getElementById('btn-sair')?.classList.add('hidden');
-        document.getElementById('main-nav')?.classList.add('hidden');
-        document.getElementById('feed-tabs')?.classList.add('hidden');
-        mostrarTela('auth-screen');
-    }
-});
-
-    _supabase.channel('fsa-updates').on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        if (!document.getElementById('feed-container').classList.contains('hidden')) {
-            const tabAtual = document.getElementById('tab-local').classList.contains('bg-feira-marinho') ? 'Local' : 'Geral';
-            carregarFeed(tabAtual);
-        }
-    }).subscribe();
-}
+                carregarFeed(tabAtual);
+            }
+        })
+        .subscribe();
+};
 
 function mostrarTela(id) {
     const telas = ['auth-screen', 'feed-container', 'form-post', 'view-profile-screen', 'edit-profile-screen'];
