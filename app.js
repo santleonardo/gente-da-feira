@@ -4,6 +4,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let _supabase;
 const EMOJIS = ["👍", "❤️", "🔥", "🙌"];
 const BAIRROS_DISPONIVEIS = ['Centro', 'Mangabeira', 'Queimadinha', 'Campo Limpo', 'Tomba', 'SIM', 'Feira IX', 'George Américo', 'Brasília', 'Sobradinho', 'Conceição', 'Kalilândia', 'Aviário', 'Baraúnas', 'Santa Mônica', 'Papagaio', 'Jardim Acácia'];
+
 window.onload = async () => {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -58,7 +59,6 @@ window.salvarPost = async () => {
     
     const { data: { session } } = await _supabase.auth.getSession();
     
-    // Publicar em cada bairro selecionado
     for (const bairro of bairrosSelecionados) {
         await _supabase.from('posts').insert({ 
             user_id: session.user.id, 
@@ -99,7 +99,8 @@ window.mostrarPerfilProprio = async () => {
         mostrarTela('view-profile-screen');
         carregarFeed('Geral', session.user.id);
         window.profileId = perfil.id;
-atualizarBotaoFollow();
+        atualizarBotaoFollow();
+        setupFollowButton(); // ✅ CORRIGIDO: adicionado aqui também
     }
 };
 
@@ -109,7 +110,6 @@ window.salvarPerfil = async () => {
     
     let avatarUrl = document.getElementById('profile-avatar-url').value;
     
-    // Se usuario selecionou uma imagem, fazer upload
     if (fileInput?.files[0]) {
         const file = fileInput.files[0];
         const fileExt = file.name.split('.').pop();
@@ -197,7 +197,6 @@ function renderizarPosts(posts, container, currentUserId) {
             ? "" 
             : (post.profiles?.username || "M")[0];
 
-        // REAÇÕES DO POST
         const reacoesHtml = EMOJIS.map(e => {
             const count = post.reactions?.filter(r => r.emoji_type === e).length || 0;
             const jaReagiu = post.reactions?.some(r => r.user_id === currentUserId && r.emoji_type === e);
@@ -211,7 +210,6 @@ function renderizarPosts(posts, container, currentUserId) {
             `;
         }).join('');
 
-        // COMENTÁRIOS
         const commentsHtml = (post.comments || []).map(c => {
             const cAvatar = c.profiles?.avatar_url 
                 ? `style="background-image: url('${c.profiles.avatar_url}')"` 
@@ -232,20 +230,16 @@ function renderizarPosts(posts, container, currentUserId) {
                      ${cAvatar}>
                      ${c.profiles?.avatar_url ? '' : (c.profiles?.username || 'U')[0]}
                 </div>
-
                 <div class="flex-1">
                     <div class="flex justify-between items-center">
                         <p class="text-[10px] font-black text-feira-marinho">
                             ${c.profiles?.username || 'Morador'}
                         </p>
-
                         ${currentUserId === c.user_id 
                             ? `<button onclick="apagarComentario('${c.id}', '${post.id}')" class="text-red-500 text-[10px]">🗑️</button>` 
                             : ''}
                     </div>
-
                     <p class="text-xs text-gray-600">${c.content}</p>
-
                     <div class="flex gap-2 mt-1">
                         ${cReacoes}
                     </div>
@@ -254,24 +248,21 @@ function renderizarPosts(posts, container, currentUserId) {
             `;
         }).join('');
 
-        // HTML FINAL DO POST (CORRETO)
         postEl.innerHTML = `
             <div class="flex items-center gap-4 mb-4">
                 <div class="w-10 h-10 rounded-xl bg-feira-yellow bg-cover bg-center flex items-center justify-center text-xs font-black"
                      ${avatarImg}>
                      ${iniciais}
                 </div>
-
                 <div>
-                   <h4 onclick="verPerfil('${post.user_id}')" 
-    class="font-black text-feira-marinho text-sm cursor-pointer">
-    ${post.profiles?.username || 'Morador'}
-</h4>
+                    <h4 onclick="verPerfil('${post.user_id}')" 
+                        class="font-black text-feira-marinho text-sm cursor-pointer">
+                        ${post.profiles?.username || 'Morador'}
+                    </h4>
                     <span class="text-[9px] text-gray-300 uppercase">
                         ${post.zona || 'Geral'}
                     </span>
                 </div>
-
                 ${currentUserId === post.user_id 
                     ? `<button onclick="apagarPost('${post.id}')" class="ml-auto text-red-500 text-xs">🗑️</button>` 
                     : ''}
@@ -285,7 +276,6 @@ function renderizarPosts(posts, container, currentUserId) {
                 <div class="flex gap-4">
                     ${reacoesHtml}
                 </div>
-
                 <button onclick="abrirThreads('${post.id}')" class="text-xs font-bold">
                     Conversas (${post.comments?.length || 0})
                 </button>
@@ -295,11 +285,9 @@ function renderizarPosts(posts, container, currentUserId) {
                 <div class="max-h-40 overflow-y-auto mb-4">
                     ${commentsHtml}
                 </div>
-
                 <div class="flex gap-2">
                     <input id="in-${post.id}" type="text" placeholder="Comentar..."
                         class="flex-1 bg-gray-50 rounded-xl p-2 text-xs">
-
                     <button onclick="comentar('${post.id}')"
                         class="bg-feira-marinho text-white px-3 rounded-xl text-xs">
                         OK
@@ -336,11 +324,10 @@ window.comentar = async (postId) => {
     localStorage.setItem('thread_aberta', postId);
     carregarFeed();
 };
+
 window.apagarPost = async (postId) => {
     if (!confirm('Tem certeza que deseja apagar este aviso?')) return;
-    
     const { error } = await _supabase.from('posts').delete().eq('id', postId);
-    
     if (error) {
         alert('Erro ao apagar: ' + error.message);
     } else {
@@ -351,9 +338,7 @@ window.apagarPost = async (postId) => {
 
 window.apagarComentario = async (commentId, postId) => {
     if (!confirm('Tem certeza que deseja apagar este comentário?')) return;
-    
     const { error } = await _supabase.from('comments').delete().eq('id', commentId);
-    
     if (error) {
         alert('Erro ao apagar: ' + error.message);
     } else {
@@ -361,6 +346,7 @@ window.apagarComentario = async (commentId, postId) => {
         carregarFeed();
     }
 };
+
 window.abrirThreads = (id) => {
     const el = document.getElementById(`thread-${id}`);
     const isHidden = el.classList.toggle('hidden');
@@ -377,11 +363,14 @@ window.fazerLogin = async () => {
     const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
     if (error) alert(error.message);
 };
+
 window.fazerCadastro = async () => {
     const { error } = await _supabase.auth.signUp({ email: document.getElementById('auth-email').value, password: document.getElementById('auth-password').value });
     if (error) alert(error.message); else alert("Verifique o e-mail!");
 };
+
 window.fazerLogout = async () => { await _supabase.auth.signOut(); location.reload(); };
+
 // ==============================
 // 🔥 SISTEMA DE FOLLOW
 // ==============================
@@ -391,7 +380,6 @@ window.profileId = null;
 async function seguirUsuario(targetId) {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return;
-
     if (session.user.id === targetId) return;
 
     const { error } = await _supabase.from('relationships').insert({
@@ -455,7 +443,7 @@ async function setupFollowButton() {
         atualizarBotaoFollow();
     };
 }
-});
+
 // ==============================
 // 👤 VER PERFIL DE OUTRO USUÁRIO
 // ==============================
