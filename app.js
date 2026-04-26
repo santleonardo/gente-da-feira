@@ -437,24 +437,24 @@ async function atualizarBotaoFollow() {
     btn.innerText = seguindo ? 'Seguindo' : 'Seguir';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function setupFollowButton() {
     const btn = document.getElementById('follow-btn');
+    if (!btn) return;
 
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            if (!window.profileId) return;
+    btn.onclick = async () => {
+        if (!window.profileId) return;
 
-            const seguindo = await verificarFollow(window.profileId);
+        const seguindo = await verificarFollow(window.profileId);
 
-            if (seguindo) {
-                await deixarDeSeguir(window.profileId);
-            } else {
-                await seguirUsuario(window.profileId);
-            }
+        if (seguindo) {
+            await deixarDeSeguir(window.profileId);
+        } else {
+            await seguirUsuario(window.profileId);
+        }
 
-            atualizarBotaoFollow();
-        });
-    }
+        atualizarBotaoFollow();
+    };
+}
 });
 // ==============================
 // 👤 VER PERFIL DE OUTRO USUÁRIO
