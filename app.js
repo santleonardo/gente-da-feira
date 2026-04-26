@@ -382,14 +382,16 @@ async function seguirUsuario(targetId) {
     if (!session) return;
     if (session.user.id === targetId) return;
 
-    const { error } = await _supabase.from('relationships').insert({
-        user_id: session.user.id,
-        target_id: targetId,
-        type: 'follow',
-        status: 'accepted'
-    });
+    const { error } = await _supabase
+        .from('relationships')
+        .upsert({
+            user_id: session.user.id,
+            target_id: targetId,
+            type: 'follow',
+            status: 'accepted'
+        }, { onConflict: 'user_id,target_id,type' });
 
-    if (error) console.error(error.message);
+    console.log('seguirUsuario error:', error);
 }
 
 async function deixarDeSeguir(targetId) {
@@ -407,14 +409,16 @@ async function verificarFollow(targetId) {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) return false;
 
-    const { data } = await _supabase.from('relationships')
-        .select('id')
+    const { data, error } = await _supabase
+        .from('relationships')
+        .select('*')
         .eq('user_id', session.user.id)
         .eq('target_id', targetId)
-        .eq('type', 'follow')
-        .maybeSingle();
+        .eq('type', 'follow');
 
-    return !!data;
+    console.log('verificarFollow:', data, error);
+
+    return data && data.length > 0;
 }
 
 async function atualizarBotaoFollow() {
@@ -440,7 +444,7 @@ async function setupFollowButton() {
             await seguirUsuario(window.profileId);
         }
 
-        atualizarBotaoFollow();
+        setTimeout(() => atualizarBotaoFollow(), 200);
     };
 }
 
