@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head><link rel="manifest" href="/manifest.json">
+<head>
+    <link rel="manifest" href="/gente-da-feira/manifest.json">
 <meta name="theme-color" content="#CC0000">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -222,7 +223,7 @@ Seguindo
     <script src="app.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js')
+  navigator.serviceWorker.register('/gente-da-feira/service-worker.js')
     .then(() => console.log('SW registrado'))
     .catch(err => console.error('Erro SW', err));
 }
