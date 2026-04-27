@@ -41,6 +41,35 @@
         </div>
     </section>
 
+    <section id="onboarding-screen" class="hidden p-6 max-w-sm mx-auto text-center animate-fade-in">
+
+    <div class="mb-10 mt-10">
+        <h2 class="text-2xl font-black text-feira-marinho">Complete seu perfil</h2>
+        <p class="text-gray-400 text-sm mt-2">Precisamos de alguns dados básicos</p>
+    </div>
+
+    <div class="space-y-3">
+        <input id="onb-username" type="text" placeholder="Seu nome ou apelido"
+            class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
+
+        <select id="onb-bairro"
+            class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
+            <option value="">Selecione seu bairro</option>
+            <option>Centro</option>
+            <option>SIM</option>
+            <option>Tomba</option>
+            <option>Mangabeira</option>
+            <option>Feira IX</option>
+        </select>
+
+        <button onclick="finalizarOnboarding()"
+            class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">
+            Entrar
+        </button>
+    </div>
+
+</section>
+
     <section id="form-post" class="hidden p-6 max-w-xl mx-auto animate-fade-in">
         <div class="flex justify-between items-center mb-6">
             <button onclick="irParaHome()" class="text-xs font-black uppercase text-gray-400">Cancelar</button>
