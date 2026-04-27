@@ -20,35 +20,32 @@ window.onload = async () => {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ✅ AUTH LISTENER (COM PROFILE AUTO-CREATE)
-    _supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session) {
+   _supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
 
-            const { data: profile } = await _supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', session.user.id)
-                .maybeSingle();
+        const { data: profile } = await _supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .maybeSingle();
 
-            if (!profile) {
-                await _supabase.from('profiles').insert({
-                    id: session.user.id,
-                    username: 'Morador',
-                    bairro: 'Centro'
-                });
-            }
-
-            document.getElementById('btn-sair')?.classList.remove('hidden');
-            document.getElementById('main-nav')?.classList.remove('hidden');
-            irParaHome();
-
-        } else {
-            document.getElementById('btn-sair')?.classList.add('hidden');
-            document.getElementById('main-nav')?.classList.add('hidden');
-            document.getElementById('feed-tabs')?.classList.add('hidden');
-            mostrarTela('auth-screen');
+        // 🔥 AQUI ESTÁ A MUDANÇA
+        if (!profile) {
+            showOnboarding();
+            return;
         }
-    });
 
+        document.getElementById('btn-sair')?.classList.remove('hidden');
+        document.getElementById('main-nav')?.classList.remove('hidden');
+        irParaHome();
+
+    } else {
+        document.getElementById('btn-sair')?.classList.add('hidden');
+        document.getElementById('main-nav')?.classList.add('hidden');
+        document.getElementById('feed-tabs')?.classList.add('hidden');
+        mostrarTela('auth-screen');
+    }
+});
     // ✅ REALTIME
     _supabase.channel('fsa-updates')
         .on('postgres_changes', { event: '*', schema: 'public' }, () => {
