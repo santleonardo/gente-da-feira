@@ -872,3 +872,45 @@ window.verPerfil = async (userId) => {
         setupFollowButton();
     }
 };
+// BUSCA PRINCIPAL
+async function buscar() {
+  const query = document.getElementById('searchInput').value;
+
+  if (!query) return;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .ilike('categoria', `%${query}%`);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  renderResultados(data);
+}
+
+// RENDER RESULTADOS
+function renderResultados(lista) {
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+
+  if (lista.length === 0) {
+    container.innerHTML = '<p>Nenhum resultado encontrado</p>';
+    return;
+  }
+
+  lista.forEach(item => {
+    container.innerHTML += `
+      <div class="border p-3 rounded mb-2 bg-white">
+        <h3 class="font-bold">${item.nome}</h3>
+        <p class="text-sm">${item.categoria} - ${item.bairro}</p>
+        <a href="https://wa.me/${item.telefone}" 
+           class="text-blue-500 font-bold">
+           Falar agora
+        </a>
+      </div>
+    `;
+  });
+}
