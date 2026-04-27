@@ -66,6 +66,34 @@ function showOnboarding() {
     mostrarTela('onboarding-screen');
 }
 
+window.finalizarOnboarding = async () => {
+    const username = document.getElementById('onb-username').value.trim();
+    const bairro = document.getElementById('onb-bairro').value;
+
+    if (!username) return alert('Digite seu nome');
+    if (!bairro) return alert('Selecione seu bairro');
+
+    const { data: { session } } = await _supabase.auth.getSession();
+
+    if (!session) {
+        alert('Erro de sessão');
+        return;
+    }
+
+    const { error } = await _supabase.from('profiles').insert({
+        id: session.user.id,
+        username: username,
+        bairro: bairro
+    });
+
+    if (error) {
+        alert('Erro ao salvar: ' + error.message);
+        return;
+    }
+
+    irParaHome();
+};
+
 function mostrarTela(id) {
     const telas = ['auth-screen', 'feed-container', 'form-post', 'view-profile-screen', 'edit-profile-screen'];
     telas.forEach(t => document.getElementById(t)?.classList.add('hidden'));
