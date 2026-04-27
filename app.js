@@ -62,6 +62,10 @@ window.onload = async () => {
         .subscribe();
 };
 
+function showOnboarding() {
+    mostrarTela('onboarding-screen');
+}
+
 function mostrarTela(id) {
     const telas = ['auth-screen', 'feed-container', 'form-post', 'view-profile-screen', 'edit-profile-screen'];
     telas.forEach(t => document.getElementById(t)?.classList.add('hidden'));
