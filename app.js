@@ -914,3 +914,14 @@ function renderResultados(lista) {
     `;
   });
 }
+function abrirEmpregos() {
+  alert("Tela de empregos (implementar depois)");
+}
+
+function abrirPromocoes() {
+  alert("Tela de promoções");
+}
+
+function abrirServicos() {
+  alert("Tela de serviços");
+}
