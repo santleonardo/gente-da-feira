@@ -6,25 +6,21 @@
   <title>Gente da Feira</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 </head>
 
 <body class="bg-[#FDFDF7] text-gray-800">
 
-  <!-- 🔝 HEADER LIMPO -->
+  <!-- HEADER -->
   <div class="flex justify-between items-center p-4 max-w-xl mx-auto">
     <div>
       <p class="text-xs text-gray-500">📍 Sua área</p>
       <h1 class="font-bold text-lg">Mangabeira</h1>
     </div>
-
     <button class="text-sm text-gray-500">Sair</button>
   </div>
 
-  <!-- 🔍 BUSCA PRINCIPAL -->
+  <!-- BUSCA -->
   <div class="p-4 max-w-xl mx-auto">
     <input
       id="searchInput"
@@ -34,7 +30,7 @@
     />
   </div>
 
-  <!-- 🔥 AÇÕES PRINCIPAIS -->
+  <!-- AÇÕES -->
   <div class="grid grid-cols-2 gap-3 px-4 max-w-xl mx-auto">
 
     <button onclick="abrirEmpregos()" class="bg-white p-3 rounded-xl shadow">
@@ -55,32 +51,18 @@
 
   </div>
 
-  <!-- 🔥 ACONTECENDO AGORA -->
-  <div class="p-4 max-w-xl mx-auto">
-    <h2 class="font-bold mb-2">🔥 Acontecendo agora</h2>
-
-    <div id="agora" class="space-y-2">
-      <!-- dados dinâmicos depois -->
-    </div>
-  </div>
-
-  <!-- 📊 RESULTADOS DA BUSCA -->
+  <!-- RESULTADOS -->
   <div id="results" class="p-4 max-w-xl mx-auto"></div>
 
-  <!-- 💬 FEED (REBAIXADO) -->
-  <div class="p-4 max-w-xl mx-auto">
-    <h2 class="text-sm text-gray-500 mb-2">Atividade do bairro</h2>
-
-    <div id="feed">
-      <!-- seu feed atual pode ficar aqui -->
-    </div>
-  </div>
-
-  <!-- ➕ BOTÃO FLUTUANTE -->
+  <!-- BOTÃO -->
   <button class="fixed bottom-20 right-4 bg-yellow-400 w-14 h-14 rounded-full shadow-lg text-xl">
     +
   </button>
-  <script src="// BUSCA PRINCIPAL
+
+  <!-- SCRIPT COMPLETO -->
+  <script>
+
+  // BUSCA PRINCIPAL
 async function buscar() {
   const query = document.getElementById('searchInput').value;
 
@@ -135,7 +117,8 @@ function abrirPromocoes() {
 
 function abrirServicos() {
   alert("Tela de serviços");
-}"></script>
+}
+  </script>
 
 </body>
 </html>
