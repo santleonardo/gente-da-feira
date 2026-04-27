@@ -1,62 +1,19 @@
-const CACHE_NAME = 'gente-da-feira-v2';
-
-const BASE = '/gente-da-feira';
-
+const CACHE_NAME = 'gdf-v1';
 const ASSETS = [
-  `${BASE}/`,
-  `${BASE}/index.html`,
-  `${BASE}/app.js`,
-  `${BASE}/manifest.json`,
-  `${BASE}/icon-192.png`,
-  `${BASE}/icon-512.png`
+  '/',
+  '/index.html',
+  '/app.js',
+  '/styles.css'
 ];
 
-// instala
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
-      .catch(err => console.error('Cache error:', err))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
 });
 
-// ativa
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.map(key => key !== CACHE_NAME && caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-// fetch
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-
-  // nunca mexer com supabase
-  if (request.url.includes('supabase.co')) return;
-
-  if (request.method !== 'GET') return;
-
+self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(request)
-        .then(response => {
-          const clone = response.clone();
-
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, clone);
-          });
-
-          return response;
-        })
-        .catch(() => caches.match(`${BASE}/index.html`));
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
