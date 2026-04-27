@@ -23,6 +23,30 @@
 <body class="text-gray-900 pb-24 overflow-x-hidden">
 
     <header class="p-6 flex justify-between items-center max-w-xl mx-auto">
+        <section id="home" class="p-4 max-w-xl mx-auto">
+
+  <!-- LOCAL -->
+  <h2 class="text-lg font-bold">📍 Mangabeira agora</h2>
+
+  <!-- BUSCA PRINCIPAL -->
+  <input 
+    id="searchInput"
+    placeholder="O que você precisa agora?"
+    class="w-full mt-3 p-3 rounded-lg border"
+  />
+
+  <!-- BOTÕES PRINCIPAIS -->
+  <div class="grid grid-cols-2 gap-2 mt-4 text-sm font-bold">
+    <button onclick="abrirEmpregos()">💼 Emprego hoje</button>
+    <button onclick="abrirPromocoes()">💸 Promoções</button>
+    <button onclick="abrirServicos()">🧑‍🔧 Serviços</button>
+    <button onclick="buscar()">🔍 Buscar</button>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div id="results" class="mt-6"></div>
+
+</section>
         <h1 class="text-2xl font-black tracking-tighter text-feira-marinho italic underline decoration-feira-yellow decoration-4">GENTE DA <span class="text-feira-yellow">FEIRA</span></h1>
         <button id="btn-sair" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-all">Sair</button>
     </header>
