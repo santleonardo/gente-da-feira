@@ -1,52 +1,85 @@
-const CACHE_NAME = 'gente-da-feira-v1';
-// arquivos essenciais (opcional)
+const CACHE_NAME = 'gente-da-feira-v2';
+const BASE_PATH = '/gente-da-feira';
+
+// Arquivos essenciais para precaching
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/app.js`,
+  `${BASE_PATH}/manifest.json`,
+  `${BASE_PATH}/icon-192.png`,
+  `${BASE_PATH}/icon-512.png`,
+  `${BASE_PATH}/icon-maskable-192.png`,
+  `${BASE_PATH}/icon-maskable-512.png`
 ];
-// instala
+
+// Instala e precacheia os arquivos essenciais
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(ASSETS).catch(err => {
+        console.error('Erro ao cachear assets:', err);
+      });
+    })
   );
   self.skipWaiting();
 });
-// ativa
+
+// Ativa e remove caches antigos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
         keys.map(key => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key !== CACHE_NAME) {
+            console.log('Deletando cache antigo:', key);
+            return caches.delete(key);
+          }
         })
       )
     )
   );
   self.clients.claim();
 });
-// intercepta requests
+
+// Intercepta requests com estratégia Network First para dados dinâmicos
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  // 🚫 nunca mexer com API (Supabase)
-  if (request.url.includes('supabase.co')) return;
-  // 🚫 só cacheia GET
-  if (request.method !== 'GET') return;
+  
+  // 🚫 Nunca cachear chamadas da API Supabase
+  if (request.url.includes('supabase.co')) {
+    return;
+  }
+  
+  // 🚫 Só cachear GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+  
+  // Estratégia Network First com Cache Fallback
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(request, clone);
-        });
+    fetch(request)
+      .then(response => {
+        // Cachear resposta bem-sucedida
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, clone);
+          });
+        }
         return response;
-      });
-    }).catch(() => {
-      return caches.match('/index.html'); // fallback offline
-    })
+      })
+      .catch(() => {
+        // Se falhou, tenta buscar do cache
+        return caches.match(request).then(cached => {
+          if (cached) {
+            return cached;
+          }
+          // Fallback para página offline
+          if (request.mode === 'navigate') {
+            return caches.match(`${BASE_PATH}/index.html`);
+          }
+        });
+      })
   );
 });
