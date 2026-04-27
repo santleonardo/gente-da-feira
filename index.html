@@ -1,227 +1,89 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <link rel="manifest" href="/gente-da-feira/manifest.json">
-<meta name="theme-color" content="#CC0000">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gente da Feira |FSA</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = { theme: { extend: { colors: { 'feira-yellow': '#FFD700', 'feira-bege': '#FDFDF7', 'feira-marinho': '#1E3A5F', 'feira-bronze': '#CD7F32' } } } }
-    </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #FDFDF7; }
-        .hidden { display: none !important; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        button:active { transform: scale(0.95); transition: 0.1s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gente da Feira</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
 </head>
-<body class="text-gray-900 pb-24 overflow-x-hidden">
 
-    <header class="p-6 flex justify-between items-center max-w-xl mx-auto">
-        <section id="home" class="p-4 max-w-xl mx-auto">
+<body class="bg-[#FDFDF7] text-gray-800">
 
-  <!-- LOCAL -->
-  <h2 class="text-lg font-bold">📍 Mangabeira agora</h2>
+  <!-- 🔝 HEADER LIMPO -->
+  <div class="flex justify-between items-center p-4 max-w-xl mx-auto">
+    <div>
+      <p class="text-xs text-gray-500">📍 Sua área</p>
+      <h1 class="font-bold text-lg">Mangabeira</h1>
+    </div>
 
-  <!-- BUSCA PRINCIPAL -->
-  <input 
-    id="searchInput"
-    placeholder="O que você precisa agora?"
-    class="w-full mt-3 p-3 rounded-lg border"
-  />
-
-  <!-- BOTÕES PRINCIPAIS -->
-  <div class="grid grid-cols-2 gap-2 mt-4 text-sm font-bold">
-    <button onclick="abrirEmpregos()">💼 Emprego hoje</button>
-    <button onclick="abrirPromocoes()">💸 Promoções</button>
-    <button onclick="abrirServicos()">🧑‍🔧 Serviços</button>
-    <button onclick="buscar()">🔍 Buscar</button>
+    <button class="text-sm text-gray-500">Sair</button>
   </div>
 
-  <!-- RESULTADOS -->
-  <div id="results" class="mt-6"></div>
+  <!-- 🔍 BUSCA PRINCIPAL -->
+  <div class="p-4 max-w-xl mx-auto">
+    <input
+      id="searchInput"
+      placeholder="O que você precisa agora?"
+      class="w-full p-4 rounded-xl border text-lg"
+      onkeypress="if(event.key==='Enter') buscar()"
+    />
+  </div>
 
-</section>
-        <h1 class="text-2xl font-black tracking-tighter text-feira-marinho italic underline decoration-feira-yellow decoration-4">GENTE DA <span class="text-feira-yellow">FEIRA</span></h1>
-        <button id="btn-sair" onclick="fazerLogout()" class="hidden text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-all">Sair</button>
-    </header>
+  <!-- 🔥 AÇÕES PRINCIPAIS -->
+  <div class="grid grid-cols-2 gap-3 px-4 max-w-xl mx-auto">
 
-    <section id="auth-screen" class="hidden p-6 max-w-sm mx-auto text-center animate-fade-in">
-        <div class="mb-10 mt-10">
-            <h2 class="text-3xl font-black text-feira-marinho">O portal da sua cidade</h2>
-            <p class="text-gray-400 text-sm mt-2 font-medium">Conecte-se com a gente!</p>
-        </div>
-        <div class="space-y-3">
-            <input id="auth-email" type="email" placeholder="Seu e-mail" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
-            <input id="auth-password" type="password" placeholder="Sua senha" class="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:ring-2 ring-feira-yellow">
-            <div class="flex gap-2 pt-4">
-                <button onclick="fazerLogin()" class="flex-1 bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Entrar</button>
-                <button onclick="fazerCadastro()" class="flex-1 bg-white text-feira-marinho py-4 rounded-2xl font-black uppercase border border-gray-100">Criar Conta</button>
-            </div>
-        </div>
-    </section>
+    <button onclick="abrirEmpregos()" class="bg-white p-3 rounded-xl shadow">
+      💼 Emprego hoje
+    </button>
 
-    <section id="form-post" class="hidden p-6 max-w-xl mx-auto animate-fade-in">
-        <div class="flex justify-between items-center mb-6">
-            <button onclick="irParaHome()" class="text-xs font-black uppercase text-gray-400">Cancelar</button>
-            <h3 class="font-black text-feira-marinho uppercase tracking-widest text-xs">Novo Aviso</h3>
-            <div class="w-10"></div>
-        </div>
-        <textarea id="post-content" placeholder="O que acontece? Como está? Dê a idéa!" class="w-full h-40 p-6 rounded-[2.5rem] bg-white border border-gray-50 shadow-sm outline-none text-lg resize-none"></textarea>
-        <div class="mt-4">
-    <p class="text-xs font-bold text-gray-600 mb-2">📍 Avisar em quais bairros?</p>
-    <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-xl">
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Centro" class="rounded">
-            <span>Centro</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Mangabeira" class="rounded">
-            <span>Mangabeira</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Queimadinha" class="rounded">
-            <span>Queimadinha</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Campo Limpo" class="rounded">
-            <span>Campo Limpo</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Tomba" class="rounded">
-            <span>Tomba</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="SIM" class="rounded">
-            <span>SIM</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Feira IX" class="rounded">
-            <span>Feira IX</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="George Américo" class="rounded">
-            <span>George Américo</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Brasília" class="rounded">
-            <span>Brasília</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Sobradinho" class="rounded">
-            <span>Sobradinho</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Conceição" class="rounded">
-            <span>Conceição</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Kalilândia" class="rounded">
-            <span>Kalilândia</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Aviário" class="rounded">
-            <span>Aviário</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Baraúnas" class="rounded">
-            <span>Baraúnas</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Santa Mônica" class="rounded">
-            <span>Santa Mônica</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Papagaio" class="rounded">
-            <span>Papagaio</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" name="bairro-publicar" value="Jardim Acácia" class="rounded">
-            <span>Jardim Acácia</span>
-        </label>
+    <button onclick="abrirPromocoes()" class="bg-white p-3 rounded-xl shadow">
+      💸 Promoções
+    </button>
+
+    <button onclick="abrirServicos()" class="bg-white p-3 rounded-xl shadow">
+      🧑‍🔧 Serviços
+    </button>
+
+    <button onclick="buscar()" class="bg-white p-3 rounded-xl shadow">
+      🔍 Buscar
+    </button>
+
+  </div>
+
+  <!-- 🔥 ACONTECENDO AGORA -->
+  <div class="p-4 max-w-xl mx-auto">
+    <h2 class="font-bold mb-2">🔥 Acontecendo agora</h2>
+
+    <div id="agora" class="space-y-2">
+      <!-- dados dinâmicos depois -->
     </div>
-</div>
-        <button onclick="salvarPost()" class="w-full mt-4 bg-feira-yellow text-feira-marinho py-5 rounded-[2rem] font-black uppercase shadow-xl">Avisar</button>
-    </section>
+  </div>
 
-    <section id="view-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-10 animate-fade-in">
-        <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100 text-center">
-            <div id="view-avatar" class="w-24 h-24 rounded-3xl mx-auto mb-4 bg-feira-yellow bg-cover bg-center shadow-lg border-4 border-white flex items-center justify-center text-3xl font-black text-feira-marinho"></div>
-            <h2 id="view-username" class="text-2xl font-black text-feira-marinho mb-1">---</h2>
-            <p id="view-bairro" class="text-xs font-bold text-feira-bronze uppercase tracking-widest mb-4">---</p>
-            <p id="view-bio" class="text-gray-500 text-sm italic mb-6 px-4">---</p>
-            <button id="follow-btn" class="w-full bg-feira-yellow text-feira-marinho py-3 rounded-2xl font-black uppercase text-xs">
-  Seguir
-</button>
-            <button id="btn-editar-perfil"
-        onclick="abrirEdicaoPerfil()"
-        class="w-full bg-gray-50 text-feira-marinho py-3 rounded-2xl font-black uppercase text-[10px] mb-8">
-    Editar Perfil
-</button>
-            <div id="meu-historico-container" class="border-t border-dashed border-gray-100 pt-6 text-left">
-               <h3 id="titulo-historico"
-    class="font-black text-feira-marinho text-sm uppercase mb-4">
-    Meus Avisos
-</h3>
-                <div id="meu-historico-feed" class="space-y-4"></div>
-            </div>
-        </div>
-    </section>
+  <!-- 📊 RESULTADOS DA BUSCA -->
+  <div id="results" class="p-4 max-w-xl mx-auto"></div>
 
-    <section id="edit-profile-screen" class="hidden p-6 max-w-xl mx-auto pb-10 animate-fade-in">
-        <div class="bg-white rounded-[3rem] p-8 shadow-xl border border-gray-100">
-            <h2 class="text-xl font-black text-feira-marinho mb-6 uppercase tracking-tighter">Ajustar Perfil</h2>
-            <div class="space-y-4">
-                <input type="text" id="profile-username" placeholder="Nome ou Empresa" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-                <input type="text" id="profile-bio" placeholder="Sua Bio" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-                <div class="mb-4">
-    <label class="block text-xs font-bold text-gray-600 mb-2">Foto de Perfil</label>
-    <input type="file" id="profile-avatar-file" accept="image/*" 
-           class="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl p-3">
-    <input type="hidden" id="profile-avatar-url">
-</div>
-                <select id="profile-bairro" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 ring-feira-yellow">
-                    <option value="Centro">Centro</option>
-                    <option value="SIM">SIM</option>
-                    <option value="Tomba">Tomba</option>
-                    <option value="Cidade Nova">Cidade Nova</option>
-                    <option value="Mangabeira">Mangabeira</option>
-                </select>
-                <button onclick="salvarPerfil()" class="w-full bg-feira-marinho text-white py-4 rounded-2xl font-black uppercase shadow-lg">Salvar Perfil</button>
-                <button onclick="mostrarPerfilProprio()" class="w-full text-gray-400 py-2 text-[10px] font-bold uppercase">Cancelar</button>
-            </div>
-        </div>
-    </section>
+  <!-- 💬 FEED (REBAIXADO) -->
+  <div class="p-4 max-w-xl mx-auto">
+    <h2 class="text-sm text-gray-500 mb-2">Atividade do bairro</h2>
 
-    <nav id="feed-tabs" class="hidden max-w-xl mx-auto px-4 pt-4 flex gap-2">
-        <button onclick="mudarFeed('Seguindo')" id="tab-seguindo"
-class="flex-1 py-3 text-gray-400 font-bold">
-Seguindo
-</button>
-        <button onclick="mudarFeed('Geral')" id="tab-geral" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-feira-marinho text-white shadow-md">Feira Toda</button>
-        <button onclick="mudarFeed('Local')" id="tab-local" class="flex-1 py-3 rounded-2xl font-black uppercase text-[10px] bg-white text-gray-400 border border-gray-100">Minha Área</button>
-    </nav>
-    <main id="feed-container" class="hidden p-4 space-y-4 min-h-screen max-w-xl mx-auto"></main>
+    <div id="feed">
+      <!-- seu feed atual pode ficar aqui -->
+    </div>
+  </div>
 
-    <footer id="main-nav" class="hidden fixed bottom-0 w-full bg-white border-t-2 border-gray-100 flex justify-around p-3 z-50 shadow-2xl">
-        <button onclick="irParaHome()" class="text-2xl">🏠</button>
-        <button onclick="abrirPostagem()" class="bg-feira-yellow w-14 h-14 rounded-2xl font-black -mt-10 border-4 border-white shadow-xl flex items-center justify-center text-feira-marinho text-2xl">+</button>
-        <button onclick="mostrarPerfilProprio()" class="text-2xl">👤</button>
-    </footer>
+  <!-- ➕ BOTÃO FLUTUANTE -->
+  <button class="fixed bottom-20 right-4 bg-yellow-400 w-14 h-14 rounded-full shadow-lg text-xl">
+    +
+  </button>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
-    <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/gente-da-feira/service-worker.js')
-      .then(() => console.log('Service Worker registrado'))
-      .catch(err => console.log('Erro no SW:', err));
-  }
-</script>
+  <!-- JS -->
+  <script src="js/supabase.js"></script>
+  <script src="js/app.js"></script>
+
 </body>
 </html>
