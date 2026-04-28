@@ -157,47 +157,46 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
             'Aviso': 'border-cinza bg-white'            // Padrão
         };
 
-        // 5. Renderização do Loop
-       // --- DENTRO DO avisos.forEach DA FUNÇÃO carregarFeed ---
+      // 5. Renderização do Loop
+        avisos.forEach(async (aviso) => {
+            // 1. Buscamos o total de apoios para este aviso específico
+            const { count: totalApoios } = await _supabase
+                .from('reacoes')
+                .select('*', { count: 'exact', head: true })
+                .eq('aviso_id', aviso.id);
 
-        // 1. Buscamos o total de apoios para este aviso específico
-        const { count: totalApoios } = await _supabase
-            .from('reacoes')
-            .select('*', { count: 'exact', head: true })
-            .eq('aviso_id', aviso.id);
+            const nomeAutor = aviso.perfis?.nome || "Vizinho";
+            const linkWhats = aviso.perfis?.whatsapp ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}` : null;
+            
+            // Formata a data de forma elegante
+            const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
-        const nomeAutor = aviso.perfis?.nome || "Vizinho";
-        const linkWhats = aviso.perfis?.whatsapp ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}` : null;
-        
-        // Formata a data de forma elegante
-        const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-
-        feedContainer.innerHTML += `
-            <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
-                <div class="flex justify-between items-start">
-                    <div class="flex gap-2 items-center">
-                        <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-creme px-2 py-0.5 rounded">${aviso.categoria}</span>
-                        <span class="text-[9px] font-bold uppercase text-marinho/50">${aviso.bairro_alvo}</span>
+            feedContainer.innerHTML += `
+                <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-creme px-2 py-0.5 rounded">${aviso.categoria}</span>
+                            <span class="text-[9px] font-bold uppercase text-marinho/50">${aviso.bairro_alvo}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
                     </div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
-                </div>
-                
-                <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
-                <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
-                
-                <div class="flex items-center justify-between pt-4 border-t border-cinza/30">
-                    <div class="flex gap-2">
-                        ${linkWhats ? 
-                            `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` 
-                            : ''
-                        }
-                        <button onclick="toggleApoio(${aviso.id})" class="flex items-center gap-2 px-4 py-2 bg-creme border border-cinza rounded-lg text-[10px] font-black text-marinho active:bg-amarelo transition-colors">
-                            🙌 <span class="opacity-60">APOIAR</span> <span>${totalApoios || 0}</span>
-                        </button>
+                    
+                    <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
+                    <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
+                    
+                    <div class="flex items-center justify-between pt-4 border-t border-cinza/30">
+                        <div class="flex gap-2">
+                            ${linkWhats ? 
+                                `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` 
+                                : ''
+                            }
+                            <button onclick="toggleApoio(${aviso.id})" class="flex items-center gap-2 px-4 py-2 bg-creme border border-cinza rounded-lg text-[10px] font-black text-marinho active:bg-amarelo transition-colors">
+                                🙌 <span class="opacity-60">APOIAR</span> <span>${totalApoios || 0}</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>`;
-        });
+                </div>`;
+        }); // Fim do forEach
 
     } catch (err) {
         console.error("Erro Crítico no Feed:", err.message);
