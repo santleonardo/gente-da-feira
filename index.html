@@ -102,6 +102,38 @@
             <button type="submit" class="w-full bg-amarelo text-marinho py-4 rounded-xl font-black uppercase tracking-widest shadow-lg active:bg-white transition-colors">Publicar Agora</button>
         </form>
     </dialog>
+    <dialog id="modal-perfil" class="rounded-2xl shadow-2xl p-0 w-full max-w-md bg-creme overflow-hidden backdrop:bg-marinho/60">
+    <div class="bg-marinho p-6 text-white text-center relative">
+        <button onclick="document.getElementById('modal-perfil').close()" class="absolute right-4 top-4 text-amarelo font-bold text-xl">×</button>
+        <div class="w-20 h-20 bg-amarelo rounded-full mx-auto mb-3 flex items-center justify-center border-4 border-white/20">
+            <span id="perfil-inicial" class="text-3xl font-black text-marinho uppercase">-</span>
+        </div>
+        <h2 id="perfil-nome" class="font-bold text-xl">Carregando...</h2>
+        <p id="perfil-email" class="text-xs opacity-70 italic font-light"></p>
+    </div>
+    
+    <div class="p-6 space-y-6">
+        <div class="flex justify-around border-b border-cinza pb-6 text-center">
+            <div>
+                <span class="block font-black text-marinho text-lg">0</span>
+                <span class="text-[10px] uppercase font-bold text-gray-400">Avisos</span>
+            </div>
+            <div>
+                <span id="perfil-bairro" class="block font-black text-marinho text-lg">-</span>
+                <span class="text-[10px] uppercase font-bold text-gray-400">Bairro</span>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <button class="w-full py-3 bg-white border border-cinza rounded-xl text-xs font-bold uppercase tracking-widest text-marinho active:bg-amarelo transition-colors">
+                Editar Dados
+            </button>
+            <button onclick="logout()" class="w-full py-3 text-red-500 text-[10px] font-black uppercase tracking-widest">
+                Sair da Conta
+            </button>
+        </div>
+    </div>
+</dialog>
 
     <script>
       if ('serviceWorker' in navigator) {
