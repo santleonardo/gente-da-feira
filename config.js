@@ -44,12 +44,70 @@ function toggleEditMode() {
     }
 }
 
-// 4. FUNÇÕES DE PERFIL (AS QUE VOCÊ ME MANDOU)
+// 4. FUNÇÕES DE PERFIL (VERSÃO BLINDADA)
+async function carregarDadosPerfil() {
+    const { data: { user } } = await _supabase.auth.getUser();
+    if (!user) return;
+
+    // Feedback visual básico
+    const elNomeDisp = document.getElementById('perfil-nome-display');
+    if (elNomeDisp && elNomeDisp.innerText === "") {
+        elNomeDisp.innerText = "Carregando...";
+    }
+
+    const elEmail = document.getElementById('perfil-email');
+    const elInicial = document.getElementById('perfil-inicial');
+    
+    if (elEmail) elEmail.innerText = user.email;
+    if (elInicial) elInicial.innerText = user.email.charAt(0).toUpperCase();
+
+    // .maybeSingle() evita erro se o perfil ainda não existir no banco
+    const { data: perfil, error } = await _supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (error) {
+        console.error("Erro ao buscar perfil:", error.message);
+        return;
+    }
+
+    if (perfil) {
+        // Preenchimento seguro usando IDs do HTML
+        const campos = {
+            'perfil-nome-display': perfil.nome,
+            'edit-nome': perfil.nome,
+            'edit-bairro': perfil.bairro,
+            'edit-whatsapp': perfil.whatsapp || ""
+        };
+
+        // Loop inteligente para evitar erros de "null" caso mude o HTML
+        Object.keys(campos).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                    el.value = campos[id];
+                } else {
+                    el.innerText = campos[id];
+                }
+            }
+        });
+    }
+}
+
 async function salvarPerfil(e) {
     e.preventDefault();
-    const { data: { user } } = await _supabase.auth.getUser();
     
+    const btnSalvar = e.target.querySelector('button[type="submit"]');
+    const textoOriginal = btnSalvar.innerText;
+    
+    const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return alert("Sessão expirada. Entre novamente.");
+
+    // Bloqueio de UI (Padrão Senior)
+    btnSalvar.disabled = true;
+    btnSalvar.innerText = "SALVANDO...";
 
     const dados = {
         id: user.id,
@@ -58,46 +116,22 @@ async function salvarPerfil(e) {
         whatsapp: document.getElementById('edit-whatsapp').value,
     };
 
+    // upsert com onConflict garante que ele atualize o registro existente
     const { error } = await _supabase
         .from('perfis')
-        .upsert(dados);
+        .upsert(dados, { onConflict: 'id' });
 
     if (error) {
-        alert("Erro ao salvar: " + error.message);
+        alert("Erro ao salvar em Feira: " + error.message);
     } else {
-        alert("Perfil atualizado em Feira!");
-        carregarDadosPerfil(); // Atualiza a tela
-        document.getElementById('modal-perfil').close();
+        alert("Perfil atualizado com sucesso!");
+        await carregarDadosPerfil(); // Atualiza a interface
+        const modal = document.getElementById('modal-perfil');
+        if (modal) modal.close();
     }
-}
 
-async function carregarDadosPerfil() {
-    const { data: { user } } = await _supabase.auth.getUser();
-    if (!user) return;
-
-    const elEmail = document.getElementById('perfil-email');
-    const elInicial = document.getElementById('perfil-inicial');
-    
-    if (elEmail) elEmail.innerText = user.email;
-    if (elInicial) elInicial.innerText = user.email.charAt(0).toUpperCase();
-
-    const { data: perfil } = await _supabase
-        .from('perfis')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-    if (perfil) {
-        const elNomeDisp = document.getElementById('perfil-nome-display');
-        const elEditNome = document.getElementById('edit-nome');
-        const elEditBairro = document.getElementById('edit-bairro');
-        const elEditWhats = document.getElementById('edit-whatsapp');
-
-        if (elNomeDisp) elNomeDisp.innerText = perfil.nome;
-        if (elEditNome) elEditNome.value = perfil.nome;
-        if (elEditBairro) elEditBairro.value = perfil.bairro;
-        if (elEditWhats) elEditWhats.value = perfil.whatsapp || "";
-    }
+    btnSalvar.disabled = false;
+    btnSalvar.innerText = textoOriginal;
 }
 
 // 5. FUNÇÕES DO FEED
