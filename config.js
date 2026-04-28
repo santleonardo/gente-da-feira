@@ -11,7 +11,7 @@ try {
     console.error("Falha ao iniciar Supabase.");
 }
 
-// 3. FUNÇÕES DE AUTENTICAÇÃO (Globais para o HTML encontrar)
+// 3. FUNÇÕES DE AUTENTICAÇÃO
 async function login() {
     const email = prompt("Digite seu e-mail para receber o link de acesso:");
     if (!email) return;
@@ -32,15 +32,39 @@ async function logout() {
     location.reload();
 }
 
-// 4. FUNÇÕES DO FEED E INTERFACE
+// 4. FUNÇÕES DE PERFIL E FEED
+async function carregarDadosPerfil() {
+    const { data: { user } } = await _supabase.auth.getUser();
+    if (!user) return;
+
+    // Preenche e-mail e inicial
+    const elEmail = document.getElementById('perfil-email');
+    const elInicial = document.getElementById('perfil-inicial');
+    if (elEmail) elEmail.innerText = user.email;
+    if (elInicial) elInicial.innerText = user.email.charAt(0).toUpperCase();
+
+    // Busca dados extras na tabela 'perfis'
+    const { data: perfil } = await _supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+    if (perfil) {
+        if (document.getElementById('perfil-nome')) document.getElementById('perfil-nome').innerText = perfil.nome;
+        if (document.getElementById('perfil-bairro')) document.getElementById('perfil-bairro').innerText = perfil.bairro;
+    }
+}
+
 async function checkUser() {
     const { data: { user } } = await _supabase.auth.getUser();
     const statusDiv = document.getElementById('auth-status');
-    const btnPerfil = document.getElementById('btn-perfil');
+    const btnPerfilLabel = document.querySelector('#btn-perfil span');
 
     if (user) {
         if (statusDiv) statusDiv.innerHTML = `<button onclick="logout()" class="text-[10px] font-bold border border-amarelo px-2 py-1 rounded">SAIR</button>`;
-        if (btnPerfil) btnPerfil.innerText = "MEU PERFIL";
+        if (btnPerfilLabel) btnPerfilLabel.innerText = "PERFIL";
+        carregarDadosPerfil(); // Carrega os dados assim que confirma o login
     }
 }
 
@@ -53,13 +77,9 @@ async function carregarFeed() {
         .select('*')
         .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error("Erro ao carregar feed:", error);
-        return;
-    }
+    if (error) return;
 
     feedContainer.innerHTML = '';
-
     if (avisos.length === 0) {
         feedContainer.innerHTML = '<p class="text-center py-10 opacity-50">Nenhum aviso por enquanto.</p>';
         return;
@@ -81,11 +101,12 @@ async function carregarFeed() {
     });
 }
 
-// 5. INICIALIZAÇÃO (Quando o HTML termina de carregar)
+// 5. INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     carregarFeed();
     
+    // Listener do Formulário
     const formPost = document.getElementById('form-post');
     if (formPost) {
         formPost.addEventListener('submit', async (e) => {
@@ -93,17 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const { data: { user } } = await _supabase.auth.getUser();
             
             if (!user) {
-                alert("Você precisa estar logado para publicar!");
+                alert("Você precisa entrar para publicar!");
+                login();
                 return;
             }
 
-            const titulo = document.getElementById('post-titulo').value;
-            const bairro = document.getElementById('post-bairro').value;
-            const conteudo = document.getElementById('post-conteudo').value;
-
-            const { error } = await _supabase.from('avisos').insert([
-                { titulo, conteudo, bairro_alvo: bairro, autor_id: user.id, categoria: 'Aviso' }
-            ]);
+            const { error } = await _supabase.from('avisos').insert([{ 
+                titulo: document.getElementById('post-titulo').value, 
+                conteudo: document.getElementById('post-conteudo').value, 
+                bairro_alvo: document.getElementById('post-bairro').value, 
+                autor_id: user.id, 
+                categoria: 'Aviso' 
+            }]);
 
             if (error) {
                 alert("Erro: " + error.message);
@@ -111,34 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Publicado com sucesso!");
                 document.getElementById('modal-post').close();
                 formPost.reset();
-                carregarFeed(); // Recarrega o feed na hora!
+                carregarFeed();
             }
         });
     }
-    // --- FUNÇÃO PARA PEGAR OS DADOS DO BANCO ---
-async function carregarDadosPerfil() {
-    const { data: { user } } = await _supabase.auth.getUser();
-    
-    if (user) {
-        // 1. Preenche o e-mail (que já vem na conta)
-        document.getElementById('perfil-email').innerText = user.email;
-        // 2. Coloca a inicial do e-mail no círculo amarelo
-        document.getElementById('perfil-inicial').innerText = user.email.charAt(0).toUpperCase();
-        
-        // 3. Busca nome e bairro na sua tabela 'perfis'
-        const { data: perfil } = await _supabase
-            .from('perfis')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-        if (perfil) {
-            document.getElementById('perfil-nome').innerText = perfil.nome || "Morador de Feira";
-            document.getElementById('perfil-bairro').innerText = perfil.bairro || "Bairro não informado";
-        } else {
-            document.getElementById('perfil-nome').innerText = "Novo Vizinho";
-            document.getElementById('perfil-bairro').innerText = "Feira Toda";
-        }
-    }
-}
 });
