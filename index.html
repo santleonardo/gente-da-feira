@@ -82,6 +82,16 @@
         </div>
         <form id="form-post" class="p-6 space-y-4">
             <div>
+    <label class="block text-[10px] font-bold uppercase mb-1 text-gray-400">Tipo de Postagem</label>
+    <select id="post-categoria" class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho bg-white text-sm">
+        <option value="Aviso">📢 Aviso Geral</option>
+        <option value="Vaga">💼 Vaga de Emprego</option>
+        <option value="Serviço">🛠️ Serviço / Profissional</option>
+        <option value="Alerta">⚠️ Alerta de Segurança</option>
+        <option value="Evento">🎈 Evento / Inauguração</option>
+    </select>
+</div>
+            <div>
                 <label class="block text-[10px] font-bold uppercase mb-1">Título</label>
                 <input type="text" id="post-titulo" required placeholder="Ex: Vaga de Vendedor" class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho bg-white">
             </div>
