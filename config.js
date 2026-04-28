@@ -101,25 +101,40 @@ async function checkUser() {
     }
 }
 
-async function carregarFeed() {
+async function carregarFeed(bairroFiltro = 'Feira Toda') {
     const feedContainer = document.getElementById('feed');
     if (!feedContainer) return;
 
-    const { data: avisos, error } = await _supabase
+    // Início da query - Segurança: Selecionamos apenas o necessário
+    let query = _supabase
         .from('avisos')
-        .select('*')
+        .select(`
+            *,
+            perfis (nome, whatsapp)
+        `) // Isso é um JOIN: traz os dados do autor automaticamente
         .order('created_at', { ascending: false });
 
-    if (error) return;
+    // PASSO 3: Filtro Dinâmico
+    if (bairroFiltro !== 'Feira Toda') {
+        query = query.eq('bairro_alvo', bairroFiltro);
+    }
 
-    feedContainer.innerHTML = '';
-    if (avisos.length === 0) {
-        feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso por enquanto.</p>';
+    const { data: avisos, error } = await query;
+
+    if (error) {
+        console.error("Erro na Auditoria de Feed:", error.message);
         return;
     }
 
+    feedContainer.innerHTML = '';
+
     avisos.forEach(aviso => {
         const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
+        const nomeAutor = aviso.perfis?.nome || "Vizinho de Feira";
+        const linkWhats = aviso.perfis?.whatsapp 
+            ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}?text=Olá%20${nomeAutor},%20vi%20seu%20aviso%20no%20Gente%20da%20Feira`
+            : null;
+
         feedContainer.innerHTML += `
             <div class="p-5 bg-white rounded-xl border-b-4 border-amarelo shadow-sm space-y-2">
                 <div class="flex justify-between items-start">
@@ -127,8 +142,13 @@ async function carregarFeed() {
                     <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
                 </div>
                 <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
+                <p class="text-xs text-gray-500">Postado por: <span class="font-bold text-marinho">${nomeAutor}</span></p>
                 <p class="text-sm text-escuro/80">${aviso.conteudo}</p>
-                <button class="w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm font-bold active:bg-amarelo transition-colors">Ver detalhes</button>
+                
+                ${linkWhats ? 
+                    `<a href="${linkWhats}" target="_blank" class="block w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-colors">Falar com anunciante</a>` 
+                    : `<button disabled class="w-full bg-gray-100 text-gray-400 py-2 rounded-lg text-sm font-bold cursor-not-allowed">Contato não disponível</button>`
+                }
             </div>
         `;
     });
