@@ -260,10 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Listener do NOVO Formulário de Perfil
+    // Listener do Formulário de Perfil
     const formPerfil = document.getElementById('form-perfil');
     if (formPerfil) {
         formPerfil.addEventListener('submit', salvarPerfil);
     }
 });
-}
