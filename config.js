@@ -197,3 +197,19 @@ document.addEventListener('DOMContentLoaded', () => {
         formPerfil.addEventListener('submit', salvarPerfil);
     }
 });
+function filtrar(bairro) {
+    // 1. Recarrega o feed com o filtro
+    carregarFeed(bairro);
+
+    // 2. Estilização Visual (Troca a cor do botão ativo)
+    const botoes = document.querySelectorAll('.btn-bairro');
+    botoes.forEach(btn => {
+        if (btn.innerText === bairro) {
+            btn.classList.add('bg-marinho', 'text-white');
+            btn.classList.remove('bg-white', 'text-marinho');
+        } else {
+            btn.classList.remove('bg-marinho', 'text-white');
+            btn.classList.add('bg-white', 'text-marinho');
+        }
+    });
+}
