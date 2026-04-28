@@ -108,31 +108,41 @@
         <div class="w-20 h-20 bg-amarelo rounded-full mx-auto mb-3 flex items-center justify-center border-4 border-white/20">
             <span id="perfil-inicial" class="text-3xl font-black text-marinho uppercase">-</span>
         </div>
-        <h2 id="perfil-nome" class="font-bold text-xl">Carregando...</h2>
+        <h2 id="perfil-nome-display" class="font-bold text-xl">Vizinho Novo</h2>
         <p id="perfil-email" class="text-xs opacity-70 italic font-light"></p>
     </div>
     
-    <div class="p-6 space-y-6">
-        <div class="flex justify-around border-b border-cinza pb-6 text-center">
-            <div>
-                <span class="block font-black text-marinho text-lg">0</span>
-                <span class="text-[10px] uppercase font-bold text-gray-400">Avisos</span>
-            </div>
-            <div>
-                <span id="perfil-bairro" class="block font-black text-marinho text-lg">-</span>
-                <span class="text-[10px] uppercase font-bold text-gray-400">Bairro</span>
-            </div>
+    <form id="form-perfil" class="p-6 space-y-4">
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1 text-gray-400">Nome Completo</label>
+            <input type="text" id="edit-nome" required placeholder="Como quer ser chamado?" class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho bg-white text-sm">
+        </div>
+        
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1 text-gray-400">Seu Bairro em Feira</label>
+            <select id="edit-bairro" class="w-full p-3 border border-cinza rounded-lg bg-white outline-none text-sm">
+                <option value="Tomba">Tomba</option>
+                <option value="SIM">SIM</option>
+                <option value="Campo Limpo">Campo Limpo</option>
+                <option value="Centro">Centro</option>
+                <option value="Outro">Outro</option>
+            </select>
         </div>
 
-        <div class="space-y-3">
-            <button class="w-full py-3 bg-white border border-cinza rounded-xl text-xs font-bold uppercase tracking-widest text-marinho active:bg-amarelo transition-colors">
-                Editar Dados
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1 text-gray-400">WhatsApp (Para contatos nos avisos)</label>
+            <input type="tel" id="edit-whatsapp" placeholder="75 99999-9999" class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho bg-white text-sm">
+        </div>
+
+        <div class="pt-2 space-y-3">
+            <button type="submit" class="w-full py-3 bg-amarelo text-marinho rounded-xl text-xs font-black uppercase tracking-widest shadow-md active:scale-95 transition-transform">
+                Salvar Meu Perfil
             </button>
-            <button onclick="logout()" class="w-full py-3 text-red-500 text-[10px] font-black uppercase tracking-widest">
+            <button type="button" onclick="logout()" class="w-full py-3 text-red-500 text-[10px] font-black uppercase tracking-widest opacity-60">
                 Sair da Conta
             </button>
         </div>
-    </div>
+    </form>
 </dialog>
 
     <script>
