@@ -106,13 +106,12 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
     if (!feedContainer) return;
 
     // 1. Feedback visual imediato (UX Senior)
-    feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse">Sintonizando Feira...</p>';
+    feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse text-marinho">Sintonizando Feira...</p>';
 
     try {
-        // 2. Busca o usuário logado uma única vez (Performance)
         const { data: { user } } = await _supabase.auth.getUser();
 
-        // 3. Query com JOIN Relacional (Avisos + Perfis)
+        // 2. Query com JOIN Relacional
         let query = _supabase
             .from('avisos')
             .select(`
@@ -121,30 +120,39 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
             `) 
             .order('created_at', { ascending: false });
 
-        // Aplica o filtro de bairro se necessário
         if (bairroFiltro !== 'Feira Toda') {
             query = query.eq('bairro_alvo', bairroFiltro);
         }
 
         const { data: avisos, error } = await query;
-
         if (error) throw error;
 
-        // 4. Tratamento de Feed Vazio
+        // 3. Tratamento de Feed Vazio
         if (!avisos || avisos.length === 0) {
-            feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso neste bairro ainda.</p>';
+            feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso em ' + bairroFiltro + ' ainda.</p>';
             return;
         }
 
         feedContainer.innerHTML = '';
 
-        // 5. Renderização Segura
+        // 4. Mapeamento de Estilos (Cores Neutras e Terrosas)
+        // Isso evita IFs aninhados e mantém o código limpo
+        const estilosPorCategoria = {
+            'Vaga': 'border-stone-400 bg-stone-50',     // Neutro elegante
+            'Alerta': 'border-orange-200 bg-orange-50',  // Atenção suave
+            'Serviço': 'border-amarelo bg-creme',       // Destaque profissional
+            'Evento': 'border-marinho bg-white',        // Formal e sofisticado
+            'Aviso': 'border-cinza bg-white'            // Padrão
+        };
+
+        // 5. Renderização do Loop
         avisos.forEach(aviso => {
             const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
             const nomeAutor = aviso.perfis?.nome || "Vizinho de Feira";
-            
-            // Verifica se o usuário logado é o dono (Para o botão apagar)
             const ehDono = user && user.id === aviso.autor_id;
+            
+            // Define a classe de estilo baseada na categoria
+            const estiloCard = estilosPorCategoria[aviso.categoria] || estilosPorCategoria['Aviso'];
 
             // Sanitização do Link do WhatsApp
             const linkWhats = aviso.perfis?.whatsapp 
@@ -152,24 +160,27 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
                 : null;
 
             feedContainer.innerHTML += `
-                <div class="p-5 bg-white rounded-xl border-b-4 border-amarelo shadow-sm space-y-2 relative">
+                <div class="p-5 rounded-xl border-l-8 ${estiloCard} shadow-sm space-y-2 relative transition-all animate-in fade-in duration-500">
                     <div class="flex justify-between items-start">
-                        <span class="text-[10px] font-bold uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.bairro_alvo}</span>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.categoria}</span>
+                            <span class="text-[9px] font-bold uppercase text-marinho/60">${aviso.bairro_alvo}</span>
+                        </div>
                         <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
                     </div>
                     
                     <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
-                    <p class="text-[10px] text-gray-400 font-bold">POR: <span class="text-marinho uppercase">${nomeAutor}</span></p>
-                    <p class="text-sm text-escuro/80">${aviso.conteudo}</p>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase">Publicado por: <span class="text-marinho">${nomeAutor}</span></p>
+                    <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
                     
                     <div class="flex gap-2 pt-2">
                         ${linkWhats ? 
-                            `<a href="${linkWhats}" target="_blank" class="flex-1 bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-all">Falar com anunciante</a>` 
-                            : `<button disabled class="flex-1 bg-gray-50 text-gray-300 py-2 rounded-lg text-sm font-bold cursor-not-allowed uppercase text-[10px]">Sem contato</button>`
+                            `<a href="${linkWhats}" target="_blank" class="flex-1 bg-white border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-all shadow-sm">Falar no WhatsApp</a>` 
+                            : `<button disabled class="flex-1 bg-gray-50 text-gray-300 py-2 rounded-lg text-sm font-bold cursor-not-allowed uppercase text-[9px]">Sem contato disponível</button>`
                         }
 
                         ${ehDono ? `
-                            <button onclick="apagarAviso(${aviso.id})" class="px-4 bg-red-50 text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">
+                            <button onclick="apagarAviso(${aviso.id})" class="px-4 bg-red-50 text-red-500 border border-red-100 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">
                                 Apagar
                             </button>
                         ` : ''}
@@ -180,10 +191,9 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
 
     } catch (err) {
         console.error("Erro Crítico no Feed:", err.message);
-        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO CARREGAR FEED. TENTE NOVAMENTE.</p>';
+        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO SINCRONIZAR. VERIFIQUE SUA CONEXÃO.</p>';
     }
 }
-
 async function apagarAviso(id) {
     if (!confirm("Deseja realmente remover este aviso do bairro?")) return;
 
