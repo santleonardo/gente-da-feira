@@ -28,9 +28,15 @@ self.addEventListener('activate', (event) => {
 
 // Interceptador de buscas (FETCH)
 self.addEventListener('fetch', (event) => {
-  // SEGURANÇA: Ignora requisições que não sejam GET (corrige o erro de POST do Supabase)
+  // 1. IGNORA WEBSOCKETS E REALTIME: Deixa o navegador conectar direto com o Supabase
+  if (event.request.url.includes('/realtime/v1/websocket') || !event.request.url.startsWith('http')) {
+    return; 
+  }
+
+  // 2. SEGURANÇA: Ignora requisições que não sejam GET (corrige o erro de POST do Supabase)
   if (event.request.method !== 'GET') return;
 
+  // 3. CACHE E REDE PADRÃO
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
