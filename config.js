@@ -329,6 +329,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // --- NO config.js, DENTRO DO document.addEventListener('DOMContentLoaded', ... ) ---
+
+    // 1. Escutar avisos em tempo real
+    _supabase
+        .channel('feed-geral')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos' }, payload => {
+            console.log('Novo aviso detectado:', payload.new);
+            // Recarrega o feed se o novo aviso for do bairro filtrado ou se estiver em "Feira Toda"
+            const bairroFiltro = document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda';
+            if (bairroFiltro === 'Feira Toda' || payload.new.bairro_alvo === bairroFiltro) {
+                carregarFeed(bairroFiltro);
+            }
+        })
+        .subscribe();
+
+    // 2. Escutar reações (apoios) em tempo real
+    _supabase
+        .channel('reacoes-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reacoes' }, () => {
+            // Sempre que houver um novo apoio ou remoção, atualizamos o feed para refletir os números
+            const bairroFiltro = document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda';
+            carregarFeed(bairroFiltro);
+        })
+        .subscribe();
 
     // Listener do Formulário de Perfil
     const formPerfil = document.getElementById('form-perfil');
