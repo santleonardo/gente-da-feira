@@ -105,53 +105,83 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
     const feedContainer = document.getElementById('feed');
     if (!feedContainer) return;
 
-    // Início da query - Segurança: Selecionamos apenas o necessário
-    let query = _supabase
-        .from('avisos')
-        .select(`
-            *,
-            perfis (nome, whatsapp)
-        `) // Isso é um JOIN: traz os dados do autor automaticamente
-        .order('created_at', { ascending: false });
+    // 1. Feedback visual imediato (UX Senior)
+    feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse">Sintonizando Feira...</p>';
 
-    // PASSO 3: Filtro Dinâmico
-    if (bairroFiltro !== 'Feira Toda') {
-        query = query.eq('bairro_alvo', bairroFiltro);
-    }
+    try {
+        // 2. Busca o usuário logado uma única vez (Performance)
+        const { data: { user } } = await _supabase.auth.getUser();
 
-    const { data: avisos, error } = await query;
+        // 3. Query com JOIN Relacional (Avisos + Perfis)
+        let query = _supabase
+            .from('avisos')
+            .select(`
+                *,
+                perfis:autor_id (nome, whatsapp)
+            `) 
+            .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error("Erro na Auditoria de Feed:", error.message);
-        return;
-    }
+        // Aplica o filtro de bairro se necessário
+        if (bairroFiltro !== 'Feira Toda') {
+            query = query.eq('bairro_alvo', bairroFiltro);
+        }
 
-    feedContainer.innerHTML = '';
+        const { data: avisos, error } = await query;
 
-    avisos.forEach(aviso => {
-        const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
-        const nomeAutor = aviso.perfis?.nome || "Vizinho de Feira";
-        const linkWhats = aviso.perfis?.whatsapp 
-            ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}?text=Olá%20${nomeAutor},%20vi%20seu%20aviso%20no%20Gente%20da%20Feira`
-            : null;
+        if (error) throw error;
 
-        feedContainer.innerHTML += `
-            <div class="p-5 bg-white rounded-xl border-b-4 border-amarelo shadow-sm space-y-2">
-                <div class="flex justify-between items-start">
-                    <span class="text-[10px] font-bold uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.bairro_alvo}</span>
-                    <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
+        // 4. Tratamento de Feed Vazio
+        if (!avisos || avisos.length === 0) {
+            feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso neste bairro ainda.</p>';
+            return;
+        }
+
+        feedContainer.innerHTML = '';
+
+        // 5. Renderização Segura
+        avisos.forEach(aviso => {
+            const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
+            const nomeAutor = aviso.perfis?.nome || "Vizinho de Feira";
+            
+            // Verifica se o usuário logado é o dono (Para o botão apagar)
+            const ehDono = user && user.id === aviso.autor_id;
+
+            // Sanitização do Link do WhatsApp
+            const linkWhats = aviso.perfis?.whatsapp 
+                ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}?text=Olá%20${nomeAutor},%20vi%20seu%20aviso%20no%20Gente%20da%20Feira`
+                : null;
+
+            feedContainer.innerHTML += `
+                <div class="p-5 bg-white rounded-xl border-b-4 border-amarelo shadow-sm space-y-2 relative">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] font-bold uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.bairro_alvo}</span>
+                        <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
+                    </div>
+                    
+                    <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
+                    <p class="text-[10px] text-gray-400 font-bold">POR: <span class="text-marinho uppercase">${nomeAutor}</span></p>
+                    <p class="text-sm text-escuro/80">${aviso.conteudo}</p>
+                    
+                    <div class="flex gap-2 pt-2">
+                        ${linkWhats ? 
+                            `<a href="${linkWhats}" target="_blank" class="flex-1 bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-all">Falar com anunciante</a>` 
+                            : `<button disabled class="flex-1 bg-gray-50 text-gray-300 py-2 rounded-lg text-sm font-bold cursor-not-allowed uppercase text-[10px]">Sem contato</button>`
+                        }
+
+                        ${ehDono ? `
+                            <button onclick="apagarAviso(${aviso.id})" class="px-4 bg-red-50 text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">
+                                Apagar
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
-                <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
-                <p class="text-xs text-gray-500">Postado por: <span class="font-bold text-marinho">${nomeAutor}</span></p>
-                <p class="text-sm text-escuro/80">${aviso.conteudo}</p>
-                
-                ${linkWhats ? 
-                    `<a href="${linkWhats}" target="_blank" class="block w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-colors">Falar com anunciante</a>` 
-                    : `<button disabled class="w-full bg-gray-100 text-gray-400 py-2 rounded-lg text-sm font-bold cursor-not-allowed">Contato não disponível</button>`
-                }
-            </div>
-        `;
-    });
+            `;
+        });
+
+    } catch (err) {
+        console.error("Erro Crítico no Feed:", err.message);
+        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO CARREGAR FEED. TENTE NOVAMENTE.</p>';
+    }
 }
 
 // 6. INICIALIZAÇÃO (EVENT LISTENERS)
