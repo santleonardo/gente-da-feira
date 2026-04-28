@@ -241,6 +241,11 @@ function aplicarMascaraWhatsapp(input) {
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     carregarFeed();
+    // Ativa a máscara no campo de WhatsApp do perfil
+    const inputWhats = document.getElementById('edit-whatsapp');
+    if (inputWhats) {
+        inputWhats.addEventListener('input', (e) => aplicarMascaraWhatsapp(e.target));
+    }
     
     // Listener do Formulário de Postagem
     const formPost = document.getElementById('form-post');
