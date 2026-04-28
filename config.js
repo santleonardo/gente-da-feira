@@ -241,6 +241,7 @@ function aplicarMascaraWhatsapp(input) {
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     carregarFeed();
+
     // Ativa a máscara no campo de WhatsApp do perfil
     const inputWhats = document.getElementById('edit-whatsapp');
     if (inputWhats) {
@@ -252,29 +253,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if (formPost) {
         formPost.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const { data: { user } } = await _supabase.auth.getUser();
             
-            if (!user) {
-                alert("Você precisa entrar para publicar!");
-                login();
-                return;
-            }
+            // 1. Bloqueio Ultra Senior: Feedback visual e evita duplicidade
+            const btnPublicar = e.target.querySelector('button[type="submit"]');
+            const textoOriginal = btnPublicar.innerText;
+            btnPublicar.disabled = true;
+            btnPublicar.innerText = "ENVIANDO...";
 
-            const { error } = await _supabase.from('avisos').insert([{ 
-                titulo: document.getElementById('post-titulo').value, 
-                conteudo: document.getElementById('post-conteudo').value, 
-                bairro_alvo: document.getElementById('post-bairro').value, 
-                autor_id: user.id, 
-                categoria: 'Aviso' 
-            }]);
+            try {
+                const { data: { user } } = await _supabase.auth.getUser();
+                
+                if (!user) {
+                    alert("Você precisa entrar para publicar!");
+                    login();
+                    return; // Sai da função aqui
+                }
 
-            if (error) {
-                alert("Erro: " + error.message);
-            } else {
-                alert("Publicado com sucesso!");
-                document.getElementById('modal-post').close();
-                formPost.reset();
-                carregarFeed();
+                // 2. Executa a inserção no banco
+                const { error } = await _supabase.from('avisos').insert([{ 
+                    titulo: document.getElementById('post-titulo').value, 
+                    conteudo: document.getElementById('post-conteudo').value, 
+                    bairro_alvo: document.getElementById('post-bairro').value, 
+                    autor_id: user.id, 
+                    categoria: 'Aviso' 
+                }]);
+
+                if (error) {
+                    alert("Erro ao publicar: " + error.message);
+                } else {
+                    alert("Publicado com sucesso!");
+                    document.getElementById('modal-post').close();
+                    formPost.reset();
+                    carregarFeed();
+                }
+            } catch (err) {
+                console.error("Erro inesperado:", err);
+                alert("Erro ao processar postagem.");
+            } finally {
+                // 3. Destrava o botão SEMPRE (independente de sucesso ou erro)
+                btnPublicar.disabled = false;
+                btnPublicar.innerText = textoOriginal;
             }
         });
     }
