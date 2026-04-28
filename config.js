@@ -11,7 +11,8 @@ try {
     console.error("Falha ao iniciar Supabase.");
 }
 
-// 3. FUNÇÕES DE AUTENTICAÇÃO
+// --- FUNÇÕES DE NÚCLEO (Autenticação e UI) ---
+
 async function login() {
     const email = prompt("Digite seu e-mail para receber o link de acesso:");
     if (!email) return;
@@ -21,15 +22,26 @@ async function login() {
             options: { emailRedirectTo: window.location.href }
         });
         if (error) throw error;
-        alert("Sucesso! Verifique sua caixa de entrada e SPAM.");
-    } catch (err) {
-        alert("Erro ao entrar: " + err.message);
+        alert("Link enviado! Confira seu e-mail (e a pasta de spam).");
+    } catch (e) {
+        alert("Erro no login: " + e.message);
     }
 }
 
 async function logout() {
     await _supabase.auth.signOut();
     location.reload();
+}
+
+// Essa função faz o modal trocar entre "Ver Perfil" e "Editar Perfil"
+function toggleEditMode() {
+    const viewMode = document.getElementById('view-perfil-mode');
+    const editForm = document.getElementById('form-perfil');
+    
+    if (viewMode && editForm) {
+        viewMode.classList.add('hidden');
+        editForm.classList.remove('hidden');
+    }
 }
 
 // 4. FUNÇÕES DE PERFIL (AS QUE VOCÊ ME MANDOU)
