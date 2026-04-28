@@ -213,6 +213,31 @@ async function apagarAviso(id) {
     }
 }
 
+// Função para dar ou retirar apoio a um aviso
+async function toggleApoio(avisoId) {
+    const { data: { user } } = await _supabase.auth.getUser();
+    if (!user) return login(); // Se não logado, chama o login
+
+    // Verifica se já existe um apoio
+    const { data: existente } = await _supabase
+        .from('reacoes')
+        .select('id')
+        .eq('aviso_id', avisoId)
+        .eq('usuario_id', user.id)
+        .single();
+
+    if (existente) {
+        // Remove o apoio (Unlike)
+        await _supabase.from('reacoes').delete().eq('id', existente.id);
+    } else {
+        // Adiciona o apoio (Like)
+        await _supabase.from('reacoes').insert([{ aviso_id: avisoId, usuario_id: user.id }]);
+    }
+    
+    // Recarrega o feed para mostrar o novo contador
+    carregarFeed(document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda');
+}
+
 function filtrar(bairro) {
     console.log("Filtrando por:", bairro);
     
