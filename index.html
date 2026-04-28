@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gente da Feira | Sua comunidade local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Configuração visual personalizada (Sem azul, foco em paz e elegância)
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fundo: '#F3F2EE', // Off-white sofisticado
+                        card: '#EAE9E4',  // Neutro para destaque
+                        borda: '#D4D2CB',
+                        texto: '#111110',
+                        terra: '#D47844'  // Tom de destaque quente
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-fundo text-texto min-h-screen">
+
+    <header class="sticky top-0 bg-fundo border-b border-borda z-50 p-4">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight">Gente da <span class="text-terra">Feira</span></h1>
+            <div id="auth-status">
+                <button onclick="login()" class="text-sm font-medium">Entrar</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="p-4 overflow-x-auto whitespace-nowrap border-b border-borda bg-white/50">
+        <button class="px-4 py-1 rounded-full bg-terra text-white text-sm mr-2">Feira Toda</button>
+        <button class="px-4 py-1 rounded-full bg-card text-sm mr-2">Tomba</button>
+        <button class="px-4 py-1 rounded-full bg-card text-sm mr-2">SIM</button>
+        <button class="px-4 py-1 rounded-full bg-card text-sm mr-2">Campo Limpo</button>
+    </nav>
+
+    <main id="feed" class="max-w-md mx-auto p-4 space-y-4 pb-20">
+        <div class="p-6 bg-card rounded-2xl border border-borda animate-pulse">
+            <div class="h-4 bg-borda rounded w-3/4 mb-4"></div>
+            <div class="h-3 bg-borda rounded w-full"></div>
+        </div>
+    </main>
+
+    <footer class="fixed bottom-0 left-0 right-0 bg-fundo border-t border-borda p-3">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button class="text-terra font-bold text-sm">Início</button>
+            <button onclick="document.getElementById('modal-post').showModal()" class="bg-terra text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">Postar</button>
+            <button id="btn-perfil" class="text-sm font-medium">Meu Perfil</button>
+        </div>
+    </footer>
+
+</body>
+</html>
