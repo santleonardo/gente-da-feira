@@ -52,23 +52,28 @@
         </div>
     </main>
 
-    <footer class="fixed bottom-0 left-0 right-0 bg-marinho text-white border-t border-white/10 p-4 z-40">
-        <div class="max-w-md mx-auto flex justify-around items-center">
-            <button class="flex flex-col items-center gap-1">
-                <div class="w-5 h-5 bg-amarelo rounded-sm shadow-[0_0_10px_rgba(255,215,0,0.3)]"></div>
-                <span class="text-[10px] font-bold uppercase">Início</span>
-            </button>
-            
-            <button onclick="document.getElementById('modal-post').showModal()" class="relative -top-8 bg-amarelo text-marinho w-14 h-14 rounded-full flex items-center justify-center shadow-2xl border-4 border-creme active:scale-90 transition-transform">
-                <span class="text-2xl font-bold">+</span>
-            </button>
-            
-            <button id="btn-perfil" class="flex flex-col items-center gap-1 opacity-60">
-                <div class="w-5 h-5 bg-white rounded-sm"></div>
-                <span class="text-[10px] font-bold uppercase tracking-tighter">Perfil</span>
+    <footer class="fixed bottom-0 left-0 right-0 bg-marinho text-white border-t border-white/10 p-2 z-40">
+    <div class="max-w-md mx-auto grid grid-cols-3 items-end pb-2">
+        
+        <button onclick="location.reload()" class="flex flex-col items-center gap-1 mb-1">
+            <div class="w-5 h-5 bg-amarelo rounded-sm shadow-[0_0_10px_rgba(255,215,0,0.3)]"></div>
+            <span class="text-[10px] font-bold uppercase tracking-tighter">Início</span>
+        </button>
+        
+        <div class="flex justify-center">
+            <button onclick="document.getElementById('modal-post').showModal()" 
+                class="relative -top-6 bg-amarelo text-marinho w-14 h-14 rounded-full flex items-center justify-center shadow-2xl border-4 border-creme active:scale-90 transition-transform">
+                <span class="text-3xl font-bold">+</span>
             </button>
         </div>
-    </footer>
+        
+        <button id="btn-perfil" class="flex flex-col items-center gap-1 mb-1 opacity-60">
+            <div class="w-5 h-5 bg-white rounded-sm"></div>
+            <span class="text-[10px] font-bold uppercase tracking-tighter">Perfil</span>
+        </button>
+
+    </div>
+</footer>
 
     <dialog id="modal-post" class="rounded-2xl shadow-2xl p-0 w-full max-w-md bg-creme overflow-hidden backdrop:bg-marinho/60">
         <div class="bg-marinho p-4 flex justify-between items-center text-white">
