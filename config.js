@@ -94,48 +94,101 @@ async function carregarDadosPerfil() {
         });
     }
 }
+// --- NOVO SALVAR PERFIL COM UPLOAD ---
 async function salvarPerfil(e) {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const textoOriginal = btn.innerText;
     
-    const btnSalvar = e.target.querySelector('button[type="submit"]');
-    const textoOriginal = btnSalvar.innerText;
-    
-    const { data: { user } } = await _supabase.auth.getUser();
-    if (!user) return alert("Sessão expirada. Entre novamente.");
+    try {
+        const { data: { user } } = await _supabase.auth.getUser();
+        if (!user) throw new Error("Usuário não autenticado.");
 
-    // Bloqueio de UI
-    btnSalvar.disabled = true;
-    btnSalvar.innerText = "SALVANDO...";
+        btn.disabled = true;
+        btn.innerText = "PROCESSANDO...";
 
-    const dados = {
-        id: user.id,
-        nome: document.getElementById('edit-nome').value,
-        bairro: document.getElementById('edit-bairro').value,
-        whatsapp: document.getElementById('edit-whatsapp').value,
-        avatar_url: document.getElementById('edit-avatar-url').value, // Adicionado para a foto
-    };
+        let finalAvatarUrl = document.getElementById('edit-avatar-file').dataset.currentUrl || "";
+        const fileInput = document.getElementById('edit-avatar-file');
+        const file = fileInput.files[0];
 
-    // upsert atualiza se já existir ou cria se for novo
-    const { error } = await _supabase
-        .from('perfis')
-        .upsert(dados, { onConflict: 'id' });
+        // SEGURANÇA: Validação de Arquivo (Mime-type e Tamanho)
+        if (file) {
+            if (!file.type.startsWith('image/')) throw new Error("Apenas imagens são permitidas.");
+            if (file.size > 2 * 1024 * 1024) throw new Error("Imagem muito grande (Max 2MB).");
 
-    if (error) {
-        alert("Erro ao salvar: " + error.message);
-    } else {
-        alert("Perfil atualizado!");
-        await carregarDadosPerfil(); // Recarrega os dados na tela
+            // Nome do arquivo seguro: ID do usuário + timestamp para evitar cache do navegador
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
+
+            // Upload para o Storage
+            const { error: uploadError } = await _supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            // Gera a URL pública
+            const { data: publicUrlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+            finalAvatarUrl = publicUrlData.publicUrl;
+        }
+
+        // SALVAR NO BANCO (Tabela perfis)
+        const updates = {
+            id: user.id,
+            nome: document.getElementById('edit-nome').value.trim(),
+            bairro: document.getElementById('edit-bairro').value,
+            whatsapp: document.getElementById('edit-whatsapp').value.trim(),
+            bio: document.getElementById('edit-bio').value.trim(), // Adicionado
+            avatar_url: finalAvatarUrl,
+            updated_at: new Date()
+        };
+
+        const { error: dbError } = await _supabase.from('perfis').upsert(updates);
+        if (dbError) throw dbError;
+
+        alert("Perfil atualizado com sucesso!");
+        await carregarDadosPerfil();
         
-        // Volta para o modo de visualização e fecha o modal
+        // Reset UI
         document.getElementById('form-perfil').classList.add('hidden');
         document.getElementById('view-perfil-mode').classList.remove('hidden');
-        
-        const modal = document.getElementById('modal-perfil');
-        if (modal) modal.close();
-    }
+        document.getElementById('modal-perfil').close();
 
-    btnSalvar.disabled = false;
-    btnSalvar.innerText = textoOriginal;
+    } catch (err) {
+        alert("Erro: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = textoOriginal;
+    }
+}
+
+// --- CARREGAR ATUALIZADO ---
+async function carregarDadosPerfil() {
+    const { data: { user } } = await _supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: perfil } = await _supabase.from('perfis').select('*').eq('id', user.id).maybeSingle();
+
+    if (perfil) {
+        // Visualização
+        document.getElementById('perfil-nome-display').innerText = perfil.nome || "Usuário";
+        document.getElementById('perfil-bairro-display').innerText = perfil.bairro || "Feira de Santana";
+        document.getElementById('perfil-bio-display').innerText = perfil.bio || "Sem bio definida.";
+
+        const avatarDiv = document.getElementById('perfil-avatar');
+        if (perfil.avatar_url) {
+            avatarDiv.innerHTML = `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
+            document.getElementById('edit-avatar-file').dataset.currentUrl = perfil.avatar_url;
+        } else {
+            avatarDiv.innerHTML = `<span>${perfil.nome ? perfil.nome.charAt(0).toUpperCase() : 'G'}</span>`;
+        }
+
+        // Edição
+        document.getElementById('edit-nome').value = perfil.nome || "";
+        document.getElementById('edit-bairro').value = perfil.bairro || "Tomba";
+        document.getElementById('edit-whatsapp').value = perfil.whatsapp || "";
+        document.getElementById('edit-bio').value = perfil.bio || "";
+    }
 }
 
 // 5. FUNÇÕES DO FEED
