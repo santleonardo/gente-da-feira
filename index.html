@@ -39,12 +39,12 @@
         </div>
     </header>
 
-    <nav class="p-4 overflow-x-auto whitespace-nowrap border-b border-cinza bg-white/30 backdrop-blur-sm">
-        <button class="px-4 py-1 rounded-full bg-marinho text-white text-sm mr-2 font-bold">Feira Toda</button>
-        <button class="px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium">Tomba</button>
-        <button class="px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium">SIM</button>
-        <button class="px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium">Campo Limpo</button>
-    </nav>
+    <nav id="nav-bairros" class="p-4 overflow-x-auto whitespace-nowrap border-b border-cinza bg-white/30 backdrop-blur-sm">
+    <button onclick="filtrar('Feira Toda')" class="btn-bairro px-4 py-1 rounded-full bg-marinho text-white text-sm mr-2 font-bold transition-all">Feira Toda</button>
+    <button onclick="filtrar('Tomba')" class="btn-bairro px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium transition-all">Tomba</button>
+    <button onclick="filtrar('SIM')" class="btn-bairro px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium transition-all">SIM</button>
+    <button onclick="filtrar('Campo Limpo')" class="btn-bairro px-4 py-1 rounded-full bg-white border border-cinza text-marinho text-sm mr-2 font-medium transition-all">Campo Limpo</button>
+</nav>
 
     <main id="feed" class="max-w-md mx-auto p-4 space-y-4 pb-24">
         <div class="text-center py-10 opacity-50 font-bold uppercase text-[10px] tracking-widest">
