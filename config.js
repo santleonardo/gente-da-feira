@@ -1,10 +1,17 @@
-// 1. DEFINIÇÃO DAS CHAVES (Sempre no topo)
+// 1. DEFINIÇÃO DAS CHAVES
 const SUPABASE_URL = "https://slifhevopqytdlhvvtsf.supabase.co";
-const SUPABASE_KEY = "SUA_CHAVE_ANON_AQUI"; // Certifique-se de que é a 'anon public'
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsaWZoZXZvcHF5dGRsaHZ2dHNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzk5MzAsImV4cCI6MjA5MjkxNTkzMH0.eYssLQsdushsZZ15qtZD-Dj8RaqrtE1J_Cc_u9UP-ok"; 
 
-// 2. INICIALIZAÇÃO IMEDIATA DO MOTOR
-// Usamos 'var' ou definimos direto na 'window' para garantir que as funções vejam o objeto
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 2. INICIALIZAÇÃO SEGURA
+// Usamos uma variável global para garantir acesso em todo o código
+let _supabase;
+
+try {
+    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("Motor Supabase inicializado com sucesso.");
+} catch (e) {
+    console.error("Falha ao iniciar Supabase. Verifique a ordem dos scripts no HTML.");
+}
 
 // 3. FUNÇÕES DE AUTENTICAÇÃO
 async function login() {
