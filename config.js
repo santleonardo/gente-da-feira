@@ -115,4 +115,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // --- FUNÇÃO PARA PEGAR OS DADOS DO BANCO ---
+async function carregarDadosPerfil() {
+    const { data: { user } } = await _supabase.auth.getUser();
+    
+    if (user) {
+        // 1. Preenche o e-mail (que já vem na conta)
+        document.getElementById('perfil-email').innerText = user.email;
+        // 2. Coloca a inicial do e-mail no círculo amarelo
+        document.getElementById('perfil-inicial').innerText = user.email.charAt(0).toUpperCase();
+        
+        // 3. Busca nome e bairro na sua tabela 'perfis'
+        const { data: perfil } = await _supabase
+            .from('perfis')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (perfil) {
+            document.getElementById('perfil-nome').innerText = perfil.nome || "Morador de Feira";
+            document.getElementById('perfil-bairro').innerText = perfil.bairro || "Bairro não informado";
+        } else {
+            document.getElementById('perfil-nome').innerText = "Novo Vizinho";
+            document.getElementById('perfil-bairro').innerText = "Feira Toda";
+        }
+    }
+}
 });
