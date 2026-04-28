@@ -1,6 +1,6 @@
 // CONFIGURAÇÃO DO MOTOR (SUPABASE)
-const SUPABASE_URL = "SUA_URL_AQUI";
-const SUPABASE_KEY = "SUA_CHAVE_ANON_AQUI";
+const SUPABASE_URL = "https://slifhevopqytdlhvvtsf.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsaWZoZXZvcHF5dGRsaHZ2dHNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzk5MzAsImV4cCI6MjA5MjkxNTkzMH0.eYssLQsdushsZZ15qtZD-Dj8RaqrtE1J_Cc_u9UP-ok";
 
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
