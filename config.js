@@ -96,4 +96,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // BUSCAR E EXIBIR AVISOS
+async function carregarFeed() {
+    const feedContainer = document.getElementById('feed');
+    if (!feedContainer) return;
+
+    // 1. Puxar dados do Supabase
+    const { data: avisos, error } = await _supabase
+        .from('avisos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Erro ao carregar feed:", error);
+        return;
+    }
+
+    // 2. Limpar o esqueleto de carregamento
+    feedContainer.innerHTML = '';
+
+    // 3. Gerar os cards
+    avisos.forEach(aviso => {
+        const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
+        feedContainer.innerHTML += `
+            <div class="p-5 bg-white rounded-xl border-b-4 border-amarelo shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.bairro_alvo}</span>
+                    <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
+                </div>
+                <h3 class="font-bold text-lg leading-tight mb-1 text-marinho">${aviso.titulo}</h3>
+                <p class="text-sm text-escuro/80 mb-4">${aviso.conteudo}</p>
+                <button class="w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm font-bold active:bg-amarelo transition-colors">Ver detalhes</button>
+            </div>
+        `;
+    });
+}
+
+// Chamar o feed assim que o app carregar
+document.addEventListener('DOMContentLoaded', () => {
+    checkUser();
+    carregarFeed();
+});
 });
