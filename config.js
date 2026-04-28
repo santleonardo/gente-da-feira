@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formPost.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // 1. Bloqueio Ultra Senior: Feedback visual e evita duplicidade
+            // 1. Bloqueio Ultra Senior: Feedback visual e evita postagem duplicada
             const btnPublicar = e.target.querySelector('button[type="submit"]');
             const textoOriginal = btnPublicar.innerText;
             btnPublicar.disabled = true;
@@ -266,16 +266,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!user) {
                     alert("Você precisa entrar para publicar!");
                     login();
-                    return; // Sai da função aqui
+                    return; 
                 }
 
-                // 2. Executa a inserção no banco
+                // 2. Executa a inserção no banco com a CATEGORIA dinâmica
                 const { error } = await _supabase.from('avisos').insert([{ 
                     titulo: document.getElementById('post-titulo').value, 
                     conteudo: document.getElementById('post-conteudo').value, 
                     bairro_alvo: document.getElementById('post-bairro').value, 
                     autor_id: user.id, 
-                    categoria: 'Aviso' 
+                    categoria: document.getElementById('post-categoria').value 
                 }]);
 
                 if (error) {
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Erro inesperado:", err);
                 alert("Erro ao processar postagem.");
             } finally {
-                // 3. Destrava o botão SEMPRE (independente de sucesso ou erro)
+                // 3. Destrava o botão SEMPRE (sucesso ou erro)
                 btnPublicar.disabled = false;
                 btnPublicar.innerText = textoOriginal;
             }
