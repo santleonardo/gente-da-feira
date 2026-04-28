@@ -32,18 +32,43 @@ async function logout() {
     location.reload();
 }
 
-// 4. FUNÇÕES DE PERFIL E FEED
+// 4. FUNÇÕES DE PERFIL (AS QUE VOCÊ ME MANDOU)
+async function salvarPerfil(e) {
+    e.preventDefault();
+    const { data: { user } } = await _supabase.auth.getUser();
+    
+    if (!user) return alert("Sessão expirada. Entre novamente.");
+
+    const dados = {
+        id: user.id,
+        nome: document.getElementById('edit-nome').value,
+        bairro: document.getElementById('edit-bairro').value,
+        whatsapp: document.getElementById('edit-whatsapp').value,
+    };
+
+    const { error } = await _supabase
+        .from('perfis')
+        .upsert(dados);
+
+    if (error) {
+        alert("Erro ao salvar: " + error.message);
+    } else {
+        alert("Perfil atualizado em Feira!");
+        carregarDadosPerfil(); // Atualiza a tela
+        document.getElementById('modal-perfil').close();
+    }
+}
+
 async function carregarDadosPerfil() {
     const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return;
 
-    // Preenche e-mail e inicial
     const elEmail = document.getElementById('perfil-email');
     const elInicial = document.getElementById('perfil-inicial');
+    
     if (elEmail) elEmail.innerText = user.email;
     if (elInicial) elInicial.innerText = user.email.charAt(0).toUpperCase();
 
-    // Busca dados extras na tabela 'perfis'
     const { data: perfil } = await _supabase
         .from('perfis')
         .select('*')
@@ -51,11 +76,19 @@ async function carregarDadosPerfil() {
         .single();
 
     if (perfil) {
-        if (document.getElementById('perfil-nome')) document.getElementById('perfil-nome').innerText = perfil.nome;
-        if (document.getElementById('perfil-bairro')) document.getElementById('perfil-bairro').innerText = perfil.bairro;
+        const elNomeDisp = document.getElementById('perfil-nome-display');
+        const elEditNome = document.getElementById('edit-nome');
+        const elEditBairro = document.getElementById('edit-bairro');
+        const elEditWhats = document.getElementById('edit-whatsapp');
+
+        if (elNomeDisp) elNomeDisp.innerText = perfil.nome;
+        if (elEditNome) elEditNome.value = perfil.nome;
+        if (elEditBairro) elEditBairro.value = perfil.bairro;
+        if (elEditWhats) elEditWhats.value = perfil.whatsapp || "";
     }
 }
 
+// 5. FUNÇÕES DO FEED
 async function checkUser() {
     const { data: { user } } = await _supabase.auth.getUser();
     const statusDiv = document.getElementById('auth-status');
@@ -64,7 +97,7 @@ async function checkUser() {
     if (user) {
         if (statusDiv) statusDiv.innerHTML = `<button onclick="logout()" class="text-[10px] font-bold border border-amarelo px-2 py-1 rounded">SAIR</button>`;
         if (btnPerfilLabel) btnPerfilLabel.innerText = "PERFIL";
-        carregarDadosPerfil(); // Carrega os dados assim que confirma o login
+        carregarDadosPerfil(); // Carrega os dados assim que o usuário é detectado
     }
 }
 
@@ -81,7 +114,7 @@ async function carregarFeed() {
 
     feedContainer.innerHTML = '';
     if (avisos.length === 0) {
-        feedContainer.innerHTML = '<p class="text-center py-10 opacity-50">Nenhum aviso por enquanto.</p>';
+        feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso por enquanto.</p>';
         return;
     }
 
@@ -95,18 +128,18 @@ async function carregarFeed() {
                 </div>
                 <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
                 <p class="text-sm text-escuro/80">${aviso.conteudo}</p>
-                <button class="w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm font-bold active:bg-amarelo">Ver detalhes</button>
+                <button class="w-full bg-creme border border-marinho text-marinho py-2 rounded-lg text-sm font-bold active:bg-amarelo transition-colors">Ver detalhes</button>
             </div>
         `;
     });
 }
 
-// 5. INICIALIZAÇÃO
+// 6. INICIALIZAÇÃO (EVENT LISTENERS)
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
     carregarFeed();
     
-    // Listener do Formulário
+    // Listener do Formulário de Postagem
     const formPost = document.getElementById('form-post');
     if (formPost) {
         formPost.addEventListener('submit', async (e) => {
@@ -136,5 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 carregarFeed();
             }
         });
+    }
+
+    // Listener do NOVO Formulário de Perfil
+    const formPerfil = document.getElementById('form-perfil');
+    if (formPerfil) {
+        formPerfil.addEventListener('submit', salvarPerfil);
     }
 });
