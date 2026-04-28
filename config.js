@@ -45,6 +45,47 @@ async function checkUser() {
         btnPerfil.innerText = "ENTRAR";
     }
 }
+// FUNÇÃO PARA PUBLICAR UM AVISO
+const formPost = document.getElementById('form-post');
+
+if (formPost) {
+    formPost.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 1. Verificar se o utilizador está logado
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+            alert("Precisas de entrar para publicar!");
+            return;
+        }
+
+        // 2. Capturar os dados
+        const titulo = document.getElementById('post-titulo').value;
+        const bairro = document.getElementById('post-bairro').value;
+        const conteudo = document.getElementById('post-conteudo').value;
+
+        // 3. Enviar para o banco de dados (Segurança via RLS)
+        const { error } = await supabase.from('avisos').insert([
+            { 
+                titulo: titulo, 
+                conteudo: conteudo, 
+                bairro_alvo: bairro, 
+                autor_id: user.id,
+                categoria: 'Aviso' // Pode ser expandido depois
+            }
+        ]);
+
+        if (error) {
+            alert("Erro ao publicar: " + error.message);
+        } else {
+            alert("Publicado com sucesso em Feira!");
+            document.getElementById('modal-post').close();
+            formPost.reset();
+            // Aqui poderíamos chamar uma função para recarregar o feed
+        }
+    });
+}
 
 // Iniciar verificação assim que a página carregar
 window.onload = checkUser;
