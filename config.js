@@ -204,6 +204,8 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
             
             // Formata a data de forma elegante
             const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            const isDono = user && aviso.autor_id === user.id;
+const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="text-red-500 text-[9px] font-bold uppercase ml-2 underline">Apagar</button>` : '';
 
             feedContainer.innerHTML += `
                 <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
@@ -238,22 +240,10 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
     }
 }
 async function apagarAviso(id) {
-    if (!confirm("Deseja realmente remover este aviso do bairro?")) return;
-
-    // Bloqueio de UI imediato para feedback
-    console.log("Iniciando remoção do aviso:", id);
-
-    const { error } = await _supabase
-        .from('avisos')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        alert("Erro ao apagar: " + error.message);
-    } else {
-        alert("Aviso removido com sucesso!");
-        carregarFeed(); // Recarrega o feed para mostrar a lista atualizada
-    }
+    if (!confirm("Deseja apagar este aviso permanentemente?")) return;
+    const { error } = await _supabase.from('avisos').delete().eq('id', id);
+    if (error) alert("Erro ao apagar: " + error.message);
+    else carregarFeed(document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda');
 }
 
 // Função para dar ou retirar apoio a um aviso
