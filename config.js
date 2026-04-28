@@ -146,47 +146,45 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
         };
 
         // 5. Renderização do Loop
-        avisos.forEach(aviso => {
-            const dataStr = new Date(aviso.created_at).toLocaleDateString('pt-BR');
-            const nomeAutor = aviso.perfis?.nome || "Vizinho de Feira";
-            const ehDono = user && user.id === aviso.autor_id;
-            
-            // Define a classe de estilo baseada na categoria
-            const estiloCard = estilosPorCategoria[aviso.categoria] || estilosPorCategoria['Aviso'];
+       // --- DENTRO DO avisos.forEach DA FUNÇÃO carregarFeed ---
 
-            // Sanitização do Link do WhatsApp
-            const linkWhats = aviso.perfis?.whatsapp 
-                ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}?text=Olá%20${nomeAutor},%20vi%20seu%20aviso%20no%20Gente%20da%20Feira`
-                : null;
+        // 1. Buscamos o total de apoios para este aviso específico
+        const { count: totalApoios } = await _supabase
+            .from('reacoes')
+            .select('*', { count: 'exact', head: true })
+            .eq('aviso_id', aviso.id);
 
-            feedContainer.innerHTML += `
-                <div class="p-5 rounded-xl border-l-8 ${estiloCard} shadow-sm space-y-2 relative transition-all animate-in fade-in duration-500">
-                    <div class="flex justify-between items-start">
-                        <div class="flex gap-2 items-center">
-                            <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-white px-2 py-0.5 rounded">${aviso.categoria}</span>
-                            <span class="text-[9px] font-bold uppercase text-marinho/60">${aviso.bairro_alvo}</span>
-                        </div>
-                        <span class="text-[10px] text-gray-400 font-bold">${dataStr}</span>
+        const nomeAutor = aviso.perfis?.nome || "Vizinho";
+        const linkWhats = aviso.perfis?.whatsapp ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}` : null;
+        
+        // Formata a data de forma elegante
+        const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+
+        feedContainer.innerHTML += `
+            <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex gap-2 items-center">
+                        <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-creme px-2 py-0.5 rounded">${aviso.categoria}</span>
+                        <span class="text-[9px] font-bold uppercase text-marinho/50">${aviso.bairro_alvo}</span>
                     </div>
-                    
-                    <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase">Publicado por: <span class="text-marinho">${nomeAutor}</span></p>
-                    <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
-                    
-                    <div class="flex gap-2 pt-2">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
+                </div>
+                
+                <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
+                <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-cinza/30">
+                    <div class="flex gap-2">
                         ${linkWhats ? 
-                            `<a href="${linkWhats}" target="_blank" class="flex-1 bg-white border border-marinho text-marinho py-2 rounded-lg text-sm text-center font-bold active:bg-amarelo transition-all shadow-sm">Falar no WhatsApp</a>` 
-                            : `<button disabled class="flex-1 bg-gray-50 text-gray-300 py-2 rounded-lg text-sm font-bold cursor-not-allowed uppercase text-[9px]">Sem contato disponível</button>`
+                            `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` 
+                            : ''
                         }
-
-                        ${ehDono ? `
-                            <button onclick="apagarAviso(${aviso.id})" class="px-4 bg-red-50 text-red-500 border border-red-100 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">
-                                Apagar
-                            </button>
-                        ` : ''}
+                        <button onclick="toggleApoio(${aviso.id})" class="flex items-center gap-2 px-4 py-2 bg-creme border border-cinza rounded-lg text-[10px] font-black text-marinho active:bg-amarelo transition-colors">
+                            🙌 <span class="opacity-60">APOIAR</span> <span>${totalApoios || 0}</span>
+                        </button>
                     </div>
                 </div>
-            `;
+            </div>`;
         });
 
     } catch (err) {
