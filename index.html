@@ -72,6 +72,33 @@
             </button>
         </div>
     </footer>
+    <dialog id="modal-post" class="rounded-2xl shadow-2xl p-0 w-full max-w-md bg-creme overflow-hidden">
+    <div class="bg-marinho p-4 flex justify-between items-center text-white">
+        <h2 class="font-bold">Novo Aviso no Bairro</h2>
+        <button onclick="document.getElementById('modal-post').close()" class="text-amarelo font-bold">X</button>
+    </div>
+    <form id="form-post" class="p-6 space-y-4">
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1">Título</label>
+            <input type="text" id="post-titulo" required placeholder="Ex: Vaga de Vendedor" class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho">
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1">Bairro</label>
+            <select id="post-bairro" class="w-full p-3 border border-cinza rounded-lg bg-white">
+                <option value="Tomba">Tomba</option>
+                <option value="SIM">SIM</option>
+                <option value="Campo Limpo">Campo Limpo</option>
+                <option value="Centro">Centro</option>
+                <option value="Feira Toda">Feira Toda</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold uppercase mb-1">O que está a acontecer?</label>
+            <textarea id="post-conteudo" required rows="4" placeholder="Descreve os detalhes..." class="w-full p-3 border border-cinza rounded-lg outline-none focus:border-marinho"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amarelo text-marinho py-4 rounded-xl font-black uppercase tracking-widest shadow-lg">Publicar Agora</button>
+    </form>
+</dialog>
 
 </body>
 </html>
