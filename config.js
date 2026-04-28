@@ -49,19 +49,7 @@ async function carregarDadosPerfil() {
     const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return;
 
-    // Feedback visual básico
-    const elNomeDisp = document.getElementById('perfil-nome-display');
-    if (elNomeDisp && elNomeDisp.innerText === "") {
-        elNomeDisp.innerText = "Carregando...";
-    }
-
-    const elEmail = document.getElementById('perfil-email');
-    const elInicial = document.getElementById('perfil-inicial');
-    
-    if (elEmail) elEmail.innerText = user.email;
-    if (elInicial) elInicial.innerText = user.email.charAt(0).toUpperCase();
-
-    // .maybeSingle() evita erro se o perfil ainda não existir no banco
+    // Busca o perfil no banco
     const { data: perfil, error } = await _supabase
         .from('perfis')
         .select('*')
@@ -74,28 +62,38 @@ async function carregarDadosPerfil() {
     }
 
     if (perfil) {
-        // Preenchimento seguro usando IDs do HTML
-        const campos = {
-            'perfil-nome-display': perfil.nome,
-            'edit-nome': perfil.nome,
-            'edit-bairro': perfil.bairro,
-            'edit-whatsapp': perfil.whatsapp || ""
+        // 1. Atualiza a Visualização (Textos)
+        const elNomeDisp = document.getElementById('perfil-nome-display');
+        const elBairroDisp = document.getElementById('perfil-bairro-display');
+        
+        if (elNomeDisp) elNomeDisp.innerText = perfil.nome || "Usuário";
+        if (elBairroDisp) elBairroDisp.innerText = perfil.bairro || "Feira de Santana";
+
+        // 2. Atualiza a Foto ou Inicial
+        const elAvatar = document.getElementById('perfil-avatar');
+        if (elAvatar) {
+            if (perfil.avatar_url) {
+                elAvatar.innerHTML = `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
+            } else {
+                const inicial = perfil.nome ? perfil.nome.charAt(0).toUpperCase() : "G";
+                elAvatar.innerHTML = `<span id="perfil-inicial">${inicial}</span>`;
+            }
+        }
+
+        // 3. Preenche o Formulário de Edição (Inputs)
+        const camposEdicao = {
+            'edit-nome': perfil.nome || "",
+            'edit-bairro': perfil.bairro || "Feira Toda",
+            'edit-whatsapp': perfil.whatsapp || "",
+            'edit-avatar-url': perfil.avatar_url || "" // Campo da foto
         };
 
-        // Loop inteligente para evitar erros de "null" caso mude o HTML
-        Object.keys(campos).forEach(id => {
+        Object.keys(camposEdicao).forEach(id => {
             const el = document.getElementById(id);
-            if (el) {
-                if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
-                    el.value = campos[id];
-                } else {
-                    el.innerText = campos[id];
-                }
-            }
+            if (el) el.value = camposEdicao[id];
         });
     }
 }
-
 async function salvarPerfil(e) {
     e.preventDefault();
     
@@ -105,7 +103,7 @@ async function salvarPerfil(e) {
     const { data: { user } } = await _supabase.auth.getUser();
     if (!user) return alert("Sessão expirada. Entre novamente.");
 
-    // Bloqueio de UI (Padrão Senior)
+    // Bloqueio de UI
     btnSalvar.disabled = true;
     btnSalvar.innerText = "SALVANDO...";
 
@@ -114,18 +112,24 @@ async function salvarPerfil(e) {
         nome: document.getElementById('edit-nome').value,
         bairro: document.getElementById('edit-bairro').value,
         whatsapp: document.getElementById('edit-whatsapp').value,
+        avatar_url: document.getElementById('edit-avatar-url').value, // Adicionado para a foto
     };
 
-    // upsert com onConflict garante que ele atualize o registro existente
+    // upsert atualiza se já existir ou cria se for novo
     const { error } = await _supabase
         .from('perfis')
         .upsert(dados, { onConflict: 'id' });
 
     if (error) {
-        alert("Erro ao salvar em Feira: " + error.message);
+        alert("Erro ao salvar: " + error.message);
     } else {
-        alert("Perfil atualizado com sucesso!");
-        await carregarDadosPerfil(); // Atualiza a interface
+        alert("Perfil atualizado!");
+        await carregarDadosPerfil(); // Recarrega os dados na tela
+        
+        // Volta para o modo de visualização e fecha o modal
+        document.getElementById('form-perfil').classList.add('hidden');
+        document.getElementById('view-perfil-mode').classList.remove('hidden');
+        
         const modal = document.getElementById('modal-perfil');
         if (modal) modal.close();
     }
