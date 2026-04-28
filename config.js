@@ -203,6 +203,26 @@ async function apagarAviso(id) {
     }
 }
 
+function filtrar(bairro) {
+    console.log("Filtrando por:", bairro);
+    
+    // 1. Chama o carregamento do banco com o filtro
+    carregarFeed(bairro);
+
+    // 2. UX: Atualiza o visual dos botões no topo
+    const botoes = document.querySelectorAll('.btn-bairro');
+    botoes.forEach(btn => {
+        // Se o texto do botão for igual ao bairro clicado, destaca ele
+        if (btn.innerText.trim() === bairro) {
+            btn.classList.add('bg-marinho', 'text-white', 'scale-105');
+            btn.classList.remove('bg-white', 'text-marinho');
+        } else {
+            btn.classList.remove('bg-marinho', 'text-white', 'scale-105');
+            btn.classList.add('bg-white', 'text-marinho');
+        }
+    });
+}
+
 // 6. INICIALIZAÇÃO (EVENT LISTENERS)
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
