@@ -184,6 +184,25 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
     }
 }
 
+async function apagarAviso(id) {
+    if (!confirm("Deseja realmente remover este aviso do bairro?")) return;
+
+    // Bloqueio de UI imediato para feedback
+    console.log("Iniciando remoção do aviso:", id);
+
+    const { error } = await _supabase
+        .from('avisos')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        alert("Erro ao apagar: " + error.message);
+    } else {
+        alert("Aviso removido com sucesso!");
+        carregarFeed(); // Recarrega o feed para mostrar a lista atualizada
+    }
+}
+
 // 6. INICIALIZAÇÃO (EVENT LISTENERS)
 document.addEventListener('DOMContentLoaded', () => {
     checkUser();
