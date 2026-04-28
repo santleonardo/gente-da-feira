@@ -6,22 +6,24 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // FUNÇÃO DE LOGIN (SEGURANÇA SIMPLIFICADA)
 async function login() {
-    // Para o MVP, usaremos o Login por E-mail (Mágico) ou Senha.
-    // O Supabase cuida da criptografia pesada.
-    const email = prompt("Digite seu e-mail:");
+    const email = prompt("Digite seu e-mail para receber o link de acesso:");
     if (!email) return;
+
+    console.log("Tentando enviar link para:", email); // Log para debug
 
     const { data, error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
+            // Garante que o link volta para a página atual
             emailRedirectTo: window.location.href,
         },
     });
 
     if (error) {
-        alert("Erro ao enviar link de acesso: " + error.message);
+        console.error("Erro detalhado:", error);
+        alert("Erro técnico: " + error.message);
     } else {
-        alert("Verifique seu e-mail! Enviamos um link de acesso.");
+        alert("Sucesso! Verifique sua caixa de entrada e a pasta de SPAM do e-mail: " + email);
     }
 }
 
