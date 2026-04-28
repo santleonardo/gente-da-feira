@@ -4,30 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gente da Feira | Sua comunidade local</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <script src="config.js"></script>
 
-     <script src="config.js"></script>
-                                                                 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        creme: '#FDFCF0',   // Fundo suave e limpo
-                        marinho: '#001F3F', // Azul marinho elegante para estrutura
-                        amarelo: '#FFD700', // Amarelo vivo para ação e energia
-                        escuro: '#111111',  // Preto para textos principais
-                        cinza: '#E5E4D7'    // Para bordas e divisões sutis
+                        creme: '#FDFCF0',
+                        marinho: '#001F3F',
+                        amarelo: '#FFD700',
+                        escuro: '#111111',
+                        cinza: '#E5E4D7'
                     }
                 }
             }
         }
     </script>
-    <style>
-        /* Ajuste para garantir que o scroll seja suave e o design mobile-first */
-        body { -webkit-tap-highlight-color: transparent; }
-    </style>
 </head>
 <body class="bg-creme text-escuro min-h-screen font-sans">
 
