@@ -1,16 +1,32 @@
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#001F3F">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#001F3F">
+    <meta name="description" content="Comunidade e avisos locais de Feira de Santana">
+    
+    <!-- iOS PWA Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gente da Feira">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
     <title>Gente da Feira | Sua comunidade local</title>
 
+    <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
+    <!-- App Configuration -->
     <script src="config.js"></script>
 
+    <!-- Tailwind Custom Config -->
     <script>
         tailwind.config = {
             theme: {
@@ -26,6 +42,7 @@
             }
         }
     </script>
+</head>
 <body class="bg-creme text-escuro min-h-screen font-sans pb-24">
 
     <header class="sticky top-0 bg-marinho text-white shadow-md z-50 p-4">
@@ -149,16 +166,38 @@
         </form>
     </dialog>
     
-    <!-- IMPORTANTE: Carregar Supabase e config.js ANTES do DOMContentLoaded -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-    
+    <!-- Service Worker Registration with Update Detection -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('service-worker.js')
-            .then(reg => console.log('PWA: Service Worker ativo!'))
-            .catch(err => console.log('PWA: Erro no registro', err));
+          navigator.serviceWorker.register('./service-worker.js')
+            .then(registration => {
+              console.log('✅ PWA: Service Worker ativo!', registration);
+              
+              // Detectar atualizações do Service Worker
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // Nova versão disponível
+                    console.log('🔄 Nova versão do app disponível');
+                    
+                    // Opcional: Notificar usuário
+                    if (confirm('Nova versão disponível! Deseja atualizar agora?')) {
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
+            })
+            .catch(err => console.error('❌ PWA: Erro no registro do Service Worker', err));
+        });
+        
+        // Recarregar quando novo SW assumir controle
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
         });
       }
     </script>
