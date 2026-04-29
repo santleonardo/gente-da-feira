@@ -1,3 +1,14 @@
+window.sanitizeHTML = function(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+};
+
+// Usar na renderização:
+feed.innerHTML += `
+    <h3 class="font-bold text-marinho leading-tight mb-2">${window.sanitizeHTML(aviso.titulo)}</h3>
+    <p class="text-sm text-gray-600 mb-4">${window.sanitizeHTML(aviso.conteudo)}</p>
+`;
 // 1. DEFINIÇÃO DAS CHAVES
 const SUPABASE_URL = "https://slifhevopqytdlhvvtsf.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsaWZoZXZvcHF5dGRsaHZ2dHNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzk5MzAsImV4cCI6MjA5MjkxNTkzMH0.eYssLQsdushsZZ15qtZD-Dj8RaqrtE1J_Cc_u9UP-ok"; 
