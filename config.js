@@ -90,8 +90,7 @@ async function salvarPerfil(e) {
             bairro: document.getElementById('edit-bairro').value,
             whatsapp: document.getElementById('edit-whatsapp').value.trim(),
             bio: document.getElementById('edit-bio').value.trim(), // Adicionado
-            avatar_url: finalAvatarUrl,
-            updated_at: new Date()
+            avatar_url: finalAvatarUrl
         };
 
         const { error: dbError } = await _supabase.from('perfis').upsert(updates);
