@@ -1,7 +1,7 @@
 // Service Worker - Gente da Feira
-// Versão: 1.2.0 - Correções de bugs críticos e estabilidade
+// Versão: 2.0.0 - Novas features: Push Notifications, Mapa, Chat, Upload, Editar/Excluir
 
-const CACHE_VERSION = '1.2.0';
+const CACHE_VERSION = '2.0.0';
 const CACHE_NAME = `gente-da-feira-v${CACHE_VERSION}`;
 
 // Assets para precache (Ficheiros essenciais para o app abrir offline)
@@ -90,4 +90,71 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push recebido:', event);
+
+  let data = {
+    title: 'Gente da Feira',
+    body: 'Você tem uma nova notificação!',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    url: './'
+  };
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() };
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || './icon-192.png',
+    badge: data.badge || './icon-192.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || './'
+    },
+    actions: [
+      { action: 'open', title: 'Ver' },
+      { action: 'close', title: 'Fechar' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Clicar na notificação push
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notificação clicada:', event);
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || './';
+
+  if (event.action === 'close') return;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      // Se já tem uma janela aberta, focar nela
+      for (const client of windowClients) {
+        if (client.url.includes('index.html') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Senão, abrir nova janela
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

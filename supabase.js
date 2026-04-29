@@ -50,7 +50,7 @@ export async function logout() {
 // BAIRROS
 // ============================================================
 
-/** Lista todos os bairros ativos */
+/** Lista todos os bairros ativos (agora com coordenadas) */
 export async function listarBairros() {
   const { data, error } = await supabase
     .from('bairros')
@@ -81,18 +81,21 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
       id,
       titulo,
       descricao,
+      imagem_url,
       preco_a_partir,
       contato_whatsapp,
       tags,
       destaque,
       visualizacoes,
+      latitude,
+      longitude,
       criado_em,
       autor:perfis(id, nome, avatar_url, whatsapp, is_profissional),
-      bairro:bairros(id, nome, slug),
+      bairro:bairros(id, nome, slug, latitude, longitude),
       categoria:categorias(id, nome, slug, icone, cor)
     `)
     .eq('ativo', true)
-    .gte('expira_em', new Date().toISOString()) // CORREÇÃO: só posts ainda válidos
+    .gte('expira_em', new Date().toISOString())
     .order('destaque', { ascending: false })
     .order('criado_em', { ascending: false })
     .range(pagina * limite, (pagina + 1) * limite - 1);
@@ -128,34 +131,44 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
 }
 
 /**
- * Conta posts por categoria em um bairro (para os badges do grid)
- * @param {string} bairroId - UUID do bairro
+ * Busca um único post pelo ID (para página de detalhe)
+ * @param {string} postId - UUID do post
  */
-export async function contarPostsPorCategoria(bairroId) {
-  // CORREÇÃO: query manual sem depender de RPC inexistente
-  const { data: cats } = await supabase
-    .from('categorias')
-    .select('id, slug');
+export async function buscarPostPorId(postId) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      id,
+      titulo,
+      descricao,
+      imagem_url,
+      preco_a_partir,
+      contato_whatsapp,
+      tags,
+      destaque,
+      visualizacoes,
+      latitude,
+      longitude,
+      ativo,
+      criado_em,
+      expira_em,
+      autor_id,
+      autor:perfis(id, nome, avatar_url, whatsapp, is_profissional, bio),
+      bairro:bairros(id, nome, slug, latitude, longitude),
+      categoria:categorias(id, nome, slug, icone, cor)
+    `)
+    .eq('id', postId)
+    .single();
 
-  const contagens = {};
-  for (const cat of (cats || [])) {
-    const { count } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('ativo', true)
-      .eq('categoria_id', cat.id)
-      .eq('bairro_id', bairroId)
-      .gte('expira_em', new Date().toISOString());
-    contagens[cat.slug] = count || 0;
-  }
-  return contagens;
+  if (error) throw error;
+  return data;
 }
 
 /**
  * Cria um novo post
  * @param {object} post - dados do post
  */
-export async function criarPost({ titulo, descricao, categoriaId, bairroId, precoAPartir, contatoWhatsapp, tags }) {
+export async function criarPost({ titulo, descricao, categoriaId, bairroId, precoAPartir, contatoWhatsapp, tags, imagemUrl, latitude, longitude }) {
   const user = await getUsuarioAtual();
   if (!user) throw new Error('Você precisa estar logado para publicar');
 
@@ -169,7 +182,10 @@ export async function criarPost({ titulo, descricao, categoriaId, bairroId, prec
       autor_id: user.id,
       preco_a_partir: precoAPartir || null,
       contato_whatsapp: contatoWhatsapp || null,
-      tags: tags || []
+      tags: tags || [],
+      imagem_url: imagemUrl || null,
+      latitude: latitude || null,
+      longitude: longitude || null,
     })
     .select()
     .single();
@@ -179,11 +195,83 @@ export async function criarPost({ titulo, descricao, categoriaId, bairroId, prec
 }
 
 /**
+ * Atualiza um post existente (só o autor pode)
+ * @param {string} postId - UUID do post
+ * @param {object} dados - campos a atualizar
+ */
+export async function atualizarPost(postId, dados) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  const { data, error } = await supabase
+    .from('posts')
+    .update(dados)
+    .eq('id', postId)
+    .eq('autor_id', user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Exclui um post (só o autor pode)
+ * @param {string} postId - UUID do post
+ */
+export async function excluirPost(postId) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .eq('autor_id', user.id);
+
+  if (error) throw error;
+}
+
+/**
  * Incrementa visualizações de um post
  * @param {string} postId - UUID do post
  */
 export async function registrarVisualizacao(postId) {
   await supabase.rpc('incrementar_visualizacoes', { post_id: postId });
+}
+
+// ============================================================
+// UPLOAD DE IMAGEM (Supabase Storage)
+// ============================================================
+
+/**
+ * Faz upload de uma imagem para o bucket "post-imagens"
+ * @param {File} arquivo - O arquivo de imagem
+ * @returns {string} URL pública da imagem
+ */
+export async function uploadImagemPost(arquivo) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  // Gerar nome único para o arquivo
+  const extensao = arquivo.name.split('.').pop();
+  const nomeArquivo = `${user.id}/${Date.now()}.${extensao}`;
+
+  const { data, error } = await supabase.storage
+    .from('post-imagens')
+    .upload(nomeArquivo, arquivo, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  // Retornar URL pública
+  const { data: urlData } = supabase.storage
+    .from('post-imagens')
+    .getPublicUrl(nomeArquivo);
+
+  return urlData.publicUrl;
 }
 
 // ============================================================
@@ -292,4 +380,247 @@ export function escutarNovosPosts(bairroId, callback) {
 
   // Retorna função para cancelar a escuta
   return () => supabase.removeChannel(channel);
+}
+
+// ============================================================
+// CONVERSAS E MENSAGENS (Chat)
+// ============================================================
+
+/**
+ * Busca ou cria uma conversa entre dois usuários
+ * @param {string} outroUsuarioId - UUID do outro participante
+ * @param {string} postId - UUID do post relacionado (opcional)
+ * @returns {object} conversa
+ */
+export async function buscarOuCriarConversa(outroUsuarioId, postId = null) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  // Tentar buscar conversa existente
+  const { data: existentes } = await supabase
+    .from('conversas')
+    .select('*')
+    .or(`and(participante_1.eq.${user.id},participante_2.eq.${outroUsuarioId}),and(participante_1.eq.${outroUsuarioId},participante_2.eq.${user.id})`);
+
+  if (existentes && existentes.length > 0) {
+    return existentes[0];
+  }
+
+  // Criar nova conversa
+  const { data, error } = await supabase
+    .from('conversas')
+    .insert({
+      participante_1: user.id,
+      participante_2: outroUsuarioId,
+      post_id: postId,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Lista todas as conversas do usuário logado
+ * @returns {Array} lista de conversas com última mensagem e dados dos participantes
+ */
+export async function listarConversas() {
+  const user = await getUsuarioAtual();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('conversas')
+    .select(`
+      id,
+      criado_em,
+      atualizado_em,
+      participante_1:perfis!conversas_participante_1_fkey(id, nome, avatar_url),
+      participante_2:perfis!conversas_participante_2_fkey(id, nome, avatar_url),
+      post:posts(id, titulo)
+    `)
+    .or(`participante_1.eq.${user.id},participante_2.eq.${user.id}`)
+    .order('atualizado_em', { ascending: false });
+
+  if (error) throw error;
+
+  // Buscar última mensagem e contagem de não lidas para cada conversa
+  const conversasComMensagem = [];
+  for (const conv of (data || [])) {
+    const { data: msgs } = await supabase
+      .from('mensagens')
+      .select('*')
+      .eq('conversa_id', conv.id)
+      .order('criado_em', { ascending: false })
+      .limit(1);
+
+    const { count: naoLidas } = await supabase
+      .from('mensagens')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversa_id', conv.id)
+      .eq('lida', false)
+      .neq('remetente_id', user.id);
+
+    const outroPerfil = conv.participante_1.id === user.id
+      ? conv.participante_2
+      : conv.participante_1;
+
+    conversasComMensagem.push({
+      ...conv,
+      outroPerfil,
+      ultimaMensagem: msgs?.[0] || null,
+      naoLidas: naoLidas || 0,
+    });
+  }
+
+  return conversasComMensagem;
+}
+
+/**
+ * Busca mensagens de uma conversa
+ * @param {string} conversaId - UUID da conversa
+ * @param {number} limite - máx de mensagens
+ */
+export async function buscarMensagens(conversaId, limite = 50) {
+  const { data, error } = await supabase
+    .from('mensagens')
+    .select(`
+      id,
+      conteudo,
+      lida,
+      criado_em,
+      remetente_id,
+      remetente:perfis!mensagens_remetente_id_fkey(id, nome, avatar_url)
+    `)
+    .eq('conversa_id', conversaId)
+    .order('criado_em', { ascending: true })
+    .limit(limite);
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Envia uma mensagem em uma conversa
+ * @param {string} conversaId - UUID da conversa
+ * @param {string} conteudo - texto da mensagem
+ */
+export async function enviarMensagem(conversaId, conteudo) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  const { data, error } = await supabase
+    .from('mensagens')
+    .insert({
+      conversa_id: conversaId,
+      remetente_id: user.id,
+      conteudo,
+    })
+    .select(`
+      id,
+      conteudo,
+      lida,
+      criado_em,
+      remetente_id,
+      remetente:perfis!mensagens_remetente_id_fkey(id, nome, avatar_url)
+    `)
+    .single();
+
+  if (error) throw error;
+
+  // Atualizar timestamp da conversa
+  await supabase
+    .from('conversas')
+    .update({ atualizado_em: new Date().toISOString() })
+    .eq('id', conversaId);
+
+  // Notificar destinatário via RPC
+  try {
+    await supabase.rpc('notificar_nova_mensagem', {
+      p_conversa_id: conversaId,
+      p_remetente_id: user.id,
+      p_conteudo: conteudo,
+    });
+  } catch (_) {
+    // Silencioso — a notificação é bônus
+  }
+
+  return data;
+}
+
+/**
+ * Marca mensagens de uma conversa como lidas
+ * @param {string} conversaId - UUID da conversa
+ */
+export async function marcarMensagensLidas(conversaId) {
+  const user = await getUsuarioAtual();
+  if (!user) return;
+
+  await supabase
+    .from('mensagens')
+    .update({ lida: true })
+    .eq('conversa_id', conversaId)
+    .neq('remetente_id', user.id)
+    .eq('lida', false);
+}
+
+/**
+ * Escuta novas mensagens em tempo real
+ * @param {string} conversaId - UUID da conversa
+ * @param {function} callback - função chamada com a nova mensagem
+ * @returns {function} unsubscribe
+ */
+export function escutarNovasMensagens(conversaId, callback) {
+  const channel = supabase
+    .channel(`mensagens-${conversaId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'mensagens',
+        filter: `conversa_id=eq.${conversaId}`
+      },
+      (payload) => callback(payload.new)
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+
+/**
+ * Salva a inscrição de push notification do usuário
+ * @param {PushSubscription} subscription - objeto PushSubscription do navegador
+ */
+export async function salvarPushSubscription(subscription) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert({
+      usuario_id: user.id,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth_key: subscription.keys.auth,
+    }, { onConflict: 'endpoint' });
+
+  if (error) throw error;
+}
+
+/**
+ * Remove a inscrição de push notification
+ * @param {string} endpoint - endpoint da subscription
+ */
+export async function removerPushSubscription(endpoint) {
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint);
+
+  if (error) throw error;
 }
