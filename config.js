@@ -4,7 +4,7 @@ window.sanitizeHTML = function(str) {
     return div.innerHTML;
 };
 
-// Usar na renderização:
+// Usar na renderização
 feed.innerHTML += `
     <h3 class="font-bold text-marinho leading-tight mb-2">${window.sanitizeHTML(aviso.titulo)}</h3>
     <p class="text-sm text-gray-600 mb-4">${window.sanitizeHTML(aviso.conteudo)}</p>
