@@ -37,7 +37,15 @@ window.abrirPerfil = async function() {
     const { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
         const email = prompt("Digite seu e-mail para entrar:");
-        if (email) window.login(email);
+        if (email) {
+            // Validação de email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert("Por favor, digite um e-mail válido.");
+                return;
+            }
+            window.login(email);
+        }
     } else {
         const modal = document.getElementById('modal-perfil');
         if (modal) {
@@ -147,17 +155,35 @@ window.toggleApoio = async function(avisoId) {
 
 window.carregarDadosPerfil = async function() {
     const { data: { session } } = await _supabase.auth.getSession();
-    const { data: perfil } = await _supabase.from('perfis').select('*').eq('id', session.user.id).single();
+    const { data: perfil, error } = await _supabase.from('perfis')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+    
+    if (error) {
+        console.error("Erro ao carregar perfil:", error);
+        // Se perfil não existe, mostrar valores padrão
+        if (error.code === 'PGRST116') {
+            document.getElementById('perfil-nome').innerText = "Novo Integrante";
+            document.getElementById('perfil-bairro').innerText = "Feira de Santana";
+            document.getElementById('perfil-bio').innerText = "Complete seu perfil!";
+        }
+        return;
+    }
     
     if (perfil) {
         document.getElementById('perfil-nome').innerText = perfil.nome || "Novo Integrante";
         document.getElementById('perfil-bairro').innerText = perfil.bairro || "Feira de Santana";
         document.getElementById('perfil-bio').innerText = perfil.bio || "Olá!";
-        if (perfil.avatar_url) document.getElementById('perfil-avatar').innerHTML = `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
+        if (perfil.avatar_url) {
+            document.getElementById('perfil-avatar').innerHTML = 
+                `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
+        }
         
         document.getElementById('edit-nome').value = perfil.nome || "";
         document.getElementById('edit-whatsapp').value = perfil.whatsapp || "";
         document.getElementById('edit-bio').value = perfil.bio || "";
+        document.getElementById('edit-bairro').value = perfil.bairro || "Tomba";
     }
 };
 
