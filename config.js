@@ -2,14 +2,36 @@
 const SUPABASE_URL = "https://slifhevopqytdlhvvtsf.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsaWZoZXZvcHF5dGRsaHZ2dHNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzk5MzAsImV4cCI6MjA5MjkxNTkzMH0.eYssLQsdushsZZ15qtZD-Dj8RaqrtE1J_Cc_u9UP-ok"; 
 
-// 2. INICIALIZAÇÃO SEGURA
+// --- SUBSTITUIR DAQUI ---
+// 2. INICIALIZAÇÃO BLINDADA PARA PWA
 let _supabase;
 try {
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("Motor Supabase inicializado com sucesso.");
+    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    });
+    console.log("Motor Supabase sintonizado.");
 } catch (e) {
     console.error("Falha ao iniciar Supabase.");
 }
+
+// 3. GERENCIAMENTO DE ESTADO (Substitui o antigo checkUser)
+_supabase.auth.onAuthStateChange((event, session) => {
+    const statusDiv = document.getElementById('auth-status');
+    const btnPerfilLabel = document.querySelector('#btn-perfil span');
+
+    if (session?.user) {
+        if (statusDiv) statusDiv.innerHTML = `<button onclick="logout()" class="text-[10px] font-bold border border-amarelo px-2 py-1 rounded">SAIR</button>`;
+        if (btnPerfilLabel) btnPerfilLabel.innerText = "PERFIL";
+        carregarDadosPerfil(); 
+    } else {
+        if (statusDiv) statusDiv.innerHTML = "";
+        if (btnPerfilLabel) btnPerfilLabel.innerText = "ENTRAR";
+    }
+});
 
 // --- FUNÇÕES DE NÚCLEO (Autenticação e UI) ---
 
@@ -140,20 +162,6 @@ async function carregarDadosPerfil() {
         document.getElementById('edit-bio').value = perfil.bio || "";
     }
 }
-
-// 5. FUNÇÕES DO FEED
-async function checkUser() {
-    const { data: { user } } = await _supabase.auth.getUser();
-    const statusDiv = document.getElementById('auth-status');
-    const btnPerfilLabel = document.querySelector('#btn-perfil span');
-
-    if (user) {
-        if (statusDiv) statusDiv.innerHTML = `<button onclick="logout()" class="text-[10px] font-bold border border-amarelo px-2 py-1 rounded">SAIR</button>`;
-        if (btnPerfilLabel) btnPerfilLabel.innerText = "PERFIL";
-        carregarDadosPerfil(); // Carrega os dados assim que o usuário é detectado
-    }
-}
-
 async function carregarFeed(bairroFiltro = 'Feira Toda') {
     const feedContainer = document.getElementById('feed');
     if (!feedContainer) return;
@@ -314,7 +322,6 @@ function aplicarMascaraWhatsapp(input) {
 }
 // 6. INICIALIZAÇÃO (EVENT LISTENERS)
 document.addEventListener('DOMContentLoaded', () => {
-    checkUser();
     carregarFeed();
 
     // Ativa a máscara no campo de WhatsApp do perfil
