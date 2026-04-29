@@ -68,16 +68,24 @@ function toggleEditMode() {
 
 // 4. FUNÇÕES DE PERFIL (VERSÃO BLINDADA)
 // --- NOVO SALVAR PERFIL COM UPLOAD ---
+// Localize a função salvarPerfil(e) e substitua o início dela:
 async function salvarPerfil(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     const textoOriginal = btn.innerText;
     
     try {
-        const { data: { user } } = await _supabase.auth.getUser();
-        if (!user) throw new Error("Usuário não autenticado.");
+        // Mudança aqui: Buscamos a sessão atual primeiro (mais estável para PWA)
+        const { data: { session } } = await _supabase.auth.getSession();
+        const user = session?.user;
+        
+        if (!user) {
+            alert("Sessão expirada. Por favor, entre novamente.");
+            return login();
+        }
 
         btn.disabled = true;
+        // ... restante do seu código (upload de arquivo, etc)
         btn.innerText = "PROCESSANDO...";
 
         let finalAvatarUrl = document.getElementById('edit-avatar-file').dataset.currentUrl || "";
@@ -166,19 +174,15 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
     const feedContainer = document.getElementById('feed');
     if (!feedContainer) return;
 
-    // 1. Feedback visual imediato (UX Senior)
     feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse text-marinho">Sintonizando Feira...</p>';
 
     try {
-        const { data: { user } } = await _supabase.auth.getUser();
+        const { data: { session } } = await _supabase.auth.getSession();
+        const user = session?.user;
 
-        // 2. Query com JOIN Relacional
         let query = _supabase
             .from('avisos')
-            .select(`
-                *,
-                perfis:autor_id (nome, whatsapp)
-            `) 
+            .select('*, perfis:autor_id (nome, whatsapp)') 
             .order('created_at', { ascending: false });
 
         if (bairroFiltro !== 'Feira Toda') {
@@ -188,39 +192,26 @@ async function carregarFeed(bairroFiltro = 'Feira Toda') {
         const { data: avisos, error } = await query;
         if (error) throw error;
 
-        // 3. Tratamento de Feed Vazio
         if (!avisos || avisos.length === 0) {
-            feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso em ' + bairroFiltro + ' ainda.</p>';
+            feedContainer.innerHTML = `<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso em ${bairroFiltro} ainda.</p>`;
             return;
         }
 
-        feedContainer.innerHTML = '';
+        feedContainer.innerHTML = ''; // Limpa o "Sintonizando"
 
-        // 4. Mapeamento de Estilos (Cores Neutras e Terrosas)
-        // Isso evita IFs aninhados e mantém o código limpo
-        const estilosPorCategoria = {
-            'Vaga': 'border-stone-400 bg-stone-50',     // Neutro elegante
-            'Alerta': 'border-orange-200 bg-orange-50',  // Atenção suave
-            'Serviço': 'border-amarelo bg-creme',       // Destaque profissional
-            'Evento': 'border-marinho bg-white',        // Formal e sofisticado
-            'Aviso': 'border-cinza bg-white'            // Padrão
-        };
-
-      // 5. Renderização do Loop
-        avisos.forEach(async (aviso) => {
-            // 1. Buscamos o total de apoios para este aviso específico
+        // Usamos FOR...OF para garantir a ordem e o carregamento dos apoios
+        for (const aviso of avisos) {
             const { count: totalApoios } = await _supabase
                 .from('reacoes')
                 .select('*', { count: 'exact', head: true })
                 .eq('aviso_id', aviso.id);
 
-            const nomeAutor = aviso.perfis?.nome || "Vizinho";
             const linkWhats = aviso.perfis?.whatsapp ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}` : null;
-            
-            // Formata a data de forma elegante
             const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            
+            // Lógica do botão apagar
             const isDono = user && aviso.autor_id === user.id;
-const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="text-red-500 text-[9px] font-bold uppercase ml-2 underline">Apagar</button>` : '';
+            const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="text-red-500 text-[9px] font-bold uppercase ml-2 underline">Apagar</button>` : '';
 
             feedContainer.innerHTML += `
                 <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
@@ -229,7 +220,9 @@ const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="
                             <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-creme px-2 py-0.5 rounded">${aviso.categoria}</span>
                             <span class="text-[9px] font-bold uppercase text-marinho/50">${aviso.bairro_alvo}</span>
                         </div>
-                        <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
+                            ${botaoApagar} </div>
                     </div>
                     
                     <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
@@ -237,21 +230,18 @@ const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="
                     
                     <div class="flex items-center justify-between pt-4 border-t border-cinza/30">
                         <div class="flex gap-2">
-                            ${linkWhats ? 
-                                `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` 
-                                : ''
-                            }
+                            ${linkWhats ? `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` : ''}
                             <button onclick="toggleApoio(${aviso.id})" class="flex items-center gap-2 px-4 py-2 bg-creme border border-cinza rounded-lg text-[10px] font-black text-marinho active:bg-amarelo transition-colors">
                                 🙌 <span class="opacity-60">APOIAR</span> <span>${totalApoios || 0}</span>
                             </button>
                         </div>
                     </div>
                 </div>`;
-        }); // Fim do forEach
+        }
 
     } catch (err) {
-        console.error("Erro Crítico no Feed:", err.message);
-        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO SINCRONIZAR. VERIFIQUE SUA CONEXÃO.</p>';
+        console.error("Erro no Feed:", err);
+        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO SINCRONIZAR.</p>';
     }
 }
 async function apagarAviso(id) {
