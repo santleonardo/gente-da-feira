@@ -97,7 +97,16 @@ window.toggleEditMode = function() {
 // --- AUTENTICAÇÃO ---
 
 window.login = async function(email) {
-    const { error } = await _supabase.auth.signInWithOtp({ email });
+    // Detectar automaticamente a URL base do site
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
+    
+    const { error } = await _supabase.auth.signInWithOtp({ 
+        email,
+        options: {
+            emailRedirectTo: baseUrl
+        }
+    });
+    
     if (error) alert("Erro: " + error.message);
     else {
         alert("Verifique seu e-mail para o link de acesso!");
