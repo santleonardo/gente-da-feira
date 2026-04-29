@@ -1,8 +1,7 @@
-<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#031c36">
+    <meta name="theme-color" content="#001F3F">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gente da Feira | Sua comunidade local</title>
@@ -150,12 +149,12 @@
             </div>
         </form>
     </dialog>
-    <script>
+     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('service-worker.js')
-            .then(reg => console.log('PWA Sintonizado'))
-            .catch(err => console.log('Erro PWA', err));
+            .then(reg => console.log('PWA: Service Worker ativo!'))
+            .catch(err => console.log('PWA: Erro no registro', err));
         });
       }
     </script>
