@@ -7,10 +7,7 @@
     <title>Gente da Feira | Sua comunidade local</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
-    <script src="config.js"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -39,10 +36,10 @@
     <main class="max-w-md mx-auto p-4 space-y-6">
         
         <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-           <button onclick="filtrar('Feira Toda')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-marinho bg-marinho text-white text-[10px] font-black uppercase tracking-widest transition-all">Feira Toda</button>
-<button onclick="filtrar('Tomba')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Tomba</button>
-<button onclick="filtrar('Campo Limpo')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Campo Limpo</button>
-<button onclick="filtrar('Centro')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Centro</button>
+            <button onclick="filtrar('Feira Toda')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-marinho bg-marinho text-white text-[10px] font-black uppercase tracking-widest transition-all">Feira Toda</button>
+            <button onclick="filtrar('Tomba')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Tomba</button>
+            <button onclick="filtrar('Campo Limpo')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Campo Limpo</button>
+            <button onclick="filtrar('Centro')" class="btn-bairro flex-shrink-0 px-4 py-2 rounded-full border border-cinza bg-white text-marinho text-[10px] font-black uppercase tracking-widest transition-all">Centro</button>
         </div>
 
         <div id="feed" class="space-y-4">
@@ -149,7 +146,12 @@
             </div>
         </form>
     </dialog>
-     <script>
+    
+    <!-- IMPORTANTE: Carregar Supabase e config.js ANTES do DOMContentLoaded -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    
+    <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('service-worker.js')
