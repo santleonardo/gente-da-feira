@@ -1,14 +1,15 @@
 {
   "name": "Gente da Feira",
   "short_name": "GenteFeira",
-  "description": "Comunidade e avisos locais de Feira de Santana",
-  "start_url": "./",
+  "description": "Soluções locais, vagas e serviços em Feira de Santana.",
+  "id": "/gentedafeira/",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fcfcfc",
-  "theme_color": "#001F3F",
+  "background_color": "#FAFAF9",
+  "theme_color": "#F59E0B",
   "orientation": "portrait",
-  "categories": ["social", "news", "lifestyle"],
+  "categories": ["social", "news", "lifestyle", "utilities"],
   "lang": "pt-BR",
   "dir": "ltr",
   "icons": [
@@ -19,19 +20,33 @@
       "purpose": "any"
     },
     {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "./screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ecrã principal do Gente da Feira"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Publicar Aviso",
       "short_name": "Publicar",
       "description": "Criar novo aviso para a comunidade",
-      "url": "./?action=post",
+      "url": "./index.html?action=post",
       "icons": [
         {
           "src": "./icon-192.png",
@@ -40,7 +55,5 @@
         }
       ]
     }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false
+  ]
 }
