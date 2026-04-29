@@ -54,15 +54,15 @@
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-cinza p-4 z-50">
         <div class="max-w-md mx-auto flex justify-around items-center">
             <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="flex flex-col items-center gap-1">
-                <span class="text-[10px] font-black uppercase tracking-tighter">Início</span>
+                <span class="text-[10px] font-black uppercase tracking-tighter text-marinho">Início</span>
             </button>
             
             <button onclick="abrirModalPost()" class="bg-amarelo text-marinho p-4 rounded-full shadow-xl -mt-12 border-4 border-creme active:scale-90 transition-transform">
                 <span class="text-xl font-bold">+</span>
             </button>
 
-            <button onclick="abrirPerfil()" id="btn-perfil" class="flex flex-col items-center gap-1 opacity-50">
-                <span class="text-[10px] font-black uppercase tracking-tighter">Entrar</span>
+            <button onclick="abrirPerfil()" id="btn-perfil" class="flex flex-col items-center gap-1 opacity-60">
+                <span class="text-[10px] font-black uppercase tracking-tighter text-marinho">Entrar</span>
             </button>
         </div>
     </nav>
@@ -91,7 +91,7 @@
                     </select>
                 </div>
 
-                <textarea name="conteudo" rows="4" placeholder="O que está acontecendo?" required class="w-full p-4 rounded-xl border border-cinza outline-none focus:border-marinho bg-white text-sm leading-relaxed"></textarea>
+                <textarea name="conteudo" rows="4" placeholder="O que está acontecendo em Feira?" required class="w-full p-4 rounded-xl border border-cinza outline-none focus:border-marinho bg-white text-sm leading-relaxed"></textarea>
                 
                 <button type="submit" class="w-full py-4 bg-marinho text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform">Publicar Agora</button>
             </form>
@@ -103,16 +103,16 @@
         <div id="view-perfil-mode" class="p-6 space-y-6">
             <div class="flex flex-col items-center text-center space-y-3">
                 <div id="perfil-avatar" class="w-24 h-24 rounded-full bg-cinza border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
-                    <span class="text-gray-400">👤</span>
+                    <span class="text-gray-300 text-3xl">👤</span>
                 </div>
                 <div>
-                    <h2 id="perfil-nome" class="text-xl font-black text-marinho uppercase tracking-tight">Carregando...</h2>
+                    <h2 id="perfil-nome" class="text-xl font-black text-marinho uppercase tracking-tight font-serif">Carregando...</h2>
                     <p id="perfil-bairro" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">---</p>
                 </div>
                 <p id="perfil-bio" class="text-sm italic text-gray-600 max-w-[80%]">Sem biografia disponível.</p>
             </div>
 
-            <div class="space-y-3 pt-4">
+            <div class="space-y-3 pt-4 border-t border-cinza/30">
                 <button onclick="toggleEditMode()" class="w-full py-4 bg-marinho text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform">
                     Editar Perfil
                 </button>
@@ -132,7 +132,7 @@
                 </div>
                 
                 <input type="text" id="edit-nome" placeholder="Seu Nome" required class="w-full p-4 rounded-xl border border-cinza outline-none focus:border-marinho bg-white text-sm">
-                <input type="text" id="edit-whatsapp" placeholder="WhatsApp (ex: 75999999999)" class="w-full p-4 rounded-xl border border-cinza outline-none focus:border-marinho bg-white text-sm">
+                <input type="text" id="edit-whatsapp" placeholder="WhatsApp (ex: 75988887777)" class="w-full p-4 rounded-xl border border-cinza outline-none focus:border-marinho bg-white text-sm">
                 
                 <select id="edit-bairro" class="w-full p-4 rounded-xl border border-cinza bg-white text-[10px] font-black uppercase">
                     <option value="Tomba">Tomba</option>
@@ -145,12 +145,11 @@
             
             <div class="pt-4 space-y-3">
                 <button type="submit" class="w-full py-4 bg-marinho text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg">Salvar Tudo</button>
-                <button type="button" onclick="toggleEditMode()" class="w-full py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cancelar</button>
+                <button type="button" onclick="toggleEditMode()" class="w-full py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cancelar Edição</button>
                 <button type="button" onclick="logout()" class="w-full py-2 text-red-500 text-[10px] font-black uppercase opacity-60">Sair da Conta</button>
             </div>
         </form>
     </dialog>
-
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -160,5 +159,6 @@
         });
       }
     </script>
+
 </body>
 </html>
