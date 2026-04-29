@@ -28,7 +28,22 @@ window.aplicarMascaraWhatsapp = function(input) {
 
 // --- NAVEGAÇÃO E MODAIS ---
 
-window.abrirModalPost = function() {
+window.abrirModalPost = async function() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    
+    if (!session) {
+        const email = prompt("Você precisa estar logado para publicar. Digite seu e-mail:");
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert("Por favor, digite um e-mail válido.");
+                return;
+            }
+            window.login(email);
+        }
+        return;
+    }
+    
     const modal = document.getElementById('modal-post');
     if (modal) modal.showModal();
 };
@@ -194,14 +209,33 @@ window.salvarPerfil = async function(e) {
     let avatarUrl = document.getElementById('perfil-avatar').querySelector('img')?.src;
 
     if (fileInput.files[0]) {
-        const file = fileInput.files[0];
-        const fileName = `${session.user.id}/${Date.now()}.${file.name.split('.').pop()}`;
-        const { error: upError } = await _supabase.storage.from('avatars').upload(fileName, file);
-        if (!upError) {
-            const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
-            avatarUrl = data.publicUrl;
-        }
+    const file = fileInput.files[0];
+    
+    // Validar tamanho (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert("A imagem deve ter no máximo 5MB");
+        return;
     }
+    
+    // Validar tipo
+    const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!tiposPermitidos.includes(file.type)) {
+        alert("Formato inválido. Use JPG, PNG ou WEBP");
+        return;
+    }
+    
+    const fileName = `${session.user.id}/${Date.now()}.${file.name.split('.').pop()}`;
+    const { error: upError } = await _supabase.storage.from('avatars').upload(fileName, file);
+    
+    if (upError) {
+        console.error("Erro no upload:", upError);
+        alert("Erro ao fazer upload da imagem: " + upError.message);
+        return;
+    }
+    
+    const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+    avatarUrl = data.publicUrl;
+}
 
     const { error } = await _supabase.from('perfis').upsert({
         id: session.user.id,
@@ -247,3 +281,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const formPerfil = document.getElementById('form-perfil');
     if (formPerfil) formPerfil.addEventListener('submit', window.salvarPerfil);
 });
+// Adicionar no config.js após a inicialização
+window.atualizarStatusAuth = async function() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const statusEl = document.getElementById('auth-status');
+    const btnPerfil = document.getElementById('btn-perfil');
+    
+    if (session) {
+        const { data: perfil } = await _supabase.from('perfis')
+            .select('nome')
+            .eq('id', session.user.id)
+            .single();
+        
+        statusEl.innerHTML = `
+            <span class="text-xs font-bold">Olá, ${perfil?.nome || 'Usuário'}!</span>
+        `;
+        btnPerfil.querySelector('span').innerText = 'Perfil';
+        btnPerfil.classList.remove('opacity-60');
+    } else {
+        statusEl.innerHTML = '';
+        btnPerfil.querySelector('span').innerText = 'Entrar';
+        btnPerfil.classList.add('opacity-60');
+    }
+};
+
+// Chamar no DOMContentLoaded e após login/logout
+document.addEventListener('DOMContentLoaded', () => {
+    window.atualizarStatusAuth();
+    window.carregarFeed();
+    // ... resto do código
+});
+
+// Atualizar após login
+window.login = async function(email) {
+    const { error } = await _supabase.auth.signInWithOtp({ email });
+    if (error) alert("Erro: " + error.message);
+    else {
+        alert("Verifique seu e-mail para o link de acesso!");
+        // Adicionar listener para quando voltar do email
+        _supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                window.atualizarStatusAuth();
+            }
+        });
+    }
+};
