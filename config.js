@@ -2,400 +2,222 @@
 const SUPABASE_URL = "https://slifhevopqytdlhvvtsf.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsaWZoZXZvcHF5dGRsaHZ2dHNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzk5MzAsImV4cCI6MjA5MjkxNTkzMH0.eYssLQsdushsZZ15qtZD-Dj8RaqrtE1J_Cc_u9UP-ok"; 
 
-// --- SUBSTITUIR DAQUI ---
-// 2. INICIALIZAÇÃO BLINDADA PARA PWA
+// 2. INICIALIZAÇÃO
 let _supabase;
 try {
     _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-        }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
     console.log("Motor Supabase sintonizado.");
 } catch (e) {
-    console.error("Falha ao iniciar Supabase.");
+    console.error("Erro na ignição do Supabase.");
 }
 
-// 3. GERENCIAMENTO DE ESTADO (Substitui o antigo checkUser)
-_supabase.auth.onAuthStateChange((event, session) => {
-    const statusDiv = document.getElementById('auth-status');
-    const btnPerfilLabel = document.querySelector('#btn-perfil span');
+// --- FUNÇÕES TÉCNICAS E MÁSCARAS ---
 
-    if (session?.user) {
-        if (statusDiv) statusDiv.innerHTML = `<button onclick="logout()" class="text-[10px] font-bold border border-amarelo px-2 py-1 rounded">SAIR</button>`;
-        if (btnPerfilLabel) btnPerfilLabel.innerText = "PERFIL";
-        carregarDadosPerfil(); 
+window.aplicarMascaraWhatsapp = function(input) {
+    let value = input.value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
+    if (value.length > 7) {
+        value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+        value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    }
+    input.value = value;
+};
+
+// --- NAVEGAÇÃO E MODAIS ---
+
+window.abrirModalPost = function() {
+    const modal = document.getElementById('modal-post');
+    if (modal) modal.showModal();
+};
+
+window.abrirPerfil = async function() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) {
+        const email = prompt("Digite seu e-mail para entrar:");
+        if (email) window.login(email);
     } else {
-        if (statusDiv) statusDiv.innerHTML = "";
-        if (btnPerfilLabel) btnPerfilLabel.innerText = "ENTRAR";
+        const modal = document.getElementById('modal-perfil');
+        if (modal) {
+            modal.showModal();
+            window.carregarDadosPerfil();
+        }
     }
-});
+};
 
-// --- FUNÇÕES DE NÚCLEO (Autenticação e UI) ---
+window.toggleEditMode = function() {
+    document.getElementById('view-perfil-mode').classList.toggle('hidden');
+    document.getElementById('form-perfil').classList.toggle('hidden');
+};
 
-async function login() {
-    const email = prompt("Digite seu e-mail para receber o link de acesso:");
-    if (!email) return;
-    try {
-        const { error } = await _supabase.auth.signInWithOtp({
-            email: email,
-            options: { emailRedirectTo: window.location.href }
-        });
-        if (error) throw error;
-        alert("Link enviado! Confira seu e-mail (e a pasta de spam).");
-    } catch (e) {
-        alert("Erro no login: " + e.message);
-    }
-}
+// --- AUTENTICAÇÃO ---
 
-async function logout() {
+window.login = async function(email) {
+    const { error } = await _supabase.auth.signInWithOtp({ email });
+    if (error) alert("Erro: " + error.message);
+    else alert("Verifique seu e-mail para o link de acesso!");
+};
+
+window.logout = async function() {
     await _supabase.auth.signOut();
     location.reload();
-}
+};
 
-// Essa função faz o modal trocar entre "Ver Perfil" e "Editar Perfil"
-function toggleEditMode() {
-    const viewMode = document.getElementById('view-perfil-mode');
-    const editForm = document.getElementById('form-perfil');
-    
-    if (viewMode && editForm) {
-        viewMode.classList.add('hidden');
-        editForm.classList.remove('hidden');
+// --- GESTÃO DO FEED ---
+
+window.carregarFeed = async function(bairro = 'Feira Toda') {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse">Sintonizando Feira...</p>';
+
+    let query = _supabase.from('avisos').select('*, perfis(nome, avatar_url), reacoes(id, user_id)').order('created_at', { ascending: false });
+    if (bairro !== 'Feira Toda') query = query.eq('bairro_alvo', bairro);
+
+    const { data: avisos, error } = await query;
+    if (error) return console.error("Erro no feed:", error);
+
+    feed.innerHTML = '';
+    const { data: { session } } = await _supabase.auth.getSession();
+
+    avisos.forEach(aviso => {
+        const totalApoios = aviso.reacoes ? aviso.reacoes.length : 0;
+        const jaApoiou = session && aviso.reacoes?.some(r => r.user_id === session.user.id);
+        const ehDono = session && aviso.autor_id === session.user.id;
+
+        feed.innerHTML += `
+            <div class="p-6 rounded-2xl bg-white shadow-sm border-l-4 border-cinza mb-4">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[9px] font-black bg-marinho text-white px-2 py-0.5 rounded uppercase">${aviso.categoria}</span>
+                    <div class="flex gap-2">
+                        <span class="text-[9px] font-bold text-gray-300 uppercase">${aviso.bairro_alvo}</span>
+                        ${ehDono ? `<button onclick="window.apagarAviso(${aviso.id})" class="text-[9px] font-black text-red-400 uppercase tracking-tighter">Apagar</button>` : ''}
+                    </div>
+                </div>
+                <h3 class="font-bold text-marinho leading-tight mb-2">${aviso.titulo}</h3>
+                <p class="text-sm text-gray-600 mb-4">${aviso.conteudo}</p>
+                <div class="flex justify-between items-center pt-3 border-t border-gray-50">
+                    <div class="flex items-center gap-2">
+                        <img src="${aviso.perfis?.avatar_url || 'https://via.placeholder.com/30'}" class="w-5 h-5 rounded-full object-cover">
+                        <span class="text-[9px] font-bold text-marinho/60 uppercase">${aviso.perfis?.nome || 'Anônimo'}</span>
+                    </div>
+                    <button onclick="window.toggleApoio(${aviso.id})" class="text-[10px] font-black uppercase ${jaApoiou ? 'text-amarelo' : 'text-marinho'}">
+                        ${jaApoiou ? '🙌 Apoiado' : '🙌 Apoiar'} (${totalApoios})
+                    </button>
+                </div>
+            </div>`;
+    });
+};
+
+window.filtrar = function(bairro) {
+    const botoes = document.querySelectorAll('.btn-bairro');
+    botoes.forEach(btn => {
+        btn.classList.replace('bg-marinho', 'bg-white');
+        btn.classList.replace('text-white', 'text-marinho');
+        btn.classList.add('border-cinza');
+    });
+    const ativo = [...botoes].find(btn => btn.innerText === bairro);
+    if (ativo) {
+        ativo.classList.replace('bg-white', 'bg-marinho');
+        ativo.classList.replace('text-marinho', 'text-white');
     }
-}
+    window.carregarFeed(bairro);
+};
 
-// 4. FUNÇÕES DE PERFIL (VERSÃO BLINDADA)
-// --- NOVO SALVAR PERFIL COM UPLOAD ---
-// Localize a função salvarPerfil(e) e substitua o início dela:
-async function salvarPerfil(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const textoOriginal = btn.innerText;
+window.apagarAviso = async function(id) {
+    if (!confirm("Deseja mesmo remover este aviso?")) return;
+    const { error } = await _supabase.from('avisos').delete().eq('id', id);
+    if (error) alert("Erro ao apagar");
+    else window.carregarFeed();
+};
+
+window.toggleApoio = async function(avisoId) {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) return alert("Entre para apoiar!");
+
+    const { data: existe } = await _supabase.from('reacoes').select('id').eq('aviso_id', avisoId).eq('user_id', session.user.id).single();
+
+    if (existe) await _supabase.from('reacoes').delete().eq('id', existe.id);
+    else await _supabase.from('reacoes').insert([{ aviso_id: avisoId, user_id: session.user.id }]);
     
-    try {
-        // Mudança aqui: Buscamos a sessão atual primeiro (mais estável para PWA)
-        const { data: { session } } = await _supabase.auth.getSession();
-        const user = session?.user;
-        
-        if (!user) {
-            alert("Sessão expirada. Por favor, entre novamente.");
-            return login();
-        }
+    window.carregarFeed();
+};
 
-        btn.disabled = true;
-        // ... restante do seu código (upload de arquivo, etc)
-        btn.innerText = "PROCESSANDO...";
+// --- GESTÃO DE PERFIL ---
 
-        let finalAvatarUrl = document.getElementById('edit-avatar-file').dataset.currentUrl || "";
-        const fileInput = document.getElementById('edit-avatar-file');
-        const file = fileInput.files[0];
-
-        // SEGURANÇA: Validação de Arquivo (Mime-type e Tamanho)
-        if (file) {
-            if (!file.type.startsWith('image/')) throw new Error("Apenas imagens são permitidas.");
-            if (file.size > 2 * 1024 * 1024) throw new Error("Imagem muito grande (Max 2MB).");
-
-            // Nome do arquivo seguro: ID do usuário + timestamp para evitar cache do navegador
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
-
-            // Upload para o Storage
-            const { error: uploadError } = await _supabase.storage
-                .from('avatars')
-                .upload(filePath, file, { upsert: true });
-
-            if (uploadError) throw uploadError;
-
-            // Gera a URL pública
-            const { data: publicUrlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
-            finalAvatarUrl = publicUrlData.publicUrl;
-        }
-
-        // SALVAR NO BANCO (Tabela perfis)
-        const updates = {
-            id: user.id,
-            nome: document.getElementById('edit-nome').value.trim(),
-            bairro: document.getElementById('edit-bairro').value,
-            whatsapp: document.getElementById('edit-whatsapp').value.trim(),
-            bio: document.getElementById('edit-bio').value.trim(), // Adicionado
-            avatar_url: finalAvatarUrl
-        };
-
-        const { error: dbError } = await _supabase.from('perfis').upsert(updates);
-        if (dbError) throw dbError;
-
-        alert("Perfil atualizado com sucesso!");
-        await carregarDadosPerfil();
-        
-        // Reset UI
-        document.getElementById('form-perfil').classList.add('hidden');
-        document.getElementById('view-perfil-mode').classList.remove('hidden');
-        document.getElementById('modal-perfil').close();
-
-    } catch (err) {
-        alert("Erro: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = textoOriginal;
-    }
-}
-
-// --- CARREGAR ATUALIZADO ---
-async function carregarDadosPerfil() {
-    const { data: { user } } = await _supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: perfil } = await _supabase.from('perfis').select('*').eq('id', user.id).maybeSingle();
-
+window.carregarDadosPerfil = async function() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    const { data: perfil } = await _supabase.from('perfis').select('*').eq('id', session.user.id).single();
+    
     if (perfil) {
-        // Visualização
-        document.getElementById('perfil-nome-display').innerText = perfil.nome || "Usuário";
-        document.getElementById('perfil-bairro-display').innerText = perfil.bairro || "Feira de Santana";
-        document.getElementById('perfil-bio-display').innerText = perfil.bio || "Sem bio definida.";
-
-        const avatarDiv = document.getElementById('perfil-avatar');
-        if (perfil.avatar_url) {
-            avatarDiv.innerHTML = `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
-            document.getElementById('edit-avatar-file').dataset.currentUrl = perfil.avatar_url;
-        } else {
-            avatarDiv.innerHTML = `<span>${perfil.nome ? perfil.nome.charAt(0).toUpperCase() : 'G'}</span>`;
-        }
-
-        // Edição
+        document.getElementById('perfil-nome').innerText = perfil.nome || "Novo Integrante";
+        document.getElementById('perfil-bairro').innerText = perfil.bairro || "Feira de Santana";
+        document.getElementById('perfil-bio').innerText = perfil.bio || "Olá!";
+        if (perfil.avatar_url) document.getElementById('perfil-avatar').innerHTML = `<img src="${perfil.avatar_url}" class="w-full h-full object-cover">`;
+        
         document.getElementById('edit-nome').value = perfil.nome || "";
-        document.getElementById('edit-bairro').value = perfil.bairro || "Tomba";
         document.getElementById('edit-whatsapp').value = perfil.whatsapp || "";
         document.getElementById('edit-bio').value = perfil.bio || "";
     }
-}
-async function carregarFeed(bairroFiltro = 'Feira Toda') {
-    const feedContainer = document.getElementById('feed');
-    if (!feedContainer) return;
+};
 
-    feedContainer.innerHTML = '<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px] animate-pulse text-marinho">Sintonizando Feira...</p>';
+window.salvarPerfil = async function(e) {
+    e.preventDefault();
+    const { data: { session } } = await _supabase.auth.getSession();
+    const fileInput = document.getElementById('edit-avatar-file');
+    let avatarUrl = document.getElementById('perfil-avatar').querySelector('img')?.src;
 
-    try {
-        const { data: { session } } = await _supabase.auth.getSession();
-        const user = session?.user;
-
-        let query = _supabase
-            .from('avisos')
-            .select('*, perfis:autor_id (nome, whatsapp)') 
-            .order('created_at', { ascending: false });
-
-        if (bairroFiltro !== 'Feira Toda') {
-            query = query.eq('bairro_alvo', bairroFiltro);
+    if (fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const fileName = `${session.user.id}/${Date.now()}.${file.name.split('.').pop()}`;
+        const { error: upError } = await _supabase.storage.from('avatars').upload(fileName, file);
+        if (!upError) {
+            const { data } = _supabase.storage.from('avatars').getPublicUrl(fileName);
+            avatarUrl = data.publicUrl;
         }
-
-        const { data: avisos, error } = await query;
-        if (error) throw error;
-
-        if (!avisos || avisos.length === 0) {
-            feedContainer.innerHTML = `<p class="text-center py-10 opacity-50 font-bold uppercase text-[10px]">Nenhum aviso em ${bairroFiltro} ainda.</p>`;
-            return;
-        }
-
-        feedContainer.innerHTML = ''; // Limpa o "Sintonizando"
-
-        // Usamos FOR...OF para garantir a ordem e o carregamento dos apoios
-        for (const aviso of avisos) {
-            const { count: totalApoios } = await _supabase
-                .from('reacoes')
-                .select('*', { count: 'exact', head: true })
-                .eq('aviso_id', aviso.id);
-
-            const linkWhats = aviso.perfis?.whatsapp ? `https://wa.me/55${aviso.perfis.whatsapp.replace(/\D/g, '')}` : null;
-            const dataPost = new Date(aviso.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-            
-            // Lógica do botão apagar
-            const isDono = user && aviso.autor_id === user.id;
-            const botaoApagar = isDono ? `<button onclick="apagarAviso(${aviso.id})" class="text-red-500 text-[9px] font-bold uppercase ml-2 underline">Apagar</button>` : '';
-
-            feedContainer.innerHTML += `
-                <div class="p-6 rounded-2xl border-l-8 border-cinza bg-white shadow-sm space-y-3 relative mb-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex gap-2 items-center">
-                            <span class="text-[9px] font-black uppercase tracking-widest bg-marinho text-creme px-2 py-0.5 rounded">${aviso.categoria}</span>
-                            <span class="text-[9px] font-bold uppercase text-marinho/50">${aviso.bairro_alvo}</span>
-                        </div>
-                        <div class="flex flex-col items-end">
-                            <span class="text-[10px] text-gray-400 font-bold uppercase">${dataPost}</span>
-                            ${botaoApagar} </div>
-                    </div>
-                    
-                    <h3 class="font-bold text-lg leading-tight text-marinho">${aviso.titulo}</h3>
-                    <p class="text-sm text-escuro/80 leading-relaxed">${aviso.conteudo}</p>
-                    
-                    <div class="flex items-center justify-between pt-4 border-t border-cinza/30">
-                        <div class="flex gap-2">
-                            ${linkWhats ? `<a href="${linkWhats}" target="_blank" class="bg-marinho text-creme px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform">WhatsApp</a>` : ''}
-                            <button onclick="toggleApoio(${aviso.id})" class="flex items-center gap-2 px-4 py-2 bg-creme border border-cinza rounded-lg text-[10px] font-black text-marinho active:bg-amarelo transition-colors">
-                                🙌 <span class="opacity-60">APOIAR</span> <span>${totalApoios || 0}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-    } catch (err) {
-        console.error("Erro no Feed:", err);
-        feedContainer.innerHTML = '<p class="text-center py-10 text-red-500 font-bold text-[10px]">ERRO AO SINCRONIZAR.</p>';
     }
-}
-async function apagarAviso(id) {
-    if (!confirm("Deseja apagar este aviso permanentemente?")) return;
-    const { error } = await _supabase.from('avisos').delete().eq('id', id);
-    if (error) alert("Erro ao apagar: " + error.message);
-    else carregarFeed(document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda');
-}
 
-// Função para dar ou retirar apoio a um aviso
-async function toggleApoio(avisoId) {
-    const { data: { user } } = await _supabase.auth.getUser();
-    if (!user) return login(); // Se não logado, chama o login
-
-    // Verifica se já existe um apoio
-    const { data: existente } = await _supabase
-        .from('reacoes')
-        .select('id')
-        .eq('aviso_id', avisoId)
-        .eq('usuario_id', user.id)
-        .single();
-
-    if (existente) {
-        // Remove o apoio (Unlike)
-        await _supabase.from('reacoes').delete().eq('id', existente.id);
-    } else {
-        // Adiciona o apoio (Like)
-        await _supabase.from('reacoes').insert([{ aviso_id: avisoId, usuario_id: user.id }]);
-    }
-    
-    // Recarrega o feed para mostrar o novo contador
-    carregarFeed(document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda');
-}
-
-function filtrar(bairro) {
-    console.log("Filtrando por:", bairro);
-    
-    // 1. Chama o carregamento do banco com o filtro
-    carregarFeed(bairro);
-
-    // 2. UX: Atualiza o visual dos botões no topo
-    const botoes = document.querySelectorAll('.btn-bairro');
-    botoes.forEach(btn => {
-        // Se o texto do botão for igual ao bairro clicado, destaca ele
-        if (btn.innerText.trim() === bairro) {
-            btn.classList.add('bg-marinho', 'text-white', 'scale-105');
-            btn.classList.remove('bg-white', 'text-marinho');
-        } else {
-            btn.classList.remove('bg-marinho', 'text-white', 'scale-105');
-            btn.classList.add('bg-white', 'text-marinho');
-        }
+    const { error } = await _supabase.from('perfis').upsert({
+        id: session.user.id,
+        nome: document.getElementById('edit-nome').value,
+        whatsapp: document.getElementById('edit-whatsapp').value,
+        bio: document.getElementById('edit-bio').value,
+        bairro: document.getElementById('edit-bairro').value,
+        avatar_url: avatarUrl,
+        updated_at: new Date()
     });
-}
-// Função para formatar o WhatsApp em tempo real (Padrão: (75) 99999-9999)
-function aplicarMascaraWhatsapp(input) {
-    let value = input.value.replace(/\D/g, '');
-    if (value.length > 11) value = value.slice(0, 11);
-    
-    if (value.length > 10) {
-        input.value = `(${value.slice(0,2)}) ${value.slice(2,7)}-${value.slice(7)}`;
-    } else if (value.length > 5) {
-        input.value = `(${value.slice(0,2)}) ${value.slice(2,6)}-${value.slice(6)}`;
-    } else if (value.length > 2) {
-        input.value = `(${value.slice(0,2)}) ${value.slice(2)}`;
-    } else {
-        input.value = value;
-    }
-}
-// 6. INICIALIZAÇÃO (EVENT LISTENERS)
+
+    if (error) alert(error.message);
+    else { alert("Perfil Salvo!"); window.toggleEditMode(); window.carregarDadosPerfil(); }
+};
+
+// --- INICIALIZAÇÃO ---
+
 document.addEventListener('DOMContentLoaded', () => {
-    carregarFeed();
-
-    // Ativa a máscara no campo de WhatsApp do perfil
-    const inputWhats = document.getElementById('edit-whatsapp');
-    if (inputWhats) {
-        inputWhats.addEventListener('input', (e) => aplicarMascaraWhatsapp(e.target));
-    }
+    window.carregarFeed();
     
-    // Listener do Formulário de Postagem
+    // Escuta Mascara Zap
+    const zapInput = document.getElementById('edit-whatsapp');
+    if (zapInput) zapInput.addEventListener('input', (e) => window.aplicarMascaraWhatsapp(e.target));
+
+    // Escuta Form Post
     const formPost = document.getElementById('form-post');
-    if (formPost) {
-        formPost.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // 1. Bloqueio Ultra Senior: Feedback visual e evita postagem duplicada
-            const btnPublicar = e.target.querySelector('button[type="submit"]');
-            const textoOriginal = btnPublicar.innerText;
-            btnPublicar.disabled = true;
-            btnPublicar.innerText = "ENVIANDO...";
+    if (formPost) formPost.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const { data: { session } } = await _supabase.auth.getSession();
+        const formData = new FormData(formPost);
+        const { error } = await _supabase.from('avisos').insert([{
+            titulo: formData.get('titulo'),
+            conteudo: formData.get('conteudo'),
+            categoria: formData.get('categoria'),
+            bairro_alvo: formData.get('bairro_alvo'),
+            autor_id: session.user.id
+        }]);
+        if (error) alert(error.message);
+        else { formPost.reset(); document.getElementById('modal-post').close(); window.carregarFeed(); }
+    });
 
-            try {
-                const { data: { user } } = await _supabase.auth.getUser();
-                
-                if (!user) {
-                    alert("Você precisa entrar para publicar!");
-                    login();
-                    return; 
-                }
-
-                // 2. Executa a inserção no banco com a CATEGORIA dinâmica
-                const { error } = await _supabase.from('avisos').insert([{ 
-                    titulo: document.getElementById('post-titulo').value, 
-                    conteudo: document.getElementById('post-conteudo').value, 
-                    bairro_alvo: document.getElementById('post-bairro').value, 
-                    autor_id: user.id, 
-                    categoria: document.getElementById('post-categoria').value 
-                }]);
-
-                if (error) {
-                    alert("Erro ao publicar: " + error.message);
-                } else {
-                    alert("Publicado com sucesso!");
-                    document.getElementById('modal-post').close();
-                    formPost.reset();
-                    carregarFeed();
-                }
-            } catch (err) {
-                console.error("Erro inesperado:", err);
-                alert("Erro ao processar postagem.");
-            } finally {
-                // 3. Destrava o botão SEMPRE (sucesso ou erro)
-                btnPublicar.disabled = false;
-                btnPublicar.innerText = textoOriginal;
-            }
-        });
-    }
-    // --- NO config.js, DENTRO DO document.addEventListener('DOMContentLoaded', ... ) ---
-
-    // 1. Escutar avisos em tempo real
-    _supabase
-        .channel('feed-geral')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos' }, payload => {
-            console.log('Novo aviso detectado:', payload.new);
-            // Recarrega o feed se o novo aviso for do bairro filtrado ou se estiver em "Feira Toda"
-            const bairroFiltro = document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda';
-            if (bairroFiltro === 'Feira Toda' || payload.new.bairro_alvo === bairroFiltro) {
-                carregarFeed(bairroFiltro);
-            }
-        })
-        .subscribe();
-
-    // 2. Escutar reações (apoios) em tempo real
-    _supabase
-        .channel('reacoes-realtime')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reacoes' }, () => {
-            // Sempre que houver um novo apoio ou remoção, atualizamos o feed para refletir os números
-            const bairroFiltro = document.querySelector('.btn-bairro.bg-marinho')?.innerText || 'Feira Toda';
-            carregarFeed(bairroFiltro);
-        })
-        .subscribe();
-
-    // Listener do Formulário de Perfil
+    // Escuta Form Perfil
     const formPerfil = document.getElementById('form-perfil');
-    if (formPerfil) {
-        formPerfil.addEventListener('submit', salvarPerfil);
-    }
+    if (formPerfil) formPerfil.addEventListener('submit', window.salvarPerfil);
 });
