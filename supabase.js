@@ -7,7 +7,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // ⚠️ SUBSTITUA pelos valores do seu projeto Supabase:
 // Painel Supabase → Settings → API → Project URL e anon public key
-const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
+const SUPABASE_URL = 'https://slifhevopqytdlhvvtsf.supabase.co';
 const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_AQUI';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
