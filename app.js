@@ -53,8 +53,10 @@ const Estado = {
 // ============================================================
 // CHAVE VAPID — SUBSTITUA pela sua chave pública
 // Painel Supabase → Settings → API → Web Push → VAPID Public Key
+// ⚠️ A chave abaixo é um EXEMPLO e NÃO funcionará para enviar pushes.
+//    Gere a sua no painel do Supabase e substitua aqui.
 // ============================================================
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkOtGWLCM-8Svh-C9hXOOEBhCFd-0mM3Rb6XbLhbwE';
+const VAPID_PUBLIC_KEY = 'SUBSTITUA_PELA_SUA_CHAVE_VAPID_PUBLICA_AQUI';
 
 // ============================================================
 // INICIALIZAÇÃO
@@ -273,22 +275,22 @@ function criarCardPost(post) {
   artigo.className = 'bg-white rounded-2xl shadow-sm overflow-hidden smooth-enter border border-gray-100 cursor-pointer';
   artigo.dataset.postId = post.id;
 
-  const nomeAutor = post.autor?.nome || 'Anônimo';
-  const iniciais = nomeAutor.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-  const cor = post.categoria?.cor || '#F59E0B';
-  const icone = post.categoria?.icone || '💬';
+  const nomeAutor = esc(post.autor?.nome || 'Anônimo');
+  const iniciais = esc(nomeAutor.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
+  const cor = escAttr(post.categoria?.cor || '#F59E0B');
+  const icone = esc(post.categoria?.icone || '💬');
   const tempoAtras = formatarTempo(post.criado_em);
   const preco = post.preco_a_partir
     ? `<span class="font-semibold text-green-600">A partir de R$ ${Number(post.preco_a_partir).toFixed(2).replace('.', ',')}</span>`
     : '';
   const tags = (post.tags || [])
-    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${t}</span>`)
+    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${esc(t)}</span>`)
     .join('');
 
   // Imagem do post (se existir)
   const imagemHtml = post.imagem_url
     ? `<div class="w-full h-48 bg-gray-100 overflow-hidden">
-         <img src="${post.imagem_url}" alt="${post.titulo}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'">
+         <img src="${escAttr(post.imagem_url)}" alt="${escAttr(post.titulo)}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'">
        </div>`
     : '';
 
@@ -314,17 +316,17 @@ function criarCardPost(post) {
           </div>
           <div>
             <p class="font-semibold text-slate-900 text-sm">${nomeAutor}</p>
-            <p class="text-xs text-gray-500">${post.bairro?.nome || ''} • ${tempoAtras}</p>
+            <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
           </div>
         </div>
         <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold"
               style="background:${cor}20; color:${cor}">
-          ${icone} ${post.categoria?.nome || ''}
+          ${icone} ${esc(post.categoria?.nome || '')}
         </span>
       </div>
 
-      <h3 class="font-bold text-slate-900 mb-1">${post.titulo}</h3>
-      <p class="text-sm text-gray-700 mb-3 line-clamp-3">${post.descricao}</p>
+      <h3 class="font-bold text-slate-900 mb-1">${esc(post.titulo)}</h3>
+      <p class="text-sm text-gray-700 mb-3 line-clamp-3">${esc(post.descricao)}</p>
 
       ${preco ? `<div class="mb-2">${preco} • <span class="text-gray-600 text-sm">Atende hoje</span></div>` : ''}
       ${tags ? `<div class="flex flex-wrap gap-2 mb-3">${tags}</div>` : ''}
@@ -332,7 +334,7 @@ function criarCardPost(post) {
 
     <div class="px-4 pb-4 flex gap-2">
       <button class="btn-ver-perfil flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-3 px-4 rounded-xl transition-all"
-              data-autor-id="${post.autor?.id}" onclick="event.stopPropagation()">
+              data-autor-id="${escAttr(post.autor?.id)}" onclick="event.stopPropagation()">
         Ver Perfil
       </button>
       ${botaoContato}
@@ -349,7 +351,16 @@ function criarCardPost(post) {
   return artigo;
 }
 
+// ============================================================
+// CONTAGEM DE VISUALIZAÇÕES (deduplicada por sessão)
+// ============================================================
+const postsVisualizados = new Set();
+
 async function registrarVisualizacaoPost(postId) {
+  // Não incrementar se já visualizou nesta sessão
+  if (postsVisualizados.has(postId)) return;
+  postsVisualizados.add(postId);
+
   try {
     await supabase.rpc('incrementar_visualizacoes', { post_id: postId });
   } catch (_) {}
@@ -428,16 +439,16 @@ async function abrirDetalhePost(postId) {
     return;
   }
 
-  const nomeAutor = post.autor?.nome || 'Anônimo';
-  const iniciais = nomeAutor.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-  const cor = post.categoria?.cor || '#F59E0B';
-  const icone = post.categoria?.icone || '💬';
+  const nomeAutor = esc(post.autor?.nome || 'Anônimo');
+  const iniciais = esc(nomeAutor.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
+  const cor = escAttr(post.categoria?.cor || '#F59E0B');
+  const icone = esc(post.categoria?.icone || '💬');
   const tempoAtras = formatarTempo(post.criado_em);
   const preco = post.preco_a_partir
     ? `<span class="font-semibold text-green-600 text-lg">A partir de R$ ${Number(post.preco_a_partir).toFixed(2).replace('.', ',')}</span>`
     : '';
   const tags = (post.tags || [])
-    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${t}</span>`)
+    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${esc(t)}</span>`)
     .join('');
 
   // Verificar se o post é do usuário logado
@@ -445,7 +456,7 @@ async function abrirDetalhePost(postId) {
 
   const imagemHtml = post.imagem_url
     ? `<div class="w-full h-56 bg-gray-100 overflow-hidden -mx-6 -mt-6 mb-4">
-         <img src="${post.imagem_url}" alt="${post.titulo}" class="w-full h-full object-cover" onerror="this.parentElement.style.display='none'">
+         <img src="${escAttr(post.imagem_url)}" alt="${escAttr(post.titulo)}" class="w-full h-full object-cover" onerror="this.parentElement.style.display='none'">
        </div>`
     : '';
 
@@ -465,7 +476,7 @@ async function abrirDetalhePost(postId) {
 
   // Botão de chat (só se NÃO for o dono e estiver logado)
   const botaoChat = (!isDono && Estado.usuario) ? `
-    <button id="btn-chat-com-autor" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-3" data-autor-id="${post.autor_id}" data-post-id="${post.id}">
+    <button id="btn-chat-com-autor" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-3" data-autor-id="${escAttr(post.autor_id)}" data-post-id="${escAttr(post.id)}">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
       Enviar Mensagem
     </button>
@@ -503,7 +514,7 @@ async function abrirDetalhePost(postId) {
             </div>
             <div>
               <p class="font-semibold text-slate-900">${nomeAutor}</p>
-              <p class="text-xs text-gray-500">${post.bairro?.nome || ''} • ${tempoAtras}</p>
+              <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
             </div>
           </div>
           <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold"
@@ -513,8 +524,8 @@ async function abrirDetalhePost(postId) {
         </div>
 
         <!-- Título e descrição -->
-        <h3 class="text-xl font-bold text-slate-900 mb-2">${post.titulo}</h3>
-        <p class="text-sm text-gray-700 mb-4 leading-relaxed">${post.descricao}</p>
+        <h3 class="text-xl font-bold text-slate-900 mb-2">${esc(post.titulo)}</h3>
+        <p class="text-sm text-gray-700 mb-4 leading-relaxed">${esc(post.descricao)}</p>
 
         ${preco ? `<div class="mb-3">${preco}</div>` : ''}
         ${tags ? `<div class="flex flex-wrap gap-2 mb-3">${tags}</div>` : ''}
@@ -614,13 +625,13 @@ async function abrirModalEditarPost(post) {
                 <div class="font-medium text-xs">${c.nome}</div>
               </button>`).join('')}
           </div>
-          <input type="hidden" id="editar-categoria-id" value="${post.categoria?.id || ''}">
+          <input type="hidden" id="editar-categoria-id" value="${escAttr(post.categoria?.id || '')}">
         </div>
 
         <!-- Título -->
         <div>
           <label class="block text-sm font-semibold text-slate-700 mb-2">Título *</label>
-          <input type="text" id="editar-titulo" value="${post.titulo || ''}"
+          <input type="text" id="editar-titulo" value="${escAttr(post.titulo || '')}"
             class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
         </div>
 
@@ -628,7 +639,7 @@ async function abrirModalEditarPost(post) {
         <div>
           <label class="block text-sm font-semibold text-slate-700 mb-2">Descrição *</label>
           <textarea id="editar-descricao" rows="3"
-            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none">${post.descricao || ''}</textarea>
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none">${esc(post.descricao || '')}</textarea>
         </div>
 
         <!-- Preço -->
@@ -636,7 +647,7 @@ async function abrirModalEditarPost(post) {
           <label class="block text-sm font-semibold text-slate-700 mb-2">Preço a partir de (opcional)</label>
           <div class="relative">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
-            <input type="number" id="editar-preco" min="0" step="0.01" value="${post.preco_a_partir || ''}"
+            <input type="number" id="editar-preco" min="0" step="0.01" value="${escAttr(post.preco_a_partir || '')}"
               class="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
           </div>
         </div>
@@ -644,7 +655,7 @@ async function abrirModalEditarPost(post) {
         <!-- WhatsApp -->
         <div>
           <label class="block text-sm font-semibold text-slate-700 mb-2">WhatsApp para contato (opcional)</label>
-          <input type="tel" id="editar-whatsapp" value="${post.contato_whatsapp || ''}"
+          <input type="tel" id="editar-whatsapp" value="${escAttr(post.contato_whatsapp || '')}"
             class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
         </div>
 
@@ -652,7 +663,7 @@ async function abrirModalEditarPost(post) {
         ${post.imagem_url ? `
           <div>
             <label class="block text-sm font-semibold text-slate-700 mb-2">Imagem atual</label>
-            <img src="${post.imagem_url}" alt="Imagem do post" class="w-full h-32 object-cover rounded-xl mb-2">
+            <img src="${escAttr(post.imagem_url)}" alt="Imagem do post" class="w-full h-32 object-cover rounded-xl mb-2">
             <p class="text-xs text-gray-500">Para trocar a imagem, use o campo abaixo</p>
           </div>
         ` : ''}
@@ -825,7 +836,7 @@ async function abrirModalPublicar() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
               <p class="text-sm text-gray-500">Toque para adicionar uma foto</p>
-              <p class="text-xs text-gray-400">JPG, PNG até 5MB</p>
+              <p class="text-xs text-gray-400">JPG, PNG até 10MB (compressão automática)</p>
             </div>
             <div id="upload-imagem-preview-container" class="hidden">
               <img id="upload-imagem-preview-img" class="w-full h-40 object-cover rounded-lg mb-2" src="" alt="Preview">
@@ -895,8 +906,8 @@ async function abrirModalPublicar() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      mostrarToast('Imagem muito grande! Máximo 5MB.', 'erro');
+    if (file.size > 10 * 1024 * 1024) {
+      mostrarToast('Imagem muito grande! Máximo 10MB.', 'erro');
       return;
     }
 
@@ -1068,15 +1079,23 @@ async function carregarPostsNoMapa() {
 
       marker.bindPopup(`
         <div style="min-width: 200px; font-family: system-ui;">
-          <strong style="font-size: 14px;">${icone} ${post.titulo}</strong>
-          <p style="font-size: 12px; color: #666; margin: 4px 0;">${post.descricao?.substring(0, 80)}${post.descricao?.length > 80 ? '...' : ''}</p>
-          <p style="font-size: 11px; color: #999;">${post.autor?.nome || 'Anônimo'} • ${formatarTempo(post.criado_em)}</p>
+          <strong style="font-size: 14px;">${esc(icone)} ${esc(post.titulo)}</strong>
+          <p style="font-size: 12px; color: #666; margin: 4px 0;">${esc(post.descricao?.substring(0, 80))}${post.descricao?.length > 80 ? '...' : ''}</p>
+          <p style="font-size: 11px; color: #999;">${esc(post.autor?.nome || 'Anônimo')} • ${formatarTempo(post.criado_em)}</p>
         </div>
       `);
 
-      marker.on('click', () => {
-        // Ao clicar no popup, abrir detalhe
-        marker.on('popupclick', () => abrirDetalhePost(post.id));
+      // Ao clicar no marcador, abre o popup;
+      // Ao clicar no popup, abre o detalhe do post
+      marker.on('popupopen', () => {
+        // Usar timeout pequeno para garantir que o popup DOM existe
+        setTimeout(() => {
+          const popupEl = marker.getPopup()?.getElement();
+          if (popupEl) {
+            popupEl.style.cursor = 'pointer';
+            popupEl.addEventListener('click', () => abrirDetalhePost(post.id));
+          }
+        }, 50);
       });
 
       marcadores.push(marker);
@@ -1163,16 +1182,16 @@ async function carregarListaConversas() {
 
     container.innerHTML = conversas.map(c => `
       <button class="conversa-item w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
-              data-conversa-id="${c.id}" data-outro-nome="${c.outroPerfil?.nome || 'Usuário'}">
+              data-conversa-id="${escAttr(c.id)}" data-outro-nome="${escAttr(c.outroPerfil?.nome || 'Usuário')}">
         <div class="w-12 h-12 rounded-full bg-terra-sol flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-          ${(c.outroPerfil?.nome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+          ${esc((c.outroPerfil?.nome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase())}
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between">
-            <p class="font-semibold text-slate-900 text-sm truncate">${c.outroPerfil?.nome || 'Usuário'}</p>
+            <p class="font-semibold text-slate-900 text-sm truncate">${esc(c.outroPerfil?.nome || 'Usuário')}</p>
             ${c.naoLidas > 0 ? `<span class="bg-terra-sol text-white text-xs font-bold rounded-full px-2 py-0.5">${c.naoLidas}</span>` : ''}
           </div>
-          <p class="text-xs text-gray-500 truncate">${c.ultimaMensagem?.conteudo || (c.post ? 'Sobre: ' + c.post.titulo : 'Conversa iniciada')}</p>
+          <p class="text-xs text-gray-500 truncate">${esc(c.ultimaMensagem?.conteudo || (c.post ? 'Sobre: ' + c.post.titulo : 'Conversa iniciada'))}</p>
           ${c.ultimaMensagem ? `<p class="text-xs text-gray-400 mt-0.5">${formatarTempo(c.ultimaMensagem.criado_em)}</p>` : ''}
         </div>
       </button>
@@ -1240,12 +1259,12 @@ function renderizarMensagens(mensagens) {
 
   container.innerHTML = mensagens.map(msg => {
     const isMinha = msg.remetente_id === Estado.usuario?.id;
-    const nome = msg.remetente?.nome || 'Usuário';
+    const nome = esc(msg.remetente?.nome || 'Usuário');
 
     return `
       <div class="flex ${isMinha ? 'justify-end' : 'justify-start'} mb-3">
         <div class="max-w-[80%] ${isMinha ? 'bg-terra-sol text-white' : 'bg-gray-100 text-slate-900'} rounded-2xl ${isMinha ? 'rounded-br-md' : 'rounded-bl-md'} px-4 py-2.5">
-          <p class="text-sm leading-relaxed">${msg.conteudo}</p>
+          <p class="text-sm leading-relaxed">${esc(msg.conteudo)}</p>
           <p class="text-[10px] ${isMinha ? 'text-white/60' : 'text-gray-400'} mt-1 text-right">${formatarTempo(msg.criado_em)}</p>
         </div>
       </div>
@@ -1286,9 +1305,28 @@ function setupChatEnvio() {
 async function renderizarBadgeMensagens() {
   if (!Estado.usuario) return;
   try {
-    const conversas = await listarConversas();
-    const totalNaoLidas = conversas.reduce((acc, c) => acc + (c.naoLidas || 0), 0);
+    // Query leve em 2 passos: buscar IDs das conversas, depois contar não lidas
+    const { data: minhasConversas } = await supabase
+      .from('conversas')
+      .select('id')
+      .or(`participante_1.eq.${Estado.usuario.id},participante_2.eq.${Estado.usuario.id}`);
 
+    if (!minhasConversas || minhasConversas.length === 0) {
+      const badge = document.getElementById('badge-msg-nav');
+      if (badge) badge.classList.add('hidden');
+      return;
+    }
+
+    const conversaIds = minhasConversas.map(c => c.id);
+
+    const { count } = await supabase
+      .from('mensagens')
+      .select('*', { count: 'exact', head: true })
+      .eq('lida', false)
+      .neq('remetente_id', Estado.usuario.id)
+      .in('conversa_id', conversaIds);
+
+    const totalNaoLidas = count || 0;
     const badge = document.getElementById('badge-msg-nav');
     if (badge) {
       if (totalNaoLidas > 0) {
@@ -1402,14 +1440,14 @@ function handleBusca(query) {
 
       lista.innerHTML = resultados.map(p => `
         <button class="sugestao-item w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg text-left transition-colors"
-                data-post-id="${p.id}">
+                data-post-id="${escAttr(p.id)}">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
-               style="background:${p.categoria?.cor || '#F59E0B'}20">
-            ${p.categoria?.icone || '💬'}
+               style="background:${escAttr(p.categoria?.cor || '#F59E0B')}20">
+            ${esc(p.categoria?.icone || '💬')}
           </div>
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-slate-900 text-sm truncate">${p.titulo}</div>
-            <div class="text-xs text-gray-500">${p.categoria?.nome || ''} • ${p.bairro?.nome || ''}</div>
+            <div class="font-medium text-slate-900 text-sm truncate">${esc(p.titulo)}</div>
+            <div class="text-xs text-gray-500">${esc(p.categoria?.nome || '')} • ${esc(p.bairro?.nome || '')}</div>
           </div>
         </button>
       `).join('');
@@ -1576,11 +1614,11 @@ async function abrirPainelNotificacoes() {
         ? '<div class="text-center py-10 text-gray-500"><div class="text-4xl mb-3">🔔</div><p>Nenhuma notificação</p></div>'
         : notifs.map(n => `
           <div class="notif-item flex gap-3 p-3 rounded-xl mb-2 cursor-pointer ${n.lida ? 'bg-gray-50' : 'bg-yellow-50'}"
-               data-id="${n.id}">
+               data-id="${escAttr(n.id)}">
             <div class="w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.lida ? 'bg-gray-300' : 'bg-yellow-500'}"></div>
             <div>
-              <p class="font-semibold text-sm text-slate-900">${n.titulo}</p>
-              <p class="text-sm text-gray-600">${n.mensagem}</p>
+              <p class="font-semibold text-sm text-slate-900">${esc(n.titulo)}</p>
+              <p class="text-sm text-gray-600">${esc(n.mensagem)}</p>
               <p class="text-xs text-gray-400 mt-1">${formatarTempo(n.criado_em)}</p>
             </div>
           </div>`).join('')
@@ -1826,10 +1864,10 @@ function abrirModalPerfil() {
 
       <div class="text-center mb-6">
         <div class="w-20 h-20 rounded-full bg-terra-sol mx-auto flex items-center justify-center text-noite-feira font-bold text-2xl mb-3">
-          ${Estado.perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '👤'}
+          ${esc(Estado.perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '👤')}
         </div>
-        <h3 class="font-bold text-lg">${Estado.perfil?.nome || 'Usuário'}</h3>
-        <p class="text-sm text-gray-500">${Estado.usuario?.email || ''}</p>
+        <h3 class="font-bold text-lg">${esc(Estado.perfil?.nome || 'Usuário')}</h3>
+        <p class="text-sm text-gray-500">${esc(Estado.usuario?.email || '')}</p>
       </div>
 
       <div class="space-y-3">
@@ -1932,20 +1970,20 @@ async function abrirModalMeusPosts() {
     }
 
     lista.innerHTML = meusPosts.map(p => `
-      <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors" data-post-id="${p.id}">
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors" data-post-id="${escAttr(p.id)}">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1">
-            <span class="text-sm">${p.categoria?.icone || '💬'}</span>
-            <p class="font-semibold text-sm text-slate-900 truncate">${p.titulo}</p>
+            <span class="text-sm">${esc(p.categoria?.icone || '💬')}</span>
+            <p class="font-semibold text-sm text-slate-900 truncate">${esc(p.titulo)}</p>
             ${!p.ativo ? '<span class="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">Inativo</span>' : ''}
           </div>
-          <p class="text-xs text-gray-500">${p.categoria?.nome || ''} • ${p.bairro?.nome || ''} • ${formatarTempo(p.criado_em)}</p>
+          <p class="text-xs text-gray-500">${esc(p.categoria?.nome || '')} • ${esc(p.bairro?.nome || '')} • ${formatarTempo(p.criado_em)}</p>
         </div>
         <div class="flex gap-1">
-          <button class="btn-editar-meu-post p-2 hover:bg-blue-50 rounded-lg text-blue-600" data-post-id="${p.id}" title="Editar">
+          <button class="btn-editar-meu-post p-2 hover:bg-blue-50 rounded-lg text-blue-600" data-post-id="${escAttr(p.id)}" title="Editar">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn-excluir-meu-post p-2 hover:bg-red-50 rounded-lg text-red-600" data-post-id="${p.id}" title="Excluir">
+          <button class="btn-excluir-meu-post p-2 hover:bg-red-50 rounded-lg text-red-600" data-post-id="${escAttr(p.id)}" title="Excluir">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
         </div>
@@ -2013,11 +2051,11 @@ async function abrirModalPerfilUsuario(userId) {
 
       <div class="text-center mb-6">
         <div class="w-20 h-20 rounded-full bg-terra-sol mx-auto flex items-center justify-center text-noite-feira font-bold text-2xl mb-3">
-          ${perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?'}
+          ${esc(perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?')}
         </div>
-        <h3 class="font-bold text-lg">${perfil?.nome || 'Usuário'}</h3>
-        <p class="text-sm text-gray-500">${perfil?.bairro?.nome || ''}</p>
-        ${perfil?.bio ? `<p class="text-sm text-gray-600 mt-2">${perfil.bio}</p>` : ''}
+        <h3 class="font-bold text-lg">${esc(perfil?.nome || 'Usuário')}</h3>
+        <p class="text-sm text-gray-500">${esc(perfil?.bairro?.nome || '')}</p>
+        ${perfil?.bio ? `<p class="text-sm text-gray-600 mt-2">${esc(perfil.bio)}</p>` : ''}
       </div>
 
       ${perfil?.whatsapp ? `
@@ -2031,7 +2069,7 @@ async function abrirModalPerfilUsuario(userId) {
       ` : ''}
 
       ${Estado.usuario && userId !== Estado.usuario.id ? `
-        <button id="btn-chat-perfil" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3" data-user-id="${userId}">
+        <button id="btn-chat-perfil" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3" data-user-id="${escAttr(userId)}">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
           Enviar Mensagem
         </button>
@@ -2062,6 +2100,35 @@ async function abrirModalPerfilUsuario(userId) {
 // ============================================================
 // UTILITÁRIOS
 // ============================================================
+
+/**
+ * Sanitiza texto para prevenir XSS ao injetar em innerHTML.
+ * Escapa caracteres HTML perigosos (<, >, &, ", ').
+ * Deve ser usada em TODO conteúdo que vem do banco de dados
+ * antes de ser inserido no DOM via innerHTML.
+ */
+function esc(texto) {
+  if (texto == null) return '';
+  const el = document.createElement('span');
+  el.textContent = String(texto);
+  return el.innerHTML;
+}
+
+/**
+ * Sanitiza valor para uso em atributo HTML (ex: value="...", data-...="...").
+ * Escapa <, >, &, ", ' e caracteres de controle.
+ */
+function escAttr(texto) {
+  if (texto == null) return '';
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/[\x00-\x1F\x7F]/g, ''); // Remove caracteres de controle
+}
+
 function formatarTempo(dataISO) {
   if (!dataISO) return '';
   const diff = (Date.now() - new Date(dataISO).getTime()) / 1000;

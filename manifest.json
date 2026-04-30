@@ -1,7 +1,7 @@
 {
   "name": "Gente da Feira",
   "short_name": "GenteFeira",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Soluções locais, vagas e serviços em Feira de Santana.",
   "id": "/gentedafeira/",
   "start_url": "./index.html",
@@ -33,15 +33,7 @@
       "purpose": "any"
     }
   ],
-  "screenshots": [
-    {
-      "src": "./screenshot-mobile.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Ecrã principal do Gente da Feira"
-    }
-  ],
+  "screenshots": [],
   "shortcuts": [
     {
       "name": "Publicar Aviso",

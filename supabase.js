@@ -121,8 +121,13 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
   }
 
   // Busca por texto (título ou descrição)
+  // Sanitizar input para prevenir injeção de padrões ilike (% e _)
   if (busca && busca.trim().length >= 2) {
-    query = query.or(`titulo.ilike.%${busca}%,descricao.ilike.%${busca}%`);
+    const buscaSanitizada = busca.trim()
+      .replace(/\\/g, '\\\\')  // Escapa barra invertida
+      .replace(/%/g, '\\%')    // Escapa curinga %
+      .replace(/_/g, '\\_');   // Escapa curinga _
+    query = query.or(`titulo.ilike.%${buscaSanitizada}%,descricao.ilike.%${buscaSanitizada}%`);
   }
 
   const { data, error } = await query;
@@ -245,7 +250,69 @@ export async function registrarVisualizacao(postId) {
 // ============================================================
 
 /**
+ * Comprime uma imagem antes do upload.
+ * Redimensiona para max 1200px e comprime para JPEG qualidade 0.8.
+ * @param {File} arquivo - O arquivo de imagem original
+ * @returns {Promise<Blob>} Blob da imagem comprimida
+ */
+async function comprimirImagem(arquivo) {
+  const LARGURA_MAX = 1200;
+  const QUALIDADE = 0.8;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(arquivo);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      // Se a imagem já é pequena o suficiente, retornar como está
+      if (img.width <= LARGURA_MAX && arquivo.size <= 1 * 1024 * 1024) {
+        resolve(arquivo);
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      let largura = img.width;
+      let altura = img.height;
+
+      // Redimensionar mantendo proporção
+      if (largura > LARGURA_MAX) {
+        altura = Math.round((altura * LARGURA_MAX) / largura);
+        largura = LARGURA_MAX;
+      }
+
+      canvas.width = largura;
+      canvas.height = altura;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, largura, altura);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Falha ao comprimir imagem'));
+          }
+        },
+        'image/jpeg',
+        QUALIDADE
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Falha ao carregar imagem para compressão'));
+    };
+
+    img.src = url;
+  });
+}
+
+/**
  * Faz upload de uma imagem para o bucket "post-imagens"
+ * Comprime automaticamente antes de enviar.
  * @param {File} arquivo - O arquivo de imagem
  * @returns {string} URL pública da imagem
  */
@@ -253,15 +320,30 @@ export async function uploadImagemPost(arquivo) {
   const user = await getUsuarioAtual();
   if (!user) throw new Error('Não autenticado');
 
-  // Gerar nome único para o arquivo
-  const extensao = arquivo.name.split('.').pop();
-  const nomeArquivo = `${user.id}/${Date.now()}.${extensao}`;
+  // Validação de tipo MIME — aceitar apenas imagens
+  const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
+    throw new Error('Tipo de arquivo não permitido. Envie apenas imagens (JPG, PNG, WebP ou GIF).');
+  }
+
+  // Validação de tamanho original — máximo 10MB (será comprimida)
+  const TAMANHO_MAXIMO = 10 * 1024 * 1024; // 10MB original
+  if (arquivo.size > TAMANHO_MAXIMO) {
+    throw new Error('Imagem muito grande. O tamanho máximo é 10MB.');
+  }
+
+  // Comprimir imagem antes do upload
+  const imagemComprimida = await comprimirImagem(arquivo);
+
+  // Gerar nome único para o arquivo (sempre salvar como .jpg após compressão)
+  const nomeArquivo = `${user.id}/${Date.now()}.jpg`;
 
   const { data, error } = await supabase.storage
     .from('post-imagens')
-    .upload(nomeArquivo, arquivo, {
+    .upload(nomeArquivo, imagemComprimida, {
       cacheControl: '3600',
       upsert: false,
+      contentType: 'image/jpeg',
     });
 
   if (error) throw error;
