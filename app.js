@@ -1568,14 +1568,24 @@ function abrirModalLogin(mensagem = '') {
       if (modoAtual === 'login') {
         await loginEmail(email, senha);
       } else {
-        await cadastrar(email, senha, nome || email);
+        const resultado = await cadastrar(email, senha, nome || email);
+
+        // Detectar se o Supabase não retornou sessão (email precisa de confirmação)
+        if (!resultado.session) {
+          modal.remove();
+          mostrarToast('Conta criada com sucesso!', 'sucesso');
+          // Exibir modal informativo sobre confirmação de email
+          mostrarModalConfirmacaoEmail(email);
+          return;
+        }
       }
       modal.remove();
       await verificarAuth();
-      mostrarToast(modoAtual === 'login' ? 'Bem-vindo(a) de volta! 👋' : 'Conta criada com sucesso! 🎉');
+      mostrarToast(modoAtual === 'login' ? 'Bem-vindo(a) de volta!' : 'Conta criada com sucesso!');
     } catch (err) {
       let msg = err.message || 'Erro desconhecido';
       if (msg.includes('Invalid login')) msg = 'E-mail ou senha incorretos';
+      if (msg.includes('Email not confirmed')) msg = 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada e clique no link de confirmação antes de fazer login.';
       if (msg.includes('already registered')) msg = 'Este e-mail já está cadastrado';
       if (msg.includes('Password should')) msg = 'A senha deve ter pelo menos 6 caracteres';
       erroEl.textContent = msg;
@@ -1584,6 +1594,62 @@ function abrirModalLogin(mensagem = '') {
       btnConfirmar.disabled = false;
     }
   });
+}
+
+// ============================================================
+// MODAL DE CONFIRMAÇÃO DE EMAIL
+// ============================================================
+function mostrarModalConfirmacaoEmail(email) {
+  document.getElementById('modal-confirmacao-email')?.remove();
+
+  const emailMask = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-confirmacao-email';
+  modal.className = 'fixed inset-0 z-[100] flex items-end justify-center';
+  modal.innerHTML = `
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-confirmacao-email"></div>
+    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 shadow-2xl">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 mb-2">Verifique seu e-mail</h2>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          Enviamos um link de confirmação para
+          <strong class="text-slate-900">${esc(emailMask)}</strong>.
+          Abra seu e-mail e clique no link para ativar sua conta.
+        </p>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="text-sm text-blue-800">
+            <p class="font-semibold mb-1">Não recebeu o e-mail?</p>
+            <ul class="space-y-1 text-blue-700">
+              <li>Verifique sua pasta de spam ou lixo eletrônico</li>
+              <li>Aguarde alguns minutos — pode demorar até 5 min</li>
+              <li>Certifique-se de que digitou o e-mail corretamente</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-fechar-confirmacao-email"
+        class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold py-4 rounded-2xl text-base transition-all active:scale-95">
+        Entendi, vou verificar
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  modal.querySelector('#overlay-confirmacao-email').addEventListener('click', () => modal.remove());
+  modal.querySelector('#btn-fechar-confirmacao-email').addEventListener('click', () => modal.remove());
 }
 
 // ============================================================
