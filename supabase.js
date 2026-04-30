@@ -87,8 +87,6 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
       tags,
       destaque,
       visualizacoes,
-      latitude,
-      longitude,
       criado_em,
       autor:perfis(id, nome, avatar_url, whatsapp, is_profissional),
       bairro:bairros(id, nome, slug, latitude, longitude),

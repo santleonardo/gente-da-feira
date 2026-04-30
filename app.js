@@ -200,15 +200,15 @@ function abrirModalBairro() {
           .map(
             b => `
           <button
-            data-slug="${b.slug}"
-            data-id="${b.id}"
-            data-nome="${b.nome}"
+            data-slug="${escAttr(b.slug)}"
+            data-id="${escAttr(b.id)}"
+            data-nome="${escAttr(b.nome)}"
             class="bairro-opcao p-3 text-sm font-medium text-left rounded-xl border-2 transition-all
               ${Estado.bairroAtual?.slug === b.slug
                 ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
                 : 'border-gray-200 hover:border-yellow-400 text-slate-700'
               }">
-            ${b.nome}
+            ${esc(b.nome)}
           </button>`
           )
           .join('')}
@@ -324,7 +324,7 @@ function criarCardPost(post) {
        </div>`
     : '';
 
-  const botaoContato = post.contato_whatsapp
+  const botaoContato = (post.contato_whatsapp && Estado.usuario)
     ? `<a href="https://wa.me/55${post.contato_whatsapp.replace(/\D/g, '')}?text=Oi%2C%20vi%20seu%20post%20no%20Gente%20da%20Feira!"
           target="_blank" rel="noopener" onclick="event.stopPropagation()"
           class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
@@ -543,7 +543,7 @@ async function abrirDetalhePost(postId) {
           </div>
           <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold"
                 style="background:${cor}20; color:${cor}">
-            ${icone} ${post.categoria?.nome || ''}
+            ${icone} ${esc(post.categoria?.nome || '')}
           </span>
         </div>
 
@@ -642,11 +642,11 @@ async function abrirModalEditarPost(post) {
           <label class="block text-sm font-semibold text-slate-700 mb-2">Categoria *</label>
           <div class="grid grid-cols-3 gap-2" id="seletor-categoria-editar">
             ${categorias.map(c => `
-              <button type="button" data-id="${c.id}" data-slug="${c.slug}"
+              <button type="button" data-id="${escAttr(c.id)}" data-slug="${escAttr(c.slug)}"
                 class="cat-btn-editar border-2 rounded-xl p-2 text-center text-sm hover:border-yellow-400 transition-all
                   ${post.categoria?.id === c.id ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200'}">
-                <div class="text-xl mb-1">${c.icone}</div>
-                <div class="font-medium text-xs">${c.nome}</div>
+                <div class="text-xl mb-1">${esc(c.icone)}</div>
+                <div class="font-medium text-xs">${esc(c.nome)}</div>
               </button>`).join('')}
           </div>
           <input type="hidden" id="editar-categoria-id" value="${escAttr(post.categoria?.id || '')}">
@@ -826,10 +826,10 @@ async function abrirModalPublicar() {
           <label class="block text-sm font-semibold text-slate-700 mb-2">Categoria *</label>
           <div class="grid grid-cols-3 gap-2" id="seletor-categoria">
             ${categorias.map(c => `
-              <button type="button" data-id="${c.id}" data-slug="${c.slug}"
+              <button type="button" data-id="${escAttr(c.id)}" data-slug="${escAttr(c.slug)}"
                 class="cat-btn border-2 border-gray-200 rounded-xl p-2 text-center text-sm hover:border-yellow-400 transition-all">
-                <div class="text-xl mb-1">${c.icone}</div>
-                <div class="font-medium text-xs">${c.nome}</div>
+                <div class="text-xl mb-1">${esc(c.icone)}</div>
+                <div class="font-medium text-xs">${esc(c.nome)}</div>
               </button>`).join('')}
           </div>
           <input type="hidden" id="input-categoria-id">
@@ -1504,7 +1504,7 @@ function abrirModalLogin(mensagem = '') {
         <button id="fechar-auth" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
       </div>
 
-      ${mensagem ? `<p class="text-sm text-yellow-700 bg-yellow-50 p-3 rounded-xl mb-4">${mensagem}</p>` : ''}
+      ${mensagem ? `<p class="text-sm text-yellow-700 bg-yellow-50 p-3 rounded-xl mb-4">${esc(mensagem)}</p>` : ''}
 
       <div class="flex bg-gray-100 rounded-xl p-1 mb-5">
         <button id="tab-login" class="auth-tab flex-1 py-2 rounded-lg font-semibold text-sm bg-white shadow text-slate-900">Entrar</button>
