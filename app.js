@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v2.0.0 — Detalhe do post, Editar/Excluir, Upload foto, Mapa, Chat, Push
+// v2.3.0 — Upload de avatar, tela Meu Perfil com edição, avatares nos cards/chat
 // ============================================================
 
 import {
@@ -17,6 +17,7 @@ import {
   atualizarPost,
   excluirPost,
   uploadImagemPost,
+  uploadAvatar,
   buscarPerfil,
   buscarNotificacoes,
   contarNaoLidas,
@@ -29,6 +30,7 @@ import {
   marcarMensagensLidas,
   escutarNovasMensagens,
   salvarPushSubscription,
+  atualizarPerfil,
 } from './supabase.js';
 
 // ============================================================
@@ -118,11 +120,34 @@ function renderizarAvatarHeader() {
       .slice(0, 2)
       .join('')
       .toUpperCase();
-    if (avatarEl) avatarEl.textContent = iniciais;
+
+    if (Estado.perfil.avatar_url) {
+      // Pré-carregar a imagem; se funcionar, aplicar como background do botão
+      const img = new Image();
+      img.onload = () => {
+        if (btnPerfil) {
+          btnPerfil.style.backgroundImage = `url(${escAttr(Estado.perfil.avatar_url)})`;
+          btnPerfil.style.backgroundSize = 'cover';
+          btnPerfil.style.backgroundPosition = 'center';
+        }
+        if (avatarEl) avatarEl.textContent = '';
+      };
+      img.onerror = () => {
+        if (avatarEl) avatarEl.textContent = iniciais;
+        if (btnPerfil) btnPerfil.style.backgroundImage = '';
+      };
+      img.src = Estado.perfil.avatar_url;
+    } else {
+      if (avatarEl) avatarEl.textContent = iniciais;
+      if (btnPerfil) btnPerfil.style.backgroundImage = '';
+    }
     if (btnPerfil) btnPerfil.title = 'Meu perfil / Sair';
   } else {
     if (avatarEl) avatarEl.textContent = '👤';
-    if (btnPerfil) btnPerfil.title = 'Fazer login';
+    if (btnPerfil) {
+      btnPerfil.title = 'Fazer login';
+      btnPerfil.style.backgroundImage = '';
+    }
   }
 }
 
@@ -310,10 +335,7 @@ function criarCardPost(post) {
     <div class="p-4">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm"
-               style="background: ${cor}">
-            ${iniciais}
-          </div>
+          ${htmlAvatar(post.autor?.avatar_url, nomeAutor, 'w-11 h-11 rounded-xl', 'text-sm', '', `background: ${cor}`)}
           <div>
             <p class="font-semibold text-slate-900 text-sm">${nomeAutor}</p>
             <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
@@ -508,10 +530,7 @@ async function abrirDetalhePost(postId) {
         <!-- Autor e categoria -->
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-sm"
-                 style="background: ${cor}">
-              ${iniciais}
-            </div>
+            ${htmlAvatar(post.autor?.avatar_url, nomeAutor, 'w-12 h-12 rounded-xl', 'text-sm', '', `background: ${cor}`)}
             <div>
               <p class="font-semibold text-slate-900">${nomeAutor}</p>
               <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
@@ -1183,9 +1202,7 @@ async function carregarListaConversas() {
     container.innerHTML = conversas.map(c => `
       <button class="conversa-item w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
               data-conversa-id="${escAttr(c.id)}" data-outro-nome="${escAttr(c.outroPerfil?.nome || 'Usuário')}">
-        <div class="w-12 h-12 rounded-full bg-terra-sol flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-          ${esc((c.outroPerfil?.nome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase())}
-        </div>
+        ${htmlAvatar(c.outroPerfil?.avatar_url, c.outroPerfil?.nome || 'Usuário', 'w-12 h-12 rounded-full', 'text-sm')}
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between">
             <p class="font-semibold text-slate-900 text-sm truncate">${esc(c.outroPerfil?.nome || 'Usuário')}</p>
@@ -1846,38 +1863,109 @@ function handleNavegacao(route) {
 }
 
 // ============================================================
-// MODAL PERFIL DO USUÁRIO LOGADO
+// MODAL PERFIL DO USUÁRIO LOGADO (com edição e upload de avatar)
 // ============================================================
 function abrirModalPerfil() {
   document.getElementById('modal-perfil')?.remove();
+
+  const perfil = Estado.perfil || {};
+  const avatarHtml = perfil.avatar_url
+    ? `<img src="${escAttr(perfil.avatar_url)}" alt="Avatar" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">`
+    : '';
+
+  const bairrosOptions = Estado.bairros.map(b =>
+    `<option value="${escAttr(b.id)}" ${perfil.bairro_id === b.id ? 'selected' : ''}>${esc(b.nome)}</option>`
+  ).join('');
 
   const modal = document.createElement('div');
   modal.id = 'modal-perfil';
   modal.className = 'fixed inset-0 z-[100] flex items-end justify-center';
   modal.innerHTML = `
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-perfil"></div>
-    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-xl font-bold text-slate-900">Meu Perfil</h2>
         <button id="fechar-perfil" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
       </div>
 
+      <!-- Avatar com upload -->
       <div class="text-center mb-6">
-        <div class="w-20 h-20 rounded-full bg-terra-sol mx-auto flex items-center justify-center text-noite-feira font-bold text-2xl mb-3">
-          ${esc(Estado.perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '👤')}
+        <div class="relative w-24 h-24 rounded-full bg-terra-sol mx-auto flex items-center justify-center text-noite-feira font-bold text-3xl overflow-hidden cursor-pointer group" id="avatar-upload-area">
+          ${avatarHtml}
+          <span class="${perfil.avatar_url ? 'hidden' : ''}" id="avatar-iniciais-perfil">${esc(perfil.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '👤')}</span>
+          <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
         </div>
-        <h3 class="font-bold text-lg">${esc(Estado.perfil?.nome || 'Usuário')}</h3>
-        <p class="text-sm text-gray-500">${esc(Estado.usuario?.email || '')}</p>
+        <p class="text-xs text-gray-500 mt-2">Toque para trocar a foto</p>
+        <input type="file" id="input-avatar" accept="image/*" class="hidden">
+        <p id="avatar-status" class="text-xs text-gray-400 mt-1"></p>
       </div>
 
+      <!-- Campos editáveis -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Nome</label>
+          <input type="text" id="perfil-nome" value="${escAttr(perfil.nome || '')}"
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Bio</label>
+          <textarea id="perfil-bio" rows="2" placeholder="Conte um pouco sobre você..."
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none">${esc(perfil.bio || '')}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">WhatsApp</label>
+          <input type="tel" id="perfil-whatsapp" value="${escAttr(perfil.whatsapp || '')}" placeholder="75 9 9999-0000"
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Bairro</label>
+          <select id="perfil-bairro"
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+            <option value="">Selecione seu bairro</option>
+            ${bairrosOptions}
+          </select>
+        </div>
+
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" id="perfil-profissional" ${perfil.is_profissional ? 'checked' : ''}
+            class="w-5 h-5 rounded border-gray-300 text-yellow-500 focus:ring-yellow-400">
+          <span class="text-sm text-slate-700 font-medium">Sou profissional / presto serviços</span>
+        </label>
+      </div>
+
+      <!-- E-mail (somente leitura) -->
+      <div class="mt-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-1">E-mail</label>
+        <p class="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">${esc(Estado.usuario?.email || '')}</p>
+      </div>
+
+      <!-- Erro -->
+      <div id="erro-perfil" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-xl mt-4"></div>
+
+      <!-- Botão salvar -->
+      <button id="btn-salvar-perfil"
+        class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:shadow-lg mt-5">
+        Salvar alterações
+      </button>
+
+      <!-- Separador -->
+      <div class="border-t border-gray-200 my-5"></div>
+
+      <!-- Ações -->
       <div class="space-y-3">
-        <!-- Meus posts -->
         <button id="btn-meus-posts" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
           Minhas Publicações
         </button>
 
-        <!-- Ativar notificações push -->
         <button id="btn-push-notif" class="w-full bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           Ativar Notificações
@@ -1897,6 +1985,105 @@ function abrirModalPerfil() {
   modal.querySelector('#overlay-perfil').addEventListener('click', () => modal.remove());
   modal.querySelector('#fechar-perfil').addEventListener('click', () => modal.remove());
 
+  // ---- Upload de Avatar ----
+  const avatarArea = modal.querySelector('#avatar-upload-area');
+  const inputAvatar = modal.querySelector('#input-avatar');
+  const avatarStatus = modal.querySelector('#avatar-status');
+
+  avatarArea.addEventListener('click', () => inputAvatar.click());
+
+  inputAvatar.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      mostrarToast('Imagem muito grande! Máximo 5MB.', 'erro');
+      return;
+    }
+
+    avatarStatus.textContent = 'Enviando foto...';
+
+    try {
+      const url = await uploadAvatar(file);
+
+      // Atualizar a pré-visualização no modal
+      const imgExistente = avatarArea.querySelector('img');
+      if (imgExistente) imgExistente.remove();
+
+      const novasIniciais = avatarArea.querySelector('#avatar-iniciais-perfil');
+      if (novasIniciais) novasIniciais.classList.add('hidden');
+
+      const novaImg = document.createElement('img');
+      novaImg.src = url;
+      novaImg.alt = 'Avatar';
+      novaImg.className = 'absolute inset-0 w-full h-full object-cover';
+      novaImg.onerror = () => novaImg.remove();
+      avatarArea.appendChild(novaImg);
+
+      // Atualizar Estado e header
+      Estado.perfil.avatar_url = url;
+      renderizarAvatarHeader();
+
+      avatarStatus.textContent = 'Foto atualizada! ✅';
+      mostrarToast('Foto de perfil atualizada! 📸');
+    } catch (err) {
+      avatarStatus.textContent = '';
+      mostrarToast(err.message || 'Erro ao enviar foto', 'erro');
+    }
+  });
+
+  // ---- Salvar Perfil ----
+  modal.querySelector('#btn-salvar-perfil').addEventListener('click', async () => {
+    const erroEl = document.getElementById('erro-perfil');
+    erroEl.classList.add('hidden');
+
+    const nome = document.getElementById('perfil-nome').value.trim();
+    const bio = document.getElementById('perfil-bio').value.trim();
+    const whatsapp = document.getElementById('perfil-whatsapp').value.trim();
+    const bairroId = document.getElementById('perfil-bairro').value;
+    const isProfissional = document.getElementById('perfil-profissional').checked;
+
+    if (!nome) {
+      erroEl.textContent = 'O nome é obrigatório';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    const btnSalvar = document.getElementById('btn-salvar-perfil');
+    btnSalvar.textContent = 'Salvando...';
+    btnSalvar.disabled = true;
+
+    try {
+      const dadosAtualizados = {
+        nome,
+        bio: bio || null,
+        whatsapp: whatsapp || null,
+        bairro_id: bairroId || null,
+        is_profissional: isProfissional,
+      };
+
+      const perfilAtualizado = await atualizarPerfil(dadosAtualizados);
+
+      // Atualizar Estado global
+      Estado.perfil = perfilAtualizado;
+      renderizarAvatarHeader();
+
+      btnSalvar.textContent = 'Salvo! ✅';
+      mostrarToast('Perfil atualizado! ✏️');
+
+      setTimeout(() => {
+        btnSalvar.textContent = 'Salvar alterações';
+        btnSalvar.disabled = false;
+      }, 2000);
+    } catch (err) {
+      erroEl.textContent = err.message || 'Erro ao salvar. Tente novamente.';
+      erroEl.classList.remove('hidden');
+      btnSalvar.textContent = 'Salvar alterações';
+      btnSalvar.disabled = false;
+    }
+  });
+
+  // ---- Ações ----
   modal.querySelector('#btn-push-notif')?.addEventListener('click', () => {
     solicitarPermissaoPush();
   });
@@ -2050,10 +2237,8 @@ async function abrirModalPerfilUsuario(userId) {
       </div>
 
       <div class="text-center mb-6">
-        <div class="w-20 h-20 rounded-full bg-terra-sol mx-auto flex items-center justify-center text-noite-feira font-bold text-2xl mb-3">
-          ${esc(perfil?.nome?.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?')}
-        </div>
-        <h3 class="font-bold text-lg">${esc(perfil?.nome || 'Usuário')}</h3>
+        ${htmlAvatar(perfil?.avatar_url, perfil?.nome || 'Usuário', 'w-20 h-20 rounded-full mx-auto', 'text-2xl', 'bg-terra-sol', '', 'text-noite-feira')}
+        <h3 class="font-bold text-lg mt-3">${esc(perfil?.nome || 'Usuário')}</h3>
         <p class="text-sm text-gray-500">${esc(perfil?.bairro?.nome || '')}</p>
         ${perfil?.bio ? `<p class="text-sm text-gray-600 mt-2">${esc(perfil.bio)}</p>` : ''}
       </div>
@@ -2100,6 +2285,30 @@ async function abrirModalPerfilUsuario(userId) {
 // ============================================================
 // UTILITÁRIOS
 // ============================================================
+
+/**
+ * Gera HTML para avatar (foto ou iniciais).
+ * A imagem fica em posição absoluta sobre as iniciais;
+ * se falhar ao carregar (onerror), é removida e as iniciais aparecem.
+ * @param {string|null} avatarUrl - URL da foto de avatar
+ * @param {string} nome - Nome do usuário (para gerar iniciais)
+ * @param {string} classe - Classes CSS de tamanho e forma (ex: 'w-11 h-11 rounded-xl')
+ * @param {string} textoClasse - Classes CSS do texto das iniciais
+ * @param {string} corBg - Classe CSS de cor de fundo (ex: 'bg-terra-sol')
+ * @param {string} styleAttr - Estilo inline adicional (ex: 'background: #3B82F6')
+ * @param {string} textoCor - Classe CSS de cor do texto (ex: 'text-white' ou 'text-noite-feira')
+ */
+function htmlAvatar(avatarUrl, nome, classe = 'w-11 h-11 rounded-full', textoClasse = 'text-sm', corBg = 'bg-terra-sol', styleAttr = '', textoCor = 'text-white') {
+  const iniciais = esc((nome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase());
+  const style = styleAttr ? ` style="${styleAttr}"` : '';
+  if (avatarUrl) {
+    return `<div class="${classe} ${corBg} flex items-center justify-center ${textoCor} font-bold ${textoClasse} flex-shrink-0 overflow-hidden relative"${style}>
+      <img src="${escAttr(avatarUrl)}" alt="${escAttr(nome || 'Avatar')}" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()" aria-hidden="true">
+      ${iniciais}
+    </div>`;
+  }
+  return `<div class="${classe} ${corBg} flex items-center justify-center ${textoCor} font-bold ${textoClasse} flex-shrink-0"${style}>${iniciais}</div>`;
+}
 
 /**
  * Sanitiza texto para prevenir XSS ao injetar em innerHTML.

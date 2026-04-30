@@ -1,7 +1,7 @@
 {
   "name": "Gente da Feira",
   "short_name": "GenteFeira",
-  "version": "2.1.0",
+  "version": "2.3.0",
   "description": "Soluções locais, vagas e serviços em Feira de Santana.",
   "id": "/gentedafeira/",
   "start_url": "./index.html",

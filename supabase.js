@@ -357,6 +357,60 @@ export async function uploadImagemPost(arquivo) {
 }
 
 // ============================================================
+// UPLOAD DE AVATAR (Supabase Storage — bucket "avatars")
+// ============================================================
+
+/**
+ * Faz upload de uma foto de avatar para o bucket "avatars".
+ * Comprime automaticamente, sempre salva como avatar.jpg (sobrescreve).
+ * Atualiza a coluna avatar_url no perfil automaticamente.
+ * @param {File} arquivo - O arquivo de imagem
+ * @returns {string} URL pública do avatar (com cache-buster)
+ */
+export async function uploadAvatar(arquivo) {
+  const user = await getUsuarioAtual();
+  if (!user) throw new Error('Não autenticado');
+
+  const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
+    throw new Error('Tipo de arquivo não permitido. Envie apenas imagens (JPG, PNG, WebP ou GIF).');
+  }
+
+  const TAMANHO_MAXIMO = 5 * 1024 * 1024; // 5MB
+  if (arquivo.size > TAMANHO_MAXIMO) {
+    throw new Error('Imagem muito grande. O tamanho máximo é 5MB.');
+  }
+
+  const imagemComprimida = await comprimirImagem(arquivo);
+
+  // Nome fixo: sempre avatar.jpg (sobrescreve o anterior via upsert)
+  const nomeArquivo = `${user.id}/avatar.jpg`;
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(nomeArquivo, imagemComprimida, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: 'image/jpeg',
+    });
+
+  if (error) throw error;
+
+  const { data: urlData } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(nomeArquivo);
+
+  // Atualizar avatar_url no perfil
+  await supabase
+    .from('perfis')
+    .update({ avatar_url: urlData.publicUrl, atualizado_em: new Date().toISOString() })
+    .eq('id', user.id);
+
+  // Retornar URL com cache-buster para forçar refresh no navegador
+  return `${urlData.publicUrl}?t=${Date.now()}`;
+}
+
+// ============================================================
 // PERFIL DO USUÁRIO
 // ============================================================
 
