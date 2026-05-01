@@ -1,7 +1,7 @@
 // Service Worker - Gente da Feira
-// Versão: 3.3.0 - Pacote Moderacao UI: Reportar, Bloquear, Filtrar, Status, Painel Moderador
+// Versão: 3.4.0 - Correcoes UI: Ver Perfil, Chat direto, Mapa bairro, Eventos
 
-const CACHE_VERSION = '3.3.0';
+const CACHE_VERSION = '3.4.0';
 const CACHE_NAME = `gente-da-feira-v${CACHE_VERSION}`;
 
 // Assets para precache (Ficheiros essenciais para o app abrir offline)

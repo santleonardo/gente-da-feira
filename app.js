@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Logica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.3.0 — Pacote Moderação UI: Reportar, Bloquear, Filtrar, Status, Painel Moderador
+// v3.4.0 — Correções UI: Ver Perfil, Chat direto, Mapa bairro, Eventos
 // ============================================================
 
 import {
@@ -96,7 +96,7 @@ async function init() {
     await carregarFeed(true);
     iniciarRealtime();
 
-    console.log('🚀 Gente da Feira v3.3.0 inicializado!');
+    console.log('🚀 Gente da Feira v3.4.0 inicializado!');
   } catch (err) {
     console.error('Erro na inicialização:', err);
     mostrarToast('Erro ao carregar o app. Tente novamente.', 'erro');
@@ -394,7 +394,7 @@ function criarCardPost(post) {
 
     <div class="px-4 pb-4 flex gap-2">
       <button class="btn-ver-perfil flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-3 px-4 rounded-xl transition-all"
-              data-autor-id="${escAttr(post.autor?.id)}" onclick="event.stopPropagation()">
+              data-autor-id="${escAttr(post.autor?.id)}">
         Ver Perfil
       </button>
       ${botaoContato}
@@ -651,7 +651,7 @@ async function abrirDetalhePost(postId) {
     try {
       const conversa = await buscarOuCriarConversa(autorId, postIdChat);
       modal.remove();
-      abrirTelaChat(conversa.id);
+      abrirTelaChat({ conversaId: conversa.id, outroNome: nomeAutor, outroId: autorId });
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
       btn.textContent = 'Enviar Mensagem';
@@ -1274,14 +1274,115 @@ async function carregarPostsNoMapa() {
       marcadores.push(marker);
     });
 
-    // Adicionar marcador do bairro central
-    if (Estado.bairroAtual?.latitude) {
-      const bairroMarker = L.marker([Estado.bairroAtual.latitude, Estado.bairroAtual.longitude])
-        .addTo(mapaInstancia)
-        .bindPopup(`<strong>📍 ${Estado.bairroAtual.nome}</strong>`)
-        .openPopup();
+    // Adicionar marcadores para TODOS os bairros (com opção de trocar)
+    Estado.bairros.forEach(b => {
+      if (!b.latitude || !b.longitude) return;
+      const isAtual = Estado.bairroAtual?.id === b.id;
+      const bairroMarker = L.circleMarker([b.latitude, b.longitude], {
+        radius: 14,
+        fillColor: isAtual ? '#F59E0B' : '#64748B',
+        color: isAtual ? '#D97706' : '#475569',
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0.6,
+      }).addTo(mapaInstancia);
+
+      bairroMarker.bindPopup(`
+        <div style="min-width: 180px; font-family: system-ui;">
+          <strong style="font-size: 14px;">📍 ${esc(b.nome)}</strong>
+          ${isAtual ? '<p style="font-size: 11px; color: #D97706; margin: 4px 0; font-weight: 600;">Bairro atual</p>' : ''}
+          ${!isAtual ? `<button id="btn-trocar-bairro-map" data-slug="${escAttr(b.slug)}" data-id="${escAttr(b.id)}" data-nome="${escAttr(b.nome)}" style="
+            margin-top: 8px; padding: 6px 16px; background: #F59E0B; color: white; border: none; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer; width: 100%;
+          ">Mudar para ${esc(b.nome)}</button>` : ''}
+        </div>
+      `);
+
+      // Handler para trocar bairro ao clicar no botão do popup
+      bairroMarker.on('popupopen', () => {
+        setTimeout(() => {
+          const popupEl = bairroMarker.getPopup()?.getElement();
+          if (popupEl) {
+            const btnTrocar = popupEl.querySelector('#btn-trocar-bairro-map');
+            if (btnTrocar) {
+              btnTrocar.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const { slug, id, nome } = btnTrocar.dataset;
+                Estado.bairroAtual = { slug, id, nome };
+                localStorage.setItem('gdf_bairro_slug', slug);
+                atualizarBairroUI();
+                mapaInstancia.closePopup();
+
+                // Atualizar mapa e feed
+                if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
+                iniciarRealtime();
+                await carregarFeed(true);
+                carregarPostsNoMapa(); // Recarregar marcadores
+                mostrarToast(`Bairro alterado para ${nome} 📍`);
+              });
+            }
+          }
+        }, 50);
+      });
+
       marcadores.push(bairroMarker);
-    }
+    });
+
+    // Clique no mapa vazio = encontrar bairro mais próximo e oferecer troca
+    mapaInstancia.on('click', async (e) => {
+      const { lat, lng } = e.latlng;
+      let maisProximo = null;
+      let menorDist = Infinity;
+
+      Estado.bairros.forEach(b => {
+        if (!b.latitude || !b.longitude) return;
+        const dist = Math.sqrt(Math.pow(lat - b.latitude, 2) + Math.pow(lng - b.longitude, 2));
+        if (dist < menorDist) {
+          menorDist = dist;
+          maisProximo = b;
+        }
+      });
+
+      if (!maisProximo || maisProximo.id === Estado.bairroAtual?.id) return;
+
+      const popup = L.popup({ closeButton: true, maxWidth: 250 })
+        .setLatLng(e.latlng)
+        .setContent(`
+          <div style="font-family: system-ui;">
+            <strong style="font-size: 13px;">📍 ${esc(maisProximo.nome)}</strong>
+            <p style="font-size: 11px; color: #666; margin: 4px 0;">Bairro mais próximo deste ponto</p>
+            <button id="btn-trocar-bairro-click" data-slug="${escAttr(maisProximo.slug)}" data-id="${escAttr(maisProximo.id)}" data-nome="${escAttr(maisProximo.nome)}" style="
+              margin-top: 4px; padding: 6px 16px; background: #F59E0B; color: white; border: none; border-radius: 8px;
+              font-size: 12px; font-weight: 600; cursor: pointer; width: 100%;
+            ">Mudar para ${esc(maisProximo.nome)}</button>
+          </div>
+        `)
+        .openOn(mapaInstancia);
+
+      // Handler do botão
+      setTimeout(() => {
+        const popupEl = popup.getElement();
+        if (popupEl) {
+          const btnTrocar = popupEl.querySelector('#btn-trocar-bairro-click');
+          if (btnTrocar) {
+            btnTrocar.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              const { slug, id, nome } = btnTrocar.dataset;
+              Estado.bairroAtual = { slug, id, nome };
+              localStorage.setItem('gdf_bairro_slug', slug);
+              atualizarBairroUI();
+              mapaInstancia.closePopup();
+
+              if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
+              iniciarRealtime();
+              await carregarFeed(true);
+              carregarPostsNoMapa();
+              mostrarToast(`Bairro alterado para ${nome} 📍`);
+            });
+          }
+        }
+      }, 50);
+    });
 
   } catch (err) {
     console.error('Erro ao carregar posts no mapa:', err);
@@ -1291,7 +1392,7 @@ async function carregarPostsNoMapa() {
 // ============================================================
 // FEATURE 5: CHAT / MENSAGENS
 // ============================================================
-async function abrirTelaChat() {
+async function abrirTelaChat(options = {}) {
   if (!Estado.usuario) {
     abrirModalLogin('Para ver suas mensagens, faça login primeiro.');
     return;
@@ -1307,6 +1408,11 @@ async function abrirTelaChat() {
   Estado.telaAtual = 'chat';
 
   await carregarListaConversas();
+
+  // Se recebeu uma conversa específica, abrir direto (sem passar pela lista)
+  if (options.conversaId) {
+    await abrirConversa(options.conversaId, options.outroNome || 'Usuário', options.outroId || null);
+  }
 }
 
 function fecharTelaChat() {
@@ -1938,6 +2044,7 @@ async function atualizarBadgesGrid() {
       'promocoes': 'badge-promocoes',
       'servicos': 'badge-servicos',
       'avisos': 'badge-avisos',
+      'eventos': 'badge-eventos',
     };
 
     for (const row of contagens) {
@@ -2525,8 +2632,7 @@ async function abrirModalPerfilUsuario(userId) {
     try {
       const conversa = await buscarOuCriarConversa(btn.dataset.userId);
       modal.remove();
-      abrirTelaChat();
-      setTimeout(() => abrirConversa(conversa.id, perfil?.nome || 'Usuário'), 300);
+      abrirTelaChat({ conversaId: conversa.id, outroNome: perfil?.nome || 'Usuário', outroId: btn.dataset.userId });
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
     }
