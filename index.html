@@ -232,7 +232,7 @@
     ========================================= -->
     <section id="zona-utilidade" class="bg-papel">
         <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
 
                 <button id="card-vagas" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="vagas">
                     <div class="flex items-start justify-between mb-3">
@@ -273,19 +273,6 @@
                     <p class="text-xs text-gray-600">Profissionais disponíveis</p>
                 </button>
 
-                <button id="card-avisos" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="avisos">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            </svg>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full" id="badge-avisos">0</span>
-                    </div>
-                    <h3 class="text-base font-bold text-slate-900 mb-1">Avisos</h3>
-                    <p class="text-xs text-gray-600">Alertas do seu bairro</p>
-                </button>
-
                 <button id="card-eventos" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="eventos">
                     <div class="flex items-start justify-between mb-3">
                         <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -297,6 +284,19 @@
                     </div>
                     <h3 class="text-base font-bold text-slate-900 mb-1">Eventos</h3>
                     <p class="text-xs text-gray-600">O que rola no bairro</p>
+                </button>
+
+                <button id="card-avisos" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="avisos">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full" id="badge-avisos">0</span>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mb-1">Avisos</h3>
+                    <p class="text-xs text-gray-600">Alertas do seu bairro</p>
                 </button>
 
             </div>
@@ -392,9 +392,9 @@
     <!-- ========================================
          SEÇÃO CHAT (Feature 5)
     ========================================= -->
-    <section id="secao-chat" class="hidden fixed left-0 right-0 z-30 bg-white flex flex-col" style="top:0; bottom: 64px;">
+    <section id="secao-chat" class="hidden fixed inset-0 z-30 bg-white" style="top:0; bottom: 64px;">
         <!-- Header do chat — lista de conversas -->
-        <div id="chat-header-lista" class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div id="chat-header-lista" class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
             <h2 class="text-lg font-bold text-slate-900">Mensagens</h2>
             <button id="chat-fechar" class="p-2 hover:bg-gray-100 rounded-full">
                 <svg class="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +404,7 @@
         </div>
 
         <!-- Header do chat — conversa aberta (oculto por padrão) -->
-        <div id="chat-header" class="hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+        <div id="chat-header" class="hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
             <button id="chat-voltar" class="p-2 hover:bg-gray-100 rounded-full">
                 <svg class="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -415,25 +415,20 @@
             </div>
             <div>
                 <p class="font-semibold text-slate-900" id="chat-nome-outro">Usuário</p>
-                <div class="flex items-center gap-3">
-                    <p class="text-xs text-gray-400 hidden" id="chat-status-outro"></p>
-                    <div id="chat-acoes" class="hidden">
-                        <button id="btn-bloquear-chat" class="text-xs font-medium transition-colors">Bloquear</button>
-                    </div>
-                </div>
+                <p class="text-xs text-green-500">Online</p>
             </div>
         </div>
 
-        <!-- Lista de conversas (flex-1 para preencher espaço restante) -->
-        <div id="lista-conversas" class="flex-1 overflow-y-auto"></div>
+        <!-- Lista de conversas -->
+        <div id="lista-conversas" class="overflow-y-auto" style="height: calc(100% - 56px);"></div>
 
         <!-- View de conversa individual (oculta por padrão) -->
-        <div id="conversa-view" class="hidden flex-1 flex flex-col overflow-hidden">
+        <div id="conversa-view" class="hidden flex flex-col" style="height: calc(100% - 56px);">
             <!-- Mensagens -->
             <div id="chat-mensagens" class="flex-1 overflow-y-auto px-4 py-3 bg-gray-50"></div>
 
             <!-- Input de mensagem -->
-            <div class="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2 flex-shrink-0">
+            <div class="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
                 <input type="text" id="chat-input"
                     placeholder="Digite sua mensagem..."
                     class="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-terra-sol">

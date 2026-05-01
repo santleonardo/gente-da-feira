@@ -1,7 +1,7 @@
 // ============================================================
-// app.js — Logica principal do Gente da Feira
+// app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.5.0 — Correções: Chat layout flex, Ver Perfil direto, Eventos categoria
+// v2.3.0 — Upload de avatar, tela Meu Perfil com edição, avatares nos cards/chat
 // ============================================================
 
 import {
@@ -30,16 +30,6 @@ import {
   marcarMensagensLidas,
   escutarNovasMensagens,
   salvarPushSubscription,
-  reportarItem,
-  bloquearUsuario,
-  desbloquearUsuario,
-  verificarBloqueio,
-  listarBloqueados,
-  usuarioPodeAgir,
-  listarReportsPendentes,
-  moderarReport,
-  suspenderUsuario,
-  removerPostModeracao,
   atualizarPerfil,
 } from './supabase.js';
 
@@ -60,7 +50,6 @@ const Estado = {
   unsubscribeChat: null,
   telaAtual: 'feed', // 'feed' | 'mapa' | 'chat' | 'detalhe'
   conversaAtual: null,
-  usuariosBloqueados: [],  // cache de IDs bloqueados para filtro no feed
 };
 
 // ============================================================
@@ -96,7 +85,7 @@ async function init() {
     await carregarFeed(true);
     iniciarRealtime();
 
-    console.log('🚀 Gente da Feira v3.5.0 inicializado!');
+    console.log('🚀 Gente da Feira v2.0 inicializado!');
   } catch (err) {
     console.error('Erro na inicialização:', err);
     mostrarToast('Erro ao carregar o app. Tente novamente.', 'erro');
@@ -115,28 +104,9 @@ async function verificarAuth() {
       console.error('Erro ao buscar perfil:', err);
       Estado.perfil = null;
     }
-    // Verificar se o usuário pode agir (não está banido/suspenso)
-    try {
-      const statusCheck = await usuarioPodeAgir(Estado.usuario.id);
-      if (!statusCheck.permitido) {
-        mostrarToast(statusCheck.motivo, 'erro', 8000);
-        // Se banido permanentemente, deslogar
-        if (statusCheck.motivo.includes('banida permanentemente')) {
-          await logout();
-          return;
-        }
-      }
-    } catch (_) {}
-
     renderizarAvatarHeader();
     renderizarBadgeNotificacoes();
     renderizarBadgeMensagens();
-
-    // Carregar cache de usuários bloqueados
-    try {
-      Estado.usuariosBloqueados = await listarBloqueados();
-    } catch (_) {}
-
     atualizarBadgesGrid();
   } else {
     renderizarAvatarHeader();
@@ -287,11 +257,8 @@ async function carregarFeed(reiniciar = false) {
     });
 
     Estado.posts = [...Estado.posts, ...novos];
-    // Filtrar posts de usuários bloqueados
-    Estado.posts = Estado.posts.filter(p => !Estado.usuariosBloqueados.includes(p.autor?.id));
-    const novosFiltrados = novos.filter(p => !Estado.usuariosBloqueados.includes(p.autor?.id));
     esconderSkeletonFeed();
-    renderizarPosts(novosFiltrados, reiniciar);
+    renderizarPosts(novos, reiniciar);
 
     const btnMais = document.getElementById('btn-carregar-mais');
     if (btnMais) {
@@ -406,21 +373,6 @@ function criarCardPost(post) {
     if (e.target.closest('.btn-ver-perfil') || e.target.closest('a')) return;
     abrirDetalhePost(post.id);
   });
-
-  // Botão "Ver Perfil" — evento direto (mais confiável que delegação)
-  const btnVerPerfil = artigo.querySelector('.btn-ver-perfil');
-  if (btnVerPerfil) {
-    btnVerPerfil.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const autorId = btnVerPerfil.dataset.autorId;
-      if (autorId) {
-        abrirModalPerfilUsuario(autorId);
-      } else {
-        console.warn('[GDF] btn-ver-perfil sem autorId. Post:', post.id, 'Autor:', post.autor);
-        mostrarToast('Perfil do autor não disponível', 'erro');
-      }
-    });
-  }
 
   registrarVisualizacaoPost(post.id);
   return artigo;
@@ -568,14 +520,6 @@ async function abrirDetalhePost(postId) {
         </a>`
     : '';
 
-  // Botão de reportar (só se NÃO for o dono e estiver logado)
-  const botaoReportar = (!isDono && Estado.usuario) ? `
-    <button id="btn-reportar-post" class="text-sm text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 mt-2" data-post-id="${escAttr(post.id)}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-      Denunciar publicação
-    </button>
-  ` : '';
-
   modal.innerHTML = `
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-detalhe"></div>
     <div class="relative bg-white w-full max-w-lg rounded-t-3xl max-h-[92vh] overflow-y-auto shadow-2xl">
@@ -619,7 +563,6 @@ async function abrirDetalhePost(postId) {
         <!-- Ações -->
         ${botaoWhatsapp}
         ${botaoChat}
-        ${botaoReportar}
         ${botoesDono}
       </div>
     </div>
@@ -649,12 +592,6 @@ async function abrirDetalhePost(postId) {
     }
   });
 
-  // Botão reportar
-  modal.querySelector('#btn-reportar-post')?.addEventListener('click', () => {
-    modal.remove();
-    abrirModalReportar('post', post.id, post.titulo);
-  });
-
   // Botão chat
   modal.querySelector('#btn-chat-com-autor')?.addEventListener('click', async () => {
     const btn = modal.querySelector('#btn-chat-com-autor');
@@ -666,7 +603,7 @@ async function abrirDetalhePost(postId) {
     try {
       const conversa = await buscarOuCriarConversa(autorId, postIdChat);
       modal.remove();
-      abrirTelaChat({ conversaId: conversa.id, outroNome: nomeAutor, outroId: autorId });
+      abrirTelaChat(conversa.id);
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
       btn.textContent = 'Enviar Mensagem';
@@ -848,107 +785,6 @@ async function abrirModalEditarPost(post) {
       mostrarErroModal(erroEl, err.message || 'Erro ao salvar. Tente novamente.');
       btnSalvar.textContent = 'Salvar alterações';
       btnSalvar.disabled = false;
-    }
-  });
-}
-
-// ============================================================
-// FEATURE: REPORTAR ITEM
-// ============================================================
-function abrirModalReportar(tipo, itemId, itemNome = '') {
-  document.getElementById('modal-reportar')?.remove();
-
-  const motivos = [
-    { value: 'scam_fraude', label: 'Golpe / Fraude', emoji: '🚨' },
-    { value: 'assedio', label: 'Assédio', emoji: '⚠️' },
-    { value: 'discurso_odio', label: 'Discurso de ódio', emoji: '🚫' },
-    { value: 'conteudo_sexual', label: 'Conteúdo sexual', emoji: '🔞' },
-    { value: 'impersonation', label: 'Falsa identidade', emoji: '🎭' },
-    { value: 'desinformacao', label: 'Desinformação', emoji: '📰' },
-    { value: 'spam', label: 'Spam', emoji: '📢' },
-    { value: 'doxing', label: 'Exposição de dados', emoji: '🔍' },
-    { value: 'outro', label: 'Outro', emoji: '❓' },
-  ];
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-reportar';
-  modal.className = 'fixed inset-0 z-[100] flex items-end justify-center';
-  modal.innerHTML = `
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-reportar"></div>
-    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-slate-900">Denunciar</h2>
-        <button id="fechar-modal-reportar" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
-      </div>
-      <p class="text-sm text-gray-600 mb-1">Denunciar: <strong>${esc(itemNome || tipo)}</strong></p>
-      <p class="text-xs text-gray-400 mb-4">As denúncias são analisadas pela equipe de moderação.</p>
-
-      <div class="space-y-2" id="lista-motivos-report">
-        ${motivos.map(m => `
-          <label class="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200 hover:border-red-300 cursor-pointer transition-all motivo-item" data-motivo="${m.value}">
-            <input type="radio" name="motivo-report" value="${m.value}" class="accent-red-500 w-4 h-4">
-            <span class="text-lg">${m.emoji}</span>
-            <span class="text-sm font-medium text-slate-700">${m.label}</span>
-          </label>
-        `).join('')}
-      </div>
-
-      <div class="mt-4">
-        <label class="block text-sm font-semibold text-slate-700 mb-2">Detalhes (opcional)</label>
-        <textarea id="report-descricao" rows="2"
-          placeholder="Descreva o problema..."
-          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"></textarea>
-      </div>
-
-      <div id="erro-reportar" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-xl mt-3"></div>
-
-      <button id="btn-confirmar-report" disabled
-        class="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl text-base transition-all mt-4">
-        Enviar denúncia
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  modal.querySelector('#overlay-reportar').addEventListener('click', () => modal.remove());
-  modal.querySelector('#fechar-modal-reportar').addEventListener('click', () => modal.remove());
-
-  const btnConfirmar = modal.querySelector('#btn-confirmar-report');
-
-  // Habilitar botão ao selecionar motivo
-  modal.querySelectorAll('.motivo-item').forEach(label => {
-    label.addEventListener('click', () => {
-      modal.querySelectorAll('.motivo-item').forEach(l => l.classList.remove('border-red-400', 'bg-red-50'));
-      label.classList.add('border-red-400', 'bg-red-50');
-      btnConfirmar.disabled = false;
-    });
-  });
-
-  btnConfirmar.addEventListener('click', async () => {
-    const motivo = modal.querySelector('input[name="motivo-report"]:checked')?.value;
-    const descricao = modal.querySelector('#report-descricao')?.value?.trim();
-    const erroEl = document.getElementById('erro-reportar');
-    erroEl.classList.add('hidden');
-
-    if (!motivo) {
-      erroEl.textContent = 'Selecione um motivo.';
-      erroEl.classList.remove('hidden');
-      return;
-    }
-
-    btnConfirmar.textContent = 'Enviando...';
-    btnConfirmar.disabled = true;
-
-    try {
-      await reportarItem(tipo, itemId, motivo, descricao);
-      modal.remove();
-      mostrarToast('Denúncia enviada. A equipe vai analisar. 🛡️');
-    } catch (err) {
-      erroEl.textContent = err.message || 'Erro ao enviar denúncia.';
-      erroEl.classList.remove('hidden');
-      btnConfirmar.textContent = 'Enviar denúncia';
-      btnConfirmar.disabled = false;
     }
   });
 }
@@ -1195,13 +1031,8 @@ function abrirTelaMapa() {
   feed.style.display = 'none';
   feedSections.forEach(s => s.style.display = 'none');
   secao.classList.remove('hidden');
-  Estado.telaAtual = 'mapa';
 
-  // Atualizar nome do bairro no header do mapa
-  const mapaBairroNome = document.getElementById('mapa-bairro-nome');
-  if (mapaBairroNome && Estado.bairroAtual) {
-    mapaBairroNome.textContent = Estado.bairroAtual.nome;
-  }
+  Estado.telaAtual = 'mapa';
 
   // Inicializar mapa se necessário
   setTimeout(() => {
@@ -1222,12 +1053,8 @@ function abrirTelaMapa() {
       );
     }
 
-    // Invalidar tamanho para Leaflet recalcular tiles (fix para display:none)
-    setTimeout(() => {
-      mapaInstancia.invalidateSize();
-      // Carregar posts no mapa
-      carregarPostsNoMapa();
-    }, 150);
+    // Carregar posts no mapa
+    carregarPostsNoMapa();
   }, 100);
 }
 
@@ -1298,114 +1125,67 @@ async function carregarPostsNoMapa() {
       marcadores.push(marker);
     });
 
-    // Adicionar marcadores para TODOS os bairros (com opção de trocar)
+    // Adicionar marcador do bairro central
+    if (Estado.bairroAtual?.latitude) {
+      const bairroMarker = L.marker([Estado.bairroAtual.latitude, Estado.bairroAtual.longitude])
+        .addTo(mapaInstancia)
+        .bindPopup(`<strong>📍 ${Estado.bairroAtual.nome}</strong>`)
+        .openPopup();
+      marcadores.push(bairroMarker);
+    }
+
+    // Adicionar marcadores clicáveis para TODOS os bairros (permitir seleção pelo mapa)
     Estado.bairros.forEach(b => {
       if (!b.latitude || !b.longitude) return;
-      const isAtual = Estado.bairroAtual?.id === b.id;
-      const bairroMarker = L.circleMarker([b.latitude, b.longitude], {
-        radius: 14,
-        fillColor: isAtual ? '#F59E0B' : '#64748B',
-        color: isAtual ? '#D97706' : '#475569',
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 0.6,
-      }).addTo(mapaInstancia);
+      if (b.id === Estado.bairroAtual?.id) return; // já adicionado acima
 
-      bairroMarker.bindPopup(`
-        <div style="min-width: 180px; font-family: system-ui;">
+      const marker = L.marker([b.latitude, b.longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="
+            width: 28px; height: 28px;
+            background: ${b.id === Estado.bairroAtual?.id ? '#F59E0B' : '#64748B'};
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+          "></div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        }),
+      })
+      .addTo(mapaInstancia)
+      .bindPopup(`
+        <div style="min-width: 150px; font-family: system-ui;">
           <strong style="font-size: 14px;">📍 ${esc(b.nome)}</strong>
-          ${isAtual ? '<p style="font-size: 11px; color: #D97706; margin: 4px 0; font-weight: 600;">Bairro atual</p>' : ''}
-          ${!isAtual ? `<button id="btn-trocar-bairro-map" data-slug="${escAttr(b.slug)}" data-id="${escAttr(b.id)}" data-nome="${escAttr(b.nome)}" style="
-            margin-top: 8px; padding: 6px 16px; background: #F59E0B; color: white; border: none; border-radius: 8px;
-            font-size: 13px; font-weight: 600; cursor: pointer; width: 100%;
-          ">Mudar para ${esc(b.nome)}</button>` : ''}
+          <button id="btn-selecionar-bairro-mapa" data-id="${escAttr(b.id)}" data-slug="${escAttr(b.slug)}" data-nome="${escAttr(b.nome)}"
+            style="margin-top: 8px; width: 100%; padding: 6px 12px; background: #F59E0B; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+            Selecionar este bairro
+          </button>
         </div>
       `);
 
-      // Handler para trocar bairro ao clicar no botão do popup
-      bairroMarker.on('popupopen', () => {
+      marker.on('popupopen', () => {
         setTimeout(() => {
-          const popupEl = bairroMarker.getPopup()?.getElement();
-          if (popupEl) {
-            const btnTrocar = popupEl.querySelector('#btn-trocar-bairro-map');
-            if (btnTrocar) {
-              btnTrocar.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const { slug, id, nome } = btnTrocar.dataset;
-                Estado.bairroAtual = { slug, id, nome };
-                localStorage.setItem('gdf_bairro_slug', slug);
-                atualizarBairroUI();
-                mapaInstancia.closePopup();
-
-                // Atualizar mapa e feed
-                if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
-                iniciarRealtime();
-                await carregarFeed(true);
-                carregarPostsNoMapa(); // Recarregar marcadores
-                mostrarToast(`Bairro alterado para ${nome} 📍`);
-              });
-            }
+          const btn = marker.getPopup()?.getElement()?.querySelector('#btn-selecionar-bairro-mapa');
+          if (btn) {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const { slug, id, nome } = btn.dataset;
+              Estado.bairroAtual = { slug, id, nome };
+              localStorage.setItem('gdf_bairro_slug', slug);
+              atualizarBairroUI();
+              mostrarToast(`Bairro alterado para ${nome} 📍`);
+              if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
+              iniciarRealtime();
+              carregarPostsNoMapa();
+              carregarFeed(true);
+            });
           }
         }, 50);
       });
 
-      marcadores.push(bairroMarker);
-    });
-
-    // Clique no mapa vazio = encontrar bairro mais próximo e oferecer troca
-    mapaInstancia.on('click', async (e) => {
-      const { lat, lng } = e.latlng;
-      let maisProximo = null;
-      let menorDist = Infinity;
-
-      Estado.bairros.forEach(b => {
-        if (!b.latitude || !b.longitude) return;
-        const dist = Math.sqrt(Math.pow(lat - b.latitude, 2) + Math.pow(lng - b.longitude, 2));
-        if (dist < menorDist) {
-          menorDist = dist;
-          maisProximo = b;
-        }
-      });
-
-      if (!maisProximo || maisProximo.id === Estado.bairroAtual?.id) return;
-
-      const popup = L.popup({ closeButton: true, maxWidth: 250 })
-        .setLatLng(e.latlng)
-        .setContent(`
-          <div style="font-family: system-ui;">
-            <strong style="font-size: 13px;">📍 ${esc(maisProximo.nome)}</strong>
-            <p style="font-size: 11px; color: #666; margin: 4px 0;">Bairro mais próximo deste ponto</p>
-            <button id="btn-trocar-bairro-click" data-slug="${escAttr(maisProximo.slug)}" data-id="${escAttr(maisProximo.id)}" data-nome="${escAttr(maisProximo.nome)}" style="
-              margin-top: 4px; padding: 6px 16px; background: #F59E0B; color: white; border: none; border-radius: 8px;
-              font-size: 12px; font-weight: 600; cursor: pointer; width: 100%;
-            ">Mudar para ${esc(maisProximo.nome)}</button>
-          </div>
-        `)
-        .openOn(mapaInstancia);
-
-      // Handler do botão
-      setTimeout(() => {
-        const popupEl = popup.getElement();
-        if (popupEl) {
-          const btnTrocar = popupEl.querySelector('#btn-trocar-bairro-click');
-          if (btnTrocar) {
-            btnTrocar.addEventListener('click', async (ev) => {
-              ev.stopPropagation();
-              const { slug, id, nome } = btnTrocar.dataset;
-              Estado.bairroAtual = { slug, id, nome };
-              localStorage.setItem('gdf_bairro_slug', slug);
-              atualizarBairroUI();
-              mapaInstancia.closePopup();
-
-              if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
-              iniciarRealtime();
-              await carregarFeed(true);
-              carregarPostsNoMapa();
-              mostrarToast(`Bairro alterado para ${nome} 📍`);
-            });
-          }
-        }
-      }, 50);
+      marcadores.push(marker);
     });
 
   } catch (err) {
@@ -1416,7 +1196,7 @@ async function carregarPostsNoMapa() {
 // ============================================================
 // FEATURE 5: CHAT / MENSAGENS
 // ============================================================
-async function abrirTelaChat(options = {}) {
+async function abrirTelaChat() {
   if (!Estado.usuario) {
     abrirModalLogin('Para ver suas mensagens, faça login primeiro.');
     return;
@@ -1429,35 +1209,9 @@ async function abrirTelaChat(options = {}) {
   feed.style.display = 'none';
   feedSections.forEach(s => s.style.display = 'none');
   secao.classList.remove('hidden');
-  secao.style.display = 'flex';
   Estado.telaAtual = 'chat';
 
-  // Garantir que os headers estão no estado correto
-  const headerLista = document.getElementById('chat-header-lista');
-  const headerConversa = document.getElementById('chat-header');
-  if (headerLista) headerLista.classList.remove('hidden');
-  if (headerConversa) headerConversa.classList.add('hidden');
-
-  try {
-    await carregarListaConversas();
-  } catch (err) {
-    console.error('Erro ao abrir chat:', err);
-    const container = document.getElementById('lista-conversas');
-    if (container) {
-      container.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div class="text-5xl mb-4">💬</div>
-          <p class="font-semibold text-slate-900 text-lg mb-2">Mensagens</p>
-          <p class="text-sm text-gray-500 mb-6">Erro ao carregar conversas. Tente novamente.</p>
-          <button onclick="location.reload()" class="px-6 py-3 bg-terra-sol text-white font-semibold rounded-xl">Recarregar</button>
-        </div>`;
-    }
-  }
-
-  // Se recebeu uma conversa específica, abrir direto (sem passar pela lista)
-  if (options.conversaId) {
-    await abrirConversa(options.conversaId, options.outroNome || 'Usuário', options.outroId || null);
-  }
+  await carregarListaConversas();
 }
 
 function fecharTelaChat() {
@@ -1466,7 +1220,6 @@ function fecharTelaChat() {
   const feedSections = [document.getElementById('zona-contexto'), document.getElementById('zona-intencao'), document.getElementById('zona-utilidade')];
 
   secao.classList.add('hidden');
-  secao.style.display = '';
   feed.style.display = '';
   feedSections.forEach(s => s.style.display = '');
   Estado.telaAtual = 'feed';
@@ -1483,57 +1236,31 @@ async function carregarListaConversas() {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
-  const headerLista = document.getElementById('chat-header-lista');
 
   if (!container) return;
 
-  // Reset: mostrar lista, esconder conversa
   container.classList.remove('hidden');
-  if (container) container.style.display = '';
   conversaView?.classList.add('hidden');
-  if (conversaView) conversaView.style.display = '';
   if (headerChat) headerChat.classList.add('hidden');
-  if (headerLista) headerLista.classList.remove('hidden');
 
-  // Skeleton loading
-  container.innerHTML = `
-    <div class="p-8 space-y-4">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 bg-gray-200 rounded-full skeleton"></div>
-        <div class="flex-1 space-y-2">
-          <div class="h-4 bg-gray-200 rounded skeleton w-1/3"></div>
-          <div class="h-3 bg-gray-200 rounded skeleton w-2/3"></div>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 bg-gray-200 rounded-full skeleton"></div>
-        <div class="flex-1 space-y-2">
-          <div class="h-4 bg-gray-200 rounded skeleton w-1/4"></div>
-          <div class="h-3 bg-gray-200 rounded skeleton w-1/2"></div>
-        </div>
-      </div>
-    </div>`;
+  container.innerHTML = '<div class="p-6 text-center text-gray-400"><div class="skeleton h-8 w-3/4 mx-auto rounded mb-3"></div><div class="skeleton h-4 w-1/2 mx-auto rounded"></div></div>';
 
   try {
     const conversas = await listarConversas();
 
-    if (!conversas || conversas.length === 0) {
+    if (conversas.length === 0) {
       container.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-            </svg>
-          </div>
-          <p class="font-semibold text-slate-900 text-lg mb-1">Nenhuma conversa ainda</p>
-          <p class="text-sm text-gray-500 max-w-xs">Para iniciar uma conversa, abra um post e toque em "Enviar Mensagem" ou "Ver Perfil"</p>
+        <div class="text-center py-12 text-gray-500">
+          <div class="text-5xl mb-4">💬</div>
+          <p class="font-medium">Nenhuma conversa ainda</p>
+          <p class="text-sm mt-1">Toque em "Enviar Mensagem" em um post para começar</p>
         </div>`;
       return;
     }
 
     container.innerHTML = conversas.map(c => `
       <button class="conversa-item w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
-              data-conversa-id="${escAttr(c.id)}" data-outro-nome="${escAttr(c.outroPerfil?.nome || 'Usuário')}" data-outro-id="${escAttr(c.outroPerfil?.id || '')}">
+              data-conversa-id="${escAttr(c.id)}" data-outro-nome="${escAttr(c.outroPerfil?.nome || 'Usuário')}">
         ${htmlAvatar(c.outroPerfil?.avatar_url, c.outroPerfil?.nome || 'Usuário', 'w-12 h-12 rounded-full', 'text-sm')}
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between">
@@ -1548,90 +1275,36 @@ async function carregarListaConversas() {
 
     container.querySelectorAll('.conversa-item').forEach(btn => {
       btn.addEventListener('click', () => {
-        abrirConversa(btn.dataset.conversaId, btn.dataset.outroNome, btn.dataset.outroId);
+        abrirConversa(btn.dataset.conversaId, btn.dataset.outroNome);
       });
     });
   } catch (err) {
     console.error('Erro ao carregar conversas:', err);
     container.innerHTML = `
-      <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-          <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-          </svg>
-        </div>
-        <p class="font-semibold text-slate-900 mb-1">Erro ao carregar</p>
-        <p class="text-sm text-gray-500 mb-4">${esc(err.message || 'Verifique sua conexão')}</p>
-        <button class="px-5 py-2.5 bg-terra-sol text-white font-semibold rounded-xl text-sm" onclick="document.querySelector('#chat-fechar').click(); setTimeout(() => document.querySelector('[data-route=mensagens]').click(), 300);">Tentar novamente</button>
+      <div class="p-6 text-center text-gray-500">
+        <div class="text-5xl mb-4">⚠️</div>
+        <p class="font-medium text-red-500">Erro ao carregar conversas</p>
+        <p class="text-sm mt-1 text-gray-400">${esc(err.message || 'Tente novamente mais tarde')}</p>
+        <button class="mt-4 px-4 py-2 bg-yellow-500 text-white rounded-xl text-sm font-semibold" id="btn-retry-conversas">
+          Tentar novamente
+        </button>
       </div>`;
+    container.querySelector('#btn-retry-conversas')?.addEventListener('click', () => carregarListaConversas());
   }
 }
 
-async function abrirConversa(conversaId, outroNome, outroId = null) {
+async function abrirConversa(conversaId, outroNome) {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
-  const headerLista = document.getElementById('chat-header-lista');
   const nomeOutro = document.getElementById('chat-nome-outro');
-  const avatarOutro = document.getElementById('chat-avatar-outro');
 
-  // Trocar headers: esconder lista, mostrar conversa
   container.classList.add('hidden');
-  if (headerLista) headerLista.classList.add('hidden');
   conversaView?.classList.remove('hidden');
-  conversaView?.style.display = 'flex';
   headerChat?.classList.remove('hidden');
   if (nomeOutro) nomeOutro.textContent = outroNome;
-  if (avatarOutro) {
-    const iniciais = (outroNome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-    avatarOutro.textContent = iniciais;
-  }
 
   Estado.conversaAtual = conversaId;
-
-  // Mostrar botão de bloquear no chat se tiver outroId
-  const chatAcoes = document.getElementById('chat-acoes');
-  if (chatAcoes && outroId && Estado.usuario && outroId !== Estado.usuario.id) {
-    chatAcoes.classList.remove('hidden');
-    const btnBloquearChat = document.getElementById('btn-bloquear-chat');
-    if (btnBloquearChat) {
-      try {
-        const jaBloqueado = await verificarBloqueio(outroId);
-        if (jaBloqueado) {
-          btnBloquearChat.textContent = 'Desbloquear';
-          btnBloquearChat.classList.remove('text-gray-400');
-          btnBloquearChat.classList.add('text-red-500');
-        } else {
-          btnBloquearChat.textContent = 'Bloquear';
-          btnBloquearChat.classList.remove('text-red-500');
-          btnBloquearChat.classList.add('text-gray-400');
-        }
-        btnBloquearChat.onclick = async () => {
-          try {
-            if (btnBloquearChat.textContent === 'Desbloquear') {
-              await desbloquearUsuario(outroId);
-              Estado.usuariosBloqueados = Estado.usuariosBloqueados.filter(id => id !== outroId);
-              btnBloquearChat.textContent = 'Bloquear';
-              btnBloquearChat.classList.remove('text-red-500');
-              btnBloquearChat.classList.add('text-gray-400');
-              mostrarToast('Usuário desbloqueado');
-            } else {
-              await bloquearUsuario(outroId);
-              Estado.usuariosBloqueados.push(outroId);
-              btnBloquearChat.textContent = 'Desbloquear';
-              btnBloquearChat.classList.remove('text-gray-400');
-              btnBloquearChat.classList.add('text-red-500');
-              mostrarToast('Usuário bloqueado');
-            }
-          } catch (err) {
-            mostrarToast('Erro: ' + (err.message || ''), 'erro');
-          }
-        };
-      } catch (_) {}
-    }
-  } else if (chatAcoes) {
-    chatAcoes.classList.add('hidden');
-  }
 
   // Carregar mensagens
   const mensagensContainer = document.getElementById('chat-mensagens');
@@ -1958,24 +1631,15 @@ function abrirModalLogin(mensagem = '') {
       if (modoAtual === 'login') {
         await loginEmail(email, senha);
       } else {
-        // #4: Detectar se o cadastro exige confirmacao de email
-        const resultado = await cadastrar(email, senha, nome || email);
-
-        // Se session e null, o email precisa ser confirmado
-        if (!resultado.session) {
-          modal.remove();
-          mostrarModalConfirmacaoEmail(email);
-          return;
-        }
+        await cadastrar(email, senha, nome || email);
       }
       modal.remove();
       await verificarAuth();
-      mostrarToast(modoAtual === 'login' ? 'Bem-vindo(a) de volta!' : 'Conta criada com sucesso!');
+      mostrarToast(modoAtual === 'login' ? 'Bem-vindo(a) de volta! 👋' : 'Conta criada com sucesso! 🎉');
     } catch (err) {
       let msg = err.message || 'Erro desconhecido';
       if (msg.includes('Invalid login')) msg = 'E-mail ou senha incorretos';
-      if (msg.includes('Email not confirmed')) msg = 'Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.';
-      if (msg.includes('already registered')) msg = 'Este e-mail ja esta cadastrado';
+      if (msg.includes('already registered')) msg = 'Este e-mail já está cadastrado';
       if (msg.includes('Password should')) msg = 'A senha deve ter pelo menos 6 caracteres';
       erroEl.textContent = msg;
       erroEl.classList.remove('hidden');
@@ -1986,43 +1650,8 @@ function abrirModalLogin(mensagem = '') {
 }
 
 // ============================================================
-// NOTIFICACOES
+// NOTIFICAÇÕES
 // ============================================================
-
-// #4: Modal de confirmacao de email apos cadastro
-function mostrarModalConfirmacaoEmail(email) {
-  document.getElementById('modal-confirmacao-email')?.remove();
-
-  // Mascara o email: jo***@gmail.com
-  const [local, dominio] = email.split('@');
-  const mascarado = local.length > 2
-    ? local[0] + '***' + '@' + dominio
-    : local[0] + '***@' + dominio;
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-confirmacao-email';
-  modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4';
-  modal.innerHTML = `
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-    <div class="relative bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center">
-      <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-        </svg>
-      </div>
-      <h2 class="text-xl font-bold text-slate-900 mb-2">Confirme seu e-mail</h2>
-      <p class="text-sm text-gray-600 mb-1">Enviamos um link de confirmacao para:</p>
-      <p class="text-base font-semibold text-slate-900 mb-4">${mascarado}</p>
-      <p class="text-xs text-gray-500 mb-6">Verifique sua caixa de entrada e spam. So e possivel fazer login apos confirmar.</p>
-      <button id="btn-fechar-confirmacao" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all">
-        Entendi
-      </button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  modal.querySelector('#btn-fechar-confirmacao').addEventListener('click', () => modal.remove());
-}
-
 async function renderizarBadgeNotificacoes() {
   try {
     const count = await contarNaoLidas();
@@ -2119,34 +1748,38 @@ function iniciarRealtime() {
 // ============================================================
 // BADGES DO GRID 2x2
 // ============================================================
-// #9: Otimizado — usa RPC contar_posts_por_categoria (1 query em vez de N+1)
 async function atualizarBadgesGrid() {
   if (!Estado.bairroAtual?.id) return;
 
   try {
-    const { data: contagens, error } = await supabase.rpc('contar_posts_por_categoria', {
-      p_bairro_id: Estado.bairroAtual.id,
-    });
+    const { data: categorias } = await supabase.from('categorias').select('id, slug');
+    if (!categorias) return;
 
-    if (error || !contagens) return;
+    for (const cat of categorias) {
+      const { count } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('ativo', true)
+        .eq('categoria_id', cat.id)
+        .eq('bairro_id', Estado.bairroAtual.id)
+        .gte('expira_em', new Date().toISOString());
 
-    const mapa = {
-      'vagas': 'badge-vagas',
-      'promocoes': 'badge-promocoes',
-      'servicos': 'badge-servicos',
-      'avisos': 'badge-avisos',
-      'eventos': 'badge-eventos',
-    };
+      const mapa = {
+        'vagas': 'badge-vagas',
+        'promocoes': 'badge-promocoes',
+        'servicos': 'badge-servicos',
+        'eventos': 'badge-eventos',
+        'avisos': 'badge-avisos'
+      };
 
-    for (const row of contagens) {
-      const elId = mapa[row.categoria_slug];
+      const elId = mapa[cat.slug];
       if (elId) {
         const el = document.getElementById(elId);
-        if (el) el.textContent = row.total || 0;
+        if (el) el.textContent = count || 0;
       }
 
-      const tabBadge = document.querySelector(`.tab-badge[data-badge="${row.categoria_slug}"]`);
-      if (tabBadge) tabBadge.textContent = row.total || 0;
+      const tabBadge = document.querySelector(`.tab-badge[data-badge="${cat.slug}"]`);
+      if (tabBadge) tabBadge.textContent = count || 0;
     }
   } catch (err) {
     console.error('Erro ao atualizar badges:', err);
@@ -2695,19 +2328,6 @@ async function abrirModalPerfilUsuario(userId) {
           Enviar Mensagem
         </button>
       ` : ''}
-
-      ${Estado.usuario && userId !== Estado.usuario.id ? `
-        <div id="bloqueio-container" class="mt-3">
-          <button id="btn-bloquear-perfil" class="w-full text-sm font-semibold py-2.5 px-4 rounded-xl transition-all text-gray-500 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2" data-user-id="${escAttr(userId)}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-            Bloquear usuário
-          </button>
-        </div>
-        <button id="btn-reportar-perfil" class="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 mt-2 w-full justify-center" data-user-id="${escAttr(userId)}">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-          Denunciar perfil
-        </button>
-      ` : ''}
     </div>
   `;
 
@@ -2723,151 +2343,12 @@ async function abrirModalPerfilUsuario(userId) {
     try {
       const conversa = await buscarOuCriarConversa(btn.dataset.userId);
       modal.remove();
-      abrirTelaChat({ conversaId: conversa.id, outroNome: perfil?.nome || 'Usuário', outroId: btn.dataset.userId });
+      abrirTelaChat();
+      setTimeout(() => abrirConversa(conversa.id, perfil?.nome || 'Usuário'), 300);
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
     }
   });
-
-  // Botão bloquear/desbloquear
-  const btnBloquear = modal.querySelector('#btn-bloquear-perfil');
-  if (btnBloquear) {
-    const userId = btnBloquear.dataset.userId;
-    // Verificar se já está bloqueado
-    try {
-      const jaBloqueado = await verificarBloqueio(userId);
-      if (jaBloqueado) {
-        btnBloquear.innerHTML = `
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
-          Desbloquear usuário
-        `;
-        btnBloquear.classList.remove('text-gray-500', 'hover:text-red-600', 'hover:bg-red-50');
-        btnBloquear.classList.add('text-green-600', 'hover:bg-green-50');
-      }
-    } catch (_) {}
-
-    btnBloquear.addEventListener('click', async () => {
-      const isBlocked = btnBloquear.textContent.includes('Desbloquear');
-      try {
-        if (isBlocked) {
-          await desbloquearUsuario(userId);
-          Estado.usuariosBloqueados = Estado.usuariosBloqueados.filter(id => id !== userId);
-          btnBloquear.innerHTML = `
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-            Bloquear usuário
-          `;
-          btnBloquear.classList.remove('text-green-600', 'hover:bg-green-50');
-          btnBloquear.classList.add('text-gray-500', 'hover:text-red-600', 'hover:bg-red-50');
-          mostrarToast('Usuário desbloqueado');
-        } else {
-          await bloquearUsuario(userId);
-          Estado.usuariosBloqueados.push(userId);
-          btnBloquear.innerHTML = `
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
-            Desbloquear usuário
-          `;
-          btnBloquear.classList.remove('text-gray-500', 'hover:text-red-600', 'hover:bg-red-50');
-          btnBloquear.classList.add('text-green-600', 'hover:bg-green-50');
-          mostrarToast('Usuário bloqueado. Você não verá mais os posts dessa pessoa.');
-          // Refresh feed to hide blocked user's posts
-          await carregarFeed(true);
-        }
-      } catch (err) {
-        mostrarToast('Erro: ' + (err.message || 'Tente novamente'), 'erro');
-      }
-    });
-  }
-
-  // Botão reportar perfil
-  modal.querySelector('#btn-reportar-perfil')?.addEventListener('click', () => {
-    const reportUserId = modal.querySelector('#btn-reportar-perfil').dataset.userId;
-    modal.remove();
-    abrirModalReportar('perfil', reportUserId, perfil?.nome || 'Perfil');
-  });
-}
-
-// ============================================================
-// FEATURE: PAINEL DE MODERAÇÃO
-// ============================================================
-async function abrirPainelModeracao() {
-  document.getElementById('modal-moderacao')?.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'modal-moderacao';
-  modal.className = 'fixed inset-0 z-[100] flex items-end justify-center';
-  modal.innerHTML = `
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-mod"></div>
-    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-slate-900">Moderação</h2>
-        <button id="fechar-mod" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
-      </div>
-      <div id="mod-conteudo" class="text-center text-gray-500 py-8">Carregando denúncias...</div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  modal.querySelector('#overlay-mod').addEventListener('click', () => modal.remove());
-  modal.querySelector('#fechar-mod').addEventListener('click', () => modal.remove());
-
-  try {
-    const reports = await listarReportsPendentes(50);
-    const conteudo = document.getElementById('mod-conteudo');
-
-    if (reports.length === 0) {
-      conteudo.innerHTML = `
-        <div class="py-8">
-          <div class="text-4xl mb-3">✅</div>
-          <p class="font-medium text-slate-900">Nenhuma denúncia pendente</p>
-          <p class="text-sm text-gray-500 mt-1">Tudo limpo por enquanto!</p>
-        </div>`;
-      return;
-    }
-
-    conteudo.innerHTML = reports.map(r => `
-      <div class="border border-gray-200 rounded-xl p-4 mb-3">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">${esc(r.tipo)}</span>
-          <span class="text-xs text-gray-400">${formatarTempo(r.criado_em)}</span>
-        </div>
-        <p class="text-sm font-medium text-slate-900 mb-1">Motivo: ${esc(r.motivo.replace(/_/g, ' '))}</p>
-        <p class="text-xs text-gray-600 mb-1">Reportado por: ${esc(r.reporter_nome || 'Anônimo')}</p>
-        ${r.descricao ? `<p class="text-xs text-gray-500 mb-2">${esc(r.descricao)}</p>` : ''}
-        <p class="text-[10px] text-gray-400 mb-3">ID: ${r.id?.substring(0, 8)}...</p>
-        <div class="flex gap-2">
-          <button class="mod-resolver flex-1 text-xs font-semibold py-2 px-3 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-all" data-id="${r.id}" data-action="resolvido">Resolver</button>
-          <button class="mod-rejeitar flex-1 text-xs font-semibold py-2 px-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all" data-id="${r.id}" data-action="rejeitado">Rejeitar</button>
-        </div>
-      </div>
-    `).join('');
-
-    conteudo.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const action = btn.dataset.action;
-        btn.textContent = action === 'resolvido' ? 'Resolvendo...' : 'Rejeitando...';
-        btn.disabled = true;
-        try {
-          await moderarReport(id, action);
-          btn.closest('.border').remove();
-          if (conteudo.children.length === 0) {
-            conteudo.innerHTML = '<div class="py-8 text-center"><div class="text-4xl mb-3">✅</div><p class="font-medium">Todas as denúncias foram analisadas!</p></div>';
-          }
-          mostrarToast(action === 'resolvido' ? 'Denúncia resolvida ✅' : 'Denúncia rejeitada');
-        } catch (err) {
-          mostrarToast('Erro: ' + err.message, 'erro');
-          btn.textContent = action === 'resolvido' ? 'Resolver' : 'Rejeitar';
-          btn.disabled = false;
-        }
-      });
-    });
-  } catch (err) {
-    document.getElementById('mod-conteudo').innerHTML = `
-      <div class="py-8 text-red-500">
-        <p class="font-medium">Erro ao carregar denúncias</p>
-        <p class="text-sm mt-1">${esc(err.message)}</p>
-      </div>`;
-  }
 }
 
 // ============================================================

@@ -1,7 +1,7 @@
 // Service Worker - Gente da Feira
-// Versão: 3.4.0 - Correcoes UI: Ver Perfil, Chat direto, Mapa bairro, Eventos
+// Versão: 2.3.0 - Upload de avatar, tela Meu Perfil com edição, avatares nos cards/chat
 
-const CACHE_VERSION = '3.4.0';
+const CACHE_VERSION = '2.3.0';
 const CACHE_NAME = `gente-da-feira-v${CACHE_VERSION}`;
 
 // Assets para precache (Ficheiros essenciais para o app abrir offline)

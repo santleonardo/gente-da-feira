@@ -96,8 +96,6 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
     `)
     .eq('ativo', true)
     .gte('expira_em', new Date().toISOString())
-    // Filtra posts de usuarios banidos (shadowban handled by view posts_publicos)
-    .not('autor.status', 'eq', 'banido')
     .order('destaque', { ascending: false })
     .order('criado_em', { ascending: false })
     .range(pagina * limite, (pagina + 1) * limite - 1);
@@ -578,37 +576,73 @@ export async function buscarOuCriarConversa(outroUsuarioId, postId = null) {
 }
 
 /**
- * Lista todas as conversas do usuario logado (sem N+1)
- * Usa RPC listar_conversas_com_resumo que retorna tudo em 1 query
- * @returns {Array} lista de conversas com ultima mensagem e dados dos participantes
+ * Lista todas as conversas do usuário logado
+ * @returns {Array} lista de conversas com última mensagem e dados dos participantes
  */
 export async function listarConversas() {
   const user = await getUsuarioAtual();
   if (!user) return [];
 
-  const { data, error } = await supabase.rpc('listar_conversas_com_resumo', {
-    p_usuario_id: user.id
-  });
+  // Buscar conversas com join simples (sem depender de nome exato da FK)
+  const { data, error } = await supabase
+    .from('conversas')
+    .select(`
+      id,
+      criado_em,
+      atualizado_em,
+      participante_1:perfis(id, nome, avatar_url),
+      participante_2:perfis(id, nome, avatar_url),
+      post:posts(id, titulo)
+    `)
+    .or(`participante_1.eq.${user.id},participante_2.eq.${user.id}`)
+    .order('atualizado_em', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error('listarConversas erro:', error);
+    throw error;
+  }
 
-  // Transformar resultado da RPC no formato esperado pelo frontend
-  return (data || []).map(c => ({
-    id: c.id,
-    criado_em: c.criado_em,
-    atualizado_em: c.atualizado_em,
-    outroPerfil: {
-      id: c.outro_id,
-      nome: c.outro_nome,
-      avatar_url: c.outro_avatar_url,
-    },
-    post: c.post_id ? { id: c.post_id, titulo: c.post_titulo } : null,
-    ultimaMensagem: c.ultima_mensagem_conteudo ? {
-      conteudo: c.ultima_mensagem_conteudo,
-      criado_em: c.ultima_mensagem_em,
-    } : null,
-    naoLidas: c.nao_lidas || 0,
-  }));
+  // Buscar última mensagem e contagem de não lidas para cada conversa
+  const conversasComMensagem = [];
+  for (const conv of (data || [])) {
+    try {
+      const { data: msgs } = await supabase
+        .from('mensagens')
+        .select('*')
+        .eq('conversa_id', conv.id)
+        .order('criado_em', { ascending: false })
+        .limit(1);
+
+      const { count: naoLidas } = await supabase
+        .from('mensagens')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversa_id', conv.id)
+        .eq('lida', false)
+        .neq('remetente_id', user.id);
+
+      const outroPerfil = conv.participante_1?.id === user.id
+        ? conv.participante_2
+        : conv.participante_1;
+
+      conversasComMensagem.push({
+        ...conv,
+        outroPerfil: outroPerfil || { id: '?', nome: 'Usuário', avatar_url: null },
+        ultimaMensagem: msgs?.[0] || null,
+        naoLidas: naoLidas || 0,
+      });
+    } catch (err) {
+      console.error('Erro ao carregar dados da conversa', conv.id, err);
+      // Ainda adiciona a conversa, só sem dados extras
+      conversasComMensagem.push({
+        ...conv,
+        outroPerfil: { id: '?', nome: 'Usuário', avatar_url: null },
+        ultimaMensagem: null,
+        naoLidas: 0,
+      });
+    }
+  }
+
+  return conversasComMensagem;
 }
 
 /**
@@ -625,7 +659,7 @@ export async function buscarMensagens(conversaId, limite = 50) {
       lida,
       criado_em,
       remetente_id,
-      remetente:perfis!mensagens_remetente_id_fkey(id, nome, avatar_url)
+      remetente:perfis(id, nome, avatar_url)
     `)
     .eq('conversa_id', conversaId)
     .order('criado_em', { ascending: true })
@@ -657,7 +691,7 @@ export async function enviarMensagem(conversaId, conteudo) {
       lida,
       criado_em,
       remetente_id,
-      remetente:perfis!mensagens_remetente_id_fkey(id, nome, avatar_url)
+      remetente:perfis(id, nome, avatar_url)
     `)
     .single();
 
@@ -758,161 +792,4 @@ export async function removerPushSubscription(endpoint) {
     .eq('endpoint', endpoint);
 
   if (error) throw error;
-}
-
-// ============================================================
-// DENÚNCIAS (Reports)
-// ============================================================
-
-/**
- * Denuncia um item (post, perfil, mensagem ou conversa)
- * @param {'post'|'perfil'|'mensagem'|'conversa'} tipo - tipo do item
- * @param {string} itemId - UUID do item denunciado
- * @param {string} motivo - motivo da denúncia (scam_fraude, assedio, discurso_odio, etc.)
- * @param {string} descricao - descrição opcional
- */
-export async function reportarItem(tipo, itemId, motivo, descricao = '') {
-  const user = await getUsuarioAtual();
-  if (!user) throw new Error('Você precisa estar logado para denunciar');
-
-  const { error } = await supabase
-    .from('reports')
-    .insert({
-      reporter_id: user.id,
-      tipo,
-      item_id: itemId,
-      motivo,
-      descricao: descricao || null,
-    });
-
-  if (error) {
-    // Constraint unique — já denunciou este item
-    if (error.code === '23505') {
-      throw new Error('Você já denunciou este item anteriormente.');
-    }
-    throw error;
-  }
-}
-
-// ============================================================
-// BLOQUEIOS
-// ============================================================
-
-/**
- * Bloqueia um usuário (impede interações)
- * @param {string} bloqueadoId - UUID do usuário a bloquear
- */
-export async function bloquearUsuario(bloqueadoId) {
-  await supabase.rpc('bloquear_usuario', { p_bloqueado_id: bloqueadoId });
-}
-
-/**
- * Desbloqueia um usuário
- * @param {string} bloqueadoId - UUID do usuário a desbloquear
- */
-export async function desbloquearUsuario(bloqueadoId) {
-  await supabase.rpc('desbloquear_usuario', { p_bloqueado_id: bloqueadoId });
-}
-
-/**
- * Verifica se o usuário logado bloqueou alguém
- * @param {string} outroId - UUID do outro usuário
- * @returns {boolean}
- */
-export async function verificarBloqueio(outroId) {
-  const user = await getUsuarioAtual();
-  if (!user) return false;
-  const { data } = await supabase.rpc('verificar_bloqueio', {
-    p_usuario_id: user.id,
-    p_alvo_id: outroId,
-  });
-  return data === true;
-}
-
-/**
- * Lista IDs de usuários bloqueados pelo usuário logado (para filtro no feed)
- * @returns {string[]} array de UUIDs bloqueados
- */
-export async function listarBloqueados() {
-  const user = await getUsuarioAtual();
-  if (!user) return [];
-  const { data, error } = await supabase
-    .from('bloqueios')
-    .select('bloqueado_id')
-    .eq('bloqueador_id', user.id);
-  if (error) return [];
-  return (data || []).map(b => b.bloqueado_id);
-}
-
-// ============================================================
-// STATUS DO USUÁRIO (checagem de suspensão/banimento)
-// ============================================================
-
-/**
- * Verifica se o usuário pode agir (não está banido nem suspenso)
- * @param {string} userId - UUID do usuário
- * @returns {{permitido: boolean, motivo: string}}
- */
-export async function usuarioPodeAgir(userId) {
-  const { data, error } = await supabase.rpc('usuario_pode_agir', {
-    p_usuario_id: userId,
-  });
-  if (error) return { permitido: true, motivo: '' };
-  return data || { permitido: true, motivo: '' };
-}
-
-// ============================================================
-// MODERAÇÃO (Painel do moderador)
-// ============================================================
-
-/**
- * Lista denúncias pendentes (apenas moderadores)
- * @param {number} limite - máximo de resultados
- */
-export async function listarReportsPendentes(limite = 50) {
-  const { data, error } = await supabase.rpc('listar_reports_pendentes', { limite });
-  if (error) throw error;
-  return data || [];
-}
-
-/**
- * Modera uma denúncia (muda status)
- * @param {string} reportId - UUID da denúncia
- * @param {'pendente'|'analise'|'resolvido'|'rejeitado'} status - novo status
- * @param {string} resolucao - texto de resolução opcional
- */
-export async function moderarReport(reportId, status, resolucao = '') {
-  await supabase.rpc('moderar_report', {
-    p_report_id: reportId,
-    p_status: status,
-    p_resolucao: resolucao || null,
-  });
-}
-
-/**
- * Suspende ou reativa um usuário
- * @param {string} usuarioId - UUID do usuário alvo
- * @param {'ativo'|'suspenso'|'shadowban'|'banido'} status - novo status
- * @param {string} motivo - motivo da ação
- * @param {number} duracaoHoras - duração da suspensão (opcional)
- */
-export async function suspenderUsuario(usuarioId, status, motivo = '', duracaoHoras = null) {
-  await supabase.rpc('suspender_usuario', {
-    p_usuario_id: usuarioId,
-    p_status: status,
-    p_motivo: motivo || null,
-    p_duracao_horas: duracaoHoras,
-  });
-}
-
-/**
- * Remove um post por violação (desativa + marca descrição)
- * @param {string} postId - UUID do post
- * @param {string} motivo - motivo da remoção
- */
-export async function removerPostModeracao(postId, motivo = '') {
-  await supabase.rpc('remover_post_moderacao', {
-    p_post_id: postId,
-    p_motivo: motivo || null,
-  });
 }
