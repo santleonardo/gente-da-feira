@@ -503,7 +503,7 @@ async function abrirDetalhePost(postId) {
 
   // Botão de chat (só se NÃO for o dono e estiver logado)
   const botaoChat = (!isDono && Estado.usuario) ? `
-    <button id="btn-chat-com-autor" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-3" data-autor-id="${escAttr(post.autor_id)}" data-post-id="${escAttr(post.id)}">
+    <button id="btn-chat-com-autor" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-3" data-autor-id="${escAttr(post.autor_id)}" data-autor-nome="${escAttr(post.autor?.nome || 'Usuário')}" data-post-id="${escAttr(post.id)}">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
       Enviar Mensagem
     </button>
@@ -602,8 +602,9 @@ async function abrirDetalhePost(postId) {
 
     try {
       const conversa = await buscarOuCriarConversa(autorId, postIdChat);
+      const outroNome = btn.dataset.autorNome || 'Usuário';
       modal.remove();
-      abrirTelaChat(conversa.id);
+      abrirTelaChat(conversa.id, outroNome);
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
       btn.textContent = 'Enviar Mensagem';
@@ -1196,7 +1197,12 @@ async function carregarPostsNoMapa() {
 // ============================================================
 // FEATURE 5: CHAT / MENSAGENS
 // ============================================================
-async function abrirTelaChat() {
+/**
+ * Abre a tela de chat.
+ * @param {string} [conversaId] - Se informado, abre direto nesta conversa
+ * @param {string} [outroNome] - Nome do outro participante
+ */
+async function abrirTelaChat(conversaId, outroNome) {
   if (!Estado.usuario) {
     abrirModalLogin('Para ver suas mensagens, faça login primeiro.');
     return;
@@ -1211,7 +1217,12 @@ async function abrirTelaChat() {
   secao.classList.remove('hidden');
   Estado.telaAtual = 'chat';
 
-  await carregarListaConversas();
+  // Se tem uma conversa específica, abrir direto nela
+  if (conversaId) {
+    await abrirConversa(conversaId, outroNome || 'Usuário');
+  } else {
+    await carregarListaConversas();
+  }
 }
 
 function fecharTelaChat() {
@@ -1236,12 +1247,15 @@ async function carregarListaConversas() {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
+  const headerLista = document.getElementById('chat-header-lista');
 
   if (!container) return;
 
+  // Mostrar lista, esconder conversa
   container.classList.remove('hidden');
   conversaView?.classList.add('hidden');
   if (headerChat) headerChat.classList.add('hidden');
+  if (headerLista) headerLista.classList.remove('hidden');
 
   container.innerHTML = '<div class="p-6 text-center text-gray-400"><div class="skeleton h-8 w-3/4 mx-auto rounded mb-3"></div><div class="skeleton h-4 w-1/2 mx-auto rounded"></div></div>';
 
@@ -1297,11 +1311,14 @@ async function abrirConversa(conversaId, outroNome) {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
+  const headerLista = document.getElementById('chat-header-lista');
   const nomeOutro = document.getElementById('chat-nome-outro');
 
+  // Esconder lista, mostrar conversa
   container.classList.add('hidden');
   conversaView?.classList.remove('hidden');
   headerChat?.classList.remove('hidden');
+  if (headerLista) headerLista.classList.add('hidden');
   if (nomeOutro) nomeOutro.textContent = outroNome;
 
   Estado.conversaAtual = conversaId;
@@ -2343,8 +2360,7 @@ async function abrirModalPerfilUsuario(userId) {
     try {
       const conversa = await buscarOuCriarConversa(btn.dataset.userId);
       modal.remove();
-      abrirTelaChat();
-      setTimeout(() => abrirConversa(conversa.id, perfil?.nome || 'Usuário'), 300);
+      abrirTelaChat(conversa.id, perfil?.nome || 'Usuário');
     } catch (err) {
       mostrarToast('Erro ao abrir chat', 'erro');
     }
