@@ -392,9 +392,9 @@
     <!-- ========================================
          SEÇÃO CHAT (Feature 5)
     ========================================= -->
-    <section id="secao-chat" class="hidden fixed inset-0 z-30 bg-white" style="top:0; bottom: 64px;">
+    <section id="secao-chat" class="hidden fixed left-0 right-0 z-30 bg-white flex flex-col" style="top:0; bottom: 64px;">
         <!-- Header do chat — lista de conversas -->
-        <div id="chat-header-lista" class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div id="chat-header-lista" class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <h2 class="text-lg font-bold text-slate-900">Mensagens</h2>
             <button id="chat-fechar" class="p-2 hover:bg-gray-100 rounded-full">
                 <svg class="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +404,7 @@
         </div>
 
         <!-- Header do chat — conversa aberta (oculto por padrão) -->
-        <div id="chat-header" class="hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+        <div id="chat-header" class="hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
             <button id="chat-voltar" class="p-2 hover:bg-gray-100 rounded-full">
                 <svg class="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -424,16 +424,16 @@
             </div>
         </div>
 
-        <!-- Lista de conversas -->
-        <div id="lista-conversas" class="overflow-y-auto" style="height: calc(100% - 56px);"></div>
+        <!-- Lista de conversas (flex-1 para preencher espaço restante) -->
+        <div id="lista-conversas" class="flex-1 overflow-y-auto"></div>
 
         <!-- View de conversa individual (oculta por padrão) -->
-        <div id="conversa-view" class="hidden flex flex-col" style="height: calc(100% - 56px);">
+        <div id="conversa-view" class="hidden flex-1 flex flex-col overflow-hidden">
             <!-- Mensagens -->
             <div id="chat-mensagens" class="flex-1 overflow-y-auto px-4 py-3 bg-gray-50"></div>
 
             <!-- Input de mensagem -->
-            <div class="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
+            <div class="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2 flex-shrink-0">
                 <input type="text" id="chat-input"
                     placeholder="Digite sua mensagem..."
                     class="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-terra-sol">

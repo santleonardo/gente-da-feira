@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Logica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.4.0 — Correções UI: Ver Perfil, Chat direto, Mapa bairro, Eventos
+// v3.5.0 — Correções: Chat layout flex, Ver Perfil direto, Eventos categoria
 // ============================================================
 
 import {
@@ -96,7 +96,7 @@ async function init() {
     await carregarFeed(true);
     iniciarRealtime();
 
-    console.log('🚀 Gente da Feira v3.4.0 inicializado!');
+    console.log('🚀 Gente da Feira v3.5.0 inicializado!');
   } catch (err) {
     console.error('Erro na inicialização:', err);
     mostrarToast('Erro ao carregar o app. Tente novamente.', 'erro');
@@ -406,6 +406,21 @@ function criarCardPost(post) {
     if (e.target.closest('.btn-ver-perfil') || e.target.closest('a')) return;
     abrirDetalhePost(post.id);
   });
+
+  // Botão "Ver Perfil" — evento direto (mais confiável que delegação)
+  const btnVerPerfil = artigo.querySelector('.btn-ver-perfil');
+  if (btnVerPerfil) {
+    btnVerPerfil.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const autorId = btnVerPerfil.dataset.autorId;
+      if (autorId) {
+        abrirModalPerfilUsuario(autorId);
+      } else {
+        console.warn('[GDF] btn-ver-perfil sem autorId. Post:', post.id, 'Autor:', post.autor);
+        mostrarToast('Perfil do autor não disponível', 'erro');
+      }
+    });
+  }
 
   registrarVisualizacaoPost(post.id);
   return artigo;
@@ -1180,8 +1195,13 @@ function abrirTelaMapa() {
   feed.style.display = 'none';
   feedSections.forEach(s => s.style.display = 'none');
   secao.classList.remove('hidden');
-
   Estado.telaAtual = 'mapa';
+
+  // Atualizar nome do bairro no header do mapa
+  const mapaBairroNome = document.getElementById('mapa-bairro-nome');
+  if (mapaBairroNome && Estado.bairroAtual) {
+    mapaBairroNome.textContent = Estado.bairroAtual.nome;
+  }
 
   // Inicializar mapa se necessário
   setTimeout(() => {
@@ -1202,8 +1222,12 @@ function abrirTelaMapa() {
       );
     }
 
-    // Carregar posts no mapa
-    carregarPostsNoMapa();
+    // Invalidar tamanho para Leaflet recalcular tiles (fix para display:none)
+    setTimeout(() => {
+      mapaInstancia.invalidateSize();
+      // Carregar posts no mapa
+      carregarPostsNoMapa();
+    }, 150);
   }, 100);
 }
 
@@ -1405,9 +1429,30 @@ async function abrirTelaChat(options = {}) {
   feed.style.display = 'none';
   feedSections.forEach(s => s.style.display = 'none');
   secao.classList.remove('hidden');
+  secao.style.display = 'flex';
   Estado.telaAtual = 'chat';
 
-  await carregarListaConversas();
+  // Garantir que os headers estão no estado correto
+  const headerLista = document.getElementById('chat-header-lista');
+  const headerConversa = document.getElementById('chat-header');
+  if (headerLista) headerLista.classList.remove('hidden');
+  if (headerConversa) headerConversa.classList.add('hidden');
+
+  try {
+    await carregarListaConversas();
+  } catch (err) {
+    console.error('Erro ao abrir chat:', err);
+    const container = document.getElementById('lista-conversas');
+    if (container) {
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div class="text-5xl mb-4">💬</div>
+          <p class="font-semibold text-slate-900 text-lg mb-2">Mensagens</p>
+          <p class="text-sm text-gray-500 mb-6">Erro ao carregar conversas. Tente novamente.</p>
+          <button onclick="location.reload()" class="px-6 py-3 bg-terra-sol text-white font-semibold rounded-xl">Recarregar</button>
+        </div>`;
+    }
+  }
 
   // Se recebeu uma conversa específica, abrir direto (sem passar pela lista)
   if (options.conversaId) {
@@ -1421,6 +1466,7 @@ function fecharTelaChat() {
   const feedSections = [document.getElementById('zona-contexto'), document.getElementById('zona-intencao'), document.getElementById('zona-utilidade')];
 
   secao.classList.add('hidden');
+  secao.style.display = '';
   feed.style.display = '';
   feedSections.forEach(s => s.style.display = '');
   Estado.telaAtual = 'feed';
@@ -1437,24 +1483,50 @@ async function carregarListaConversas() {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
+  const headerLista = document.getElementById('chat-header-lista');
 
   if (!container) return;
 
+  // Reset: mostrar lista, esconder conversa
   container.classList.remove('hidden');
+  if (container) container.style.display = '';
   conversaView?.classList.add('hidden');
+  if (conversaView) conversaView.style.display = '';
   if (headerChat) headerChat.classList.add('hidden');
+  if (headerLista) headerLista.classList.remove('hidden');
 
-  container.innerHTML = '<div class="p-6 text-center text-gray-400"><div class="skeleton h-8 w-3/4 mx-auto rounded mb-3"></div><div class="skeleton h-4 w-1/2 mx-auto rounded"></div></div>';
+  // Skeleton loading
+  container.innerHTML = `
+    <div class="p-8 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 bg-gray-200 rounded-full skeleton"></div>
+        <div class="flex-1 space-y-2">
+          <div class="h-4 bg-gray-200 rounded skeleton w-1/3"></div>
+          <div class="h-3 bg-gray-200 rounded skeleton w-2/3"></div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 bg-gray-200 rounded-full skeleton"></div>
+        <div class="flex-1 space-y-2">
+          <div class="h-4 bg-gray-200 rounded skeleton w-1/4"></div>
+          <div class="h-3 bg-gray-200 rounded skeleton w-1/2"></div>
+        </div>
+      </div>
+    </div>`;
 
   try {
     const conversas = await listarConversas();
 
-    if (conversas.length === 0) {
+    if (!conversas || conversas.length === 0) {
       container.innerHTML = `
-        <div class="text-center py-12 text-gray-500">
-          <div class="text-5xl mb-4">💬</div>
-          <p class="font-medium">Nenhuma conversa ainda</p>
-          <p class="text-sm mt-1">Toque em "Enviar Mensagem" em um post para começar</p>
+        <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          </div>
+          <p class="font-semibold text-slate-900 text-lg mb-1">Nenhuma conversa ainda</p>
+          <p class="text-sm text-gray-500 max-w-xs">Para iniciar uma conversa, abra um post e toque em "Enviar Mensagem" ou "Ver Perfil"</p>
         </div>`;
       return;
     }
@@ -1481,7 +1553,17 @@ async function carregarListaConversas() {
     });
   } catch (err) {
     console.error('Erro ao carregar conversas:', err);
-    container.innerHTML = '<div class="p-6 text-center text-red-500 text-sm">Erro ao carregar conversas</div>';
+    container.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+          </svg>
+        </div>
+        <p class="font-semibold text-slate-900 mb-1">Erro ao carregar</p>
+        <p class="text-sm text-gray-500 mb-4">${esc(err.message || 'Verifique sua conexão')}</p>
+        <button class="px-5 py-2.5 bg-terra-sol text-white font-semibold rounded-xl text-sm" onclick="document.querySelector('#chat-fechar').click(); setTimeout(() => document.querySelector('[data-route=mensagens]').click(), 300);">Tentar novamente</button>
+      </div>`;
   }
 }
 
@@ -1489,12 +1571,21 @@ async function abrirConversa(conversaId, outroNome, outroId = null) {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
+  const headerLista = document.getElementById('chat-header-lista');
   const nomeOutro = document.getElementById('chat-nome-outro');
+  const avatarOutro = document.getElementById('chat-avatar-outro');
 
+  // Trocar headers: esconder lista, mostrar conversa
   container.classList.add('hidden');
+  if (headerLista) headerLista.classList.add('hidden');
   conversaView?.classList.remove('hidden');
+  conversaView?.style.display = 'flex';
   headerChat?.classList.remove('hidden');
   if (nomeOutro) nomeOutro.textContent = outroNome;
+  if (avatarOutro) {
+    const iniciais = (outroNome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+    avatarOutro.textContent = iniciais;
+  }
 
   Estado.conversaAtual = conversaId;
 
