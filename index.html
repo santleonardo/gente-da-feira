@@ -234,6 +234,19 @@
         <div class="max-w-7xl mx-auto px-4 py-6">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
+                <button id="card-feira-toda" class="card-utilidade group bg-gradient-to-br from-terra-sol to-orange-600 p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-orange-400 col-span-2 lg:col-span-1" data-categoria="todos">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-1">Feira Toda</h3>
+                    <p class="text-xs text-white/80">Ver todos os bairros</p>
+                </button>
+
                 <button id="card-vagas" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="vagas">
                     <div class="flex items-start justify-between mb-3">
                         <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -325,6 +338,19 @@
                     <p class="text-xs text-gray-600">Saúde e bem-estar</p>
                 </button>
 
+                <button id="card-avisos-oficiais" class="card-utilidade group bg-white p-4 rounded-2xl shadow-sm hover:shadow-lg active:scale-95 transition-all text-left border-2 border-transparent hover:border-terra-sol" data-categoria="avisos-oficiais">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full" id="badge-avisos-oficiais">0</span>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mb-1">Avisos Oficiais</h3>
+                    <p class="text-xs text-gray-600">Informações da prefeitura</p>
+                </button>
+
             </div>
         </div>
     </section>
@@ -368,6 +394,10 @@
                     <button class="tab-filtro flex-shrink-0 px-5 py-4 font-medium text-sm border-b-2 border-transparent text-gray-600 transition-colors" data-filtro="consultas">
                         <span>Consultas</span>
                         <span class="ml-1.5 inline-flex items-center px-2 py-0.5 bg-cyan-100 text-cyan-700 text-xs font-bold rounded-full tab-badge" data-badge="consultas">0</span>
+                    </button>
+                    <button class="tab-filtro flex-shrink-0 px-5 py-4 font-medium text-sm border-b-2 border-transparent text-gray-600 transition-colors" data-filtro="avisos-oficiais">
+                        <span>Oficiais</span>
+                        <span class="ml-1.5 inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-full tab-badge" data-badge="avisos-oficiais">0</span>
                     </button>
                 </div>
             </div>
@@ -535,6 +565,54 @@
             </div>
         </div>
     </nav>
+
+    <!-- ========================================
+         TELA DE LOGIN (Full Screen Overlay)
+    ========================================= -->
+    <div id="tela-login" class="hidden fixed inset-0 z-[200] bg-gradient-to-br from-noite-feira via-asfalto to-noite-feira flex items-center justify-center">
+        <div class="w-full max-w-md mx-4">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-br from-terra-sol to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-terra-sol/30">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-extrabold text-white mb-2">Gente da Feira</h1>
+                <p class="text-gray-400 text-sm">Seu bairro, suas soluções</p>
+            </div>
+            <div class="bg-white rounded-3xl p-6 shadow-2xl">
+                <div class="flex bg-gray-100 rounded-xl p-1 mb-6">
+                    <button id="login-tab-entrar" class="login-tab flex-1 py-2.5 rounded-lg font-bold text-sm bg-white shadow text-slate-900 transition-all">Entrar</button>
+                    <button id="login-tab-cadastrar" class="login-tab flex-1 py-2.5 rounded-lg font-bold text-sm text-gray-500 transition-all">Cadastrar</button>
+                </div>
+                <div class="space-y-4">
+                    <div id="login-campo-nome" class="hidden">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nome completo</label>
+                        <input type="text" id="login-input-nome" placeholder="Seu nome"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">E-mail</label>
+                        <input type="email" id="login-input-email" placeholder="seu@email.com"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Senha</label>
+                        <input type="password" id="login-input-senha" placeholder="Sua senha"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    </div>
+                    <div id="login-erro" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-xl"></div>
+                    <button id="login-btn-confirmar" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:shadow-lg">
+                        Entrar
+                    </button>
+                </div>
+                <button id="login-btn-pular" class="w-full mt-4 text-sm text-gray-400 hover:text-gray-300 transition-colors py-2">
+                    Entrar sem conta (só visualizar)
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Service Worker (PWA) -->
     <script>
