@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.7.0 — Feira Toda, Avisos Oficiais, tela de login, mapa melhorado
+// v3.8.0 — WhatsApp só para logados, badge PRO no card, Feira Toda, login, mapa melhorado
 // ============================================================
 
 import {
@@ -375,16 +375,28 @@ function criarCardPost(post) {
        </div>`
     : '';
 
-  const botaoContato = post.contato_whatsapp
-    ? `<a href="https://wa.me/55${post.contato_whatsapp.replace(/\D/g, '')}?text=Oi%2C%20vi%20seu%20post%20no%20Gente%20da%20Feira!"
-          target="_blank" rel="noopener" onclick="event.stopPropagation()"
-          class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-          </svg>
-          <span>WhatsApp</span>
-        </a>`
-    : '';
+  // WhatsApp: só exibe para usuários logados (anti-scraping)
+  let botaoContato = '';
+  if (post.contato_whatsapp) {
+    if (Estado.usuario) {
+      botaoContato = `<a href="https://wa.me/55${post.contato_whatsapp.replace(/\D/g, '')}?text=Oi%2C%20vi%20seu%20post%20no%20Gente%20da%20Feira!"
+            target="_blank" rel="noopener" onclick="event.stopPropagation()"
+            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+            </svg>
+            <span>WhatsApp</span>
+          </a>`;
+    } else {
+      botaoContato = `<button onclick="event.stopPropagation(); abrirModalLogin('Faça login para ver o WhatsApp de contato.');"
+            class="flex-1 bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            <span>Login p/ WhatsApp</span>
+          </button>`;
+    }
+  }
 
   artigo.innerHTML = `
     ${imagemHtml}
@@ -393,7 +405,10 @@ function criarCardPost(post) {
         <div class="flex items-center gap-3">
           ${htmlAvatar(post.autor?.avatar_url, nomeAutor, 'w-11 h-11 rounded-xl', 'text-sm', '', `background: ${cor}`)}
           <div>
-            <p class="font-semibold text-slate-900 text-sm">${nomeAutor}</p>
+            <p class="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+              ${nomeAutor}
+              ${post.autor?.is_profissional ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700" title="Profissional verificado">PRO</span>' : ''}
+            </p>
             <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
           </div>
         </div>
@@ -560,16 +575,28 @@ async function abrirDetalhePost(postId) {
     </button>
   ` : '';
 
-  const botaoWhatsapp = post.contato_whatsapp
-    ? `<a href="https://wa.me/55${post.contato_whatsapp.replace(/\D/g, '')}?text=Oi%2C%20vi%20seu%20post%20no%20Gente%20da%20Feira!"
-          target="_blank" rel="noopener"
-          class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-          </svg>
-          WhatsApp
-        </a>`
-    : '';
+  // WhatsApp no detalhe: só para logados (anti-scraping)
+  let botaoWhatsapp = '';
+  if (post.contato_whatsapp) {
+    if (Estado.usuario) {
+      botaoWhatsapp = `<a href="https://wa.me/55${post.contato_whatsapp.replace(/\D/g, '')}?text=Oi%2C%20vi%20seu%20post%20no%20Gente%20da%20Feira!"
+            target="_blank" rel="noopener"
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+            </svg>
+            WhatsApp
+          </a>`;
+    } else {
+      botaoWhatsapp = `<button onclick="abrirModalLogin('Faça login para ver o WhatsApp de contato.');"
+            class="w-full bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            Login para ver WhatsApp
+          </button>`;
+    }
+  }
 
   modal.innerHTML = `
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-detalhe"></div>
@@ -588,7 +615,10 @@ async function abrirDetalhePost(postId) {
           <div class="flex items-center gap-3">
             ${htmlAvatar(post.autor?.avatar_url, nomeAutor, 'w-12 h-12 rounded-xl', 'text-sm', '', `background: ${cor}`)}
             <div>
-              <p class="font-semibold text-slate-900">${nomeAutor}</p>
+              <p class="font-semibold text-slate-900 flex items-center gap-1.5">
+                ${nomeAutor}
+                ${post.autor?.is_profissional ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700" title="Profissional verificado">PRO</span>' : ''}
+              </p>
               <p class="text-xs text-gray-500">${esc(post.bairro?.nome || '')} • ${tempoAtras}</p>
             </div>
           </div>
