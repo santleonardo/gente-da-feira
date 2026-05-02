@@ -74,7 +74,7 @@ export async function listarBairros() {
  * @param {number} opcoes.limite - máx de resultados (padrão: 10)
  * @param {number} opcoes.pagina - para paginação (padrão: 0)
  */
-export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 10, pagina = 0 } = {}) {
+export async function buscarPosts({ bairroSlug, categoriaSlug, busca, tag, limite = 10, pagina = 0 } = {}) {
   let query = supabase
     .from('posts')
     .select(`
@@ -90,7 +90,7 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
       latitude,
       longitude,
       criado_em,
-      autor:perfis(id, nome, avatar_url, whatsapp, is_profissional),
+      autor:perfis(id, nome, avatar_url, whatsapp, is_profissional, avaliacao_media, avaliacoes_total),
       bairro:bairros(id, nome, slug, latitude, longitude),
       categoria:categorias(id, nome, slug, icone, cor)
     `)
@@ -130,6 +130,11 @@ export async function buscarPosts({ bairroSlug, categoriaSlug, busca, limite = 1
     query = query.or(`titulo.ilike.%${buscaSanitizada}%,descricao.ilike.%${buscaSanitizada}%`);
   }
 
+  // Filtro por tag (array contains)
+  if (tag && tag.trim().length >= 1) {
+    query = query.contains('tags', [tag.trim().toLowerCase()]);
+  }
+
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
@@ -158,7 +163,7 @@ export async function buscarPostPorId(postId) {
       criado_em,
       expira_em,
       autor_id,
-      autor:perfis(id, nome, avatar_url, whatsapp, is_profissional, bio),
+      autor:perfis(id, nome, avatar_url, whatsapp, is_profissional, bio, avaliacao_media, avaliacoes_total),
       bairro:bairros(id, nome, slug, latitude, longitude),
       categoria:categorias(id, nome, slug, icone, cor)
     `)
@@ -789,4 +794,75 @@ export async function removerPushSubscription(endpoint) {
     .eq('endpoint', endpoint);
 
   if (error) throw error;
+}
+
+
+// ============================================================
+// AVALIAÇÕES
+// ============================================================
+
+/**
+ * Cria ou atualiza avaliação de um profissional (upsert via RPC)
+ * @param {string} avaliadoId - UUID do perfil avaliado
+ * @param {object} opcoes
+ * @param {string} opcoes.postId - UUID do post relacionado (opcional)
+ * @param {number} opcoes.nota - Nota de 1 a 5
+ * @param {string} opcoes.comentario - Comentário (opcional)
+ */
+export async function criarAvaliacao(avaliadoId, { postId = null, nota = 5, comentario = null } = {}) {
+  const { data, error } = await supabase.rpc('criar_avaliacao', {
+    p_avaliado_id: avaliadoId,
+    p_post_id: postId,
+    p_nota: nota,
+    p_comentario: comentario,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Busca a média de avaliações de um perfil
+ * @param {string} perfilId - UUID do perfil
+ * @returns {{ media: number, total: number }}
+ */
+export async function buscarMediaAvaliacoes(perfilId) {
+  const { data, error } = await supabase.rpc('media_avaliacoes', {
+    p_perfil_id: perfilId,
+  });
+  if (error) throw error;
+  return data?.[0] || { media: 0, total: 0 };
+}
+
+/**
+ * Lista avaliações de um perfil (com dados do avaliador)
+ * @param {string} perfilId - UUID do perfil
+ * @param {number} limite - máximo de resultados
+ */
+export async function listarAvaliacoes(perfilId, limite = 20) {
+  const { data, error } = await supabase.rpc('listar_avaliacoes', {
+    p_perfil_id: perfilId,
+    p_limite: limite,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Verifica se o usuário logado já avaliou um perfil
+ * @param {string} avaliadoId - UUID do perfil avaliado
+ * @returns {object|null} A avaliação existente ou null
+ */
+export async function buscarMinhaAvaliacao(avaliadoId) {
+  const user = await getUsuarioAtual();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('avaliacoes')
+    .select('id, nota, comentario, criado_em')
+    .eq('autor_id', user.id)
+    .eq('avaliado_id', avaliadoId)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
 }
