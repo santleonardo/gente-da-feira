@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v2.3.0 — Upload de avatar, tela Meu Perfil com edição, avatares nos cards/chat
+// v3.6.0 — Categorias completas (Eventos, Comida, Consultas), mapa com seletor de bairro
 // ============================================================
 
 import {
@@ -239,6 +239,12 @@ function abrirModalBairro() {
       iniciarRealtime();
 
       await carregarFeed(true);
+      // Se o mapa estiver aberto, recarregar os pins com o novo bairro
+      if (Estado.telaAtual === 'mapa') {
+        carregarPostsNoMapa();
+        const mapaBairroNome = document.getElementById('mapa-bairro-nome');
+        if (mapaBairroNome) mapaBairroNome.textContent = nome;
+      }
       mostrarToast(`Bairro alterado para ${nome} 📍`);
     });
   });
@@ -1363,13 +1369,13 @@ async function abrirConversa(conversaId, outroNome) {
   const container = document.getElementById('lista-conversas');
   const conversaView = document.getElementById('conversa-view');
   const headerChat = document.getElementById('chat-header');
-  const nomeOutro = document.getElementById('chat-nome-outro');
+  const nomeOutroEl = document.getElementById('chat-nome-outro');
 
   container.classList.add('hidden');
   conversaView?.classList.remove('hidden');
   headerChat?.classList.remove('hidden');
   document.getElementById('chat-header-lista')?.classList.add('hidden');
-  if (nomeOutro) nomeOutro.textContent = outroNome;
+  if (nomeOutroEl) nomeOutroEl.textContent = outroNome;
 
   Estado.conversaAtual = conversaId;
 
@@ -1901,7 +1907,10 @@ async function atualizarBadgesGrid() {
         'vagas': 'badge-vagas',
         'promocoes': 'badge-promocoes',
         'servicos': 'badge-servicos',
-        'avisos': 'badge-avisos'
+        'avisos': 'badge-avisos',
+        'eventos': 'badge-eventos',
+        'comida': 'badge-comida',
+        'consultas': 'badge-consultas',
       };
 
       const elId = mapa[cat.slug];
@@ -2013,6 +2022,11 @@ function setupEventListeners() {
 
   // Mapa — fechar
   document.getElementById('mapa-fechar')?.addEventListener('click', fecharTelaMapa);
+
+  // Mapa — trocar bairro
+  document.getElementById('mapa-trocar-bairro')?.addEventListener('click', () => {
+    abrirModalBairro();
+  });
 
   // Chat envio
   setupChatEnvio();
