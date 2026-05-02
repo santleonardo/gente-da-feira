@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.8.0 — WhatsApp só para logados, badge PRO no card, Feira Toda, login, mapa melhorado
+// v3.9.0 — Tags clicáveis, sistema de avaliações com estrelas, WhatsApp só para logados, badge PRO
 // ============================================================
 
 import {
@@ -31,6 +31,10 @@ import {
   escutarNovasMensagens,
   salvarPushSubscription,
   atualizarPerfil,
+  criarAvaliacao,
+  buscarMediaAvaliacoes,
+  listarAvaliacoes,
+  buscarMinhaAvaliacao,
 } from './supabase.js';
 
 // ============================================================
@@ -49,6 +53,7 @@ const Estado = {
   unsubscribeRealtime: null,
   unsubscribeChat: null,
   telaAtual: 'feed', // 'feed' | 'mapa' | 'chat' | 'detalhe'
+  tagAtiva: null,
   conversaAtual: null,
 };
 
@@ -303,6 +308,7 @@ async function carregarFeed(reiniciar = false) {
     const novos = await buscarPosts({
       bairroSlug: Estado.bairroAtual?.slug,
       categoriaSlug: Estado.filtroAtivo,
+      tag: Estado.tagAtiva,
       limite: 10,
       pagina: Estado.paginaAtual,
     });
@@ -351,6 +357,86 @@ function renderizarPosts(posts, limpar = false) {
   });
 }
 
+// ============================================================
+// ESTRELAS DE AVALIAÇÃO
+// ============================================================
+
+/**
+ * Gera HTML para exibir estrelas de avaliação
+ * @param {number} media - Média de 0 a 5
+ * @param {number} total - Total de avaliações
+ * @param {string} tamanho - 'sm' | 'md' | 'lg'
+ */
+function htmlEstrelas(media, total, tamanho = 'sm') {
+  if (!media || !total || total === 0) return '';
+  const tamanhos = {
+    sm: 'text-xs gap-0.5',
+    md: 'text-sm gap-1',
+    lg: 'text-lg gap-1.5',
+  };
+  const cheias = Math.round(media);
+  const vazias = 5 - cheias;
+  const estrelas = '\u2605'.repeat(cheias) + '\u2606'.repeat(vazias);
+  const labels = ['Péssimo', 'Ruim', 'Regular', 'Bom', 'Excelente'];
+  const label = labels[Math.min(cheias - 1, 4)] || '';
+  return `<span class="inline-flex items-center ${tamanhos[tamanho]} text-amber-400" title="${label} — ${media}/5 (${total} avaliacoes)">
+    <span class="leading-none">${estrelas}</span>
+    <span class="text-gray-500 ${tamanho === 'sm' ? 'text-[10px]' : 'text-xs'} font-medium">${media}</span>
+  </span>`;
+}
+
+/**
+ * Limpa filtro de tag e recarrega o feed
+ */
+function limparFiltroTag() {
+  Estado.tagAtiva = null;
+  const banner = document.getElementById('banner-tag-ativo');
+  if (banner) banner.remove();
+  carregarFeed(true);
+}
+
+/**
+ * Ativa filtro por tag e recarrega o feed
+ * @param {string} tag - Nome da tag para filtrar
+ */
+function filtrarPorTag(tag) {
+  Estado.tagAtiva = tag.toLowerCase();
+  Estado.paginaAtual = 0;
+  Estado.posts = [];
+  limparFeed();
+  mostrarSkeletonFeed();
+
+  // Mostrar banner de tag ativa
+  let banner = document.getElementById('banner-tag-ativo');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'banner-tag-ativo';
+    const container = document.getElementById('lista-feed');
+    if (container) container.parentElement.insertBefore(banner, container);
+  }
+  banner.className = 'max-w-7xl mx-auto px-4 pt-3';
+  banner.innerHTML = `
+    <div class="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
+      <svg class="w-4 h-4 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+      </svg>
+      <span class="text-sm font-medium text-yellow-800">Filtrando por tag: <strong class="text-yellow-900">#${tag.toLowerCase()}</strong></span>
+      <button onclick="limparFiltroTag()" class="ml-auto p-1 hover:bg-yellow-100 rounded-lg transition-colors flex-shrink-0" title="Limpar filtro">
+        <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  `;
+
+  document.getElementById('zona-feed')?.scrollIntoView({ behavior: 'smooth' });
+  carregarFeed(true);
+}
+
+// Expor para onclick inline
+window.limparFiltroTag = limparFiltroTag;
+window.filtrarPorTag = filtrarPorTag;
+
 function criarCardPost(post) {
   const artigo = document.createElement('article');
   artigo.className = 'bg-white rounded-2xl shadow-sm overflow-hidden smooth-enter border border-gray-100 cursor-pointer';
@@ -365,8 +451,13 @@ function criarCardPost(post) {
     ? `<span class="font-semibold text-green-600">A partir de R$ ${Number(post.preco_a_partir).toFixed(2).replace('.', ',')}</span>`
     : '';
   const tags = (post.tags || [])
-    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${esc(t)}</span>`)
+    .map(t => `<button class="tag-clicavel px-2 py-1 bg-gray-100 hover:bg-yellow-100 hover:text-yellow-800 text-gray-700 text-xs rounded-full transition-colors cursor-pointer" data-tag="${escAttr(t)}" onclick="event.stopPropagation(); filtrarPorTag('${escAttr(t)}');">#${esc(t)}</button>`)
     .join('');
+
+  // Estrelas de avaliação (se profissional com notas)
+  const estrelasHtml = (post.autor?.is_profissional && post.autor?.avaliacoes_total > 0)
+    ? htmlEstrelas(post.autor.avaliacao_media, post.autor.avaliacoes_total)
+    : '';
 
   // Imagem do post (se existir)
   const imagemHtml = post.imagem_url
@@ -541,8 +632,13 @@ async function abrirDetalhePost(postId) {
     ? `<span class="font-semibold text-green-600 text-lg">A partir de R$ ${Number(post.preco_a_partir).toFixed(2).replace('.', ',')}</span>`
     : '';
   const tags = (post.tags || [])
-    .map(t => `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">${esc(t)}</span>`)
+    .map(t => `<button class="tag-clicavel px-2 py-1 bg-gray-100 hover:bg-yellow-100 hover:text-yellow-800 text-gray-700 text-xs rounded-full transition-colors cursor-pointer" data-tag="${escAttr(t)}" onclick="event.stopPropagation(); filtrarPorTag('${escAttr(t)}');">#${esc(t)}</button>`)
     .join('');
+
+  // Estrelas de avaliação
+  const estrelasDetalhe = (post.autor?.is_profissional && post.autor?.avaliacoes_total > 0)
+    ? htmlEstrelas(post.autor.avaliacao_media, post.autor.avaliacoes_total, 'md')
+    : '';
 
   // Verificar se o post é do usuário logado
   const isDono = Estado.usuario && post.autor_id === Estado.usuario.id;
@@ -574,6 +670,17 @@ async function abrirDetalhePost(postId) {
       Enviar Mensagem
     </button>
   ` : '';
+
+  // Botão avaliar (para profissionais, não pode avaliar a si mesmo)
+  let botaoAvaliar = '';
+  if (Estado.usuario && !isDono && post.autor?.is_profissional) {
+    botaoAvaliar = `<button id="btn-avaliar-autor" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3" data-autor-id="${escAttr(post.autor_id)}">
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+      </svg>
+      Avaliar profissional
+    </button>`;
+  }
 
   // WhatsApp no detalhe: só para logados (anti-scraping)
   let botaoWhatsapp = '';
@@ -642,6 +749,7 @@ async function abrirDetalhePost(postId) {
         </div>
 
         <!-- Ações -->
+        ${botaoAvaliar}
         ${botaoWhatsapp}
         ${botaoChat}
         ${botoesDono}
@@ -671,6 +779,13 @@ async function abrirDetalhePost(postId) {
         mostrarToast('Erro ao excluir. Tente novamente.', 'erro');
       }
     }
+  });
+
+  // Botão avaliar
+  modal.querySelector('#btn-avaliar-autor')?.addEventListener('click', () => {
+    const autorId = modal.querySelector('#btn-avaliar-autor').dataset.autorId;
+    modal.remove();
+    abrirModalAvaliar(autorId);
   });
 
   // Botão chat
@@ -2633,8 +2748,17 @@ async function abrirModalPerfilUsuario(userId) {
 
       <div class="text-center mb-6">
         ${htmlAvatar(perfil?.avatar_url, perfil?.nome || 'Usuário', 'w-20 h-20 rounded-full mx-auto', 'text-2xl', 'bg-terra-sol', '', 'text-noite-feira')}
-        <h3 class="font-bold text-lg mt-3">${esc(perfil?.nome || 'Usuário')}</h3>
+        <h3 class="font-bold text-lg mt-3 flex items-center justify-center gap-2">
+          ${esc(perfil?.nome || 'Usuário')}
+          ${perfil?.is_profissional ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">PRO</span>' : ''}
+        </h3>
         <p class="text-sm text-gray-500">${esc(perfil?.bairro?.nome || '')}</p>
+        ${(perfil?.avaliacao_media > 0 && perfil?.avaliacoes_total > 0)
+          ? `<div class="mt-2 flex items-center justify-center gap-2">
+              ${htmlEstrelas(perfil.avaliacao_media, perfil.avaliacoes_total, 'md')}
+              <span class="text-xs text-gray-400">(${perfil.avaliacoes_total} avaliacoes)</span>
+            </div>`
+          : ''}
         ${perfil?.bio ? `<p class="text-sm text-gray-600 mt-2">${esc(perfil.bio)}</p>` : ''}
       </div>
 
@@ -2649,10 +2773,19 @@ async function abrirModalPerfilUsuario(userId) {
       ` : ''}
 
       ${Estado.usuario && userId !== Estado.usuario.id ? `
-        <button id="btn-chat-perfil" class="w-full bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-3" data-user-id="${escAttr(userId)}">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-          Enviar Mensagem
-        </button>
+        <div class="flex gap-2 mt-3">
+          <button id="btn-chat-perfil" class="flex-1 bg-terra-sol hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all" data-user-id="${escAttr(userId)}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Mensagem
+          </button>
+          ${perfil?.is_profissional ? `
+          <button id="btn-avaliar-perfil" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all" data-user-id="${escAttr(userId)}">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+            Avaliar
+          </button>` : ''}
+        </div>
       ` : ''}
     </div>
   `;
@@ -2660,6 +2793,13 @@ async function abrirModalPerfilUsuario(userId) {
   document.body.appendChild(modal);
   modal.querySelector('#overlay-perfil-u').addEventListener('click', () => modal.remove());
   modal.querySelector('#fechar-perfil-u').addEventListener('click', () => modal.remove());
+
+  // Avaliar pelo perfil
+  modal.querySelector('#btn-avaliar-perfil')?.addEventListener('click', () => {
+    const userId = modal.querySelector('#btn-avaliar-perfil').dataset.userId;
+    modal.remove();
+    abrirModalAvaliar(userId);
+  });
 
   // Chat pelo perfil
   modal.querySelector('#btn-chat-perfil')?.addEventListener('click', async () => {
@@ -2677,6 +2817,147 @@ async function abrirModalPerfilUsuario(userId) {
       mostrarToast('Erro ao abrir chat', 'erro');
       btn.textContent = 'Enviar Mensagem';
       btn.disabled = false;
+    }
+  });
+}
+
+
+// ============================================================
+// MODAL AVALIAR PROFISSIONAL
+// ============================================================
+async function abrirModalAvaliar(avaliadoId) {
+  if (!Estado.usuario) {
+    abrirModalLogin('Para avaliar, faca login primeiro.');
+    return;
+  }
+
+  document.getElementById('modal-avaliar')?.remove();
+
+  // Buscar dados do perfil avaliado
+  let perfilAvaliado = null;
+  try {
+    perfilAvaliado = await buscarPerfil(avaliadoId);
+  } catch (_) {
+    mostrarToast('Erro ao carregar perfil', 'erro');
+    return;
+  }
+
+  // Buscar avaliação existente do usuário
+  let minhaAvaliacao = null;
+  try {
+    minhaAvaliacao = await buscarMinhaAvaliacao(avaliadoId);
+  } catch (_) {}
+
+  const notaInicial = minhaAvaliacao?.nota || 5;
+  const comentarioInicial = minhaAvaliacao?.comentario || '';
+  const ehEdicao = !!minhaAvaliacao;
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-avaliar';
+  modal.className = 'fixed inset-0 z-[100] flex items-end justify-center';
+  modal.innerHTML = `
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="overlay-avaliar"></div>
+    <div class="relative bg-white w-full max-w-lg rounded-t-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-xl font-bold text-slate-900">${ehEdicao ? 'Editar' : 'Avaliar'} profissional</h2>
+        <button id="fechar-avaliar" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
+      </div>
+
+      <!-- Info do profissional -->
+      <div class="flex items-center gap-3 mb-5 p-3 bg-gray-50 rounded-xl">
+        ${htmlAvatar(perfilAvaliado?.avatar_url, perfilAvaliado?.nome || '?', 'w-12 h-12 rounded-xl', 'text-sm', 'bg-terra-sol', '', 'text-white')}
+        <div>
+          <p class="font-semibold text-slate-900">${esc(perfilAvaliado?.nome || 'Profissional')}</p>
+          <p class="text-xs text-gray-500">${perfilAvaliado?.is_profissional ? 'Profissional verificado' : ''}</p>
+          ${(perfilAvaliado?.avaliacao_media > 0)
+            ? `<p class="mt-0.5">${htmlEstrelas(perfilAvaliado.avaliacao_media, perfilAvaliado.avaliacoes_total, 'sm')}<span class="text-[10px] text-gray-400 ml-1">(${perfilAvaliado.avaliacoes_total})</span></p>`
+            : ''}
+        </div>
+      </div>
+
+      <!-- Seletor de estrelas -->
+      <div class="mb-5">
+        <label class="block text-sm font-semibold text-slate-700 mb-3">Sua nota</label>
+        <div class="flex gap-2" id="seletor-estrelas">
+          ${[1,2,3,4,5].map(n => `
+            <button type="button" data-nota="${n}" class="estrela-btn w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center text-2xl
+              ${n <= notaInicial ? 'border-amber-400 bg-amber-50 text-amber-400' : 'border-gray-200 text-gray-300 hover:border-amber-300 hover:text-amber-300'}">
+              \u2605
+            </button>
+          `).join('')}
+        </div>
+        <p class="text-xs text-gray-500 mt-2" id="label-nota">${['', 'Péssimo', 'Ruim', 'Regular', 'Bom', 'Excelente'][notaInicial]}</p>
+      </div>
+
+      <!-- Comentário -->
+      <div class="mb-5">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Comentário (opcional)</label>
+        <textarea id="avaliar-comentario" rows="3" placeholder="Conte como foi sua experiência..."
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none">${esc(comentarioInicial)}</textarea>
+      </div>
+
+      <!-- Erro -->
+      <div id="erro-avaliar" class="hidden text-sm text-red-600 bg-red-50 p-3 rounded-xl mb-3"></div>
+
+      <!-- Botão enviar -->
+      <button id="btn-confirmar-avaliar"
+        class="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:shadow-lg">
+        ${ehEdicao ? 'Atualizar avaliação' : 'Enviar avaliação'}
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  modal.querySelector('#overlay-avaliar').addEventListener('click', () => modal.remove());
+  modal.querySelector('#fechar-avaliar').addEventListener('click', () => modal.remove());
+
+  // Lógica das estrelas
+  let notaSelecionada = notaInicial;
+  const labelNota = modal.querySelector('#label-nota');
+  const labels = ['', 'Péssimo', 'Ruim', 'Regular', 'Bom', 'Excelente'];
+
+  modal.querySelectorAll('.estrela-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      notaSelecionada = parseInt(btn.dataset.nota);
+      labelNota.textContent = labels[notaSelecionada];
+
+      modal.querySelectorAll('.estrela-btn').forEach((b, i) => {
+        const ativo = i < notaSelecionada;
+        b.classList.toggle('border-amber-400', ativo);
+        b.classList.toggle('bg-amber-50', ativo);
+        b.classList.toggle('text-amber-400', ativo);
+        b.classList.toggle('border-gray-200', !ativo);
+        b.classList.toggle('text-gray-300', !ativo);
+      });
+    });
+  });
+
+  // Enviar avaliação
+  modal.querySelector('#btn-confirmar-avaliar').addEventListener('click', async () => {
+    const erroEl = document.getElementById('erro-avaliar');
+    erroEl.classList.add('hidden');
+
+    const comentario = document.getElementById('avaliar-comentario').value.trim();
+    const btnEnviar = document.getElementById('btn-confirmar-avaliar');
+    btnEnviar.textContent = 'Enviando...';
+    btnEnviar.disabled = true;
+
+    try {
+      await criarAvaliacao(avaliadoId, {
+        nota: notaSelecionada,
+        comentario: comentario || null,
+      });
+
+      modal.remove();
+      mostrarToast(ehEdicao ? 'Avaliação atualizada!' : 'Avaliação enviada! Obrigado.');
+    } catch (err) {
+      let msg = err.message || 'Erro ao enviar avaliação';
+      if (msg.includes('Voce nao pode avaliar')) msg = 'Você não pode avaliar a si mesmo';
+      if (msg.includes('Voce precisa estar')) msg = 'Você precisa estar logado';
+      erroEl.textContent = msg;
+      erroEl.classList.remove('hidden');
+      btnEnviar.textContent = ehEdicao ? 'Atualizar avaliação' : 'Enviar avaliação';
+      btnEnviar.disabled = false;
     }
   });
 }
