@@ -1,7 +1,7 @@
 // ============================================================
 // app.js — Lógica principal do Gente da Feira
 // Conecta a UI do index.html com o Supabase
-// v3.6.0 — Categorias completas (Eventos, Comida, Consultas), mapa com seletor de bairro
+// v3.7.0 — Feira Toda, Avisos Oficiais, tela de login, mapa melhorado
 // ============================================================
 
 import {
@@ -69,6 +69,13 @@ async function init() {
     await carregarBairros();
     setupEventListeners();
     setupPushNotifications();
+
+    // Exibir tela de login para novos usuários
+    const jaViuLogin = localStorage.getItem('gdf_login_visto');
+    if (!Estado.usuario && !jaViuLogin) {
+      window.exibirTelaLogin();
+      localStorage.setItem('gdf_login_visto', '1');
+    }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
@@ -179,7 +186,13 @@ function atualizarBairroUI() {
   if (el) el.textContent = Estado.bairroAtual.nome;
 
   const busca = document.getElementById('busca-intencao');
-  if (busca) busca.placeholder = `O que você precisa na ${Estado.bairroAtual.nome} agora?`;
+  if (busca) {
+    if (Estado.bairroAtual.slug === 'todos') {
+      busca.placeholder = 'O que você precisa em Feira de Santana agora?';
+    } else {
+      busca.placeholder = `O que você precisa na ${Estado.bairroAtual.nome} agora?`;
+    }
+  }
 }
 
 function abrirModalBairro() {
@@ -196,6 +209,17 @@ function abrirModalBairro() {
         <button id="fechar-modal-bairro" class="p-2 hover:bg-gray-100 rounded-full">✕</button>
       </div>
       <div class="grid grid-cols-2 gap-2" id="lista-bairros-modal">
+        <button
+          data-slug="todos"
+          data-id=""
+          data-nome="Feira Toda"
+          class="bairro-opcao col-span-2 p-4 text-sm font-bold text-left rounded-xl border-2 transition-all bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md hover:shadow-lg"
+          >
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Ver toda a Feira de Santana
+          </div>
+        </button>
         ${Estado.bairros
           .map(
             b => `
@@ -223,15 +247,29 @@ function abrirModalBairro() {
   modal.querySelectorAll('.bairro-opcao').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { slug, id, nome } = btn.dataset;
-      const bairroCompleto = Estado.bairros.find(b => b.slug === slug);
-      Estado.bairroAtual = {
-        slug,
-        id,
-        nome,
-        latitude: bairroCompleto?.latitude || null,
-        longitude: bairroCompleto?.longitude || null,
-      };
-      localStorage.setItem('gdf_bairro_slug', slug);
+      if (slug === 'todos') {
+        Estado.bairroAtual = {
+          slug: 'todos',
+          id: null,
+          nome: 'Feira Toda',
+          latitude: -12.2432,
+          longitude: -38.9567,
+        };
+      } else {
+        const bairroCompleto = Estado.bairros.find(b => b.slug === slug);
+        Estado.bairroAtual = {
+          slug,
+          id,
+          nome,
+          latitude: bairroCompleto?.latitude || null,
+          longitude: bairroCompleto?.longitude || null,
+        };
+      }
+      if (slug !== 'todos') {
+        localStorage.setItem('gdf_bairro_slug', slug);
+      } else {
+        localStorage.removeItem('gdf_bairro_slug');
+      }
       atualizarBairroUI();
       modal.remove();
 
@@ -1161,16 +1199,17 @@ async function carregarPostsNoMapa() {
       marcadores.push(marker);
     });
 
-    // Posts sem coordenadas próprias — espalhar com jitter circular (~100m do centro do bairro)
-    const centroLat = postsSemCoordenadas.length > 0 ? postsSemCoordenadas[0].bairro.latitude : null;
-    const centroLng = postsSemCoordenadas.length > 0 ? postsSemCoordenadas[0].bairro.longitude : null;
-
+    // Posts sem coordenadas próprias — espalhar com jitter usando coordenadas do bairro de cada post
+    // Quando em "Feira Toda", cada post usa o centro do SEU bairro
     postsSemCoordenadas.forEach((post, idx) => {
-      // Jitter circular: espalha ~100m do centro (0.001 grau ≈ 111m)
+      const bLat = parseFloat(post.bairro?.latitude) || -12.2545;
+      const bLng = parseFloat(post.bairro?.longitude) || -38.9567;
+
+      // Jitter circular: espalha ~80m do centro do bairro (0.0008 grau ≈ 89m)
       const angulo = (2 * Math.PI * idx) / postsSemCoordenadas.length;
-      const raio = 0.001 + (idx * 0.0004); // aumenta um pouco a cada post
-      const lat = centroLat + Math.cos(angulo) * raio;
-      const lng = centroLng + Math.sin(angulo) * raio;
+      const raio = 0.0008 + (idx * 0.0003);
+      const lat = bLat + Math.cos(angulo) * raio;
+      const lng = bLng + Math.sin(angulo) * raio;
       bounds.extend([lat, lng]);
 
       const icone = post.categoria?.icone || '💬';
@@ -1888,20 +1927,25 @@ function iniciarRealtime() {
 // BADGES DO GRID 2x2
 // ============================================================
 async function atualizarBadgesGrid() {
-  if (!Estado.bairroAtual?.id) return;
+  if (!Estado.bairroAtual) return;
 
   try {
     const { data: categorias } = await supabase.from('categorias').select('id, slug');
     if (!categorias) return;
 
+    const bairroFilter = Estado.bairroAtual?.slug !== 'todos'
+      ? (query) => query.eq('bairro_id', Estado.bairroAtual.id)
+      : (query) => query;
+
     for (const cat of categorias) {
-      const { count } = await supabase
+      const { count } = await bairroFilter(
+        supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
         .eq('ativo', true)
         .eq('categoria_id', cat.id)
-        .eq('bairro_id', Estado.bairroAtual.id)
-        .gte('expira_em', new Date().toISOString());
+        .gte('expira_em', new Date().toISOString())
+      );
 
       const mapa = {
         'vagas': 'badge-vagas',
@@ -1911,6 +1955,7 @@ async function atualizarBadgesGrid() {
         'eventos': 'badge-eventos',
         'comida': 'badge-comida',
         'consultas': 'badge-consultas',
+        'avisos-oficiais': 'badge-avisos-oficiais',
       };
 
       const elId = mapa[cat.slug];
@@ -1964,8 +2009,32 @@ function setupEventListeners() {
   });
 
   document.querySelectorAll('.card-utilidade').forEach(card => {
-    card.addEventListener('click', e => {
+    card.addEventListener('click', async e => {
       const categoria = e.currentTarget.dataset.categoria;
+
+      // Se clicou em "Feira Toda", atualizar o bairro selecionado para todos
+      if (categoria === 'todos') {
+        Estado.bairroAtual = {
+          slug: 'todos',
+          id: null,
+          nome: 'Feira Toda',
+          latitude: -12.2432,
+          longitude: -38.9567,
+        };
+        localStorage.removeItem('gdf_bairro_slug');
+        atualizarBairroUI();
+        if (Estado.unsubscribeRealtime) Estado.unsubscribeRealtime();
+        iniciarRealtime();
+        await carregarFeed(true);
+        if (Estado.telaAtual === 'mapa') {
+          carregarPostsNoMapa();
+          const mapaBairroNome = document.getElementById('mapa-bairro-nome');
+          if (mapaBairroNome) mapaBairroNome.textContent = 'Feira Toda';
+        }
+        mostrarToast('Mostrando toda a Feira de Santana!');
+        return;
+      }
+
       ativarFiltro(categoria === 'vagas' ? 'vagas' : categoria);
       document.getElementById('zona-feed')?.scrollIntoView({ behavior: 'smooth' });
     });
@@ -2026,6 +2095,87 @@ function setupEventListeners() {
   // Mapa — trocar bairro
   document.getElementById('mapa-trocar-bairro')?.addEventListener('click', () => {
     abrirModalBairro();
+  });
+
+  // === TELA DE LOGIN (Full Screen) ===
+  const telaLogin = document.getElementById('tela-login');
+  const loginTabEntrar = document.getElementById('login-tab-entrar');
+  const loginTabCadastrar = document.getElementById('login-tab-cadastrar');
+  const loginBtnConfirmar = document.getElementById('login-btn-confirmar');
+  const loginBtnPular = document.getElementById('login-btn-pular');
+
+  let loginModo = 'login'; // 'login' | 'cadastro'
+
+  // Função para abrir a tela de login
+  window.exibirTelaLogin = function() {
+    if (telaLogin) telaLogin.classList.remove('hidden');
+  };
+
+  function loginSwitchTab(modo) {
+    loginModo = modo;
+    const isLogin = modo === 'login';
+    loginTabEntrar.className = `login-tab flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${isLogin ? 'bg-white shadow text-slate-900' : 'text-gray-500'}`;
+    loginTabCadastrar.className = `login-tab flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${!isLogin ? 'bg-white shadow text-slate-900' : 'text-gray-500'}`;
+    document.getElementById('login-campo-nome').classList.toggle('hidden', isLogin);
+    loginBtnConfirmar.textContent = isLogin ? 'Entrar' : 'Cadastrar';
+    document.getElementById('login-erro').classList.add('hidden');
+  }
+
+  loginTabEntrar?.addEventListener('click', () => loginSwitchTab('login'));
+  loginTabCadastrar?.addEventListener('click', () => loginSwitchTab('cadastro'));
+
+  loginBtnConfirmar?.addEventListener('click', async () => {
+    const email = document.getElementById('login-input-email')?.value.trim();
+    const senha = document.getElementById('login-input-senha')?.value;
+    const nome = document.getElementById('login-input-nome')?.value.trim();
+    const erroEl = document.getElementById('login-erro');
+    erroEl.classList.add('hidden');
+
+    if (!email || !senha) {
+      erroEl.textContent = 'Preencha e-mail e senha';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+
+    loginBtnConfirmar.textContent = loginModo === 'login' ? 'Entrando...' : 'Cadastrando...';
+    loginBtnConfirmar.disabled = true;
+
+    try {
+      if (loginModo === 'login') {
+        await loginEmail(email, senha);
+      } else {
+        if (!nome) {
+          erroEl.textContent = 'Preencha seu nome';
+          erroEl.classList.remove('hidden');
+          loginBtnConfirmar.textContent = 'Cadastrar';
+          loginBtnConfirmar.disabled = false;
+          return;
+        }
+        const resultado = await cadastrar(email, senha, nome);
+        if (!resultado.session) {
+          if (telaLogin) telaLogin.classList.add('hidden');
+          mostrarToast('Conta criada! Verifique seu e-mail.');
+          return;
+        }
+      }
+      if (telaLogin) telaLogin.classList.add('hidden');
+      await verificarAuth();
+      mostrarToast(loginModo === 'login' ? 'Bem-vindo(a) de volta!' : 'Conta criada com sucesso!');
+    } catch (err) {
+      let msg = err.message || 'Erro desconhecido';
+      if (msg.includes('Invalid login')) msg = 'E-mail ou senha incorretos';
+      if (msg.includes('Email not confirmed')) msg = 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
+      if (msg.includes('already registered')) msg = 'Este e-mail já está cadastrado';
+      if (msg.includes('Password should')) msg = 'A senha deve ter pelo menos 6 caracteres';
+      erroEl.textContent = msg;
+      erroEl.classList.remove('hidden');
+      loginBtnConfirmar.textContent = loginModo === 'login' ? 'Entrar' : 'Cadastrar';
+      loginBtnConfirmar.disabled = false;
+    }
+  });
+
+  loginBtnPular?.addEventListener('click', () => {
+    if (telaLogin) telaLogin.classList.add('hidden');
   });
 
   // Chat envio
