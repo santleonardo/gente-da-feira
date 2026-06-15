@@ -1933,11 +1933,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     try {
       let fileToUpload = file;
       
-      // Compressão automática de imagens acima de 5MB
-      if (type === "image" && file.size > 5 * 1024 * 1024) {
-        toast.info("Comprimindo imagem...");
+      // Compressão automática de TODAS as imagens (servidor aceita máx 1MB)
+      // Para imagens acima de 5MB, mostra toast de compressão
+      if (type === "image") {
+        if (file.size > 5 * 1024 * 1024) {
+          toast.info("Comprimindo imagem...");
+        }
         try {
-          const compressed = await compressImage(file, { maxSizeKB: 1024 });
+          const compressed = await compressImage(file, { maxSizeKB: 900 });
           fileToUpload = new File([compressed], file.name.replace(/\.\w+$/, `.${getExtensionForBlob(compressed)}`), { type: compressed.type });
         } catch {
           toast.error("Erro ao comprimir imagem");
