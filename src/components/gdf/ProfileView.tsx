@@ -53,7 +53,7 @@ import { UserAvatar } from "./UserAvatar";
 import { SettingsView } from "./SettingsView";
 import { AlbumView } from "./AlbumView";
 import { createClient } from "@/lib/supabase/client";
-import { renderContentWithLinks } from "@/lib/link-utils";
+import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
 import {
   compressImage,
@@ -62,6 +62,12 @@ import {
   revokePreviewUrl,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
+
+// Abre o perfil de um usuário (ex: ao clicar numa @menção) via evento global,
+// mesmo padrão usado em outras telas (FeedView, DMsView, RoomsView).
+function openUserProfileById(userId: string) {
+  window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId } }));
+}
 
 // ═══════════════════════════════════════════════════════════
 // Post-it colors — TONS MÉDIOS (nem forte nem fraco)
@@ -353,48 +359,8 @@ function sanitizeHTML(html: string): string {
   return sanitizeHTMLSync(html);
 }
 
-// ═══════════════════════════════════════════════════════════
-// FormattedText — renderiza HTML ou parseia markdown
-// ═══════════════════════════════════════════════════════════
-function parseInlineFormatting(text: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  // Match URLs, ***bold+italic***, **bold**, _italic_ (URLs first, then formatting)
-  const regex = /(https?:\/\/[^\s<>"')\]]+|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|_(.+?)_)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<Fragment key={`t${key++}`}>{text.slice(lastIndex, match.index)}</Fragment>);
-    }
-    const matchedText = match[0];
-    if (matchedText.startsWith('http')) {
-      // URL — render as clickable link
-      parts.push(
-        <a key={`url${key++}`} href={matchedText} target="_blank" rel="noopener noreferrer" className="text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors" onClick={(e) => e.stopPropagation()}>
-          {matchedText}
-        </a>
-      );
-    } else if (match[2]) {
-      // ***bold+italic***
-      parts.push(<strong key={`bi${key++}`}><em>{match[2]}</em></strong>);
-    } else if (match[3]) {
-      // **bold**
-      parts.push(<strong key={`b${key++}`}>{match[3]}</strong>);
-    } else if (match[4]) {
-      // _italic_
-      parts.push(<em key={`i${key++}`}>{match[4]}</em>);
-    }
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<Fragment key={`r${key++}`}>{text.slice(lastIndex)}</Fragment>);
-  }
-
-  return parts.length > 0 ? parts : [<Fragment key="empty">{text}</Fragment>];
-}
+// parseInlineFormatting agora vem de @/lib/link-utils (importado como
+// parseInlineContent) — fonte única, com suporte a URL + @menção + markdown.
 
 function useDOMPurify() {
   const [ready, setReady] = useState(false);
@@ -469,7 +435,7 @@ function FormattedText({
         return (
           <Fragment key={i}>
             {i > 0 && <br />}
-            <span style={headingStyle}>{parseInlineFormatting(text)}</span>
+            <span style={headingStyle}>{parseInlineContent(text, openUserProfileById)}</span>
           </Fragment>
         );
       })}
@@ -1054,7 +1020,7 @@ export function ProfileView() {
           </div>
 
           <div className="mt-4">
-            {profile?.bio ? <p className="text-sm text-[#000305]">{profile.bio}</p> : <p className="text-sm text-[#01386A]/40 italic">Sem bio ainda</p>}
+            {profile?.bio ? <p className="text-sm text-[#000305] whitespace-pre-wrap">{parseInlineContent(profile.bio, openUserProfileById)}</p> : <p className="text-sm text-[#01386A]/40 italic">Sem bio ainda</p>}
           </div>
 
           <div className="mt-6 flex gap-6">

@@ -9,9 +9,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Users as UsersIcon, Camera } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { timeAgo } from "@/lib/constants";
-import { renderContentWithLinks } from "@/lib/link-utils";
+import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
 import { sanitizeHTMLSync } from "@/lib/sanitize";
+
+// Abre o perfil de um usuário (ex: ao clicar numa @menção) via evento global,
+// mesmo padrão usado em outras telas (FeedView, ProfileView, DMsView, RoomsView).
+function openUserProfileById(userId: string) {
+  window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId } }));
+}
 
 // ═══════════════════════════════════════════════════════════
 // Post-it colors (Tailwind classes)
@@ -276,39 +282,8 @@ function sanitizeHTML(html: string): string {
   return sanitizeHTMLSync(html);
 }
 
-function parseInlineFormatting(text: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const regex = /(https?:\/\/[^\s<>"')\]]+)|(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|_(.+?)_/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<Fragment key={`t${key++}`}>{text.slice(lastIndex, match.index)}</Fragment>);
-    }
-    if (match[1]) {
-      parts.push(
-        <a key={`url${key++}`} href={match[1]} target="_blank" rel="noopener noreferrer" className="text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors" onClick={(e) => e.stopPropagation()}>
-          {match[1]}
-        </a>
-      );
-    } else if (match[3]) {
-      parts.push(<strong key={`bi${key++}`}><em>{match[3]}</em></strong>);
-    } else if (match[5]) {
-      parts.push(<strong key={`b${key++}`}>{match[5]}</strong>);
-    } else if (match[6]) {
-      parts.push(<em key={`i${key++}`}>{match[6]}</em>);
-    }
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<Fragment key={`r${key++}`}>{text.slice(lastIndex)}</Fragment>);
-  }
-
-  return parts.length > 0 ? parts : [<Fragment key="empty">{text}</Fragment>];
-}
+// parseInlineFormatting agora vem de @/lib/link-utils (importado como
+// parseInlineContent) — fonte única, com suporte a URL + @menção + markdown.
 
 function FormattedText({
   content,
@@ -355,7 +330,7 @@ function FormattedText({
         return (
           <Fragment key={i}>
             {i > 0 && <br />}
-            <span style={headingStyle}>{parseInlineFormatting(text)}</span>
+            <span style={headingStyle}>{parseInlineContent(text, openUserProfileById)}</span>
           </Fragment>
         );
       })}
@@ -685,7 +660,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               ) : (
                 <>
                   {userData.neighborhood && canSeeNeighborhood && <Badge variant="secondary" className="mt-2 gap-1"><MapPin className="h-3 w-3" /> {userData.neighborhood}</Badge>}
-                  {userData.bio ? <p className="mt-3 text-sm leading-relaxed">{userData.bio}</p> : <p className="mt-3 text-sm text-muted-foreground italic">Sem bio ainda</p>}
+                  {userData.bio ? <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{parseInlineContent(userData.bio, openUserProfileById)}</p> : <p className="mt-3 text-sm text-muted-foreground italic">Sem bio ainda</p>}
                 </>
               )}
 
