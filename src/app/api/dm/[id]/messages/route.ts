@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpiration } from "@/lib/media-expiration";
 
-// Mídia em DMs expira após 48h (conversas privadas, menor volume
-// que salas, mas ainda assim limitamos retenção de mídia)
-const MEDIA_MESSAGE_EXPIRATION_HOURS = 48;
+// Mídia em DMs expira após 1h (conversas privadas — mídia efêmera
+// para privacidade e economia de storage)
+const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
