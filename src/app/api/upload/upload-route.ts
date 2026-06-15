@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { sanitizeImage } from "@/lib/image-sanitize";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
@@ -74,21 +75,30 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Detecta extensão e content-type reais do arquivo
-    const ext = getExtension(file.name) || "jpg";
-    const contentType = file.type && ALLOWED_IMAGE_TYPES.includes(file.type)
+    // Reprocessa a imagem via sharp: remove metadados EXIF/GPS,
+    // corrige orientação e re-encoda para um formato previsível.
+    const inputExt = getExtension(file.name) || "jpg";
+    const inputType = file.type && ALLOWED_IMAGE_TYPES.includes(file.type)
       ? file.type
-      : getContentTypeForExt(ext);
+      : getContentTypeForExt(inputExt);
+
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const maxThumbDim = folder === "video-thumbs" ? 640 : undefined;
+    const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(
+      inputBuffer,
+      inputType,
+      maxThumbDim ? { maxWidth: maxThumbDim, maxHeight: maxThumbDim } : {}
+    );
 
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const path = `${user.id}/${folder}/${timestamp}-${random}.${ext}`;
 
-    const arrayBuffer = await file.arrayBuffer();
     const { error: uploadError } = await admin.storage
       .from("post-photos")
-      .upload(path, arrayBuffer, {
+      .upload(path, sanitizedBuffer, {
         contentType,
+        cacheControl: "31536000",
         upsert: false,
       });
 

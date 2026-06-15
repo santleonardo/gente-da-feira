@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { sanitizeImage } from "@/lib/image-sanitize";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -48,21 +49,25 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Determina a extensão e content-type com base no arquivo recebido
-    // O cliente pode enviar WebP (compressão principal) ou JPEG (fallback)
-    const isJpeg = file.type === "image/jpeg" || file.name.endsWith(".jpg") || file.name.endsWith(".jpeg");
-    const ext = isJpeg ? "jpg" : "webp";
-    const contentType = isJpeg ? "image/jpeg" : "image/webp";
+    // Reprocessa a imagem via sharp: remove metadados EXIF/GPS,
+    // corrige orientação e re-encoda para um formato previsível.
+    const inputType = file.type || (
+      file.name.endsWith(".png") ? "image/png" :
+      file.name.endsWith(".gif") ? "image/gif" :
+      file.name.endsWith(".webp") ? "image/webp" : "image/jpeg"
+    );
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(inputBuffer, inputType);
 
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const path = `${user.id}/${folder}/${timestamp}-${random}.${ext}`;
 
-    const arrayBuffer = await file.arrayBuffer();
     const { error: uploadError } = await admin.storage
       .from("post-photos")
-      .upload(path, arrayBuffer, {
+      .upload(path, sanitizedBuffer, {
         contentType,
+        cacheControl: "31536000",
         upsert: false,
       });
 
