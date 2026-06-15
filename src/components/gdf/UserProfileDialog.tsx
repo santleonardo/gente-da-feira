@@ -613,7 +613,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-md rounded-2xl p-0 max-h-[90vh] overflow-y-auto">
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
         {loading ? (
           <div className="p-6 space-y-4">
@@ -704,7 +704,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               )}
 
               {!isRestricted && (
-                <div className="max-h-[60vh] overflow-y-auto mt-2 custom-scrollbar">
+                <div className="overflow-y-auto mt-2 custom-scrollbar">
                   {activeTab === "posts" && (postsLoading ? <div className="space-y-2 py-2">{[1,2,3].map(i=><div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div> : userPosts.length === 0 ? <div className="py-8 text-center"><p className="text-xs text-muted-foreground">Nenhum post ainda</p></div> : (
                     <div className="space-y-2">
                       {userPosts.map((post: any) => {
