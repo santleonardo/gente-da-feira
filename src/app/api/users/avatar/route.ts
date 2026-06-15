@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { sanitizeImage } from "@/lib/image-sanitize";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,13 +20,20 @@ export async function POST(req: NextRequest) {
     if (!allowedTypes.includes(file.type)) return NextResponse.json({ error: "Tipo de arquivo não suportado (use JPG, PNG, WebP ou GIF)" }, { status: 400 });
 
     const admin = createAdminClient();
-    const ext = file.name.split(".").pop() || "jpg";
+
+    // Remove EXIF/GPS, corrige orientação e padroniza tamanho máximo de 512px
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(
+      inputBuffer,
+      file.type,
+      { maxWidth: 512, maxHeight: 512 }
+    );
+
     const path = `${userId}/avatar.${ext}`;
 
     await admin.storage.from("avatars").remove([path]);
 
-    const arrayBuffer = await file.arrayBuffer();
-    const { error: uploadError } = await admin.storage.from("avatars").upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+    const { error: uploadError } = await admin.storage.from("avatars").upload(path, sanitizedBuffer, { contentType, cacheControl: "31536000", upsert: true });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = admin.storage.from("avatars").getPublicUrl(path);
