@@ -10,6 +10,7 @@ import {
   ArrowLeft, UserPlus, Search, MessageSquare,
   Camera, Mic, X, ImagePlus, Video, Music,
   Play, Pause, Send, ChevronUp, Loader2,
+  Trash2,
 } from "lucide-react";
 import { timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -22,10 +23,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { compressImage, validateImageFile, getExtensionForBlob } from "@/lib/image-compression";
 
 const MAX_AUDIO_DURATION = 60;
-const MAX_VIDEO_DURATION = 30;
+const MAX_VIDEO_DURATION = 60;
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -343,6 +346,10 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   const videoFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
 
+  // ── Confirmação de envio de mídia ──
+  const [pendingMedia, setPendingMedia] = useState<{ file: File; type: "image" | "video" | "audio"; previewUrl?: string } | null>(null);
+  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
+
   // ── Menu de anexos (para cima) ──
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
@@ -443,8 +450,22 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   // ═══════ Upload de mídia ═══════
   const uploadChatMedia = async (file: File, type: "image" | "video" | "audio"): Promise<string | null> => {
     try {
+      let fileToUpload = file;
+      
+      // Compressão automática de imagens acima de 5MB
+      if (type === "image" && file.size > 5 * 1024 * 1024) {
+        toast.info("Comprimindo imagem...");
+        try {
+          const compressed = await compressImage(file, { maxSizeKB: 1024 });
+          fileToUpload = new File([compressed], file.name.replace(/\.\w+$/, `.${getExtensionForBlob(compressed)}`), { type: compressed.type });
+        } catch {
+          toast.error("Erro ao comprimir imagem");
+          return null;
+        }
+      }
+      
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToUpload);
       formData.append("folder", "chat");
       const endpoint = type === "image" ? "/api/upload" : type === "video" ? "/api/upload/video" : "/api/upload/audio";
       const res = await fetch(endpoint, { method: "POST", body: formData });
@@ -492,77 +513,94 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
     } catch { toast.error("Erro ao enviar"); }
   };
 
-  // ═══════ Captura de foto da câmera ═══════
-  const handleCameraPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ═══════ Confirmação de envio de mídia ═══════
+  const handleMediaSelected = (file: File, type: "image" | "video" | "audio") => {
     setAttachMenuOpen(false);
+    
+    // Validate video duration
+    if (type === "video") {
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error("Vídeo muito grande (máx 50MB)");
+        return;
+      }
+      const videoEl = document.createElement("video");
+      videoEl.preload = "metadata";
+      videoEl.onloadedmetadata = () => {
+        if (videoEl.duration > MAX_VIDEO_DURATION) {
+          toast.error(`Vídeo muito longo (máx ${MAX_VIDEO_DURATION}s)`);
+          URL.revokeObjectURL(videoEl.src);
+          return;
+        }
+        URL.revokeObjectURL(videoEl.src);
+        const previewUrl = URL.createObjectURL(file);
+        setPendingMedia({ file, type, previewUrl });
+        setConfirmSendOpen(true);
+      };
+      videoEl.src = URL.createObjectURL(file);
+      return;
+    }
+    
+    const previewUrl = type === "image" ? URL.createObjectURL(file) : undefined;
+    setPendingMedia({ file, type, previewUrl });
+    setConfirmSendOpen(true);
+  };
+
+  const confirmSendMedia = async () => {
+    if (!pendingMedia) return;
+    setConfirmSendOpen(false);
     setSendingMedia(true);
-    const url = await uploadChatMedia(file, "image");
+    const url = await uploadChatMedia(pendingMedia.file, pendingMedia.type);
+    if (pendingMedia.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
     if (url) {
-      await sendMessage({ media_url: url, media_type: "image" });
+      await sendMessage({ media_url: url, media_type: pendingMedia.type });
     }
     setSendingMedia(false);
+    setPendingMedia(null);
+  };
+
+  const cancelSendMedia = () => {
+    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+    setConfirmSendOpen(false);
+    setPendingMedia(null);
+  };
+
+  // ═══════ Captura de foto da câmera ═══════
+  const handleCameraPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleMediaSelected(file, "image");
     if (cameraPhotoRef.current) cameraPhotoRef.current.value = "";
   };
 
   // ═══════ Foto da galeria ═══════
-  const handleGalleryPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "image");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "image" });
-    }
-    setSendingMedia(false);
+    handleMediaSelected(file, "image");
     if (galleryPhotoRef.current) galleryPhotoRef.current.value = "";
   };
 
   // ═══════ Captura de vídeo da câmera ═══════
-  const handleCameraVideoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraVideoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("Vídeo muito grande (máx 50MB)");
-      return;
-    }
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "video");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "video" });
-    }
-    setSendingMedia(false);
+    handleMediaSelected(file, "video");
     if (cameraVideoRef.current) cameraVideoRef.current.value = "";
   };
 
   // ═══════ Vídeo de arquivo ═══════
-  const handleVideoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "video");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "video" });
-    }
-    setSendingMedia(false);
+    handleMediaSelected(file, "video");
     if (videoFileRef.current) videoFileRef.current.value = "";
   };
 
   // ═══════ Áudio de arquivo ═══════
-  const handleAudioFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "audio");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "audio" });
-    }
-    setSendingMedia(false);
+    handleMediaSelected(file, "audio");
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
@@ -836,17 +874,37 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                       : "bg-muted rounded-bl-md"
                 }`}>
                   {hasImage && (
-                    <div className="mb-1">
+                    <div className="mb-1 relative group">
                       <img
                         src={msg.media_url}
                         alt="Foto"
                         className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
                         onClick={() => window.open(msg.media_url, "_blank")}
                       />
+                      {isMine && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                              const data = await res.json();
+                              if (data.success) {
+                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                toast.success("Foto apagada");
+                              } else {
+                                toast.error(data.error || "Erro ao apagar");
+                              }
+                            } catch { toast.error("Erro ao apagar"); }
+                          }}
+                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Apagar mídia"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   )}
                   {hasVideo && (
-                    <div className="mb-1">
+                    <div className="mb-1 relative group">
                       <video
                         src={msg.media_url}
                         className="max-w-full max-h-64 rounded-xl object-cover"
@@ -854,10 +912,52 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                         playsInline
                         preload="metadata"
                       />
+                      {isMine && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                              const data = await res.json();
+                              if (data.success) {
+                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                toast.success("Vídeo apagado");
+                              } else {
+                                toast.error(data.error || "Erro ao apagar");
+                              }
+                            } catch { toast.error("Erro ao apagar"); }
+                          }}
+                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Apagar mídia"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   )}
                   {hasAudio && (
-                    <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                    <div className="relative group">
+                      <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                      {isMine && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                              const data = await res.json();
+                              if (data.success) {
+                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                toast.success("Áudio apagado");
+                              } else {
+                                toast.error(data.error || "Erro ao apagar");
+                              }
+                            } catch { toast.error("Erro ao apagar"); }
+                          }}
+                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Apagar mídia"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   )}
                   {msg.content?.trim() && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
                 </div>
@@ -1036,6 +1136,42 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
           </div>
         </div>
       )}
+
+      {/* ═══════ Dialog de confirmação de envio de mídia ═══════ */}
+      <Dialog open={confirmSendOpen} onOpenChange={(open) => { if (!open) cancelSendMedia(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar mídia</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3 py-3">
+            {pendingMedia?.type === "image" && pendingMedia.previewUrl && (
+              <img src={pendingMedia.previewUrl} alt="Preview" className="max-w-full max-h-64 rounded-xl object-cover" />
+            )}
+            {pendingMedia?.type === "video" && pendingMedia.previewUrl && (
+              <video src={pendingMedia.previewUrl} className="max-w-full max-h-64 rounded-xl object-cover" controls playsInline preload="metadata" />
+            )}
+            {pendingMedia?.type === "audio" && (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                <Music className="h-8 w-8 text-muted-foreground" />
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {pendingMedia?.type === "image" ? "Enviar esta foto?" : pendingMedia?.type === "video" ? "Enviar este vídeo?" : "Enviar este áudio?"}
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              {pendingMedia?.type === "image" ? "A foto expirará em 1h" : pendingMedia?.type === "video" ? "O vídeo expirará em 1h" : "O áudio expirará em 1h"}
+            </p>
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:justify-center">
+            <Button variant="outline" onClick={cancelSendMedia} className="flex-1">
+              Cancelar
+            </Button>
+            <Button onClick={confirmSendMedia} className="flex-1 bg-[#2EC4B6] hover:bg-[#25b0a3] text-white">
+              Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
