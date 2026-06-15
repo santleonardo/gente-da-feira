@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useStore, Profile } from "@/lib/store";
-import { openProfileFromMention } from "@/lib/link-utils";
+import { parseInlineFormatting } from "@/lib/link-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -118,50 +118,8 @@ function sanitizeHTML(html: string): string {
   return sanitizeHTMLSync(html);
 }
 
-function parseInlineFormatting(text: string, openUserProfile?: (userId: string) => void): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const regex = /(https?:\/\/[^\s<>"')\]]+)|@(\w+)|(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|_(.+?)_/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<Fragment key={`t${key++}`}>{text.slice(lastIndex, match.index)}</Fragment>);
-    }
-    if (match[1]) {
-      parts.push(
-        <a key={`url${key++}`} href={match[1]} target="_blank" rel="noopener noreferrer"
-          className="text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors"
-          onClick={(e) => e.stopPropagation()}>
-          {match[1]}
-        </a>
-      );
-    } else if (match[2]) {
-      const mentionUsername = match[2];
-      parts.push(
-        <span key={`mention${key++}`}
-          className="text-[#0A4D5C] font-semibold underline decoration-[#0A4D5C]/30 underline-offset-2 hover:decoration-[#0A4D5C]/60 cursor-pointer transition-colors"
-          onClick={(e) => { e.stopPropagation(); openProfileFromMention(mentionUsername, openUserProfile); }}>
-          @{mentionUsername}
-        </span>
-      );
-    } else if (match[4]) {
-      parts.push(<strong key={`bi${key++}`}><em>{match[4]}</em></strong>);
-    } else if (match[6]) {
-      parts.push(<strong key={`b${key++}`}>{match[6]}</strong>);
-    } else if (match[7]) {
-      parts.push(<em key={`i${key++}`}>{match[7]}</em>);
-    }
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<Fragment key={`r${key++}`}>{text.slice(lastIndex)}</Fragment>);
-  }
-
-  return parts.length > 0 ? parts : [<Fragment key="empty">{text}</Fragment>];
-}
+// parseInlineFormatting agora vem de @/lib/link-utils (fonte única,
+// evita divergência com PostDetailDialog/DMs/Rooms)
 
 function FormattedText({
   content, className, style, openUserProfile,

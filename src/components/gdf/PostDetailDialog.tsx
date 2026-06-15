@@ -28,7 +28,7 @@ import {
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
-import { renderContentWithMentions } from "@/lib/link-utils";
+import { parseInlineFormatting } from "@/lib/link-utils";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 
 // ═══════════════════════════════════════════════════════════
@@ -49,7 +49,7 @@ function useDOMPurify() {
 /**
  * FormattedContent — renderiza conteúdo de post detectando HTML automaticamente.
  * Se o conteúdo tem tags HTML, usa dangerouslySetInnerHTML com sanitização.
- * Caso contrário, usa renderContentWithMentions para links e menções.
+ * Caso contrário, usa parseInlineFormatting para links e menções.
  */
 function FormattedContent({
   content,
@@ -87,7 +87,7 @@ function FormattedContent({
   // Conteúdo de texto puro — renderizar com menções e links
   return (
     <p className={className} style={style}>
-      {renderContentWithMentions(content, openUserProfile, { isMine, linkClassName })}
+      {parseInlineFormatting(content, openUserProfile, { isMine, linkClassName })}
     </p>
   );
 }

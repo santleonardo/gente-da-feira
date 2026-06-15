@@ -16,7 +16,7 @@ import { UserAvatar } from "./UserAvatar";
 import { useRealtimeMessages } from "@/hooks/use-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { renderContentWithMentions } from "@/lib/link-utils";
+import { parseInlineFormatting } from "@/lib/link-utils";
 import {
   Dialog,
   DialogContent,
@@ -859,7 +859,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                   {hasAudio && (
                     <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
                   )}
-                  {msg.content?.trim() && <span>{renderContentWithMentions(msg.content, openUserProfile, { isMine })}</span>}
+                  {msg.content?.trim() && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
                 </div>
                 {!isMine && (
                   <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
