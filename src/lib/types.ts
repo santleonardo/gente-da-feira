@@ -79,11 +79,14 @@ export interface Conversation {
 // Espelha: public.messages (mig 001)
 export interface Message {
   id: string;
-  content: string;
+  content: string | null;
   sender_id: string;
   room_id: string | null;
   dm_id: string | null;
   target_type: "room" | "dm";
+  media_url?: string | null;       // novo
+  media_type?: "image" | "video" | "audio" | null; // novo
+  expires_at?: string | null;      // novo — só preenchido quando há mídia
   is_deleted: boolean;
   created_at: string;
   // Relação
