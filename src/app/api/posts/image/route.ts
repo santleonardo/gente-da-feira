@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { sanitizeImage } from "@/lib/image-sanitize";
 
 const MAX_PHOTOS_PER_USER = 25;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -35,30 +36,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let compressedBuffer: Buffer;
-    let contentType = "image/webp";
-
-    try {
-      const sharp = (await import("sharp")).default;
-      const inputBuffer = Buffer.from(await file.arrayBuffer());
-      compressedBuffer = await sharp(inputBuffer)
-        .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 70 })
-        .toBuffer();
-    } catch {
-      console.warn("Sharp não disponível, usando imagem original");
-      compressedBuffer = Buffer.from(await file.arrayBuffer());
-      contentType = file.type;
-    }
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const { buffer: compressedBuffer, contentType, ext } = await sanitizeImage(
+      inputBuffer,
+      file.type,
+      { maxWidth: 1200, maxHeight: 1200, quality: 70 }
+    );
 
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const path = `${user.id}/${timestamp}-${randomSuffix}.webp`;
+    const path = `${user.id}/${timestamp}-${randomSuffix}.${ext}`;
 
     const admin = createAdminClient();
     const { error: uploadError } = await admin.storage
       .from("post-images")
-      .upload(path, compressedBuffer, { contentType, upsert: false });
+      .upload(path, compressedBuffer, { contentType, cacheControl: "31536000", upsert: false });
 
     if (uploadError) throw uploadError;
 
