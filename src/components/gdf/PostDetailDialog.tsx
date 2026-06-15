@@ -29,6 +29,68 @@ import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
 import { renderContentWithMentions } from "@/lib/link-utils";
+import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
+
+// ═══════════════════════════════════════════════════════════
+// HTML detection and sanitization helpers
+// ═══════════════════════════════════════════════════════════
+function isHTMLContent(content: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(content);
+}
+
+function useDOMPurify() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    sanitizeHTMLAsync("").then(() => setReady(true));
+  }, []);
+  return ready;
+}
+
+/**
+ * FormattedContent — renderiza conteúdo de post detectando HTML automaticamente.
+ * Se o conteúdo tem tags HTML, usa dangerouslySetInnerHTML com sanitização.
+ * Caso contrário, usa renderContentWithMentions para links e menções.
+ */
+function FormattedContent({
+  content,
+  className,
+  style,
+  openUserProfile,
+  isMine,
+  linkClassName,
+}: {
+  content: string | null;
+  className?: string;
+  style?: React.CSSProperties;
+  openUserProfile?: (userId: string) => void;
+  isMine?: boolean;
+  linkClassName?: string;
+}) {
+  const domPurifyReady = useDOMPurify();
+  const [safeHTML, setSafeHTML] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!content || !isHTMLContent(content)) return;
+    sanitizeHTMLAsync(content).then(setSafeHTML);
+  }, [content]);
+
+  if (!content) return null;
+
+  if (isHTMLContent(content)) {
+    const html = safeHTML ?? sanitizeHTMLSync(content);
+    return (
+      <div className={`post-content ${className || ""}`} style={style}
+        dangerouslySetInnerHTML={{ __html: html }} />
+    );
+  }
+
+  // Conteúdo de texto puro — renderizar com menções e links
+  return (
+    <p className={className} style={style}>
+      {renderContentWithMentions(content, openUserProfile, { isMine, linkClassName })}
+    </p>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════
 // Constants (duplicated from FeedView for self-containment)
@@ -746,9 +808,13 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       </div>
                     </div>
                   ) : isTextOnly && localPost.content && !isMediaPlaceholder(localPost.content) ? (
-                    <p className={`mt-1.5 font-serif text-base sm:text-lg leading-snug whitespace-pre-wrap ${postItColor?.text || "text-[#000305]"}`}>
-                      {renderContentWithMentions(localPost.content, navigateToProfile, { isMine: isOwnPost, linkClassName: linkClass })}
-                    </p>
+                    <FormattedContent
+                      className={`mt-1.5 font-serif text-base sm:text-lg leading-snug whitespace-pre-wrap ${postItColor?.text || "text-[#000305]"}`}
+                      content={localPost.content}
+                      openUserProfile={navigateToProfile}
+                      isMine={isOwnPost}
+                      linkClassName={linkClass}
+                    />
                   ) : null}
 
                   {/* Shared post (repost) */}
@@ -766,7 +832,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                           {localPost.shared_post?.author?.display_name || "Usuário"}
                         </button>
                       </div>
-                      <p className="text-xs text-[#0A4D5C]/60 leading-relaxed">{renderContentWithMentions(localPost.shared_post.content, navigateToProfile, { linkClassName: linkClass })}</p>
+                      <FormattedContent className="text-xs text-[#0A4D5C]/60 leading-relaxed" content={localPost.shared_post.content} openUserProfile={navigateToProfile} linkClassName={linkClass} />
                       {localPost.shared_post.image_urls && localPost.shared_post.image_urls.length > 0 && (
                         <div className="mt-1.5 flex gap-1 overflow-x-auto">
                           {localPost.shared_post.image_urls.slice(0, 2).map((url, i) => (
@@ -801,9 +867,13 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                   {/* Caption — text below media for media posts */}
                   {!isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
                     <div className="px-1 sm:px-1.5 mt-2">
-                      <p className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#000305]">
-                        {renderContentWithMentions(localPost.content, navigateToProfile, { isMine: isOwnPost, linkClassName: linkClass })}
-                      </p>
+                      <FormattedContent
+                        className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#000305]"
+                        content={localPost.content}
+                        openUserProfile={navigateToProfile}
+                        isMine={isOwnPost}
+                        linkClassName={linkClass}
+                      />
                     </div>
                   )}
 
