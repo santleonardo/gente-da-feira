@@ -115,3 +115,13 @@ export function getMessageMediaExpiration(hours: number): string {
   expires.setHours(expires.getHours() + hours);
   return expires.toISOString();
 }
+
+/**
+ * Calcula o timestamp ISO de expiração para uma mensagem com mídia (em minutos).
+ * Usado para salas, onde a mídia é mais efêmera.
+ */
+export function getMessageMediaExpirationMinutes(minutes: number): string {
+  const expires = new Date();
+  expires.setMinutes(expires.getMinutes() + minutes);
+  return expires.toISOString();
+}
