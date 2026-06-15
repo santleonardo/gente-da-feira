@@ -105,16 +105,33 @@ const REACTION_EMOJIS = [
 ] as const;
 
 const POST_IT_COLORS = [
-  { bg: "bg-[#fef9c3]", text: "text-[#5c4f1e]", border: "border-[#fde68a]" },
-  { bg: "bg-[#fecdd3]", text: "text-[#7c2d35]", border: "border-[#fda4af]" },
-  { bg: "bg-[#bae6fd]", text: "text-[#1e5070]", border: "border-[#7dd3fc]" },
-  { bg: "bg-[#bbf7d0]", text: "text-[#2d5a3a]", border: "border-[#86efac]" },
-  { bg: "bg-[#fed7aa]", text: "text-[#6b3a15]", border: "border-[#fdba74]" },
-  { bg: "bg-[#ddd6fe]", text: "text-[#4a3580]", border: "border-[#c4b5fd]" },
-  { bg: "bg-[#fecaca]", text: "text-[#6b2020]", border: "border-[#fca5a5]" },
-  { bg: "bg-[#a7f3d0]", text: "text-[#1a5a3a]", border: "border-[#6ee7b7]" },
-  { bg: "bg-[#c4b5fd]", text: "text-[#3b2d70]", border: "border-[#a78bfa]" },
-  { bg: "bg-[#fde68a]", text: "text-[#6b4e10]", border: "border-[#fbbf24]" },
+  { bg: "bg-[#fef9c3]", text: "text-[#854d0e]", border: "border-[#fde68a]" },
+  { bg: "bg-[#fce7f3]", text: "text-[#9d174d]", border: "border-[#fbcfe8]" },
+  { bg: "bg-[#dbeafe]", text: "text-[#1e40af]", border: "border-[#bfdbfe]" },
+  { bg: "bg-[#dcfce7]", text: "text-[#166534]", border: "border-[#bbf7d0]" },
+  { bg: "bg-[#ffedd5]", text: "text-[#9a3412]", border: "border-[#fed7aa]" },
+  { bg: "bg-[#ede9fe]", text: "text-[#5b21b6]", border: "border-[#ddd6fe]" },
+  { bg: "bg-[#fee2e2]", text: "text-[#991b1b]", border: "border-[#fecaca]" },
+  { bg: "bg-[#d1fae5]", text: "text-[#065f46]", border: "border-[#a7f3d0]" },
+  { bg: "bg-[#e0e7ff]", text: "text-[#3730a3]", border: "border-[#c7d2fe]" },
+  { bg: "bg-[#fef3c7]", text: "text-[#92400e]", border: "border-[#fde68a]" },
+  { bg: "bg-white",     text: "text-[#374151]", border: "border-[#d1d5db]" },
+  { bg: "bg-[#f3f4f6]", text: "text-[#4b5563]", border: "border-[#d1d5db]" },
+] as const;
+
+const POST_IT_COLORS_HEX = [
+  { bg: "#fef9c3", text: "#854d0e", border: "#fde68a" },
+  { bg: "#fce7f3", text: "#9d174d", border: "#fbcfe8" },
+  { bg: "#dbeafe", text: "#1e40af", border: "#bfdbfe" },
+  { bg: "#dcfce7", text: "#166534", border: "#bbf7d0" },
+  { bg: "#ffedd5", text: "#9a3412", border: "#fed7aa" },
+  { bg: "#ede9fe", text: "#5b21b6", border: "#ddd6fe" },
+  { bg: "#fee2e2", text: "#991b1b", border: "#fecaca" },
+  { bg: "#d1fae5", text: "#065f46", border: "#a7f3d0" },
+  { bg: "#e0e7ff", text: "#3730a3", border: "#c7d2fe" },
+  { bg: "#fef3c7", text: "#92400e", border: "#fde68a" },
+  { bg: "#ffffff", text: "#374151", border: "#d1d5db" },
+  { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db" },
 ] as const;
 
 function getPostItColor(postId: string) {
@@ -188,6 +205,14 @@ interface PostWithAuthor {
   visibility?: "public" | "followers";
   shared_post_id?: string | null;
   shared_post?: PostWithAuthor | null;
+  post_style?: {
+    font?: string | null;
+    bold?: boolean;
+    italic?: boolean;
+    alignment?: "left" | "center" | "right" | "justify";
+    postItColor?: number | null;
+    fontColor?: string | null;
+  } | null;
   author: { id: string; display_name: string; username: string; avatar_url?: string | null; neighborhood?: string | null };
   reactions: { user_id: string; type: string }[];
 }
@@ -732,9 +757,15 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const hasAudio = !!localPost.audio_url;
   const isOwnPost = localPost.author_id === profile?.id;
   const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
-  const postItColor = isTextOnly ? getPostItColor(localPost.id) : null;
-  const cardBg = isTextOnly ? postItColor?.bg || "bg-[#fdf6b2]" : "bg-[#eef1f3]";
-  const commentsBg = isTextOnly ? "bg-[#000305]/[0.04]" : "bg-[#0A4D5C]/[0.04]";
+
+  const hasPostStyle   = localPost.post_style && typeof localPost.post_style === "object";
+  const styleColorIdx  = hasPostStyle && localPost.post_style!.postItColor != null ? localPost.post_style!.postItColor : -1;
+  const postItColor    = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length ? POST_IT_COLORS[styleColorIdx] : getPostItColor(localPost.id)) : null;
+  const postItColorHex = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length ? POST_IT_COLORS_HEX[styleColorIdx] : null) : null;
+  const useInlineStyle = isTextOnly && styleColorIdx >= 0;
+
+  const cardBg     = isTextOnly ? (useInlineStyle ? "" : (postItColor?.bg || "bg-[#fdf6b2]")) : "bg-[#eef1f3]";
+  const commentsBg = "bg-[#0A4D5C]/[0.04]";
 
   // Link class based on post type
   const linkClass = isTextOnly
@@ -758,7 +789,10 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
           </div>
 
           {/* Post content */}
-          <div className={`rounded-none ${cardBg} overflow-hidden`}>
+          <div
+            className={`rounded-none ${cardBg} overflow-hidden ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle ? "border border-[#0A4D5C]/8" : ""}`}
+            style={useInlineStyle && postItColorHex ? { backgroundColor: postItColorHex.bg, border: `1px solid ${postItColorHex.border}` } : undefined}
+          >
             <div className="p-4 sm:p-5">
               {/* Header */}
               <div className="flex items-start gap-2.5">
@@ -767,7 +801,10 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)} className={`text-sm font-semibold hover:underline underline-offset-2 transition-all ${isTextOnly ? postItColor?.text || "text-[#000305]" : "text-[#000305]"}`}>
+                    <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)}
+                      className={`text-sm font-semibold hover:underline underline-offset-2 transition-all ${isTextOnly && !(hasPostStyle && localPost.post_style!.fontColor) ? postItColor?.text || "text-[#000305]" : "text-[#000305]"}`}
+                      style={hasPostStyle && localPost.post_style!.fontColor ? { color: localPost.post_style!.fontColor } : undefined}
+                    >
                       {localPost.author?.display_name || "Usuário"}
                     </button>
                     {localPost.visibility === "followers" && (
@@ -809,11 +846,18 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     </div>
                   ) : isTextOnly && localPost.content && !isMediaPlaceholder(localPost.content) ? (
                     <FormattedContent
-                      className={`mt-1.5 font-serif text-base sm:text-lg leading-snug whitespace-pre-wrap ${postItColor?.text || "text-[#000305]"}`}
+                      className={`mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap ${useInlineStyle || (hasPostStyle && localPost.post_style!.fontColor) ? "" : (postItColor?.text || "text-[#000305]")}`}
                       content={localPost.content}
                       openUserProfile={navigateToProfile}
                       isMine={isOwnPost}
                       linkClassName={linkClass}
+                      style={{
+                        fontFamily:  hasPostStyle && localPost.post_style!.font ? `'${localPost.post_style!.font}', sans-serif` : "serif",
+                        fontWeight:  hasPostStyle && localPost.post_style!.bold ? 700 : undefined,
+                        fontStyle:   hasPostStyle && localPost.post_style!.italic ? "italic" : undefined,
+                        textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment : undefined,
+                        color:       hasPostStyle && localPost.post_style!.fontColor ? localPost.post_style!.fontColor : (useInlineStyle && postItColorHex ? postItColorHex.text : undefined),
+                      }}
                     />
                   ) : null}
 
@@ -873,6 +917,13 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                         openUserProfile={navigateToProfile}
                         isMine={isOwnPost}
                         linkClassName={linkClass}
+                        style={{
+                          fontFamily:  hasPostStyle && localPost.post_style!.font      ? `'${localPost.post_style!.font}', sans-serif` : undefined,
+                          fontWeight:  hasPostStyle && localPost.post_style!.bold      ? 700                                      : undefined,
+                          fontStyle:   hasPostStyle && localPost.post_style!.italic    ? "italic"                                 : undefined,
+                          textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment as any    : undefined,
+                          color:       hasPostStyle && localPost.post_style!.fontColor ? localPost.post_style!.fontColor           : undefined,
+                        }}
                       />
                     </div>
                   )}
