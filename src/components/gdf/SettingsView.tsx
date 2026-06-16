@@ -31,6 +31,8 @@ import {
   Moon,
   Sun,
   Monitor,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
@@ -60,6 +62,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [showTermsDialog, setShowTermsDialog] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -483,6 +486,99 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* TERMOS DE USO */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Legal</h3>
+          </div>
+          <button
+            onClick={() => setShowTermsDialog(true)}
+            className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Termos de Uso</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* DIALOG: TERMOS DE USO */}
+      <Dialog open={showTermsDialog} onOpenChange={setShowTermsDialog}>
+        <DialogContent className="max-w-lg rounded-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Termos de Uso
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 pr-1 text-sm text-muted-foreground space-y-4 leading-relaxed">
+            <p className="text-xs text-muted-foreground italic">Versão 1.0 — 16 de junho de 2026</p>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">1. Sobre estes Termos</h4>
+              <p>Estes Termos regulam o uso da rede social <strong className="text-foreground">Gente da Feira</strong>, voltada à conexão entre moradores dos bairros de Feira de Santana (BA). Ao criar uma conta, você declara que leu e concorda com estes Termos. Caso não concorde, não se cadastre nem utilize a plataforma.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">2. Quem pode usar</h4>
+              <p>A Gente da Feira é destinada exclusivamente a pessoas com <strong className="text-foreground">18 anos completos ou mais</strong>. Ao se cadastrar, você declara, sob as penas da lei, que possui 18 anos e que suas informações são verdadeiras. Contas de menores de idade serão suspensas e excluídas.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">3. Cadastro e conta</h4>
+              <p>Você é responsável por manter a confidencialidade da sua senha e por todas as atividades realizadas na sua conta. É proibido criar contas falsas, em nome de terceiros ou para fins fraudulentos. Cada pessoa pode manter apenas uma conta pessoal.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">4. Regras de conduta</h4>
+              <p>É proibido: criar perfis falsos; publicar conteúdo discriminatório, racista ou que incite violência; assediar ou ameaçar outros usuários; publicar qualquer conteúdo sexual envolvendo menores; compartilhar imagens íntimas de terceiros sem consentimento; caluniar, difamar ou injuriar; enviar spam ou golpes; acessar indevidamente dados de terceiros; usar automações para manipular métricas.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">5. Conteúdo publicado</h4>
+              <p>Você é o único responsável pelo conteúdo que publica, incluindo sua legalidade e os direitos de terceiros envolvidos. Ao publicar, você concede à plataforma licença limitada para hospedar e exibir esse conteúdo dentro do serviço. Metadados de geolocalização de imagens são removidos automaticamente.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">6. Crimes e responsabilidade</h4>
+              <p>A plataforma não tolera condutas criminosas, incluindo: crimes contra a honra (calúnia, difamação, injúria), injúria racial equiparada a racismo (Lei nº 14.532/2023), invasão de dispositivo informático (art. 154-A do CP), extorsão e estelionato. A responsabilidade por esses atos é de quem os praticou.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">7. Moderação e denúncias</h4>
+              <p>Para denunciar conteúdo ou conduta que viole estes Termos, entre em contato pelo e-mail oficial. Conteúdo íntimo não consensual pode ser removido mediante notificação direta, sem necessidade de ordem judicial. A plataforma pode remover conteúdo em casos de violação grave sem aviso prévio.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">8. Privacidade e dados (LGPD)</h4>
+              <p>Coletamos apenas os dados necessários para o funcionamento do serviço (nome, e-mail, bairro, registros de acesso). Seus dados não são vendidos a terceiros nem usados para publicidade direcionada sem consentimento. Você pode solicitar acesso, correção ou exclusão dos seus dados a qualquer momento pelo canal de contato.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">9. Suspensão e cancelamento</h4>
+              <p>Contas que violem estes Termos podem ser suspensas ou excluídas, de forma preventiva ou definitiva. Você pode excluir sua conta a qualquer momento nas configurações ou pelo canal de contato.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">10. Legislação e foro</h4>
+              <p>Estes Termos são regidos pela legislação brasileira, em especial o Marco Civil da Internet (Lei nº 12.965/2014), a LGPD (Lei nº 13.709/2018) e o ECA Digital (Lei nº 15.211/2025). Fica eleito o foro da comarca de <strong className="text-foreground">Feira de Santana, BA</strong>.</p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold text-foreground mb-1">11. Contato</h4>
+              <p>Dúvidas, solicitações sobre dados pessoais (LGPD) ou denúncias podem ser enviadas para: <strong className="text-foreground">privacidade@gentedafeira.app</strong></p>
+            </section>
+
+            <p className="text-[11px] text-muted-foreground/60 border-t pt-3 mt-2">
+              Documento elaborado com base no Marco Civil da Internet (Lei nº 12.965/2014), na LGPD (Lei nº 13.709/2018), no ECA Digital (Lei nº 15.211/2025) e no Código Penal brasileiro.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* DIALOG: REMOVER SEGUIDORES */}
       <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
