@@ -5,11 +5,13 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { BAIRROS } from "@/lib/constants";
+import { BAIRROS, TERMS_VERSION } from "@/lib/constants";
+import { TermsDialog } from "@/components/TermsDialog";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, FileText, ShieldCheck } from "lucide-react";
 
 export function AuthForm() {
   const { setProfile } = useStore();
@@ -18,6 +20,11 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [showRegPass, setShowRegPass] = useState(false);
+
+  // Aceites exigidos no cadastro (Termos de Uso, Seções 3.1 e 4).
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [declaredAdult, setDeclaredAdult] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [regData, setRegData] = useState({
@@ -59,6 +66,14 @@ export function AuthForm() {
   const handleRegister = async () => {
     if (!regData.name || !regData.username || !regData.email || !regData.password) {
       toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+    if (!declaredAdult) {
+      toast.error("Você precisa declarar que tem 18 anos ou mais");
+      return;
+    }
+    if (!agreedTerms) {
+      toast.error("Você precisa aceitar os Termos de Uso para se cadastrar");
       return;
     }
     setLoading(true);
@@ -246,13 +261,72 @@ export function AuthForm() {
                   ))}
                 </select>
               </div>
+
+              {/* ─── Termos de Uso e declaração de maioridade ─── */}
+              <div className="space-y-2.5 rounded-lg border border-border/70 bg-muted/40 p-3.5">
+                {/* Declaração de 18+ (Termos, Seção 3.1) */}
+                <label
+                  htmlFor="decl-adult"
+                  className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug"
+                >
+                  <Checkbox
+                    id="decl-adult"
+                    checked={declaredAdult}
+                    onCheckedChange={(v) => setDeclaredAdult(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-foreground/90">
+                    Declaro que tenho{" "}
+                    <strong className="font-semibold">18 anos ou mais</strong>{" "}
+                    e plena capacidade civil.
+                  </span>
+                </label>
+
+                {/* Aceite dos Termos de Uso */}
+                <label
+                  htmlFor="agree-terms"
+                  className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug"
+                >
+                  <Checkbox
+                    id="agree-terms"
+                    checked={agreedTerms}
+                    onCheckedChange={(v) => setAgreedTerms(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-foreground/90">
+                    Li e aceito os{" "}
+                    <strong className="font-semibold">Termos de Uso</strong>{" "}
+                    e a Política de Privacidade.
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setTermsOpen(true)}
+                  className="flex items-center gap-1.5 pl-6 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Ler Termos de Uso completos (v{TERMS_VERSION})
+                </button>
+              </div>
+
               <Button onClick={handleRegister} disabled={loading} className="w-full">
+                <ShieldCheck className="h-4 w-4" />
                 {loading ? "Criando conta..." : "Criar conta"}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <TermsDialog
+        open={termsOpen}
+        onOpenChange={setTermsOpen}
+        onAccept={() => {
+          setAgreedTerms(true);
+          toast.success("Termos de Uso aceitos");
+        }}
+      />
     </div>
   );
 }
