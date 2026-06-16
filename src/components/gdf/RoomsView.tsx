@@ -47,7 +47,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { compressImage, validateImageFile, getExtensionForBlob } from "@/lib/image-compression";
 
 const ROOM_ICONS = [
   "💬", "🏠", "🎮", "⚽", "🎵", "📸", "🎬", "📚",
@@ -85,12 +84,32 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
     try {
       const res = await fetch("/api/rooms");
       const data = await res.json();
-      setRooms(data.rooms || []);
+      const roomsList = data.rooms || [];
+      setRooms(roomsList);
+      // Manter selectedRoom sincronizado com dados atualizados da API
+      const currentSelectedId = useStore.getState().selectedRoom?.id;
+      if (currentSelectedId) {
+        const updated = roomsList.find((r: any) => r.id === currentSelectedId);
+        if (updated) {
+          useStore.getState().setSelectedRoom(updated);
+        }
+      }
     } catch { /* silent */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  // Re-buscar salas quando a página ganha foco (garante persistência)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRooms();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchRooms]);
 
   // If a room is selected (user has entered), show RoomChat
   if (selectedRoom) return <RoomChat room={selectedRoom} onBack={() => setSelectedRoom(null)} onRefreshRooms={fetchRooms} openUserProfile={navigateToProfile} />;
@@ -106,8 +125,20 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
     </div>
   );
 
-  const official = rooms.filter((r) => r.type === "official");
-  const community = rooms.filter((r) => r.type === "community");
+  const myRooms = rooms.filter((r) => r.isMember === true);
+  const official = rooms.filter((r) => r.type === "official" && !r.isMember && !r.isBanned);
+  const community = rooms.filter((r) => r.type === "community" && !r.isMember && !r.isBanned);
+
+  const handleRoomClick = (room: any) => {
+    if (room.isMember) {
+      setSelectedRoom(room);
+    } else if (room.isBanned) {
+      // Usuário banido — mostrar PreEntryScreen com indicador de banimento
+      setPreEntryRoom(room);
+    } else {
+      setPreEntryRoom(room);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -121,31 +152,56 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
         </Button>
       </div>
 
-      <div>
-        <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Oficiais</h3>
-        <div className="space-y-1.5">
-          {official.map((room) => (
-            <RoomCard key={room.id} room={room} onClick={() => setPreEntryRoom(room)} />
-          ))}
+      {myRooms.length > 0 && (
+        <div className="rounded-2xl border bg-primary/5 p-3">
+          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-primary/70 flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" /> Minhas Salas
+          </h3>
+          <div className="space-y-1">
+            {myRooms.map((room) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                onClick={() => setSelectedRoom(room)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
-      <div>
-        <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Comunidades</h3>
-        <div className="space-y-1.5">
-          {community.map((room) => (
-            <RoomCard key={room.id} room={room} onClick={() => setPreEntryRoom(room)} />
-          ))}
-          {community.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
-                <Hash className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground">Nenhuma comunidade ainda</p>
-              <p className="text-xs text-muted-foreground/60 mt-0.5">Crie a primeira!</p>
-            </div>
-          )}
+      )}
+      {official.length > 0 && (
+        <div>
+          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Oficiais</h3>
+          <div className="space-y-1.5">
+            {official.map((room) => (
+              <RoomCard key={room.id} room={room} onClick={() => handleRoomClick(room)} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      {community.length > 0 && (
+        <div>
+          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Comunidades</h3>
+          <div className="space-y-1.5">
+            {community.map((room) => (
+              <RoomCard key={room.id} room={room} onClick={() => handleRoomClick(room)} />
+            ))}
+          </div>
+        </div>
+      )}
+      {official.length === 0 && community.length === 0 && myRooms.length > 0 && (
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          <p className="text-sm text-muted-foreground">Você já está em todas as salas disponíveis!</p>
+        </div>
+      )}
+      {rooms.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
+            <Hash className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">Nenhuma sala ainda</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">Crie a primeira!</p>
+        </div>
+      )}
 
       <CreateRoomDialog open={showCreate} onOpenChange={setShowCreate} onCreated={(room) => {
         setSelectedRoom(room);
@@ -157,31 +213,74 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
 
 // ═══════════════════════════════════════════════════════════
 // RoomCard — Card de sala com indicadores visuais
+// Regras de renderização:
+//   isMember=true  → NUNCA mostra "Entrar", mostra "Abrir Sala"
+//   isBanned=true  → Indicador de banimento, sem botão de entrada
+//   isClosed=true  → "Sala Fechada"
+//   isFull=true    → "Sala Lotada"
+//   canJoin=true   → "Entrar"
 // ═══════════════════════════════════════════════════════════
 function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
   const memberCount = room.memberCount || room.member_count || room._count?.members || 0;
   const isOfficial = room.type === "official";
-  const isClosed = room.is_open === false;
+  const isClosed = room.is_open === false || room.isOpen === false;
   const isPrivate = room.has_password;
+  const isFull = room.max_members && memberCount >= room.max_members;
+  const isMember = room.isMember === true;
+  const isBanned = room.isBanned === true;
+
+  // Determinar o badge de ação do lado direito
+  const renderActionBadge = () => {
+    if (isBanned) {
+      return <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-red-500/10 text-red-600 dark:text-red-400">🚫 Banido</Badge>;
+    }
+    if (isMember) {
+      return (
+        <Badge className="text-[8px] px-2 py-0 h-5 bg-[#2EC4B6]/10 text-[#2EC4B6] hover:bg-[#2EC4B6]/15 border-0 gap-1 font-semibold">
+          <DoorOpen className="h-2.5 w-2.5" /> Abrir
+        </Badge>
+      );
+    }
+    if (isClosed) {
+      return <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-red-500/10 text-red-600 dark:text-red-400">Fechada</Badge>;
+    }
+    if (isFull) {
+      return <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 dark:text-amber-400">Lotada</Badge>;
+    }
+    if (isPrivate) {
+      return (
+        <Badge className="text-[8px] px-2 py-0 h-5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 gap-1">
+          <Lock className="h-2.5 w-2.5" /> Entrar
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="text-[8px] px-2 py-0 h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 gap-1 font-semibold">
+        <UserPlus className="h-2.5 w-2.5" /> Entrar
+      </Badge>
+    );
+  };
 
   return (
     <button
       onClick={onClick}
       className="group flex w-full items-center gap-3.5 rounded-2xl bg-card px-4 py-3.5 text-left transition-all duration-200 hover:bg-accent hover:shadow-sm active:scale-[0.98] border border-transparent hover:border-border/50"
     >
+      {/* Icon */}
       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl shrink-0 transition-transform group-hover:scale-105 ${
-        isOfficial
-          ? "bg-primary/10 text-primary"
-          : "bg-secondary"
+        isOfficial ? "bg-primary/10 text-primary" : "bg-secondary"
       }`}>
         {room.icon}
       </div>
+
+      {/* Name + description */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold truncate">{room.name}</span>
           {isOfficial && <Crown className="h-3 w-3 text-primary shrink-0" />}
-          {isPrivate && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
-          {isClosed && <DoorClosed className="h-3 w-3 text-red-500 shrink-0" />}
+          {/* Membership role indicators */}
+          {isMember && room.myRole === "creator" && <Crown className="h-3 w-3 text-amber-500 shrink-0" />}
+          {isMember && room.myRole === "moderator" && <Shield className="h-3 w-3 text-primary shrink-0" />}
         </div>
         {room.description ? (
           <p className="text-xs text-muted-foreground truncate mt-0.5">{room.description}</p>
@@ -189,30 +288,16 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
           <p className="text-xs text-muted-foreground/60 mt-0.5">{memberCount} membro{memberCount !== 1 ? "s" : ""}</p>
         )}
       </div>
-      <div className="flex flex-col items-end gap-1 shrink-0">
+
+      {/* Member count + action badge */}
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted/80">
             <Users className="h-3 w-3" />
           </div>
           <span className="font-medium tabular-nums">{memberCount}{room.max_members ? `/${room.max_members}` : ""}</span>
         </div>
-        <div className="flex items-center gap-1">
-          {!isClosed && (
-            <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              Aberta
-            </Badge>
-          )}
-          {isClosed && (
-            <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-red-500/10 text-red-600 dark:text-red-400">
-              Fechada
-            </Badge>
-          )}
-          {isPrivate && (
-            <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              🔒 Privada
-            </Badge>
-          )}
-        </div>
+        {renderActionBadge()}
       </div>
     </button>
   );
@@ -427,6 +512,27 @@ function PreEntryScreen({
   const isPrivate = room.has_password;
   const isFull = room.max_members && memberCount >= room.max_members;
 
+  // Se já é membro, mostrar "Voltar à sala" em vez de "Entrar"
+  const alreadyMember = room.isMember === true;
+
+  // Re-validar participação ao montar o PreEntryScreen
+  const [freshRoom, setFreshRoom] = useState(room);
+  useEffect(() => {
+    const revalidate = async () => {
+      try {
+        const res = await fetch(`/api/rooms/${room.id}`);
+        const data = await res.json();
+        if (data.room) {
+          setFreshRoom(data.room);
+          // Se já é membro, o alreadyMember será recalculado
+        }
+      } catch { /* manter dados existentes */ }
+    };
+    revalidate();
+  }, [room.id]);
+
+  const isActuallyMember = freshRoom.isMember === true;
+
   useEffect(() => {
     if (room.created_by) {
       const fetchCreator = async () => {
@@ -473,7 +579,9 @@ function PreEntryScreen({
       if (data.joined) {
         toast.success("Você entrou na sala!");
         onRefreshRooms();
-        onEnter(room);
+        // Atualizar o objeto da sala com isMember=true antes de navegar
+        const updatedRoom = { ...room, isMember: true, myRole: room.myRole || "member", canJoin: false, isBanned: false };
+        onEnter(updatedRoom);
       }
     } catch {
       setError("Erro ao entrar na sala");
@@ -588,7 +696,19 @@ function PreEntryScreen({
           )}
 
           {/* Action buttons */}
-          {isClosed ? (
+          {freshRoom.isBanned ? (
+            <div className="rounded-xl bg-red-500/10 p-4 text-center">
+              <Ban className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p className="text-sm font-medium text-red-600">Você está banido desta sala</p>
+            </div>
+          ) : isActuallyMember ? (
+            <Button
+              onClick={() => onEnter(freshRoom)}
+              className="w-full h-12 rounded-xl text-base gap-2 shadow-sm bg-[#2EC4B6] hover:bg-[#25b0a3] text-white"
+            >
+              <UserCheck className="h-5 w-5" /> Voltar à sala
+            </Button>
+          ) : isClosed ? (
             <div className="text-center space-y-2">
               <div className="rounded-xl bg-muted/50 p-4 text-center">
                 <DoorClosed className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
@@ -1605,7 +1725,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isMember, setIsMember] = useState(false);
+  // isMember e isBanned são derivados exclusivamente do objeto room (vindo da API / Zustand)
+  // Nunca usar estado local para participação — a API é a única fonte de verdade
+  const isMember = room.isMember === true;
+  const isBanned = room.isBanned === true;
+  const [membershipLoading, setMembershipLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [showMembers, setShowMembers] = useState(false);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -1617,10 +1741,6 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   // ── Mídia no chat ──
   const [sendingMedia, setSendingMedia] = useState(false);
   const cameraPhotoRef = useRef<HTMLInputElement>(null);
-
-  // ── Confirmação de envio de mídia ──
-  const [pendingMedia, setPendingMedia] = useState<{ file: File; type: "image" | "video" | "audio"; previewUrl?: string } | null>(null);
-  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
   const galleryPhotoRef = useRef<HTMLInputElement>(null);
   const cameraVideoRef = useRef<HTMLInputElement>(null);
   const videoFileRef = useRef<HTMLInputElement>(null);
@@ -1650,7 +1770,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   // Determine current user's role in the room
   const currentMember = members.find((m: any) => m.user_id === profile?.id);
-  const myRole = currentMember?.role || "member";
+  const myRole = room.myRole || currentMember?.role || "member";
   const isAdmin = myRole === "creator" || myRole === "moderator";
   const isCreator = myRole === "creator";
 
@@ -1799,20 +1919,42 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
+  // ── Verificar participação ao montar e quando a sala mudar ──
+  // Re-valida com a API para garantir que o estado está correto
+  // Usa ref para evitar loop infinito (revalidateMembership chama setSelectedRoom que muda room)
+  const roomRef = useRef(room);
+  roomRef.current = room;
+
+  const revalidateMembership = useCallback(async () => {
+    if (!profile) { setMembershipLoading(false); return; }
+    try {
+      const res = await fetch(`/api/rooms/${roomRef.current.id}`);
+      const data = await res.json();
+      if (data.room) {
+        const currentRoom = roomRef.current;
+        const updated = { ...currentRoom, isMember: data.room.isMember, myRole: data.room.myRole, isBanned: data.room.isBanned, canJoin: data.room.canJoin, isOpen: data.room.isOpen, memberCount: data.room.memberCount, has_password: data.room.has_password };
+        setSelectedRoom(updated);
+      }
+    } catch {
+      // Se falhar, manter o estado atual do room object
+    }
+    setMembershipLoading(false);
+  }, [profile, setSelectedRoom]);
+
   useEffect(() => {
-    const check = async () => {
-      if (!profile) return;
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("room_members")
-        .select("id, role")
-        .eq("room_id", room.id)
-        .eq("user_id", profile.id)
-        .maybeSingle();
-      setIsMember(!!data);
+    revalidateMembership();
+  }, [revalidateMembership, room.id]);
+
+  // ── Re-validar participação quando a página ganha foco ──
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        revalidateMembership();
+      }
     };
-    check();
-  }, [room.id, profile]);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [revalidateMembership]);
 
   const handleNewMessage = useCallback((payload: any) => {
     const fetchSender = async () => {
@@ -1858,12 +2000,24 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   const handleMemberLeave = useCallback((payload: any) => {
     setMembers((prev) => prev.filter((m) => m.user_id !== payload.user_id));
-  }, []);
+    // Se o usuário atual foi removido (kick), atualizar o estado
+    if (payload.user_id === profile?.id) {
+      setSelectedRoom({ ...roomRef.current, isMember: false, isBanned: false, canJoin: true });
+      toast.error("Você foi expulso da sala");
+      onRefreshRooms();
+    }
+  }, [profile?.id, setSelectedRoom, onRefreshRooms]);
 
   const handleMemberUpdate = useCallback((payload: any) => {
     if (payload.is_banned) {
       // Membro foi banido — remove da lista de membros ativos em tempo real
       setMembers((prev) => prev.filter((m) => m.user_id !== payload.user_id));
+      // Se o usuário atual foi banido, atualizar o estado
+      if (payload.user_id === profile?.id) {
+        setSelectedRoom({ ...roomRef.current, isMember: false, isBanned: true, canJoin: false });
+        toast.error("Você foi banido desta sala");
+        onRefreshRooms();
+      }
       return;
     }
     setMembers((prev) => {
@@ -1892,14 +2046,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   const handleJoin = async () => {
     try {
-      const res = await fetch(`/api/rooms/${room.id}/join`, { method: "POST" });
+      const res = await fetch(`/api/rooms/${roomRef.current.id}/join`, { method: "POST" });
       const data = await res.json();
       if (data.error) {
         toast.error(data.error);
         return;
       }
       if (data.joined) {
-        setIsMember(true);
+        // Atualizar room no Zustand — única fonte de verdade
+        const updatedRoom = { ...roomRef.current, isMember: true, myRole: roomRef.current.myRole || "member", canJoin: false, isBanned: false };
+        setSelectedRoom(updatedRoom);
+        setMembershipLoading(false);
         toast.success("Você entrou na sala!");
         fetchMembers();
         onRefreshRooms();
@@ -1911,10 +2068,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   const handleLeave = async () => {
     try {
-      const res = await fetch(`/api/rooms/${room.id}/leave`, { method: "POST" });
+      const res = await fetch(`/api/rooms/${roomRef.current.id}/leave`, { method: "POST" });
       const data = await res.json();
       if (data.left) {
-        setIsMember(false);
+        // Atualizar room no Zustand — única fonte de verdade
+        setSelectedRoom({ ...roomRef.current, isMember: false, canJoin: true, isBanned: false });
         toast.success("Você saiu da sala");
         onRefreshRooms();
         onBack();
@@ -1931,25 +2089,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   // ═══════ Upload de mídia ═══════
   const uploadChatMedia = async (file: File, type: "image" | "video" | "audio"): Promise<string | null> => {
     try {
-      let fileToUpload = file;
-      
-      // Compressão automática de TODAS as imagens (servidor aceita máx 1MB)
-      // Para imagens acima de 5MB, mostra toast de compressão
-      if (type === "image") {
-        if (file.size > 5 * 1024 * 1024) {
-          toast.info("Comprimindo imagem...");
-        }
-        try {
-          const compressed = await compressImage(file, { maxSizeKB: 900 });
-          fileToUpload = new File([compressed], file.name.replace(/\.\w+$/, `.${getExtensionForBlob(compressed)}`), { type: compressed.type });
-        } catch {
-          toast.error("Erro ao comprimir imagem");
-          return null;
-        }
-      }
-      
       const formData = new FormData();
-      formData.append("file", fileToUpload);
+      formData.append("file", file);
       formData.append("folder", "chat");
       const endpoint = type === "image" ? "/api/upload" : type === "video" ? "/api/upload/video" : "/api/upload/audio";
       const res = await fetch(endpoint, { method: "POST", body: formData });
@@ -1961,57 +2102,6 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       toast.error("Erro ao enviar mídia");
       return null;
     }
-  };
-
-  // ═══════ Confirmação de envio de mídia ═══════
-  const handleMediaSelected = (file: File, type: "image" | "video" | "audio") => {
-    setAttachMenuOpen(false);
-    
-    // Validate video duration
-    if (type === "video") {
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error("Vídeo muito grande (máx 50MB)");
-        return;
-      }
-      const videoEl = document.createElement("video");
-      videoEl.preload = "metadata";
-      videoEl.onloadedmetadata = () => {
-        if (videoEl.duration > MAX_VIDEO_DURATION) {
-          toast.error(`Vídeo muito longo (máx ${MAX_VIDEO_DURATION}s)`);
-          URL.revokeObjectURL(videoEl.src);
-          return;
-        }
-        URL.revokeObjectURL(videoEl.src);
-        const previewUrl = URL.createObjectURL(file);
-        setPendingMedia({ file, type, previewUrl });
-        setConfirmSendOpen(true);
-      };
-      videoEl.src = URL.createObjectURL(file);
-      return;
-    }
-    
-    const previewUrl = type === "image" ? URL.createObjectURL(file) : undefined;
-    setPendingMedia({ file, type, previewUrl });
-    setConfirmSendOpen(true);
-  };
-
-  const confirmSendMedia = async () => {
-    if (!pendingMedia) return;
-    setConfirmSendOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(pendingMedia.file, pendingMedia.type);
-    if (pendingMedia.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    if (url) {
-      await sendMessage({ media_url: url, media_type: pendingMedia.type });
-    }
-    setSendingMedia(false);
-    setPendingMedia(null);
-  };
-
-  const cancelSendMedia = () => {
-    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    setConfirmSendOpen(false);
-    setPendingMedia(null);
   };
 
   // ═══════ Enviar mensagem ═══════
@@ -2046,42 +2136,91 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Captura de foto da câmera ═══════
-  const handleCameraPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleMediaSelected(file, "image");
+    setAttachMenuOpen(false);
+    setSendingMedia(true);
+    const url = await uploadChatMedia(file, "image");
+    if (url) {
+      await sendMessage({ media_url: url, media_type: "image" });
+    }
+    setSendingMedia(false);
     if (cameraPhotoRef.current) cameraPhotoRef.current.value = "";
   };
 
   // ═══════ Foto da galeria ═══════
-  const handleGalleryPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleMediaSelected(file, "image");
+    setAttachMenuOpen(false);
+    setSendingMedia(true);
+    const url = await uploadChatMedia(file, "image");
+    if (url) {
+      await sendMessage({ media_url: url, media_type: "image" });
+    }
+    setSendingMedia(false);
     if (galleryPhotoRef.current) galleryPhotoRef.current.value = "";
   };
 
   // ═══════ Captura de vídeo da câmera ═══════
-  const handleCameraVideoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraVideoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleMediaSelected(file, "video");
+    setAttachMenuOpen(false);
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Vídeo muito grande (máx 50MB)");
+      return;
+    }
+    const videoEl = document.createElement("video");
+    videoEl.preload = "metadata";
+    videoEl.onloadedmetadata = async () => {
+      if (videoEl.duration > MAX_VIDEO_DURATION) {
+        toast.error(`Vídeo muito longo (máx ${MAX_VIDEO_DURATION}s)`);
+        URL.revokeObjectURL(videoEl.src);
+        return;
+      }
+      URL.revokeObjectURL(videoEl.src);
+      setSendingMedia(true);
+      const url = await uploadChatMedia(file, "video");
+      if (url) {
+        await sendMessage({ media_url: url, media_type: "video" });
+      }
+      setSendingMedia(false);
+    };
+    videoEl.src = URL.createObjectURL(file);
     if (cameraVideoRef.current) cameraVideoRef.current.value = "";
   };
 
   // ═══════ Vídeo de arquivo ═══════
-  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleMediaSelected(file, "video");
+    setAttachMenuOpen(false);
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Vídeo muito grande (máx 50MB)");
+      return;
+    }
+    setSendingMedia(true);
+    const url = await uploadChatMedia(file, "video");
+    if (url) {
+      await sendMessage({ media_url: url, media_type: "video" });
+    }
+    setSendingMedia(false);
     if (videoFileRef.current) videoFileRef.current.value = "";
   };
 
   // ═══════ Áudio de arquivo ═══════
-  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    handleMediaSelected(file, "audio");
+    setAttachMenuOpen(false);
+    setSendingMedia(true);
+    const url = await uploadChatMedia(file, "audio");
+    if (url) {
+      await sendMessage({ media_url: url, media_type: "audio" });
+    }
+    setSendingMedia(false);
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
@@ -2423,8 +2562,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         </div>
       )}
 
-      {/* ═══════ Join prompt ═══════ */}
-      {!isMember && (
+      {/* ═══════ Verificando participação ═══════ */}
+      {!isMember && membershipLoading && (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <span className="text-sm text-muted-foreground">Verificando participação...</span>
+          </div>
+        </div>
+      )}
+      {/* ═══════ Join prompt (não-membro verificado) ═══════ */}
+      {!isMember && !membershipLoading && (
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-xs">
             <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${room.type === "official" ? "bg-primary/10" : "bg-secondary"}`}>
@@ -2433,9 +2581,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             <h3 className="text-base font-bold mb-1">{room.name}</h3>
             {room.description && <p className="text-sm text-muted-foreground mb-1">{room.description}</p>}
             <p className="text-xs text-muted-foreground/60 mb-5">{memberCount} membro{memberCount !== 1 ? "s" : ""} nesta sala</p>
-            <Button onClick={handleJoin} className="gap-2 rounded-full px-6 shadow-sm">
-              <UserPlus className="h-4 w-4" /> Entrar na sala
-            </Button>
+            {isBanned ? (
+              <div className="rounded-xl bg-red-500/10 p-4 text-center">
+                <Ban className="h-6 w-6 text-red-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-red-600">Você está banido desta sala</p>
+              </div>
+            ) : (
+              <Button onClick={handleJoin} className="gap-2 rounded-full px-6 shadow-sm">
+                <UserPlus className="h-4 w-4" /> Entrar na sala
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -2515,37 +2670,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           : "bg-muted rounded-bl-md"
                     }`}>
                       {hasImage && (
-                        <div className="mb-1 relative group">
+                        <div className="mb-1">
                           <img
                             src={msg.media_url}
                             alt="Foto"
                             className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
                             onClick={() => window.open(msg.media_url, "_blank")}
                           />
-                          {isMine && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                    toast.success("Foto apagada");
-                                  } else {
-                                    toast.error(data.error || "Erro ao apagar");
-                                  }
-                                } catch { toast.error("Erro ao apagar"); }
-                              }}
-                              className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                              title="Apagar mídia"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
                         </div>
                       )}
                       {hasVideo && (
-                        <div className="mb-1 relative group">
+                        <div className="mb-1">
                           <video
                             src={msg.media_url}
                             className="max-w-full max-h-64 rounded-xl object-cover"
@@ -2553,52 +2688,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             playsInline
                             preload="metadata"
                           />
-                          {isMine && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                    toast.success("Vídeo apagado");
-                                  } else {
-                                    toast.error(data.error || "Erro ao apagar");
-                                  }
-                                } catch { toast.error("Erro ao apagar"); }
-                              }}
-                              className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                              title="Apagar mídia"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
                         </div>
                       )}
                       {hasAudio && (
-                        <div className="relative group">
-                          <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
-                          {isMine && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                    toast.success("Áudio apagado");
-                                  } else {
-                                    toast.error(data.error || "Erro ao apagar");
-                                  }
-                                } catch { toast.error("Erro ao apagar"); }
-                              }}
-                              className="absolute -top-1 -right-1 h-6 w-6 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                              title="Apagar mídia"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
+                        <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
                       )}
                       {msg.content?.trim() && msg.content !== "📷" && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
                     </div>
@@ -2719,11 +2812,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </div>
             )}
           </>
-        ) : (
-          <Button onClick={handleJoin} className="w-full h-11 rounded-full gap-2 shadow-sm">
-            <UserCheck className="h-4 w-4" /> Entrar na sala
-          </Button>
-        )}
+        ) : null}
       </div>
 
       {/* ═══════ Overlay de gravação de áudio ═══════ */}
@@ -2787,42 +2876,6 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </div>
         </div>
       )}
-
-      {/* ═══════ Dialog de confirmação de envio de mídia ═══════ */}
-      <Dialog open={confirmSendOpen} onOpenChange={(open) => { if (!open) cancelSendMedia(); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Enviar mídia</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-3 py-3">
-            {pendingMedia?.type === "image" && pendingMedia.previewUrl && (
-              <img src={pendingMedia.previewUrl} alt="Preview" className="max-w-full max-h-64 rounded-xl object-cover" />
-            )}
-            {pendingMedia?.type === "video" && pendingMedia.previewUrl && (
-              <video src={pendingMedia.previewUrl} className="max-w-full max-h-64 rounded-xl object-cover" controls playsInline preload="metadata" />
-            )}
-            {pendingMedia?.type === "audio" && (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <Music className="h-8 w-8 text-muted-foreground" />
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {pendingMedia?.type === "image" ? "Enviar esta foto?" : pendingMedia?.type === "video" ? "Enviar este vídeo?" : "Enviar este áudio?"}
-            </p>
-            <p className="text-xs text-muted-foreground/70">
-              {pendingMedia?.type === "image" ? "A foto expirará em 10min" : pendingMedia?.type === "video" ? "O vídeo expirará em 10min" : "O áudio expirará em 10min"}
-            </p>
-          </div>
-          <DialogFooter className="flex-row gap-2 sm:justify-center">
-            <Button variant="outline" onClick={cancelSendMedia} className="flex-1">
-              Cancelar
-            </Button>
-            <Button onClick={confirmSendMedia} className="flex-1 bg-[#2EC4B6] hover:bg-[#25b0a3] text-white">
-              Enviar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* ═══════ Admin Panel Dialog ═══════ */}
       <AdminPanel
