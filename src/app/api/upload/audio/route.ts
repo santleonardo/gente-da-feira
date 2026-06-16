@@ -1,17 +1,33 @@
-// ============================================================
-// API de upload de áudios para o Supabase Storage
-// Bucket: post-audios (público)
-// Máximo: 10MB, formatos: audio/mpeg, audio/mp4, audio/webm, audio/ogg, audio/wav
-// ============================================================
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { applyRateLimit } from "@/lib/rate-limit";
 
-const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav", "audio/x-m4a"];
+const MAX_AUDIO_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_TYPES = [
+  "audio/webm",
+  "audio/ogg",
+  "audio/mpeg",       // .mp3
+  "audio/mp4",        // .m4a
+  "audio/aac",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/amr",
+  "audio/3gpp",       // .3gp (pode conter áudio)
+];
+
+// Mapa de folders → buckets do Supabase Storage
+const FOLDER_BUCKET_MAP: Record<string, string> = {
+  posts: "post-audios",
+  chat: "post-audios",
+  "album-audios": "post-audios",
+};
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 15 uploads de áudio por minuto
+    const blocked = await applyRateLimit(req, 15, 60_000);
+    if (blocked) return blocked;
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -22,43 +38,53 @@ export async function POST(req: NextRequest) {
 
     if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
 
-    if (!ALLOWED_AUDIO_TYPES.includes(file.type)) {
-      return NextResponse.json({
-        error: "Tipo não suportado. Use MP3, M4A, WebM, OGG ou WAV."
-      }, { status: 400 });
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Tipo de áudio não suportado (use WebM, OGG, MP3, M4A, AAC, WAV ou AMR)" },
+        { status: 400 }
+      );
     }
 
     if (file.size > MAX_AUDIO_SIZE) {
-      return NextResponse.json({
-        error: `Áudio muito grande. Máximo ${MAX_AUDIO_SIZE / (1024 * 1024)}MB.`
-      }, { status: 400 });
+      return NextResponse.json({ error: "Áudio muito grande (máx 20MB)" }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    // Determinar bucket com base na folder
+    const bucket = FOLDER_BUCKET_MAP[folder] || "post-audios";
+
+    // Determinar extensão a partir do tipo MIME
+    const extMap: Record<string, string> = {
+      "audio/webm": "webm",
+      "audio/ogg": "ogg",
+      "audio/mpeg": "mp3",
+      "audio/mp4": "m4a",
+      "audio/aac": "aac",
+      "audio/wav": "wav",
+      "audio/x-wav": "wav",
+      "audio/amr": "amr",
+      "audio/3gpp": "3gp",
+    };
+    const ext = extMap[file.type] || "webm";
 
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    const ext = file.type.split("/")[1] || "webm";
-    const path = `${user.id}/${folder}/${timestamp}-${random}.${ext}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const path = `${user.id}/${folder}/${timestamp}-${randomSuffix}.${ext}`;
 
-    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = Buffer.from(await file.arrayBuffer());
+    const admin = createAdminClient();
+
     const { error: uploadError } = await admin.storage
-      .from("post-audios")
-      .upload(path, arrayBuffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+      .from(bucket)
+      .upload(path, audioBuffer, { contentType: file.type, cacheControl: "31536000", upsert: false });
 
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = admin.storage.from("post-audios").getPublicUrl(path);
+    const { data: urlData } = admin.storage.from(bucket).getPublicUrl(path);
+    const url = urlData.publicUrl;
 
-    return NextResponse.json({
-      url: urlData.publicUrl,
-      path,
-    });
+    return NextResponse.json({ url });
   } catch (error: any) {
-    console.error("Audio upload error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Upload audio error:", error.message);
+    return NextResponse.json({ error: error.message || "Erro ao enviar áudio" }, { status: 500 });
   }
 }
