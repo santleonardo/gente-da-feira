@@ -46,16 +46,24 @@ export async function GET(
       .eq("user_id", user.id)
       .maybeSingle();
 
+    const memberCount = room.member_count || room.room_members?.[0]?.count || 0;
+    const isClosed = room.is_open === false;
+    const isFull = room.max_members && memberCount >= room.max_members;
+
+    const isBanned = memberRecord?.is_banned || false;
+    const isMember = !!memberRecord && !memberRecord.is_banned;
     const formatted = {
       ...room,
       password_hash: undefined,
       has_password: !!room.password_hash,
       _count: { members: room.room_members?.[0]?.count || 0 },
-      memberCount: room.member_count,
+      memberCount,
       room_members: undefined,
       myRole: memberRecord?.role || null,
-      isBanned: memberRecord?.is_banned || false,
-      isMember: !!memberRecord && !memberRecord.is_banned,
+      isBanned,
+      isMember,
+      canJoin: !isMember && !isBanned && room.is_active && !isClosed && !isFull,
+      isOpen: room.is_open !== false,
       creator: room.creator,
     };
 
