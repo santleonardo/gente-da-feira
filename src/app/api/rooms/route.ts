@@ -3,9 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import bcrypt from "bcryptjs";
 
 // ── GET /api/rooms ──────────────────────────────────────────────
+// Retorna todas as salas ativas com informações de participação
+// do usuário autenticado (isMember, myRole, isBanned, canJoin, isOpen, memberCount)
 export async function GET() {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { data: rooms, error } = await supabase
       .from("rooms")
@@ -16,14 +19,50 @@ export async function GET() {
 
     if (error) throw error;
 
-    const formatted = (rooms || []).map((r: any) => ({
-      ...r,
-      password_hash: undefined,
-      _count: { members: r.room_members?.[0]?.count || 0 },
-      memberCount: r.member_count,
-      has_password: !!r.password_hash,
-      room_members: undefined,
-    }));
+    // Buscar todas as participações do usuário autenticado em uma única query
+    let memberRoomIds: Set<string> = new Set();
+    let memberRoles: Record<string, string> = {};
+    let bannedRoomIds: Set<string> = new Set();
+
+    if (user) {
+      const { data: myMemberships } = await supabase
+        .from("room_members")
+        .select("room_id, role, is_banned")
+        .eq("user_id", user.id);
+
+      if (myMemberships) {
+        for (const m of myMemberships) {
+          if (m.is_banned) {
+            bannedRoomIds.add(m.room_id);
+          } else {
+            memberRoomIds.add(m.room_id);
+            memberRoles[m.room_id] = m.role;
+          }
+        }
+      }
+    }
+
+    const formatted = (rooms || []).map((r: any) => {
+      const memberCount = r.member_count || r.room_members?.[0]?.count || 0;
+      const isMember = memberRoomIds.has(r.id);
+      const isBanned = bannedRoomIds.has(r.id);
+      const isClosed = r.is_open === false;
+      const isFull = r.max_members && memberCount >= r.max_members;
+
+      return {
+        ...r,
+        password_hash: undefined,
+        _count: { members: r.room_members?.[0]?.count || 0 },
+        memberCount,
+        has_password: !!r.password_hash,
+        isMember,
+        myRole: memberRoles[r.id] || null,
+        isBanned,
+        canJoin: !isMember && !isBanned && r.is_active && !isClosed && !isFull,
+        isOpen: r.is_open !== false,
+        room_members: undefined,
+      };
+    });
 
     return NextResponse.json({ rooms: formatted });
   } catch (error: any) {
@@ -95,6 +134,11 @@ export async function POST(req: NextRequest) {
         password_hash: undefined,
         has_password: !!passwordHash,
         memberCount: 1,
+        isMember: true,
+        myRole: "creator",
+        isBanned: false,
+        canJoin: false,
+        isOpen,
       },
     });
   } catch (error: any) {
