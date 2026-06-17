@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     let blockedUserIds     = new Set<string>();
 
     if (authUser && !authorId) {
-      const [followingRes, followersRes, blockedRes] = await Promise.all([
+      const [followingRes, followersRes] = await Promise.all([
         supabase
           .from("follows")
           .select("following_id")
