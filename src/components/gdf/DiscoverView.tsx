@@ -29,17 +29,32 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   const [popularRoomsLoaded, setPopularRoomsLoaded] = useState<any[]>([]);
   const [loadingSuggested, setLoadingSuggested] = useState(true);
 
+  // SEC-004: client-side block list for defense in depth
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+
+  // Fetch block list + suggestions + rooms on mount (block list first to filter suggestions)
   useEffect(() => {
-    Promise.all([
-      fetch("/api/users?limit=6").then((r) => r.json()),
-      fetch("/api/rooms").then((r) => r.json()),
-    ])
-      .then(([userData, roomData]) => {
-        setSuggestedUsers(userData.users || []);
+    const init = async () => {
+      try {
+        // Load block list first
+        const blockRes = await fetch("/api/blocks");
+        const blockData = await blockRes.json();
+        if (blockData.blocks) {
+          setBlockedUserIds(new Set(blockData.blocks.map((b: any) => b.blocked_id)));
+        }
+        const ids = new Set((blockData.blocks || []).map((b: any) => b.blocked_id));
+
+        // Then load suggestions and rooms, filtering out blocked users
+        const [userData, roomData] = await Promise.all([
+          fetch("/api/users?limit=6").then((r) => r.json()),
+          fetch("/api/rooms").then((r) => r.json()),
+        ]);
+        setSuggestedUsers((userData.users || []).filter((u: any) => !ids.has(u.id)));
         setPopularRoomsLoaded((roomData.rooms || []).filter((r: any) => r.type === "official").slice(0, 5));
-      })
-      .catch(() => {})
-      .finally(() => setLoadingSuggested(false));
+      } catch { /* silent */ }
+      finally { setLoadingSuggested(false); }
+    };
+    init();
   }, []);
 
   const handleSearch = async () => {
@@ -51,7 +66,8 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       ]);
       const userData = await userRes.json();
       const roomData = await roomRes.json();
-      setUsers(userData.users || []);
+      // SEC-004: filter out blocked users client-side
+      setUsers((userData.users || []).filter((u: any) => !blockedUserIds.has(u.id)));
       setRooms((roomData.rooms || []).filter((r: any) =>
         r.name.toLowerCase().includes(query.toLowerCase())
       ));
@@ -61,6 +77,11 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
 
   const startDM = async (otherUser: any) => {
     if (!profile) return;
+    // SEC-004: client-side block check before attempting DM
+    if (blockedUserIds.has(otherUser.id)) {
+      toast.error("Você não pode enviar mensagens para este usuário");
+      return;
+    }
     try {
       const res = await fetch("/api/dm", {
         method: "POST",
@@ -68,11 +89,15 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         body: JSON.stringify({ receiverId: otherUser.id }),
       });
       const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
       if (data.conversation) {
         useStore.getState().setSelectedDM(data.conversation);
         useStore.getState().setTab("dms");
       }
-    } catch { toast.error("Erro"); }
+    } catch { toast.error("Erro ao iniciar conversa"); }
   };
 
   return (

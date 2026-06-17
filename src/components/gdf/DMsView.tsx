@@ -222,6 +222,11 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
         body: JSON.stringify({ receiverId: otherUser.id }),
       });
       const data = await res.json();
+      // SEC-004: handle blocked user error
+      if (res.status === 403 || data.error) {
+        toast.error(data.error || "Não é possível iniciar conversa com este usuário");
+        return;
+      }
       if (data.conversation) {
         setSelectedDM(data.conversation);
         setShowNew(false);
@@ -406,6 +411,12 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/dm/${conversation.id}/messages`);
+      // SEC-004: handle 403 (blocked conversation) — go back and refresh list
+      if (res.status === 403) {
+        toast.error("Esta conversa não está mais disponível");
+        onBack();
+        return;
+      }
       const data = await res.json();
       if (data.error) {
         toast.error(data.error);
@@ -414,7 +425,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       setMessages(data.messages || []);
     } catch { /* silent */ }
     setLoading(false);
-  }, [conversation.id]);
+  }, [conversation.id, onBack]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
@@ -502,6 +513,12 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      // SEC-004: handle 403 (blocked conversation) — go back and refresh list
+      if (res.status === 403) {
+        toast.error("Você não pode enviar mensagens para este usuário");
+        onBack();
+        return;
+      }
       const data = await res.json();
       if (data.error) {
         toast.error(data.error);
