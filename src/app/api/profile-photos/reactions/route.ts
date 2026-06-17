@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,15 @@ export async function POST(req: NextRequest) {
     const { photoId, type } = await req.json();
     if (!photoId || !type) {
       return NextResponse.json({ error: "photoId e type são obrigatórios" }, { status: 400 });
+    }
+
+    // SEC-004: Check bidirectional block with photo owner
+    const ownerId = await getProfilePhotoOwnerId(supabase, photoId);
+    if (ownerId && ownerId !== user.id) {
+      const blocked = await isBlocked(supabase, user.id, ownerId);
+      if (blocked) {
+        return NextResponse.json({ error: "Não é possível reagir a esta foto" }, { status: 403 });
+      }
     }
 
     const { data: existing } = await supabase

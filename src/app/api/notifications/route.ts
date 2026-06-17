@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getBlockedUserIds } from "@/lib/block-check";
 
 // GET /api/notifications — Listar notificações
 export async function GET(req: NextRequest) {
@@ -10,6 +11,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
+    // SEC-004: Get blocked user IDs to filter notifications
+    const blockedIds = await getBlockedUserIds(supabase, user.id);
+
     const { data: notifications, error } = await supabase
       .from("notifications")
       .select("id, type, is_read, created_at, actor:profiles!notifications_actor_id_fkey(id, display_name, username, avatar), post_id, comment_id")
@@ -19,10 +23,15 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    const unreadCount = (notifications || []).filter((n: any) => !n.is_read).length;
+    // SEC-004: Filter out notifications from blocked users
+    const filteredNotifications = blockedIds.size > 0
+      ? (notifications || []).filter((n: any) => !blockedIds.has(n.actor_id))
+      : (notifications || []);
+
+    const unreadCount = filteredNotifications.filter((n: any) => !n.is_read).length;
 
     return NextResponse.json({
-      notifications: notifications || [],
+      notifications: filteredNotifications,
       unreadCount,
     });
   } catch (error: any) {

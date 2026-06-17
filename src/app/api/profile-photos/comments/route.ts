@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,6 +42,15 @@ export async function POST(req: NextRequest) {
     }
     if (content.trim().length > 300) {
       return NextResponse.json({ error: "Comentário muito longo (máx 300 chars)" }, { status: 400 });
+    }
+
+    // SEC-004: Check bidirectional block with photo owner
+    const ownerId = await getProfilePhotoOwnerId(supabase, photoId);
+    if (ownerId && ownerId !== user.id) {
+      const blocked = await isBlocked(supabase, user.id, ownerId);
+      if (blocked) {
+        return NextResponse.json({ error: "Não é possível comentar nesta foto" }, { status: 403 });
+      }
     }
 
     const { data: comment, error } = await supabase

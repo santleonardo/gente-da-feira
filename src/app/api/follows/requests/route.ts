@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isBlocked } from "@/lib/block-check";
 
 // GET /api/follows/requests — Buscar solicitações pendentes do usuário logado
 export async function GET(req: NextRequest) {
@@ -59,9 +60,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "accept") {
+      // SEC-004: Don't accept follow if either user blocked the other
+      const blocked = await isBlocked(supabase, user.id, followRow.follower_id);
+      if (blocked) {
+        // Silently reject — don't reveal the block reason
+        const { error: delErr } = await supabase
+          .from("follows")
+          .delete()
+          .eq("id", requestId);
+        if (delErr) throw delErr;
+        return NextResponse.json({ rejected: true });
+      }
+
       // Aceitar: atualizar status para 'accepted'
-      // O trigger notify_new_follow() vai detectar o UPDATE para 'accepted'
-      // e criar automaticamente a notificação follow_accepted com actor_id
       const { error: updateErr } = await supabase
         .from("follows")
         .update({ status: "accepted" })

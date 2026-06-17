@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isBlocked } from "@/lib/block-check";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
     const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const isOwnProfile = authUser?.id === id;
+
+    // SEC-004: Check bidirectional block
+    if (authUser && !isOwnProfile) {
+      const blocked = await isBlocked(supabase, authUser.id, id);
+      if (blocked) {
+        return NextResponse.json({ posts: [], _privacy: { isRestricted: true, isBlocked: true } });
+      }
+    }
 
     const { data: targetProfile } = await supabase
       .from("profiles")
@@ -15,9 +26,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const isPrivate = targetProfile?.is_private || false;
 
     if (isPrivate) {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const isOwnProfile = authUser?.id === id;
-
       if (!isOwnProfile && authUser) {
         const { data: followRow } = await supabase
           .from("follows")

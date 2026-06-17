@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -79,9 +80,10 @@ export async function GET(req: NextRequest) {
 
     let viewerFollowingIds = new Set<string>();
     let viewerFollowerIds  = new Set<string>();
+    let blockedUserIds     = new Set<string>();
 
     if (authUser && !authorId) {
-      const [followingRes, followersRes] = await Promise.all([
+      const [followingRes, followersRes, blockedRes] = await Promise.all([
         supabase
           .from("follows")
           .select("following_id")
@@ -95,6 +97,7 @@ export async function GET(req: NextRequest) {
       ]);
       if (followingRes.data) viewerFollowingIds = new Set(followingRes.data.map((f: any) => f.following_id));
       if (followersRes.data) viewerFollowerIds  = new Set(followersRes.data.map((f: any) => f.follower_id));
+      blockedUserIds = await getBlockedUserIds(supabase, authUser.id);
     }
 
     const filteredPosts = posts
@@ -108,6 +111,9 @@ export async function GET(req: NextRequest) {
       }))
       .filter((p: any) => {
         if (p.expires_at && p.expires_at < now) return false;
+        // SEC-004: Filter out posts from blocked users
+        if (blockedUserIds.size > 0 && blockedUserIds.has(p.author_id)) return false;
+        if (p.shared_post && blockedUserIds.size > 0 && blockedUserIds.has(p.shared_post.author_id)) return false;
         if (p.visibility === "followers") {
           if (!authUser) return false;
           if (p.author_id === authUser.id) return true;
@@ -315,6 +321,15 @@ export async function POST(req: NextRequest) {
             const { data: mentioned } = await adminClient
               .from("profiles").select("id").eq("username", username).single();
             if (mentioned && mentioned.id !== user.id) {
+              // SEC-004: Don't notify if blocked
+              const { count: mentionBlockCount } = await adminClient
+                .from("blocks")
+                .select("id", { count: "exact", head: true })
+                .or(
+                  `and(blocker_id.eq.${user.id},blocked_id.eq.${mentioned.id}),and(blocker_id.eq.${mentioned.id},blocked_id.eq.${user.id})`
+                );
+              if ((mentionBlockCount ?? 0) > 0) continue;
+
               await adminClient.from("notifications").insert({
                 user_id: mentioned.id, type: "mention",
                 actor_id: user.id, post_id: post.id, is_read: false,

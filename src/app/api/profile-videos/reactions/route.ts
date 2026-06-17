@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,15 @@ export async function POST(req: NextRequest) {
     const { videoId, type } = await req.json();
     if (!videoId || !type) {
       return NextResponse.json({ error: "videoId e type são obrigatórios" }, { status: 400 });
+    }
+
+    // SEC-004: Check bidirectional block with video owner
+    const ownerId = await getProfileVideoOwnerId(supabase, videoId);
+    if (ownerId && ownerId !== user.id) {
+      const blocked = await isBlocked(supabase, user.id, ownerId);
+      if (blocked) {
+        return NextResponse.json({ error: "Não é possível reagir a este vídeo" }, { status: 403 });
+      }
     }
 
     const { data: existing } = await supabase

@@ -62,6 +62,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const approveFollowers = profile.approve_followers || false;
     const isRestricted = isPrivate && !isOwnProfile && !isFollowing;
 
+    // SEC-004: If target blocked the viewer, return minimal stub
+    if (isBlockedByTarget && !isOwnProfile) {
+      return NextResponse.json({
+        user: {
+          id: profile.id,
+          display_name: profile.display_name,
+          username: profile.username,
+          avatar_url: profile.avatar_url,
+        },
+        _privacy: {
+          is_private: isPrivate,
+          hide_following: hideFollowing,
+          hide_followers: hideFollowers,
+          hide_neighborhood: true, // force hide
+          approve_followers: approveFollowers,
+          isRestricted: true,
+          isPending: false,
+          isBlockedByViewer,
+          isBlockedByTarget,
+          isBlocked: true,
+        },
+      });
+    }
+
     const formatted = {
       ...profile,
       name: profile.display_name,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getBlockedUserIds } from "@/lib/block-check";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,9 +24,27 @@ export async function GET(req: NextRequest) {
       if (!user) {
         return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
       }
+
+      // SEC-004: Don't return user if blocked
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser && authUser.id !== user.id) {
+        const blocked = await (
+          await supabase
+            .from("blocks")
+            .select("id", { count: "exact", head: true })
+            .or(
+              `and(blocker_id.eq.${authUser.id},blocked_id.eq.${user.id}),and(blocker_id.eq.${user.id},blocked_id.eq.${authUser.id})`
+            )
+        ).count;
+        if ((blocked ?? 0) > 0) {
+          return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+        }
+      }
+
       return NextResponse.json({ user });
     }
 
+    // Search
     let query = supabase.from("profiles").select("id, display_name, username, avatar_url, neighborhood, bio").limit(15);
 
     if (q) {
@@ -39,7 +58,16 @@ export async function GET(req: NextRequest) {
 
     const { data: users, error } = await query;
     if (error) throw error;
-    return NextResponse.json({ users: users || [] });
+
+    // SEC-004: Filter out blocked users from search results
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    let filteredUsers = users || [];
+    if (authUser) {
+      const blockedIds = await getBlockedUserIds(supabase, authUser.id);
+      filteredUsers = filteredUsers.filter((u: any) => !blockedIds.has(u.id));
+    }
+
+    return NextResponse.json({ users: filteredUsers });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

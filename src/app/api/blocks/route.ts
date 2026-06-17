@@ -94,6 +94,24 @@ export async function POST(req: NextRequest) {
         .delete()
         .or(`and(follower_id.eq.${user.id},following_id.eq.${targetUserId}),and(follower_id.eq.${targetUserId},following_id.eq.${user.id})`);
 
+      // SEC-004: Soft-delete DM messages between the two users
+      // Find any direct_chat between them and mark all messages as deleted
+      const [a, b] = user.id < targetUserId ? [user.id, targetUserId] : [targetUserId, user.id];
+      const { data: dmChat } = await supabase
+        .from("direct_chats")
+        .select("id")
+        .eq("initiator_id", a)
+        .eq("receiver_id", b)
+        .maybeSingle();
+
+      if (dmChat) {
+        await supabase
+          .from("messages")
+          .update({ is_deleted: true })
+          .eq("dm_id", dmChat.id)
+          .eq("target_type", "dm");
+      }
+
       return NextResponse.json({ blocked: true });
     }
   } catch (error: any) {

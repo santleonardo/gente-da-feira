@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
+import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
@@ -13,6 +14,15 @@ export async function POST(req: Request) {
     const { postId, type = "like" } = await req.json();
     if (!postId) return NextResponse.json({ error: "postId obrigatório" }, { status: 400 });
     if (!VALID_TYPES.includes(type)) return NextResponse.json({ error: "Tipo de reação inválido" }, { status: 400 });
+
+    // SEC-004: Check bidirectional block with post author
+    const authorId = await getPostAuthorId(supabase, postId);
+    if (authorId && authorId !== user.id) {
+      const blocked = await isBlocked(supabase, user.id, authorId);
+      if (blocked) {
+        return NextResponse.json({ error: "Não é possível reagir a este post" }, { status: 403 });
+      }
+    }
 
     const { data: existing } = await supabase
       .from("reactions")

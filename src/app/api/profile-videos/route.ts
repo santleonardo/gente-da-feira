@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { isBlocked } from "@/lib/block-check";
 
 const MAX_VIDEOS_PER_PROFILE = 5;
 const MAX_VIDEO_DURATION = 30;
@@ -16,6 +17,15 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
+
+    // SEC-004: Block access to profile videos if blocked
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser && authUser.id !== userId) {
+      const blocked = await isBlocked(supabase, authUser.id, userId);
+      if (blocked) {
+        return NextResponse.json({ videos: [], _privacy: { isBlocked: true } });
+      }
+    }
 
     const { data: videos, error } = await supabase
       .from("profile_videos")

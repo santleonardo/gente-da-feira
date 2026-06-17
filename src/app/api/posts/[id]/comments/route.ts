@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
+import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: postId } = await params;
@@ -37,6 +38,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { data: post } = await supabase
       .from("posts").select("id").eq("id", postId).eq("is_deleted", false).single();
     if (!post) return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+
+    // SEC-004: Check bidirectional block with post author
+    const authorId = await getPostAuthorId(supabase, postId);
+    if (authorId && authorId !== user.id) {
+      const blocked = await isBlocked(supabase, user.id, authorId);
+      if (blocked) {
+        return NextResponse.json({ error: "Não é possível comentar neste post" }, { status: 403 });
+      }
+    }
 
     const insertData: Record<string, any> = { content: content.trim(), post_id: postId, author_id: user.id };
     if (parentId) insertData.parent_id = parentId;

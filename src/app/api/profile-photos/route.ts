@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { isBlocked } from "@/lib/block-check";
 
 const MAX_PHOTOS_PER_PROFILE = 20;
 
@@ -15,6 +16,15 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId");
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
+
+    // SEC-004: Block access to profile photos if blocked
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser && authUser.id !== userId) {
+      const blocked = await isBlocked(supabase, authUser.id, userId);
+      if (blocked) {
+        return NextResponse.json({ photos: [], _privacy: { isBlocked: true } });
+      }
+    }
 
     const { data: photos, error } = await supabase
       .from("profile_photos")
