@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpirationMinutes } from "@/lib/media-expiration";
+import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
 const MEDIA_MESSAGE_EXPIRATION_MINUTES = 10;
 
+// ============================================================
+// SEC-002: GET /api/rooms/[id]/messages
+//
+// Regras de autorização:
+//   - Usuário autenticado
+//   - Membro ativo da sala (não banido)
+//   - Sala ativa
+//
+// Retorna 403 caso qualquer regra falhe.
+// Defense-in-depth: RLS em messages bloqueia SELECT não-autorizado.
+// ============================================================
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
@@ -13,15 +25,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
+    // SEC-002: Verificar filiação antes de qualquer leitura
+    const auth = await canReadRoomMessages(id, user.id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.reason }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
 
+    // O RLS em messages garantirá que apenas mensagens de salas do usuário
+    // sejam retornadas, mesmo se houver bug no filtro .eq("room_id", id).
     const { data: messages, error } = await supabase.from("messages")
       .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
-      .eq("room_id", id).eq("target_type", "room").eq("is_deleted", false)
-      .order("created_at", { ascending: true }).limit(limit);
+      .eq("room_id", id)
+      .eq("target_type", "room")
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: true })
+      .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SEC-002 room-messages GET query]", error);
+      throw error;
+    }
 
     // Defesa extra: se a limpeza em background ainda não rodou,
     // não retorna mídia já expirada ao cliente.
@@ -33,14 +59,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return m;
     });
 
+    // Fire-and-forget: limpa mídia expirada (best effort)
     cleanupExpiredMessageMedia().catch(() => {});
 
     return NextResponse.json({ messages: sanitized });
   } catch (error: any) {
+    console.error("[SEC-002 room-messages GET]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
+// ============================================================
+// SEC-002: POST /api/rooms/[id]/messages
+//
+// Regras de autorização:
+//   - Usuário autenticado
+//   - Membro ativo da sala (não banido)
+//   - Sala ativa
+//
+// Retorna 403 caso qualquer regra falhe.
+// Defense-in-depth: RLS em messages bloqueia INSERT não-autorizado.
+// ============================================================
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
@@ -48,10 +87,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
+    // SEC-002: Verificar filiação antes de qualquer escrita
+    const auth = await canSendRoomMessage(id, user.id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.reason }, { status: 403 });
+    }
+
     const body = await req.json();
     const { content, media_url, media_type } = body;
 
-    // At least content or media_url must be provided
+    // Pelo menos content ou media_url deve ser fornecido
     if ((!content || !content.trim()) && !media_url) {
       return NextResponse.json({ error: "Mensagem vazia" }, { status: 400 });
     }
@@ -59,9 +104,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Mensagem muito longa (máx 2000 chars)" }, { status: 400 });
     }
 
-    // Validate media_type
+    // Validar media_type
     if (media_url && !["image", "video", "audio"].includes(media_type)) {
       return NextResponse.json({ error: "Tipo de mídia inválido" }, { status: 400 });
+    }
+
+    // SEC-008 (defense-in-depth): validar que media_url aponta para o storage Supabase
+    if (media_url) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (supabaseUrl && !media_url.startsWith(supabaseUrl)) {
+        return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
+      }
     }
 
     const insertData: any = {
@@ -83,14 +136,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       insertData.expires_at = getMessageMediaExpirationMinutes(MEDIA_MESSAGE_EXPIRATION_MINUTES);
     }
 
+    // O RLS em messages validará o INSERT novamente no banco.
+    // Se falhar (ex: usuário foi banido entre a checagem e o INSERT),
+    // retornamos erro específico.
     const { data: message, error } = await supabase.from("messages")
       .insert(insertData)
       .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SEC-002 room-messages POST insert]", error);
+      // Se o RLS bloqueou, o erro será de permissão
+      if (error.code === "42501" || error.message.includes("row-level security")) {
+        return NextResponse.json(
+          { error: "Você não tem permissão para enviar mensagens nesta sala" },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
+
     return NextResponse.json({ message });
   } catch (error: any) {
+    console.error("[SEC-002 room-messages POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isRoomCreator } from "@/lib/room-auth";
 
-// POST /api/rooms/[id]/promote
+// ============================================================
+// SEC-002: POST /api/rooms/[id]/promote
 // Body: { user_id, role: 'moderator' | 'member' }
+//
+// Regras de autorização:
+//   - Usuário autenticado
+//   - Apenas o CRIADOR pode promover/rebaixar moderadores
+//
+// Defense-in-depth: RLS em room_members bloqueia UPDATE
+// não-autorizado. Mesmo se um moderador chamar este endpoint,
+// o banco rejeitará o UPDATE.
+// ============================================================
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,15 +31,10 @@ export async function POST(
     }
     if (targetId === user.id) return NextResponse.json({ error: "Ação inválida sobre si mesmo" }, { status: 400 });
 
-    const { data: actorMember } = await supabase
-      .from("room_members")
-      .select("role")
-      .eq("room_id", roomId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!actorMember || actorMember.role !== "creator") {
-      return NextResponse.json({ error: "Apenas o criador pode promover/rebaixar moderadores" }, { status: 403 });
+    // SEC-002: Apenas o criador pode promover
+    const auth = await isRoomCreator(roomId, user.id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.reason }, { status: 403 });
     }
 
     const { data: targetMember } = await supabase
@@ -36,7 +42,7 @@ export async function POST(
       .select("role")
       .eq("room_id", roomId)
       .eq("user_id", targetId)
-      .single();
+      .maybeSingle();
 
     if (!targetMember) return NextResponse.json({ error: "Usuário não é membro desta sala" }, { status: 404 });
     if (targetMember.role === "creator") return NextResponse.json({ error: "Não é possível alterar o papel do criador" }, { status: 403 });
@@ -47,9 +53,13 @@ export async function POST(
       .eq("room_id", roomId)
       .eq("user_id", targetId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SEC-002 promote UPDATE]", error);
+      throw error;
+    }
     return NextResponse.json({ promoted: true, role: newRole });
   } catch (error: any) {
+    console.error("[SEC-002 promote POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

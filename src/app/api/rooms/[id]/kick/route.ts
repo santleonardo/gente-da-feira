@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isRoomModeratorOrAbove } from "@/lib/room-auth";
 
-// POST /api/rooms/[id]/kick
+// ============================================================
+// SEC-002: POST /api/rooms/[id]/kick
 // Body: { user_id }
+//
+// Regras de autorização:
+//   - Usuário autenticado
+//   - Moderador ou criador da sala
+//   - Moderador só pode expulsar membros comuns
+//   - Criador pode expulsar qualquer um (exceto a si mesmo)
+//
+// Defense-in-depth: RLS em room_members bloqueia DELETE não-autorizado.
+// ============================================================
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,15 +28,10 @@ export async function POST(
     if (!targetId) return NextResponse.json({ error: "user_id obrigatório" }, { status: 400 });
     if (targetId === user.id) return NextResponse.json({ error: "Você não pode expulsar a si mesmo" }, { status: 400 });
 
-    const { data: actorMember } = await supabase
-      .from("room_members")
-      .select("role")
-      .eq("room_id", roomId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!actorMember || !["creator", "moderator"].includes(actorMember.role)) {
-      return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+    // SEC-002: Verificar permissão
+    const auth = await isRoomModeratorOrAbove(roomId, user.id);
+    if (!auth.allowed) {
+      return NextResponse.json({ error: auth.reason }, { status: 403 });
     }
 
     const { data: targetMember } = await supabase
@@ -33,15 +39,15 @@ export async function POST(
       .select("role")
       .eq("room_id", roomId)
       .eq("user_id", targetId)
-      .single();
+      .maybeSingle();
 
     if (!targetMember) return NextResponse.json({ error: "Usuário não é membro desta sala" }, { status: 404 });
 
-    if (actorMember.role === "moderator" && targetMember.role !== "member") {
-      return NextResponse.json({ error: "Moderadores só podem expulsar membros comuns" }, { status: 403 });
-    }
     if (targetMember.role === "creator") {
       return NextResponse.json({ error: "Não é possível expulsar o criador da sala" }, { status: 403 });
+    }
+    if (auth.membership.role === "moderator" && targetMember.role !== "member") {
+      return NextResponse.json({ error: "Moderadores só podem expulsar membros comuns" }, { status: 403 });
     }
 
     const { error } = await supabase
@@ -50,9 +56,13 @@ export async function POST(
       .eq("room_id", roomId)
       .eq("user_id", targetId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SEC-002 kick DELETE]", error);
+      throw error;
+    }
     return NextResponse.json({ kicked: true });
   } catch (error: any) {
+    console.error("[SEC-002 kick POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

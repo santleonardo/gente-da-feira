@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRoomMembership } from "@/lib/room-auth";
 
-// POST /api/rooms/[id]/invite
+// ============================================================
+// SEC-002: POST /api/rooms/[id]/invite
 // Body: { user_id }
-// Qualquer membro pode convidar, respeitando capacidade e status da sala.
+//
+// Regras de autorização:
+//   - Usuário autenticado
+//   - Membro ativo da sala (não banido)
+//   - Sala ativa
+//   - Se sala fechada (is_open=false): apenas criador/moderador
+//   - Não exceder max_members
+//
+// Defense-in-depth: RLS em room_members bloqueia INSERT não-autorizado.
+// ============================================================
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,36 +29,30 @@ export async function POST(
     if (!targetId) return NextResponse.json({ error: "user_id obrigatório" }, { status: 400 });
     if (targetId === user.id) return NextResponse.json({ error: "Você não pode convidar a si mesmo" }, { status: 400 });
 
-    // Verifica se solicitante é membro
-    const { data: actorMember } = await supabase
-      .from("room_members")
-      .select("role, is_banned")
-      .eq("room_id", roomId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // SEC-002: Verificar filiação do caller
+    const membership = await checkRoomMembership(roomId, user.id);
 
-    if (!actorMember || actorMember.is_banned) {
+    if (!membership.roomExists || !membership.roomIsActive) {
+      return NextResponse.json({ error: "Sala não encontrada ou inativa" }, { status: 404 });
+    }
+    if (membership.isBanned) {
+      return NextResponse.json({ error: "Você foi banido desta sala" }, { status: 403 });
+    }
+    if (!membership.isMember) {
       return NextResponse.json({ error: "Você precisa ser membro para convidar" }, { status: 403 });
     }
 
-    // Busca sala
-    const { data: room } = await supabase
-      .from("rooms")
-      .select("id, is_active, is_open, max_members, member_count")
-      .eq("id", roomId)
-      .single();
-
-    if (!room) return NextResponse.json({ error: "Sala não encontrada" }, { status: 404 });
-    if (!room.is_active) return NextResponse.json({ error: "Sala inativa" }, { status: 403 });
-
     // Sala fechada: só creator/moderator pode convidar
-    if (!room.is_open && !["creator", "moderator"].includes(actorMember.role)) {
-      return NextResponse.json({ error: "Sala fechada — apenas moderadores podem convidar" }, { status: 403 });
+    if (!membership.roomIsOpen && membership.role !== "creator" && membership.role !== "moderator") {
+      return NextResponse.json(
+        { error: "Sala fechada — apenas moderadores podem convidar" },
+        { status: 403 }
+      );
     }
 
     // Verifica capacidade
-    if (room.member_count >= room.max_members) {
-      return NextResponse.json({ error: `Sala lotada (máx ${room.max_members} membros).` }, { status: 403 });
+    if (membership.isFull) {
+      return NextResponse.json({ error: "Sala lotada" }, { status: 403 });
     }
 
     // Verifica se alvo já é membro ou banido
@@ -66,15 +71,28 @@ export async function POST(
     }
 
     // Adiciona como membro
+    // RLS permite o INSERT porque o caller é moderador/criador da sala ativa
+    // (caso sala fechada) OU porque a sala está aberta e ativa (caso sala aberta).
     const { error } = await supabase.from("room_members").insert({
       room_id: roomId,
       user_id: targetId,
       role: "member",
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("[SEC-002 invite INSERT]", error);
+      // Se RLS bloqueou (ex: condições mudaram entre checagem e INSERT)
+      if (error.code === "42501" || error.message.includes("row-level security")) {
+        return NextResponse.json(
+          { error: "Não foi possível convidar este usuário (permissão negada)" },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
     return NextResponse.json({ invited: true });
   } catch (error: any) {
+    console.error("[SEC-002 invite POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
