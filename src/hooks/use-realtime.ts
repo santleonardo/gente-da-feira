@@ -4,6 +4,25 @@ import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+// ============================================================
+// SEC-002: Hook de Realtime com RLS-aware filtering
+//
+// IMPORTANTE: Este hook depende que o Supabase esteja com
+// "Realtime Authorization" habilitado nas tabelas (configurado
+// via supabase/sql/005_enable_realtime_rls.sql).
+//
+// Com Realtime Authorization ON, o servidor aplica as RLS
+// policies automaticamente — mesmo se um cliente malicioso
+// enviar filter com ID de sala da qual não participa,
+// o servidor NÃO entregará eventos.
+//
+// Defesa em profundidade:
+//   1. O filtro `filter` reduz o tráfego (apenas eventos da sala)
+//   2. O RLS bloqueia eventos não autorizados no servidor
+//   3. O componente `enabled` flag impede subscription se o
+//      usuário não deveria estar ouvindo (extra safety)
+// ============================================================
+
 interface UseRealtimeMessagesOptions {
   table: string;
   filter?: string;
@@ -28,6 +47,16 @@ export function useRealtimeMessages({
 
   useEffect(() => {
     if (!enabled) return;
+
+    // SEC-002: Não permitir subscription sem filter — defense-in-depth
+    // contra bugs no código do componente que esqueça de passar filter.
+    // Se a tabela exige filter (messages, room_members, etc.), abortar.
+    const tablesRequiringFilter = ["messages", "room_members", "notifications", "reactions", "comments"];
+    if (tablesRequiringFilter.includes(table) && !filter) {
+      console.warn(`[SEC-002 use-realtime] Subscription em ${table} sem filter foi bloqueada`);
+      return;
+    }
+
     const supabase = createClient();
     let channelName = `realtime:${table}`;
     if (filter) channelName += `:${filter}`;
@@ -51,7 +80,11 @@ export function useRealtimeMessages({
       );
     }
 
-    channel.subscribe();
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`[SEC-002 use-realtime] Canal ${channelName} falhou:`, status);
+      }
+    });
     channelRef.current = channel;
 
     return () => {
