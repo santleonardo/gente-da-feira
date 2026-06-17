@@ -349,3 +349,59 @@ export function getInitials(name: string): string {
     .join("")
     .toUpperCase();
 }
+
+// Paleta de cores de fundo para o fallback do avatar (quando não há foto).
+// A cor é escolhida de forma determinística a partir do id do usuário,
+// então a mesma pessoa sempre recebe a mesma cor em qualquer tela.
+const AVATAR_COLORS = [
+  "bg-rose-500",
+  "bg-orange-500",
+  "bg-amber-500",
+  "bg-lime-600",
+  "bg-emerald-500",
+  "bg-teal-500",
+  "bg-cyan-600",
+  "bg-blue-500",
+  "bg-indigo-500",
+  "bg-violet-500",
+  "bg-fuchsia-500",
+  "bg-pink-500",
+] as const;
+
+export function getAvatarColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0; // converte para inteiro de 32 bits
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// Formata uma data como tempo relativo compacto em português
+// (ex.: "agora", "5min", "2h", "3d", "1 sem", "2 meses", "1 ano"),
+// no estilo usado em feeds, chats e notificações.
+export function timeAgo(dateInput: string | number | Date): string {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (seconds < 5) return "agora";
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks} sem`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? "mês" : "meses"}`;
+
+  const years = Math.floor(days / 365);
+  return `${years} ${years === 1 ? "ano" : "anos"}`;
+}
