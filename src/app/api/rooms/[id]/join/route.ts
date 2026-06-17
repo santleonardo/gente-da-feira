@@ -102,7 +102,8 @@ export async function POST(
       .rpc("room_has_password", { p_room_id: roomId })
       .maybeSingle();
 
-    const roomHasPassword = hasPasswordData === true || hasPasswordData?.has_password === true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const roomHasPassword = hasPasswordData === true || (hasPasswordData as any)?.has_password === true;
 
     if (roomHasPassword) {
       const body = await req.json().catch(() => ({}));
