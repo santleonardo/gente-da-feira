@@ -4,18 +4,17 @@ import { cookies } from 'next/headers'
 /**
  * Retorna um Supabase client autenticado via cookies do navegador.
  *
- * NOTA: O generic <any> é usado porque este projeto não gera tipos
- * do Supabase (não há `supabase gen types`). Sem isso, o cliente
- * retorna `GenericStringError` para queries com `.select(string)`,
- * impedindo acesso a propriedades do resultado.
+ * NOTA: O `as any` no retorno é necessário porque este projeto não
+ * gera tipos do Supabase. Sem isso, `.select(string)` retorna
+ * `GenericStringError` para qualquer query, impedindo acesso a
+ * propriedades do resultado em TODOS os arquivos do projeto.
  *
- * Quando tipos gerados forem adicionados, substitua `<any>` por
- * `<Database>` importando da definição gerada.
+ * Quando tipos gerados forem adicionados, remova o `as any`.
  */
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createServerClient<any>(
+  const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -35,6 +34,8 @@ export async function createClient() {
       },
     }
   )
+
+  return client as any
 }
 
 /**
@@ -54,9 +55,11 @@ export function createAdminClient() {
     );
   }
 
-  return createServerClient<any>(
+  const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceRoleKey,
     { cookies: { getAll() { return [] }, setAll() {} } }
   )
+
+  return client as any
 }
