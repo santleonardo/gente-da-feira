@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X, Smartphone } from "lucide-react";
 import { toast } from "sonner";
@@ -10,17 +10,31 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-async function registerPushSubscription(registration: ServiceWorkerRegistration) {
+// ── Push Subscription Logic (SEC-001 hardened) ────────────────────────────────
+
+// Registra ou re-registra a push subscription para o usuário atual.
+// Chamado quando: SW ativa, auth state muda (login/logout).
+async function registerPushSubscription(registration: ServiceWorkerRegistration): Promise<void> {
   try {
     if (!("PushManager" in window)) return;
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-
-    const existing = await registration.pushManager.getSubscription();
-    if (existing) return;
+    const permission = await Notification.permission;
+    if (permission === "denied") return;
 
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidKey) return;
+
+    // Remover subscription existente no pushManager antes de re-subscribing.
+    // Isso garante que o endpoint antigo seja invalidado e um novo seja criado,
+    // evitando vazamento entre contas em dispositivos compartilhados.
+    const existingSub = await registration.pushManager.getSubscription();
+    if (existingSub) {
+      await existingSub.unsubscribe();
+    }
+
+    if (permission === "default") {
+      const result = await Notification.requestPermission();
+      if (result !== "granted") return;
+    }
 
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -37,9 +51,54 @@ async function registerPushSubscription(registration: ServiceWorkerRegistration)
   }
 }
 
+// Remove a push subscription do servidor quando o usuário faz logout.
+// Isso previne que o próximo usuário no mesmo dispositivo receba
+// notificações da conta anterior.
+async function unregisterPushSubscription(registration: ServiceWorkerRegistration): Promise<void> {
+  try {
+    const sub = await registration.pushManager.getSubscription();
+    if (sub) {
+      // Avisa o servidor para remover
+      await fetch("/api/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      }).catch(() => {});
+      // Remove do navegador
+      await sub.unsubscribe();
+    }
+  } catch {
+    // silent
+  }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function PWARegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const swRef = useRef<ServiceWorkerRegistration | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      toast.success("Instalando GDF...");
+    }
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
+
+  const dismissBanner = () => {
+    setShowInstallBanner(false);
+    try {
+      localStorage.setItem("gdf_install_dismissed", Date.now().toString());
+    } catch {
+      // silent
+    }
+  };
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -47,6 +106,7 @@ export function PWARegister() {
         .register("/sw.js")
         .then((reg) => {
           console.log("SW registrado:", reg.scope);
+          swRef.current = reg;
 
           // Registrar push após SW ativo
           if (reg.active) {
@@ -104,25 +164,50 @@ export function PWARegister() {
     };
   }, []);
 
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      toast.success("Instalando GDF...");
-    }
-    setDeferredPrompt(null);
-    setShowInstallBanner(false);
-  };
+  // ── SEC-001: Monitorar mudanças de auth para re-registrar/cancelar push ─
+  useEffect(() => {
+    // Polling simples para detectar mudança de usuário (login/logout).
+    // O Supabase client-side events nem sempre são confiáveis em PWA.
+    const checkAuth = async () => {
+      try {
+        const { createClient } = await import("@supabase/ssr");
+        // Import client-side
+        const { createBrowserClient } = await import("@supabase/ssr");
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
 
-  const dismissBanner = () => {
-    setShowInstallBanner(false);
-    try {
-      localStorage.setItem("gdf_install_dismissed", Date.now().toString());
-    } catch {
-      // silent
-    }
-  };
+        const { data: { user } } = await supabase.auth.getUser();
+        const currentUserId = user?.id ?? null;
+
+        if (currentUserId !== lastUserIdRef.current) {
+          const reg = swRef.current;
+          if (!reg) {
+            lastUserIdRef.current = currentUserId;
+            return;
+          }
+
+          if (lastUserIdRef.current && !currentUserId) {
+            // Logout detectado — remover push subscription
+            unregisterPushSubscription(reg);
+          } else if (currentUserId && reg.active) {
+            // Login ou troca de usuário — re-registrar push
+            registerPushSubscription(reg);
+          }
+
+          lastUserIdRef.current = currentUserId;
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    // Verificar imediatamente e depois a cada 5 segundos
+    checkAuth();
+    const interval = setInterval(checkAuth, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     try {
