@@ -134,7 +134,9 @@ export async function POST(req: NextRequest) {
     // Marcar como dispatchada (evita duplicação em retry)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((notif as any).dispatched_push === false) {
-      admin.rpc("mark_notification_push_dispatched", { p_notif_id: notificationId }).catch(() => {});
+      (async () => {
+        try { await admin.rpc("mark_notification_push_dispatched", { p_notif_id: notificationId }); } catch { /* silent */ }
+      })();
     }
 
     return NextResponse.json({ ok: true, dispatched: true });
