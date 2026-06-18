@@ -35,8 +35,8 @@ export async function POST(
     if (targetId === user.id) return NextResponse.json({ error: "Você não pode convidar a si mesmo" }, { status: 400 });
 
     // SEC-004: Check bidirectional block with target
-    const blocked = await isBlocked(supabase, user.id, targetId);
-    if (blocked) {
+    const isUserBlocked = await isBlocked(supabase, user.id, targetId);
+    if (isUserBlocked) {
       return NextResponse.json({ error: "Não é possível convidar este usuário" }, { status: 403 });
     }
 
