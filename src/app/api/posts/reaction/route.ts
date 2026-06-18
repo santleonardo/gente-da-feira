@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
@@ -6,7 +6,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -22,8 +22,8 @@ export async function POST(req: Request) {
     // SEC-004: Check bidirectional block with post author
     const authorId = await getPostAuthorId(supabase, postId);
     if (authorId && authorId !== user.id) {
-      const blocked = await isBlocked(supabase, user.id, authorId);
-      if (blocked) {
+      const isUserBlocked = await isBlocked(supabase, user.id, authorId);
+      if (isUserBlocked) {
         return NextResponse.json({ error: "Não é possível reagir a este post" }, { status: 403 });
       }
     }
@@ -45,8 +45,6 @@ export async function POST(req: Request) {
     await supabase.from("reactions").insert({ post_id: postId, user_id: user.id, type });
 
     // Busca notificação criada pelo trigger para disparar push
-    // O trigger notify_new_reaction() cria a notificação — aguardamos até 500ms
-    // para ela aparecer antes de disparar o push
     const { data: notif } = await supabase
       .from("notifications")
       .select("id")
@@ -58,7 +56,6 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (notif?.id) {
-      // Fire-and-forget — não bloqueia a resposta
       dispatchPushForNotification(notif.id).catch(() => {});
     }
 
