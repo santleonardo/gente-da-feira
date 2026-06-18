@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X, Smartphone } from "lucide-react";
 import { toast } from "sonner";
@@ -166,12 +166,8 @@ export function PWARegister() {
 
   // ── SEC-001: Monitorar mudanças de auth para re-registrar/cancelar push ─
   useEffect(() => {
-    // Polling simples para detectar mudança de usuário (login/logout).
-    // O Supabase client-side events nem sempre são confiáveis em PWA.
     const checkAuth = async () => {
       try {
-        const { createClient } = await import("@supabase/ssr");
-        // Import client-side
         const { createBrowserClient } = await import("@supabase/ssr");
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
