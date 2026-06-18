@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
+import { dispatchPushForNotification } from "@/lib/push-dispatch";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -330,10 +331,19 @@ export async function POST(req: NextRequest) {
                 );
               if ((mentionBlockCount ?? 0) > 0) continue;
 
-              await adminClient.from("notifications").insert({
-                user_id: mentioned.id, type: "mention",
-                actor_id: user.id, post_id: post.id, is_read: false,
-              });
+              const { data: notif } = await adminClient
+                .from("notifications")
+                .insert({
+                  user_id: mentioned.id, type: "mention",
+                  actor_id: user.id, post_id: post.id, is_read: false,
+                })
+                .select("id")
+                .single();
+
+              // SEC-001: Dispatch push para menções
+              if (notif?.id) {
+                dispatchPushForNotification(notif.id).catch(() => {});
+              }
             }
           }
         } catch { /* silent */ }

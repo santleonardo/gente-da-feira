@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { dispatchPushForNotification } from "@/lib/push-dispatch";
 
 // GET /api/follows?userId=xxx — Buscar seguidores e seguindo de um usuário
 export async function GET(req: NextRequest) {
@@ -187,8 +188,28 @@ export async function POST(req: NextRequest) {
 
       if (insertErr) throw insertErr;
 
-      // Notificação agora é criada pelo TRIGGER notify_new_follow()
-      // Não precisamos inserir manualmente na tabela notifications
+      // Notificação é criada pelo TRIGGER notify_new_follow().
+      // SEC-001: Disparar push para a notificação criada pelo trigger.
+      (async () => {
+        try {
+          // Aguardar um breve momento para o trigger completar
+          await new Promise((r) => setTimeout(r, 200));
+          const notifType = approveFollowers ? "follow_request" : "follow";
+          const { data: notif } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("type", notifType)
+            .eq("actor_id", user.id)
+            .eq("user_id", targetUserId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (notif?.id) {
+            dispatchPushForNotification(notif.id).catch(() => {});
+          }
+        } catch { /* silent */ }
+      })();
 
       if (approveFollowers) {
         return NextResponse.json({ following: false, pending: true });

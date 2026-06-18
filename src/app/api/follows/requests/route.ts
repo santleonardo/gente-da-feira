@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
+import { dispatchPushForNotification } from "@/lib/push-dispatch";
 
 // GET /api/follows/requests — Buscar solicitações pendentes do usuário logado
 export async function GET(req: NextRequest) {
@@ -79,6 +80,26 @@ export async function POST(req: NextRequest) {
         .eq("id", requestId);
 
       if (updateErr) throw updateErr;
+
+      // SEC-001: Disparar push para notificação de follow_accepted
+      (async () => {
+        try {
+          await new Promise((r) => setTimeout(r, 200));
+          const { data: notif } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("type", "follow_accepted")
+            .eq("user_id", followRow.follower_id)
+            .eq("actor_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (notif?.id) {
+            dispatchPushForNotification(notif.id).catch(() => {});
+          }
+        } catch { /* silent */ }
+      })();
 
       return NextResponse.json({ accepted: true });
     } else {
