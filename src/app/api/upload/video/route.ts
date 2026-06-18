@@ -6,19 +6,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { applyRateLimit } from "@/lib/rate-limit";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
 export async function POST(req: NextRequest) {
   try {
-    const blocked = await applyRateLimit(req, 10, 60_000);
-    if (blocked) return blocked;
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "upload:video", user?.id);
+    if (blocked) return blocked;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

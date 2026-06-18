@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_PHOTOS_PER_PROFILE = 20;
 
@@ -25,6 +26,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ photos: [], _privacy: { isBlocked: true } });
       }
     }
+
+    const blocked = await rateLimitByRule(req, "photos:list", authUser?.id);
+    if (blocked) return blocked;
 
     const { data: photos, error } = await supabase
       .from("profile_photos")
@@ -55,6 +59,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "photos:create", user?.id);
+    if (blocked) return blocked;
 
     const { url, caption, storagePath } = await req.json();
     if (!url) return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
@@ -95,6 +102,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "photos:delete", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const photoId = searchParams.get("id");

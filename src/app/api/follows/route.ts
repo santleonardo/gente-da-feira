@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // GET /api/follows?userId=xxx — Buscar seguidores e seguindo de um usuário
 export async function GET(req: NextRequest) {
   try {
+    const blocked = await rateLimitByRule(req, "follows:list", undefined);
+    if (blocked) return blocked;
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
@@ -125,6 +128,8 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "follows:toggle", user?.id);
+    if (blocked) return blocked;
 
     const { targetUserId } = await req.json();
     if (!targetUserId) {
@@ -230,6 +235,8 @@ export async function DELETE(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "follows:remove", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const followerId = searchParams.get("followerId");

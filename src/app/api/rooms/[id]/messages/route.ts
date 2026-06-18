@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpirationMinutes } from "@/lib/media-expiration";
 import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:msg:list", user?.id);
+    if (blocked) return blocked;
 
     // SEC-002: Verificar filiação antes de qualquer leitura
     const auth = await canReadRoomMessages(id, user.id);
@@ -86,6 +90,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:msg:send", user?.id);
+    if (blocked) return blocked;
 
     // SEC-002: Verificar filiação antes de qualquer escrita
     const auth = await canSendRoomMessage(id, user.id);

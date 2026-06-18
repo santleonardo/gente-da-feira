@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
-import { applyRateLimit } from "@/lib/rate-limit";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -23,12 +23,12 @@ const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
 
 export async function POST(req: NextRequest) {
   try {
-    const blocked = await applyRateLimit(req, 30, 60_000);
-    if (blocked) return blocked;
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "upload:image", user?.id);
+    if (blocked) return blocked;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -99,6 +99,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "upload:image:del", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const path = searchParams.get("path");

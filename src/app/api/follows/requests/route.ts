@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // GET /api/follows/requests — Buscar solicitações pendentes do usuário logado
 export async function GET(req: NextRequest) {
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "follows:requests", user?.id);
+    if (blocked) return blocked;
 
     const { data: requests, error } = await supabase
       .from("follows")
@@ -34,6 +37,10 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    {
+      const blocked = await rateLimitByRule(req, "follows:accept", user?.id);
+      if (blocked) return blocked;
     }
 
     const { requestId, action } = await req.json();

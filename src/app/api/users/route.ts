@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
+    const blocked = await rateLimitByRule(req, "users:search", undefined);
+    if (blocked) return blocked;
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q");

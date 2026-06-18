@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    const blocked = await rateLimitByRule(req, "users:posts", undefined);
+    if (blocked) return blocked;
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const isOwnProfile = authUser?.id === id;

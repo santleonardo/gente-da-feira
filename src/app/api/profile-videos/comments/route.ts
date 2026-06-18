@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,6 +36,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "videos:comment", user?.id);
+    if (blocked) return blocked;
 
     const { videoId, content, parentId } = await req.json();
     if (!videoId || !content?.trim()) {
@@ -79,6 +83,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "comments:delete", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("commentId");

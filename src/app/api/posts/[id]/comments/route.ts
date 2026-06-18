@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: postId } = await params;
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "comments:create", user?.id);
+    if (blocked) return blocked;
 
     const { content, parentId } = await req.json();
     if (!content || !content.trim()) return NextResponse.json({ error: "Comentário não pode estar vazio" }, { status: 400 });
@@ -86,6 +90,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "comments:delete", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("commentId");

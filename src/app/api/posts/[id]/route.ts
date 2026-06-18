@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // GET /api/posts/[id] — Fetch a single post by ID
 export async function GET(
@@ -8,6 +9,9 @@ export async function GET(
 ) {
   try {
     const { id: postId } = await params;
+    const blocked = await rateLimitByRule(req, "post:detail", null);
+    if (blocked) return blocked;
+
     const supabase = await createClient();
 
     const { data: post, error } = await supabase
@@ -64,6 +68,9 @@ export async function PATCH(
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+
+    const blocked = await rateLimitByRule(req, "post:edit", user?.id);
+    if (blocked) return blocked;
 
     // Fetch the existing post to verify ownership and check for media
     const { data: existingPost, error: fetchError } = await supabase

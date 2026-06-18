@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import bcrypt from "bcryptjs";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/join
@@ -32,6 +33,9 @@ export async function POST(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:join", user?.id);
+    if (blocked) return blocked;
 
     // Buscar sala SEM password_hash (RLS revoga SELECT nessa coluna).
     // O campo has_password é derivado via EXISTS ou similar — mas para

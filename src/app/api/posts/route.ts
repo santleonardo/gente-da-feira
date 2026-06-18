@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -39,6 +40,9 @@ export async function GET(req: NextRequest) {
     const limit        = Math.min(Math.max(1, rawLimit), MAX_PAGE_SIZE);
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    const blocked = await rateLimitByRule(req, "posts:list", authUser?.id);
+    if (blocked) return blocked;
 
     let query = supabase
       .from("posts")
@@ -187,6 +191,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "posts:create", user?.id);
+    if (blocked) return blocked;
 
     const {
       content, neighborhood, imageUrls, videoUrl, audioUrl, postType,
@@ -371,6 +378,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "posts:delete", user?.id);
+    if (blocked) return blocked;
 
     const postId = new URL(req.url).searchParams.get("id");
     if (!postId) return NextResponse.json({ error: "ID necessário" }, { status: 400 });

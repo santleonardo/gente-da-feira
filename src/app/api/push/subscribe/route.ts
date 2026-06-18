@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // Validação básica do objeto de subscription do Push API
 function isValidSubscription(sub: any): boolean {
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "push:subscribe", user?.id);
+    if (blocked) return blocked;
 
     let subscription: any;
     try {
@@ -103,6 +107,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "push:subscribe", user?.id);
+    if (blocked) return blocked;
 
     const { endpoint } = await req.json();
     if (!endpoint) return NextResponse.json({ error: "Endpoint obrigatório" }, { status: 400 });

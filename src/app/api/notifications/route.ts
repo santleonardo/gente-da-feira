@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // GET /api/notifications — Listar notificações
 export async function GET(req: NextRequest) {
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "notifications:list", user?.id);
+    if (blocked) return blocked;
 
     // SEC-004: Get blocked user IDs to filter notifications
     const blockedIds = await getBlockedUserIds(supabase, user.id);
@@ -47,6 +50,8 @@ export async function PUT(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "notifications:read", user?.id);
+    if (blocked) return blocked;
 
     const { notificationId, markAll } = await req.json();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { checkRoomMembership, formatPublicRoomInfo } from "@/lib/room-auth";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: GET /api/rooms/[id] — Buscar dados de uma sala
@@ -25,6 +26,9 @@ export async function GET(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:list", user?.id);
+    if (blocked) return blocked;
 
     // Verificar filiação do usuário
     const membership = await checkRoomMembership(roomId, user.id);
@@ -124,6 +128,9 @@ export async function DELETE(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:delete", user?.id);
+    if (blocked) return blocked;
 
     // 1. Buscar a sala (RLS em rooms permite SELECT para salas ativas)
     const { data: room, error: roomErr } = await supabase

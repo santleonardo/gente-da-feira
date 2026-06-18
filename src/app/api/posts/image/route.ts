@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_PHOTOS_PER_USER = 25;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -11,6 +12,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "upload:postimg", user?.id);
+    if (blocked) return blocked;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

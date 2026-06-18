@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "dm:list", user?.id);
+    if (blocked) return blocked;
 
     const [conversationsRes, blockedIds] = await Promise.all([
       supabase
@@ -37,6 +41,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "dm:create", user?.id);
+    if (blocked) return blocked;
 
     const { receiverId } = await req.json();
     if (!receiverId) return NextResponse.json({ error: "receiverId obrigatório" }, { status: 400 });

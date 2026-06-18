@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_VIDEOS_PER_PROFILE = 5;
 const MAX_VIDEO_DURATION = 30;
@@ -27,6 +28,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const blocked = await rateLimitByRule(req, "videos:list", authUser?.id);
+    if (blocked) return blocked;
+
     const { data: videos, error } = await supabase
       .from("profile_videos")
       .select("*")
@@ -46,6 +50,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "videos:create", user?.id);
+    if (blocked) return blocked;
 
     const { url, storagePath, thumbnailUrl, duration } = await req.json();
     if (!url) return NextResponse.json({ error: "URL do vídeo é obrigatória" }, { status: 400 });
@@ -93,6 +100,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "videos:delete", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const videoId = searchParams.get("id");

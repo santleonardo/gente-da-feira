@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/leave
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:leave", user?.id);
+    if (blocked) return blocked;
 
     // RLS permite DELETE porque o caller está removendo a própria linha
     const { error } = await supabase

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { removeMessageMedia } from "@/lib/media-expiration";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function DELETE(
   req: NextRequest,
@@ -23,6 +24,9 @@ export async function DELETE(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "dm:message:delete", user?.id);
+    if (blocked) return blocked;
 
     // Busca a mensagem e verifica se pertence ao usuário
     const admin = createAdminClient();

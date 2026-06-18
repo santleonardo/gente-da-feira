@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isRoomModeratorOrAbove } from "@/lib/room-auth";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/toggle-open
@@ -21,6 +22,9 @@ export async function POST(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:toggle", user?.id);
+    if (blocked) return blocked;
 
     const { is_open } = await req.json();
     if (typeof is_open !== "boolean") {

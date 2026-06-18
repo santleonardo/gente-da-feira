@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewRoomMembers } from "@/lib/room-auth";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: GET /api/rooms/[id]/members
@@ -25,6 +26,9 @@ export async function GET(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:members", user?.id);
+    if (blocked) return blocked;
 
     // SEC-002: Verificar filiação antes de listar membros
     const auth = await canViewRoomMembers(roomId, user.id);

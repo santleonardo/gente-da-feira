@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
@@ -10,6 +11,9 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "reactions:post", user?.id);
+    if (blocked) return blocked;
 
     const { postId, type = "like" } = await req.json();
     if (!postId) return NextResponse.json({ error: "postId obrigatório" }, { status: 400 });

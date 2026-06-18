@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    const blocked = await rateLimitByRule(req, "users:profile", undefined);
+    if (blocked) return blocked;
     const supabase = await createClient();
 
     const { data: profile, error } = await supabase
@@ -119,6 +122,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user || user.id !== id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     }
+    const blocked = await rateLimitByRule(req, "users:update", user?.id);
+    if (blocked) return blocked;
 
     const data = await req.json();
     const updates: Record<string, any> = {};

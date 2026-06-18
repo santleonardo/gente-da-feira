@@ -6,19 +6,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { applyRateLimit } from "@/lib/rate-limit";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav", "audio/x-m4a"];
 
 export async function POST(req: NextRequest) {
   try {
-    const blocked = await applyRateLimit(req, 15, 60_000);
-    if (blocked) return blocked;
-
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "upload:audio", user?.id);
+    if (blocked) return blocked;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isRoomCreator } from "@/lib/room-auth";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/promote
@@ -23,6 +24,9 @@ export async function POST(
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "rooms:promote", user?.id);
+    if (blocked) return blocked;
 
     const { user_id: targetId, role: newRole } = await req.json();
     if (!targetId) return NextResponse.json({ error: "user_id obrigatório" }, { status: 400 });

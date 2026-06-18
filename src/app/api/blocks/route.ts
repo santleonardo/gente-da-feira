@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimitByRule } from "@/lib/apply-rate-limit";
 
 // GET /api/blocks — Listar usuários bloqueados
 export async function GET(req: NextRequest) {
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "blocks:list", user?.id);
+    if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
     const targetId = searchParams.get("targetId");
@@ -56,6 +59,8 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const blocked = await rateLimitByRule(req, "blocks:toggle", user?.id);
+    if (blocked) return blocked;
 
     const { targetUserId } = await req.json();
     if (!targetUserId) {
