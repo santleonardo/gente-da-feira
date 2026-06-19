@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizePlainText } from "@/lib/sanitize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       .insert({
         photo_id: photoId,
         user_id: user.id,
-        content: content.trim(),
+        content: sanitizePlainText(content.trim()),
         parent_id: parentId || null,
       })
       .select(`

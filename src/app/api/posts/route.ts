@@ -18,6 +18,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizeRichContent, sanitizeShortText } from "@/lib/sanitize";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -290,8 +291,8 @@ export async function POST(req: NextRequest) {
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
-        content: (content || "").trim(),
-        neighborhood: neighborhood || null,
+        content: sanitizeRichContent((content || "").trim()),
+        neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
         author_id: user.id,
         image_urls: hasPhotos ? imageUrls : [],
         video_url: hasVideo ? videoUrl : null,

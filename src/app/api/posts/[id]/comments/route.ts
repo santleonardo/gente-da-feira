@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizePlainText } from "@/lib/sanitize";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: postId } = await params;
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    const insertData: Record<string, any> = { content: content.trim(), post_id: postId, author_id: user.id };
+    const insertData: Record<string, any> = { content: sanitizePlainText(content.trim()), post_id: postId, author_id: user.id };
     if (parentId) insertData.parent_id = parentId;
 
     const { data: comment, error } = await supabase

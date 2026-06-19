@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizeRichContent } from "@/lib/sanitize";
 
 // GET /api/posts/[id] — Fetch a single post by ID
 export async function GET(
@@ -163,7 +164,7 @@ export async function PATCH(
     // Build update object
     const updateData: Record<string, any> = {};
     if (content !== undefined) {
-      updateData.content = content?.trim() || "";
+      updateData.content = sanitizeRichContent(content?.trim() || "");
     }
     if (postStyle !== undefined) {
       updateData.post_style = validatedStyle;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpiration } from "@/lib/media-expiration";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
@@ -104,14 +105,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       target_type: "dm",
     };
 
+    // SEC-007: Sanitizar conteúdo de texto
     if (content && content.trim()) {
-      insertData.content = content.trim();
+      insertData.content = sanitizePlainText(content.trim());
     } else {
       insertData.content = null;
     }
 
+    // SEC-007: Validar URL de mídia (antes ausente — agora igual a rooms)
     if (media_url) {
-      insertData.media_url = media_url;
+      const safeUrl = sanitizeMediaUrl(media_url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+      if (!safeUrl) {
+        return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
+      }
+      insertData.media_url = safeUrl;
       insertData.media_type = media_type;
       insertData.expires_at = getMessageMediaExpiration(MEDIA_MESSAGE_EXPIRATION_HOURS);
     }

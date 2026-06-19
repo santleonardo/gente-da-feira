@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpirationMinutes } from "@/lib/media-expiration";
 import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
@@ -116,13 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Tipo de mídia inválido" }, { status: 400 });
     }
 
-    // SEC-008 (defense-in-depth): validar que media_url aponta para o storage Supabase
-    if (media_url) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (supabaseUrl && !media_url.startsWith(supabaseUrl)) {
-        return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
-      }
-    }
+    // Nota: validação de media_url agora feita por sanitizeMediaUrl (SEC-007)
 
     const insertData: any = {
       sender_id: user.id,
@@ -130,14 +125,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       target_type: "room",
     };
 
+    // SEC-007: Sanitizar conteúdo de texto e validar URL de mídia
     if (content && content.trim()) {
-      insertData.content = content.trim();
+      insertData.content = sanitizePlainText(content.trim());
     } else {
       insertData.content = null;
     }
 
     if (media_url) {
-      insertData.media_url = media_url;
+      const safeUrl = sanitizeMediaUrl(media_url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+      if (!safeUrl) {
+        return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
+      }
+      insertData.media_url = safeUrl;
       insertData.media_type = media_type;
       // Mídia em salas expira em 10 minutos
       insertData.expires_at = getMessageMediaExpirationMinutes(MEDIA_MESSAGE_EXPIRATION_MINUTES);
