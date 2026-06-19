@@ -19,6 +19,7 @@ import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent, sanitizeShortText } from "@/lib/sanitize";
+import { validateMediaUrl, validateMediaUrlArray, ALLOWED_BUCKETS } from "@/lib/storage-security";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -156,33 +157,32 @@ async function cleanupExpiredPosts() {
     await admin.from("posts").update({ is_deleted: true }).in("id", expiredIds);
 
     for (const post of expiredPosts) {
-      if (post.image_urls?.length > 0) {
-        const paths = extractStoragePaths(post.image_urls, "post-photos");
-        if (paths.length > 0) await admin.storage.from("post-photos").remove(paths).catch(() => {});
-      }
-      if (post.video_url) {
-        const paths = extractStoragePaths([post.video_url], "post-videos");
-        if (paths.length > 0) await admin.storage.from("post-videos").remove(paths).catch(() => {});
-      }
-      if (post.audio_url) {
-        const paths = extractStoragePaths([post.audio_url], "post-audios");
-        if (paths.length > 0) await admin.storage.from("post-audios").remove(paths).catch(() => {});
-      }
+      cleanupPostMedia(admin, post);
     }
   } catch { /* silent */ }
 }
 
-function extractStoragePaths(urls: string[], bucket: string): string[] {
-  return urls
-    .map((url: string) => {
-      try {
-        const parts = new URL(url).pathname.split("/");
-        const idx = parts.indexOf(bucket);
-        if (idx >= 0) return parts.slice(idx + 1).join("/");
-        return null;
-      } catch { return null; }
-    })
-    .filter(Boolean) as string[];
+// SEC-008: Usa extractStoragePathFromUrl centralizado — cobre todos os buckets
+import { extractStoragePathFromUrl } from "@/lib/storage-security";
+
+function cleanupPostMedia(admin: any, post: any) {
+  const IMAGE_BUCKETS = ["post-photos", "post-images"];
+  if (post.image_urls?.length > 0) {
+    for (const url of post.image_urls) {
+      const parsed = extractStoragePathFromUrl(url);
+      if (parsed && IMAGE_BUCKETS.includes(parsed.bucket)) {
+        admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+      }
+    }
+  }
+  if (post.video_url) {
+    const parsed = extractStoragePathFromUrl(post.video_url);
+    if (parsed) admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+  }
+  if (post.audio_url) {
+    const parsed = extractStoragePathFromUrl(post.audio_url);
+    if (parsed) admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+  }
 }
 
 // ─── POST ────────────────────────────────────────────────────────────────────
@@ -205,6 +205,44 @@ export async function POST(req: NextRequest) {
     const hasVideo  = !!videoUrl;
     const hasAudio  = !!audioUrl;
     const hasMedia  = hasPhotos || hasVideo || hasAudio;
+
+    // SEC-008: Validar TODAS as URLs de mídia — rejeitar externas
+    const IMAGE_BUCKETS = new Set(["post-photos", "post-images"]);
+    const VIDEO_BUCKETS = new Set(["post-videos"]);
+    const AUDIO_BUCKETS = new Set(["post-audios"]);
+
+    let validatedImageUrls: string[] | null = null;
+    if (hasPhotos) {
+      validatedImageUrls = validateMediaUrlArray(imageUrls, {
+        allowedBuckets: IMAGE_BUCKETS,
+        requireUserId: user.id,
+      });
+      if (!validatedImageUrls) {
+        return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
+      }
+    }
+
+    let validatedVideoUrl: string | null = null;
+    if (hasVideo) {
+      validatedVideoUrl = validateMediaUrl(videoUrl, {
+        allowedBuckets: VIDEO_BUCKETS,
+        requireUserId: user.id,
+      });
+      if (!validatedVideoUrl) {
+        return NextResponse.json({ error: "URL de vídeo inválida" }, { status: 400 });
+      }
+    }
+
+    let validatedAudioUrl: string | null = null;
+    if (hasAudio) {
+      validatedAudioUrl = validateMediaUrl(audioUrl, {
+        allowedBuckets: AUDIO_BUCKETS,
+        requireUserId: user.id,
+      });
+      if (!validatedAudioUrl) {
+        return NextResponse.json({ error: "URL de áudio inválida" }, { status: 400 });
+      }
+    }
 
     if (!hasMedia && (!content || !content.trim())) {
       return NextResponse.json({ error: "Conteúdo é obrigatório" }, { status: 400 });
@@ -294,9 +332,9 @@ export async function POST(req: NextRequest) {
         content: sanitizeRichContent((content || "").trim()),
         neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
         author_id: user.id,
-        image_urls: hasPhotos ? imageUrls : [],
-        video_url: hasVideo ? videoUrl : null,
-        audio_url: hasAudio ? audioUrl : null,
+        image_urls: validatedImageUrls || [],
+        video_url: validatedVideoUrl,
+        audio_url: validatedAudioUrl,
         audio_duration: hasAudio && audioDuration ? audioDuration : null,
         video_duration: hasVideo && videoDuration ? videoDuration : null,
         visibility: validVisibility,
@@ -401,18 +439,8 @@ export async function DELETE(req: NextRequest) {
 
     if (error) throw error;
 
-    if (post.image_urls && post.image_urls.length > 0) {
-      const paths = extractStoragePaths(post.image_urls, "post-photos");
-      if (paths.length > 0) await admin.storage.from("post-photos").remove(paths).catch(() => {});
-    }
-    if (post.video_url) {
-      const paths = extractStoragePaths([post.video_url], "post-videos");
-      if (paths.length > 0) await admin.storage.from("post-videos").remove(paths).catch(() => {});
-    }
-    if (post.audio_url) {
-      const paths = extractStoragePaths([post.audio_url], "post-audios");
-      if (paths.length > 0) await admin.storage.from("post-audios").remove(paths).catch(() => {});
-    }
+    // SEC-008: Limpeza de mídia com coverage total (post-photos + post-images)
+    cleanupPostMedia(admin, post);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

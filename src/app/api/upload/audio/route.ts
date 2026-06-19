@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { validateUploadFolder } from "@/lib/storage-security";
 
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav", "audio/x-m4a"];
@@ -22,7 +23,13 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const folder = (formData.get("folder") as string) || "posts";
+    const rawFolder = (formData.get("folder") as string) || "posts";
+
+    // SEC-008: Whitelist do folder — impede path traversal
+    const folder = validateUploadFolder(rawFolder, "post-audios");
+    if (!folder) {
+      return NextResponse.json({ error: "Pasta de destino inválida" }, { status: 400 });
+    }
 
     if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
 

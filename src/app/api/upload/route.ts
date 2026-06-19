@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { validateUploadFolder, validateStoragePath } from "@/lib/storage-security";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -32,7 +33,13 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const folder = (formData.get("folder") as string) || "posts";
+    const rawFolder = (formData.get("folder") as string) || "posts";
+
+    // SEC-008: Whitelist do folder — impede path traversal
+    const folder = validateUploadFolder(rawFolder, "post-photos");
+    if (!folder) {
+      return NextResponse.json({ error: "Pasta de destino inválida" }, { status: 400 });
+    }
 
     if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
 
@@ -104,11 +111,13 @@ export async function DELETE(req: NextRequest) {
     if (blocked) return blocked;
 
     const { searchParams } = new URL(req.url);
-    const path = searchParams.get("path");
+    const rawPath = searchParams.get("path");
 
-    if (!path) return NextResponse.json({ error: "Caminho necessário" }, { status: 400 });
+    if (!rawPath) return NextResponse.json({ error: "Caminho necessário" }, { status: 400 });
 
-    if (!path.startsWith(user.id + "/")) {
+    // SEC-008: Validar path — bloquear traversal e verificar ownership
+    const path = validateStoragePath(rawPath, user.id);
+    if (!path) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
     }
 

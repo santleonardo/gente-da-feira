@@ -8,6 +8,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
+import { validateMediaUrl, extractStoragePathFromUrl, ALLOWED_BUCKETS } from "@/lib/storage-security";
 
 const MAX_PHOTOS_PER_PROFILE = 20;
 
@@ -67,9 +68,16 @@ export async function POST(req: NextRequest) {
     const { url, caption, storagePath } = await req.json();
     if (!url) return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
 
-    // SEC-007: Validar URL da foto
-    const safeUrl = sanitizeMediaUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+    // SEC-008: Validar URL — deve ser do storage autorizado, bucket post-photos, ownership user.id
+    const safeUrl = validateMediaUrl(url, {
+      allowedBuckets: new Set(["post-photos"]),
+      requireUserId: user.id,
+    });
     if (!safeUrl) return NextResponse.json({ error: "URL da foto inválida" }, { status: 400 });
+
+    // SEC-008: Derivar storagePath da URL validada — NUNCA confiar no storagePath do cliente
+    const parsedPath = extractStoragePathFromUrl(safeUrl);
+    const derivedStoragePath = parsedPath?.path || "";
 
     const { count, error: countError } = await supabase
       .from("profile_photos")
@@ -90,7 +98,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         url: safeUrl,
         caption: sanitizePlainText(caption || ""),
-        storage_path: storagePath || "",
+        storage_path: derivedStoragePath,
       })
       .select()
       .single();

@@ -9,6 +9,7 @@ import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { sanitizeMediaUrl } from "@/lib/sanitize";
+import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
 
 const MAX_VIDEOS_PER_PROFILE = 5;
 const MAX_VIDEO_DURATION = 30;
@@ -61,10 +62,26 @@ export async function POST(req: NextRequest) {
     const { url, storagePath, thumbnailUrl, duration } = await req.json();
     if (!url) return NextResponse.json({ error: "URL do vídeo é obrigatória" }, { status: 400 });
 
-    // SEC-007: Validar URLs de mídia
-    const safeUrl = sanitizeMediaUrl(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+    // SEC-008: Validar URL do vídeo — deve ser do bucket profile-videos, ownership user.id
+    const VIDEO_BUCKETS = new Set(["profile-videos"]);
+    const safeUrl = validateMediaUrl(url, {
+      allowedBuckets: VIDEO_BUCKETS,
+      requireUserId: user.id,
+    });
     if (!safeUrl) return NextResponse.json({ error: "URL do vídeo inválida" }, { status: 400 });
-    const safeThumb = thumbnailUrl ? sanitizeMediaUrl(thumbnailUrl, process.env.NEXT_PUBLIC_SUPABASE_URL) : "";
+
+    // SEC-008: Derivar storagePath da URL — NUNCA confiar no storagePath do cliente
+    const parsedPath = extractStoragePathFromUrl(safeUrl);
+    const derivedStoragePath = parsedPath?.path || "";
+
+    // SEC-008: Validar thumbnail — deve ser do bucket post-photos
+    let safeThumb = "";
+    if (thumbnailUrl) {
+      safeThumb = validateMediaUrl(thumbnailUrl, {
+        allowedBuckets: new Set(["post-photos"]),
+        requireUserId: user.id,
+      }) || "";
+    }
 
     if (duration > MAX_VIDEO_DURATION) {
       return NextResponse.json({
@@ -91,7 +108,7 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.id,
         url: safeUrl,
-        storage_path: storagePath || "",
+        storage_path: derivedStoragePath,
         thumbnail_url: safeThumb,
         duration: duration || 0,
       })

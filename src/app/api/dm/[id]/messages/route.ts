@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpiration } from "@/lib/media-expiration";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { validateMediaUrl } from "@/lib/storage-security";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
@@ -112,9 +113,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       insertData.content = null;
     }
 
-    // SEC-007: Validar URL de mídia (antes ausente — agora igual a rooms)
+    // SEC-008: Validar URL de mídia (antes ausente — agora com ownership)
     if (media_url) {
-      const safeUrl = sanitizeMediaUrl(media_url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+      const safeUrl = validateMediaUrl(media_url, { requireUserId: user.id });
       if (!safeUrl) {
         return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
       }

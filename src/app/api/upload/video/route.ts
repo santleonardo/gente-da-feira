@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { validateUploadFolder } from "@/lib/storage-security";
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
@@ -22,7 +23,14 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const folder = (formData.get("folder") as string) || "posts";
+    const rawFolder = (formData.get("folder") as string) || "posts";
+
+    // SEC-008: Determinar bucket antes de validar folder
+    const targetBucket = rawFolder === "album-videos" ? "profile-videos" : "post-videos";
+    const folder = validateUploadFolder(rawFolder, targetBucket);
+    if (!folder) {
+      return NextResponse.json({ error: "Pasta de destino inválida" }, { status: 400 });
+    }
 
     if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
 
@@ -45,8 +53,8 @@ export async function POST(req: NextRequest) {
     const ext = file.type === "video/mp4" ? "mp4" : file.type === "video/quicktime" ? "mov" : "webm";
     const path = `${user.id}/${folder}/${timestamp}-${random}.${ext}`;
 
-    // Mapeia folder → bucket do Supabase Storage
-    const bucket = folder === "album-videos" ? "profile-videos" : "post-videos";
+    // Mapeia folder → bucket do Supabase Storage (já determinado acima)
+    const bucket = targetBucket;
 
     const arrayBuffer = await file.arrayBuffer();
     const { error: uploadError } = await admin.storage

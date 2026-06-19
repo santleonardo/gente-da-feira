@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpirationMinutes } from "@/lib/media-expiration";
 import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { validateMediaUrl } from "@/lib/storage-security";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
@@ -133,7 +134,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (media_url) {
-      const safeUrl = sanitizeMediaUrl(media_url, process.env.NEXT_PUBLIC_SUPABASE_URL);
+      // SEC-008: Validar URL — deve ser do storage autorizado com ownership
+      const safeUrl = validateMediaUrl(media_url, { requireUserId: user.id });
       if (!safeUrl) {
         return NextResponse.json({ error: "URL de mídia inválida" }, { status: 400 });
       }
