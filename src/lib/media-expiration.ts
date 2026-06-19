@@ -14,8 +14,9 @@
 // ============================================================
 
 import { createAdminClient } from "@/lib/supabase/server";
+import { extractStoragePathFromUrl } from "@/lib/storage-security";
 
-// Buckets conhecidos onde mídia de mensagens pode estar armazenada
+// Usado internamente para compatibilidade
 const MEDIA_BUCKETS = [
   "post-photos",
   "post-videos",
@@ -29,19 +30,7 @@ const MEDIA_BUCKETS = [
  * Retorna null se a URL não corresponder a nenhum bucket conhecido.
  */
 function parseStorageUrl(url: string): { bucket: string; path: string } | null {
-  try {
-    const parts = new URL(url).pathname.split("/");
-    for (const bucket of MEDIA_BUCKETS) {
-      const idx = parts.indexOf(bucket);
-      if (idx >= 0) {
-        const path = parts.slice(idx + 1).join("/");
-        if (path) return { bucket, path };
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return extractStoragePathFromUrl(url);
 }
 
 /**
