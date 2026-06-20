@@ -35,6 +35,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { AccountSection } from "./AccountSection";
 import { toast } from "sonner";
 
 export function SettingsView({ embedded }: { embedded?: boolean }) {
@@ -486,6 +487,9 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* CONTA */}
+      <AccountSection />
 
       {/* TERMOS DE USO */}
       <Card>
