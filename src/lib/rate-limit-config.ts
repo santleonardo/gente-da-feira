@@ -109,6 +109,11 @@ const rules: RateLimitRule[] = [
   // ── Post detail/edit (MEDIUM) ────────────────────────────────────
   { key: "post:detail",     limit: 60, windowMs: 60_000, methods: ["GET"],    byUser: true },
   { key: "post:edit",       limit: 10, windowMs: 60_000, methods: ["PATCH"],  byUser: true },
+
+  // ── Account management / LGPD (CRITICAL — low limits) ─────────────
+  { key: "account:request-deletion",  limit: 2,   windowMs: 3_600_000, methods: ["POST"],   byUser: true },
+  { key: "account:cancel-deletion",   limit: 5,   windowMs: 3_600_000, methods: ["POST"],   byUser: true },
+  { key: "account:export",           limit: 3,   windowMs: 3_600_000, methods: ["GET"],    byUser: true },
 ];
 
 /**
