@@ -5,7 +5,14 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Rotas internas que usam Bearer token (INTERNAL_API_SECRET) em vez de
 // cookies de sessão do Supabase. Não devem passar pela autenticação cookie.
-const INTERNAL_BEARER_ROUTES = ["/api/push/send"];
+const INTERNAL_BEARER_ROUTES = ["/api/push/send", "/api/account-cleanup"];
+
+// Rotas permitidas para contas com exclusão pendente (LGPD)
+const DELETION_ALLOWED_ROUTES = [
+  "/api/auth",
+  "/api/users/me/cancel-deletion",
+  "/api/users/me/export",
+];
 
 function isInternalBearerRoute(pathname: string): boolean {
   return INTERNAL_BEARER_ROUTES.some((r) => pathname === r);
@@ -121,6 +128,19 @@ export async function middleware(req: NextRequest) {
         { error: "Não autenticado" },
         { status: 401 }
       );
+    }
+
+    // SEC-013: Bloquear contas marcadas para exclusão (LGPD)
+    // Verifica app_metadata.deletion_requested_at definido pelo endpoint de exclusão.
+    // Rotas permitidas: auth, cancelar exclusão, exportar dados.
+    if (user && isApiRoute && !isAuthRoute && user.app_metadata?.deletion_requested_at) {
+      const isAllowed = DELETION_ALLOWED_ROUTES.some((r) => req.nextUrl.pathname.startsWith(r));
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "Conta marcada para exclusão", deletionPending: true },
+          { status: 403 }
+        );
+      }
     }
   } catch (error) {
     console.error("[middleware] Supabase error:", error);
