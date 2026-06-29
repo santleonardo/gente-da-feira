@@ -92,11 +92,14 @@ export async function GET(req: NextRequest) {
     }
 
     // SEC-009: Batch fetch privacy flags for all visible profile users
+    // Note: cast to any[] because Supabase's TS parser cannot resolve renamed
+    // foreign-key joins (e.g. `following:profiles!follows_following_id_fkey`)
+    // and emits a ParserError type instead of the real row shape.
     const allVisibleUserIds = new Set<string>();
-    for (const item of (following || [])) {
+    for (const item of ((following || []) as any[])) {
       if (item.following?.id) allVisibleUserIds.add(item.following.id);
     }
-    for (const item of (followers || [])) {
+    for (const item of ((followers || []) as any[])) {
       if (item.follower?.id) allVisibleUserIds.add(item.follower.id);
     }
     for (const item of pendingRequests) {
