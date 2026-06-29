@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
 
     // Detectar hasMore e nextCursor
     const hasMore  = (rawPosts?.length ?? 0) > limit;
-    const posts    = hasMore ? rawPosts!.slice(0, limit) : (rawPosts ?? []);
+    // Cast to any[] — Supabase cannot infer types for complex nested joins
+    const posts    = (hasMore ? rawPosts!.slice(0, limit) : (rawPosts ?? [])) as any[];
     const nextCursor = hasMore ? posts[posts.length - 1].created_at : null;
 
     const now = new Date().toISOString();
