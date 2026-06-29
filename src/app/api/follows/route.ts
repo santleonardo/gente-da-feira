@@ -131,6 +131,9 @@ export async function GET(req: NextRequest) {
     // SEC-009: Get safe counts (null when hidden from viewer)
     const safeCounts = getSafeFollowCounts(followingCount, followersCount, ctx);
 
+    // Derive isRestricted locally — not a direct property of PrivacyContext
+    const isRestricted = ctx.privacy.is_private && !ctx.isOwnProfile && !ctx.isFollowing;
+
     // Apply list visibility
     if (!canSeeFollowing) filteredFollowing = [];
     if (!canSeeFollowers) filteredFollowers = [];
@@ -152,7 +155,7 @@ export async function GET(req: NextRequest) {
         approve_followers: ctx.privacy.approve_followers,
         canSeeFollowing,
         canSeeFollowers,
-        isRestricted: ctx.isRestricted,
+        isRestricted,
       },
     });
   } catch (error: any) {
