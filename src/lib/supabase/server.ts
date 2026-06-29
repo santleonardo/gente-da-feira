@@ -4,17 +4,18 @@ import { cookies } from 'next/headers'
 /**
  * Retorna um Supabase client autenticado via cookies do navegador.
  *
- * NOTA: O `as any` no retorno é necessário porque este projeto não
- * gera tipos do Supabase. Sem isso, `.select(string)` retorna
- * `GenericStringError` para qualquer query, impedindo acesso a
- * propriedades do resultado em TODOS os arquivos do projeto.
+ * NOTA: O generic <any> é usado porque este projeto não gera tipos
+ * do Supabase (não há `supabase gen types`). Sem isso, o cliente
+ * retorna `GenericStringError` para queries com `.select(string)`,
+ * impedindo acesso a propriedades do resultado.
  *
- * Quando tipos gerados forem adicionados, remova o `as any`.
+ * Quando tipos gerados forem adicionados, substitua `<any>` por
+ * `<Database>` importando da definição gerada.
  */
 export async function createClient() {
   const cookieStore = await cookies()
 
-  const client = createServerClient(
+  return createServerClient<any>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -34,8 +35,6 @@ export async function createClient() {
       },
     }
   )
-
-  return client as any
 }
 
 /**
@@ -49,17 +48,16 @@ export function createAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!serviceRoleKey) {
+    // SEC-003: FAIL-CLOSED — nunca usar anon key como admin
     throw new Error(
       "SUPABASE_SERVICE_ROLE_KEY não configurada. " +
       "Operação que requer privilégios elevados foi abortada."
     );
   }
 
-  const client = createServerClient(
+  return createServerClient<any>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceRoleKey,
     { cookies: { getAll() { return [] }, setAll() {} } }
   )
-
-  return client as any
 }
