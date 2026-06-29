@@ -384,12 +384,15 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    // Cast to any — Supabase cannot infer types for complex nested joins
+    const p = post as any;
+
     // SEC-009: Filter neighborhood from the new post's author
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
       supabase,
-      [post.author_id, post.shared_post?.author_id].filter(Boolean)
+      [p.author_id, p.shared_post?.author_id].filter(Boolean)
     );
-    const filteredPost = filterPostsAuthorNeighborhood([post], hiddenNeighborhoodIds)[0];
+    const filteredPost = filterPostsAuthorNeighborhood([p], hiddenNeighborhoodIds)[0];
 
     const mentionedUsernames = [
       ...new Set([...(content || "").matchAll(/@(\w+)/g)].map((m) => m[1])),
