@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
                 .from("notifications")
                 .insert({
                   user_id: mentioned.id, type: "mention",
-                  actor_id: user.id, post_id: post.id, is_read: false,
+                  actor_id: user.id, post_id: p.id, is_read: false,
                 })
                 .select("id")
                 .single();
