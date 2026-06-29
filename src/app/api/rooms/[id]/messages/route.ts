@@ -10,6 +10,10 @@ import { validateMediaUrl } from "@/lib/storage-security";
 // salas são para conversas rápidas, não armazenamento)
 const MEDIA_MESSAGE_EXPIRATION_MINUTES = 10;
 
+// SEC-009: Explicit columns for messages — no SELECT *
+const MESSAGE_COLS = "id, content, sender_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at";
+const SENDER_COLS = "id, display_name, username, avatar_url";
+
 // ============================================================
 // SEC-002: GET /api/rooms/[id]/messages
 //
@@ -41,8 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
 
     // SEC-009: Explicit columns for messages — no SELECT *
-    const MESSAGE_COLS = "id, content, sender_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at";
-    const SENDER_COLS = "id, display_name, username, avatar_url";
+    // (MESSAGE_COLS and SENDER_COLS are defined at module scope below)
 
     // O RLS em messages garantirá que apenas mensagens de salas do usuário
     // sejam retornadas, mesmo se houver bug no filtro .eq("room_id", id).
