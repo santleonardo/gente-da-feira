@@ -40,10 +40,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { searchParams } = new URL(req.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
 
+    // SEC-009: Explicit columns for messages — no SELECT *
+    const MESSAGE_COLS = "id, content, sender_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at";
+    const SENDER_COLS = "id, display_name, username, avatar_url";
+
     // O RLS em messages garantirá que apenas mensagens de salas do usuário
     // sejam retornadas, mesmo se houver bug no filtro .eq("room_id", id).
     const { data: messages, error } = await supabase.from("messages")
-      .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
+      .select(`${MESSAGE_COLS}, sender:profiles(${SENDER_COLS})`)
       .eq("room_id", id)
       .eq("target_type", "room")
       .eq("is_deleted", false)
@@ -150,7 +154,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // retornamos erro específico.
     const { data: message, error } = await supabase.from("messages")
       .insert(insertData)
-      .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
+      .select(`${MESSAGE_COLS}, sender:profiles(${SENDER_COLS})`)
       .single();
 
     if (error) {

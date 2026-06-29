@@ -4,8 +4,14 @@ import { cleanupExpiredMessageMedia, getMessageMediaExpiration } from "@/lib/med
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
+import { selectCols } from "@/lib/safe-columns";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
+
+// SEC-009: Explicit columns for messages — no SELECT *
+const MESSAGE_COLUMNS = "id, content, sender_id, dm_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at";
+// SEC-009: Minimal profile columns for message sender display
+const SENDER_COLS = selectCols(["id", "display_name", "username", "avatar_url"] as const);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (blockRow) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
     const { data: messages, error } = await supabase.from("messages")
-      .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
+      .select(`${MESSAGE_COLUMNS}, sender:profiles(${SENDER_COLS})`)
       .eq("dm_id", id).eq("target_type", "dm").eq("is_deleted", false)
       .order("created_at", { ascending: true }).limit(50);
 
@@ -126,7 +132,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { data: message, error } = await supabase.from("messages")
       .insert(insertData)
-      .select(`*, sender:profiles(id, display_name, username, avatar_url)`)
+      .select(`${MESSAGE_COLUMNS}, sender:profiles(${SENDER_COLS})`)
       .single();
 
     if (error) throw error;

@@ -1,14 +1,16 @@
 // ============================================================
 // API de fotos do perfil (galeria permanente)
 // Máximo: 20 fotos por perfil
+// SEC-009: Added privacy check for private profiles
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { sanitizePlainText, sanitizeMediaUrl } from "@/lib/sanitize";
-import { validateMediaUrl, extractStoragePathFromUrl, ALLOWED_BUCKETS } from "@/lib/storage-security";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
+import { stripStoragePaths } from "@/lib/privacy-filter";
 
 const MAX_PHOTOS_PER_PROFILE = 20;
 
@@ -20,31 +22,56 @@ export async function GET(req: NextRequest) {
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
 
-    // SEC-004: Block access to profile photos if blocked
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser && authUser.id !== userId) {
+    const isOwnProfile = authUser?.id === userId;
+
+    // SEC-004: Block access to profile photos if blocked
+    if (authUser && !isOwnProfile) {
       const blocked = await isBlocked(supabase, authUser.id, userId);
       if (blocked) {
         return NextResponse.json({ photos: [], _privacy: { isBlocked: true } });
       }
     }
 
+    // SEC-009: Check if target profile is private
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("is_private")
+      .eq("id", userId)
+      .single();
+
+    if (targetProfile?.is_private && !isOwnProfile) {
+      // Check if viewer is an accepted follower
+      if (authUser) {
+        const { data: followRow } = await supabase
+          .from("follows")
+          .select("status")
+          .eq("follower_id", authUser.id)
+          .eq("following_id", userId)
+          .maybeSingle();
+
+        if (!followRow || followRow.status !== "accepted") {
+          return NextResponse.json({ photos: [], _privacy: { isRestricted: true } });
+        }
+      } else {
+        return NextResponse.json({ photos: [], _privacy: { isRestricted: true } });
+      }
+    }
+
     const blocked = await rateLimitByRule(req, "photos:list", authUser?.id);
     if (blocked) return blocked;
 
+    // SEC-009: Explicit column selection — no SELECT *
     const { data: photos, error } = await supabase
       .from("profile_photos")
-      .select(`
-        *,
-        reactions:profile_photo_reactions(user_id, type),
-        comment_count:profile_photo_comments(count)
-      `)
+      .select("id, user_id, url, caption, created_at, reactions:profile_photo_reactions(user_id, type), comment_count:profile_photo_comments(count)")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    const formatted = (photos || []).map((p: any) => ({
+    // SEC-009: Strip storage_path (internal field) — never reaches client
+    const formatted = stripStoragePaths(photos || []).map((p: any) => ({
       ...p,
       reactions: p.reactions || [],
       comment_count: p.comment_count?.[0]?.count || 0,
@@ -92,6 +119,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // SEC-009: Explicit column selection on insert response
     const { data: photo, error } = await supabase
       .from("profile_photos")
       .insert({
@@ -100,7 +128,7 @@ export async function POST(req: NextRequest) {
         caption: sanitizePlainText(caption || ""),
         storage_path: derivedStoragePath,
       })
-      .select()
+      .select("id, user_id, url, caption, created_at")
       .single();
 
     if (error) throw error;

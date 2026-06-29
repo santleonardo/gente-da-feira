@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
+import { safeErrorResponse } from "@/lib/safe-error";
+import {
+  buildPrivacyContext,
+  getSafeFollowCounts,
+  filterFollowListItems,
+  batchFetchPrivacyFlags,
+} from "@/lib/privacy-filter";
 
 // GET /api/follows?userId=xxx — Buscar seguidores e seguindo de um usuário
 export async function GET(req: NextRequest) {
@@ -23,16 +31,38 @@ export async function GET(req: NextRequest) {
       .eq("id", userId)
       .single();
 
-    const isPrivate = targetProfile?.is_private || false;
-    const hideFollowing = targetProfile?.hide_following || false;
-    const hideFollowers = targetProfile?.hide_followers || false;
-    const hideNeighborhood = targetProfile?.hide_neighborhood || false;
-    const approveFollowers = targetProfile?.approve_followers || false;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const viewerId = authUser?.id || null;
+    const isOwnProfile = viewerId === userId;
+
+    // Determine follow relationship
+    let followRow: { status: string } | null | undefined = undefined;
+    if (viewerId && !isOwnProfile) {
+      const { data: fr } = await supabase
+        .from("follows")
+        .select("id, status")
+        .eq("follower_id", viewerId)
+        .eq("following_id", userId)
+        .maybeSingle();
+      followRow = fr;
+    }
+
+    // SEC-009: Build privacy context
+    const ctx = buildPrivacyContext(
+      viewerId,
+      userId,
+      targetProfile || {},
+      followRow
+    );
+
+    // SEC-009: Use FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH — neighborhood is added
+    // conditionally after checking hide_neighborhood for each user
+    const followProfileCols = selectCols(FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH);
 
     // Buscar quem o usuário segue (só aceitos)
     const { data: following, error: fErr } = await supabase
       .from("follows")
-      .select("following_id, created_at, following:profiles!follows_following_id_fkey(id, display_name, username, avatar_url, neighborhood, bio)")
+      .select(`following_id, created_at, following:profiles!follows_following_id_fkey(${followProfileCols})`)
       .eq("follower_id", userId)
       .eq("status", "accepted")
       .order("created_at", { ascending: false });
@@ -42,7 +72,7 @@ export async function GET(req: NextRequest) {
     // Buscar quem segue o usuário (só aceitos)
     const { data: followers, error: foErr } = await supabase
       .from("follows")
-      .select("follower_id, created_at, follower:profiles!follows_follower_id_fkey(id, display_name, username, avatar_url, neighborhood, bio)")
+      .select(`follower_id, created_at, follower:profiles!follows_follower_id_fkey(${followProfileCols})`)
       .eq("following_id", userId)
       .eq("status", "accepted")
       .order("created_at", { ascending: false });
@@ -51,68 +81,75 @@ export async function GET(req: NextRequest) {
 
     // Buscar solicitações pendentes (só o dono do perfil vê)
     let pendingRequests: any[] = [];
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    const isOwnProfile = authUser?.id === userId;
-
     if (isOwnProfile) {
       const { data: pending } = await supabase
         .from("follows")
-        .select("id, follower_id, created_at, follower:profiles!follows_follower_id_fkey(id, display_name, username, avatar_url, neighborhood, bio)")
+        .select(`id, follower_id, created_at, follower:profiles!follows_follower_id_fkey(${followProfileCols})`)
         .eq("following_id", userId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
       pendingRequests = pending || [];
     }
 
-    // Verificar se o viewer segue o perfil
-    let isFollowing = false;
-    let isPending = false;
-
-    if (authUser && !isOwnProfile) {
-      const { data: followRow } = await supabase
-        .from("follows")
-        .select("id, status")
-        .eq("follower_id", authUser.id)
-        .eq("following_id", userId)
-        .maybeSingle();
-      if (followRow) {
-        isFollowing = followRow.status === "accepted";
-        isPending = followRow.status === "pending";
-      }
+    // SEC-009: Batch fetch privacy flags for all visible profile users
+    const allVisibleUserIds = new Set<string>();
+    for (const item of (following || [])) {
+      if (item.following?.id) allVisibleUserIds.add(item.following.id);
     }
+    for (const item of (followers || [])) {
+      if (item.follower?.id) allVisibleUserIds.add(item.follower.id);
+    }
+    for (const item of pendingRequests) {
+      if (item.follower?.id) allVisibleUserIds.add(item.follower.id);
+    }
+
+    // Add the viewer themselves (in case they see their own data)
+    if (viewerId) allVisibleUserIds.add(viewerId);
+
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
+      supabase,
+      Array.from(allVisibleUserIds)
+    );
+
+    // SEC-009: Filter neighborhood from list items
+    let filteredFollowing = filterFollowListItems(following || [], hiddenNeighborhoodIds);
+    let filteredFollowers = filterFollowListItems(followers || [], hiddenNeighborhoodIds);
+    let filteredPending = filterFollowListItems(pendingRequests, hiddenNeighborhoodIds);
 
     // Contagem (só aceitos)
     const followingCount = following?.length || 0;
     const followersCount = followers?.length || 0;
     const pendingCount = pendingRequests.length;
 
-    // Determinar se o viewer pode ver as listas
-    const canSeeFollowing = isOwnProfile || !hideFollowing;
-    const canSeeFollowers = isOwnProfile || !hideFollowers;
-    const isRestricted = isPrivate && !isOwnProfile && !isFollowing;
+    // SEC-009: Determine visibility of lists
+    const canSeeFollowing = isOwnProfile || !ctx.privacy.hide_following;
+    const canSeeFollowers = isOwnProfile || !ctx.privacy.hide_followers;
 
-    // Filtrar listas de acordo com privacidade
-    const filteredFollowing = canSeeFollowing ? (following || []) : [];
-    const filteredFollowers = canSeeFollowers ? (followers || []) : [];
+    // SEC-009: Get safe counts (null when hidden from viewer)
+    const safeCounts = getSafeFollowCounts(followingCount, followersCount, ctx);
+
+    // Apply list visibility
+    if (!canSeeFollowing) filteredFollowing = [];
+    if (!canSeeFollowers) filteredFollowers = [];
 
     return NextResponse.json({
-      followingCount,
-      followersCount,
-      isFollowing,
-      isPending,
-      approveFollowers,
+      followingCount: safeCounts.followingCount,
+      followersCount: safeCounts.followersCount,
+      isFollowing: ctx.isFollowing,
+      isPending: ctx.isPending,
+      approveFollowers: ctx.privacy.approve_followers,
       following: filteredFollowing,
       followers: filteredFollowers,
-      pendingRequests: isOwnProfile ? pendingRequests : [],
+      pendingRequests: isOwnProfile ? filteredPending : [],
       pendingCount: isOwnProfile ? pendingCount : 0,
       _privacy: {
-        hide_following: hideFollowing,
-        hide_followers: hideFollowers,
-        hide_neighborhood: hideNeighborhood,
-        approve_followers: approveFollowers,
+        hide_following: ctx.privacy.hide_following,
+        hide_followers: ctx.privacy.hide_followers,
+        hide_neighborhood: ctx.privacy.hide_neighborhood,
+        approve_followers: ctx.privacy.approve_followers,
         canSeeFollowing,
         canSeeFollowers,
-        isRestricted,
+        isRestricted: ctx.isRestricted,
       },
     });
   } catch (error: any) {

@@ -55,11 +55,12 @@ export async function GET(
       return NextResponse.json({ members: [] });
     }
 
-    // Buscar profiles dos membros (RLS em profiles deve permitir SELECT público)
+    // SEC-009: Buscar profiles dos membros SEM neighborhood
+    // (neighborhood é dado privado controlado por hide_neighborhood)
     const userIds = rawMembers.map((m: any) => m.user_id);
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, display_name, username, avatar_url, neighborhood")
+      .select("id, display_name, username, avatar_url")
       .in("id", userIds);
 
     if (profilesError) {

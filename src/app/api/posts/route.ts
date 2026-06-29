@@ -20,6 +20,11 @@ import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent, sanitizeShortText } from "@/lib/sanitize";
 import { validateMediaUrl, validateMediaUrlArray, ALLOWED_BUCKETS } from "@/lib/storage-security";
+import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
+import {
+  filterPostsAuthorNeighborhood,
+  batchFetchPrivacyFlags,
+} from "@/lib/privacy-filter";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -46,16 +51,23 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "posts:list", authUser?.id);
     if (blocked) return blocked;
 
+    // SEC-009: Use AUTHOR_PROFILE_COLUMNS_FULL for author join
+    // (neighborhood is filtered after query)
+    const authorCols = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
+
+    const postCols = selectCols(POST_COLUMNS);
+    const sharedPostCols = selectCols(SHARED_POST_COLUMNS);
+
     let query = supabase
       .from("posts")
       .select(`
-        *,
-        author:profiles(id, display_name, username, avatar_url, neighborhood),
+        ${postCols},
+        author:profiles(${authorCols}),
         reactions(user_id, type),
         comments(count),
         shared_post:posts!shared_post_id(
-          id, content, image_urls, video_url, audio_url, created_at,
-          author:profiles(id, display_name, username, avatar_url, neighborhood)
+          ${sharedPostCols},
+          author:profiles(${authorCols})
         )
       `)
       .eq("is_deleted", false)
@@ -129,9 +141,21 @@ export async function GET(req: NextRequest) {
         return true;
       });
 
+    // SEC-009: Batch-fetch privacy flags for all post authors and strip neighborhood
+    const allAuthorIds = new Set<string>();
+    for (const post of filteredPosts) {
+      if (post.author?.id) allAuthorIds.add(post.author.id);
+      if (post.shared_post?.author?.id) allAuthorIds.add(post.shared_post.author.id);
+    }
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
+      supabase,
+      Array.from(allAuthorIds)
+    );
+    const privacyFilteredPosts = filterPostsAuthorNeighborhood(filteredPosts, hiddenNeighborhoodIds);
+
     cleanupExpiredPosts().catch(() => {});
 
-    return NextResponse.json({ posts: filteredPosts, nextCursor, hasMore });
+    return NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -326,6 +350,9 @@ export async function POST(req: NextRequest) {
       if (sharedPost) validSharedPostId = sharedPostId;
     }
 
+    // SEC-009: Use AUTHOR_PROFILE_COLUMNS_FULL for author in new post response
+    const authorCols = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
+
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
@@ -344,17 +371,24 @@ export async function POST(req: NextRequest) {
         post_type: postType === "rich" ? "rich" : "simple",
       })
       .select(`
-        *,
-        author:profiles(id, display_name, username, avatar_url, neighborhood),
+        ${selectCols(POST_COLUMNS)},
+        author:profiles(${authorCols}),
         reactions(user_id, type),
         shared_post:posts!shared_post_id(
-          id, content, image_urls, video_url, audio_url, created_at,
-          author:profiles(id, display_name, username, avatar_url, neighborhood)
+          ${selectCols(SHARED_POST_COLUMNS)},
+          author:profiles(${authorCols})
         )
       `)
       .single();
 
     if (error) throw error;
+
+    // SEC-009: Filter neighborhood from the new post's author
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
+      supabase,
+      [post.author_id, post.shared_post?.author_id].filter(Boolean)
+    );
+    const filteredPost = filterPostsAuthorNeighborhood([post], hiddenNeighborhoodIds)[0];
 
     const mentionedUsernames = [
       ...new Set([...(content || "").matchAll(/@(\w+)/g)].map((m) => m[1])),
@@ -398,11 +432,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       post: {
-        ...post,
+        ...filteredPost,
         comment_count: 0,
-        shared_post: Array.isArray(post.shared_post)
-          ? (post.shared_post[0] ?? null)
-          : (post.shared_post ?? null),
       },
     });
   } catch (error: any) {

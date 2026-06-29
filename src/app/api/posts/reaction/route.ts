@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     await supabase.from("reactions").insert({ post_id: postId, user_id: user.id, type });
 
     // Busca notificação criada pelo trigger para disparar push
+    // O trigger notify_new_reaction() cria a notificação — aguardamos até 500ms
+    // para ela aparecer antes de disparar o push
     const { data: notif } = await supabase
       .from("notifications")
       .select("id")
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (notif?.id) {
+      // Fire-and-forget — não bloqueia a resposta
       dispatchPushForNotification(notif.id).catch(() => {});
     }
 

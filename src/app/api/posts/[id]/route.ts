@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent } from "@/lib/sanitize";
+import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
+import { safeErrorResponse } from "@/lib/safe-error";
+import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
+
+// SEC-009: Author profile columns with neighborhood (filtered post-query)
+const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
+
+// SEC-009: Explicit post columns — no SELECT *
+const POST_COLS = selectCols(POST_COLUMNS);
+const SHARED_POST_COLS = selectCols(SHARED_POST_COLUMNS);
 
 // GET /api/posts/[id] — Fetch a single post by ID
 export async function GET(
@@ -19,11 +29,11 @@ export async function GET(
       .from("posts")
       .select(
         `
-        *,
-        author:profiles(id, display_name, username, avatar_url, neighborhood),
+        ${POST_COLS},
+        author:profiles(${AUTHOR_COLS}),
         reactions(user_id, type),
         comments(count),
-        shared_post:posts!shared_post_id(id, content, image_urls, video_url, audio_url, created_at, author:profiles(id, display_name, username, avatar_url, neighborhood))
+        shared_post:posts!shared_post_id(${SHARED_POST_COLS}, author:profiles(${AUTHOR_COLS}))
       `
       )
       .eq("id", postId)
@@ -48,7 +58,12 @@ export async function GET(
       postStyle: post.post_style || null,
     };
 
-    return NextResponse.json({ post: result });
+    // SEC-009: Filter neighborhood from author profiles
+    const authorIds = [post.author_id, result.shared_post?.author_id].filter(Boolean);
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
+    const filtered = filterPostsAuthorNeighborhood([result], hiddenNeighborhoodIds);
+
+    return NextResponse.json({ post: filtered[0] });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -183,11 +198,11 @@ export async function PATCH(
       .eq("id", postId)
       .select(
         `
-        *,
-        author:profiles(id, display_name, username, avatar_url, neighborhood),
+        ${POST_COLS},
+        author:profiles(${AUTHOR_COLS}),
         reactions(user_id, type),
         comments(count),
-        shared_post:posts!shared_post_id(id, content, image_urls, video_url, audio_url, created_at, author:profiles(id, display_name, username, avatar_url, neighborhood))
+        shared_post:posts!shared_post_id(${SHARED_POST_COLS}, author:profiles(${AUTHOR_COLS}))
       `
       )
       .single();
@@ -207,8 +222,14 @@ export async function PATCH(
       postStyle: post.post_style || null,
     };
 
-    return NextResponse.json({ post: result });
+    // SEC-009: Filter neighborhood from author profiles
+    const authorIds = [post.author_id, result.shared_post?.author_id].filter(Boolean);
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
+    const filtered = filterPostsAuthorNeighborhood([result], hiddenNeighborhoodIds);
+
+    return NextResponse.json({ post: filtered[0] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts detail]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

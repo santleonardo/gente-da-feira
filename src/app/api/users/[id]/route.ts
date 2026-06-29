@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { PROFILE_SAFE_COLUMNS, selectCols } from "@/lib/safe-columns";
+import { PROFILE_SAFE_COLUMNS, selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
+import {
+  buildPrivacyContext,
+  filterProfileView,
+} from "@/lib/privacy-filter";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,92 +30,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    const isOwnProfile = authUser?.id === id;
-    let isFollowing = false;
-    let isPending = false;
+    const viewerId = authUser?.id || null;
+
+    // Determine follow relationship and block status
+    let followRow: { status: string } | null | undefined = undefined;
     let isBlockedByViewer = false;
     let isBlockedByTarget = false;
 
-    if (authUser && !isOwnProfile) {
-      const { data: followRow } = await supabase
-        .from("follows")
-        .select("id, status")
-        .eq("follower_id", authUser.id)
-        .eq("following_id", id)
-        .maybeSingle();
-      if (followRow) {
-        isFollowing = followRow.status === "accepted";
-        isPending = followRow.status === "pending";
-      }
-
-      const { data: blockedByViewer } = await supabase
-        .from("blocks")
-        .select("id")
-        .eq("blocker_id", authUser.id)
-        .eq("blocked_id", id)
-        .maybeSingle();
-      isBlockedByViewer = !!blockedByViewer;
-
-      const { data: blockedByTarget } = await supabase
-        .from("blocks")
-        .select("id")
-        .eq("blocker_id", id)
-        .eq("blocked_id", authUser.id)
-        .maybeSingle();
-      isBlockedByTarget = !!blockedByTarget;
+    if (viewerId && viewerId !== id) {
+      const [followRes, blockByViewerRes, blockByTargetRes] = await Promise.all([
+        supabase
+          .from("follows")
+          .select("id, status")
+          .eq("follower_id", viewerId)
+          .eq("following_id", id)
+          .maybeSingle(),
+        supabase
+          .from("blocks")
+          .select("id")
+          .eq("blocker_id", viewerId)
+          .eq("blocked_id", id)
+          .maybeSingle(),
+        supabase
+          .from("blocks")
+          .select("id")
+          .eq("blocker_id", id)
+          .eq("blocked_id", viewerId)
+          .maybeSingle(),
+      ]);
+      followRow = followRes.data;
+      isBlockedByViewer = !!blockByViewerRes.data;
+      isBlockedByTarget = !!blockByTargetRes.data;
     }
 
-    const isPrivate = profile.is_private || false;
-    const hideFollowing = profile.hide_following || false;
-    const hideFollowers = profile.hide_followers || false;
-    const hideNeighborhood = profile.hide_neighborhood || false;
-    const approveFollowers = profile.approve_followers || false;
-    const isRestricted = isPrivate && !isOwnProfile && !isFollowing;
-
-    // SEC-004: If target blocked the viewer, return minimal stub
-    if (isBlockedByTarget && !isOwnProfile) {
-      return NextResponse.json({
-        user: {
-          id: profile.id,
-          display_name: profile.display_name,
-          username: profile.username,
-          avatar_url: profile.avatar_url,
-        },
-        _privacy: {
-          is_private: isPrivate,
-          hide_following: hideFollowing,
-          hide_followers: hideFollowers,
-          hide_neighborhood: true, // force hide
-          approve_followers: approveFollowers,
-          isRestricted: true,
-          isPending: false,
-          isBlockedByViewer,
-          isBlockedByTarget,
-          isBlocked: true,
-        },
-      });
-    }
-
-    const formatted = {
-      ...profile,
-      name: profile.display_name,
-      _count: { posts: profile.posts?.[0]?.count || 0 },
-      posts: undefined,
-    };
-
-    const privacyResponse = {
-      is_private: isPrivate,
-      hide_following: hideFollowing,
-      hide_followers: hideFollowers,
-      hide_neighborhood: hideNeighborhood,
-      approve_followers: approveFollowers,
-      isRestricted,
-      isPending,
+    // SEC-009: Build privacy context and filter
+    const ctx = buildPrivacyContext(
+      viewerId,
+      id,
+      profile,
+      followRow,
       isBlockedByViewer,
-      isBlockedByTarget,
-    };
+      isBlockedByTarget
+    );
 
-    return NextResponse.json({ user: formatted, _privacy: privacyResponse });
+    return NextResponse.json(filterProfileView(profile, ctx));
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[users profile GET]");
     return NextResponse.json({ error: message }, { status });

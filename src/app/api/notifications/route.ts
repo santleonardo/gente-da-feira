@@ -17,9 +17,11 @@ export async function GET(req: NextRequest) {
     // SEC-004: Get blocked user IDs to filter notifications
     const blockedIds = await getBlockedUserIds(supabase, user.id);
 
+    // SEC-009: Fixed 'avatar' → 'avatar_url' (was referencing non-existent column)
+    // SEC-009: Explicit column selection on notifications — no SELECT *
     const { data: notifications, error } = await supabase
       .from("notifications")
-      .select("id, type, is_read, created_at, actor:profiles!notifications_actor_id_fkey(id, display_name, username, avatar), post_id, comment_id")
+      .select("id, type, is_read, created_at, actor_id, post_id, comment_id, actor:profiles!notifications_actor_id_fkey(id, display_name, username, avatar_url)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50);

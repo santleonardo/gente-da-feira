@@ -1,5 +1,6 @@
 // ============================================================
 // API de comentários nos vídeos do perfil
+// SEC-009: Explicit column selection — no SELECT *
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -7,6 +8,11 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
+import { selectCols } from "@/lib/safe-columns";
+
+// SEC-009: Explicit columns for video comments and author profiles
+const COMMENT_COLUMNS = "id, user_id, video_id, content, parent_id, created_at";
+const AUTHOR_COLS = selectCols(["id", "display_name", "username", "avatar_url"] as const);
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,10 +24,7 @@ export async function GET(req: NextRequest) {
 
     const { data: comments, error } = await supabase
       .from("profile_video_comments")
-      .select(`
-        *,
-        author:profiles(id, display_name, username, avatar_url)
-      `)
+      .select(`${COMMENT_COLUMNS}, author:profiles(${AUTHOR_COLS})`)
       .eq("video_id", videoId)
       .order("created_at", { ascending: true });
 
@@ -66,10 +69,7 @@ export async function POST(req: NextRequest) {
         content: sanitizePlainText(content.trim()),
         parent_id: parentId || null,
       })
-      .select(`
-        *,
-        author:profiles(id, display_name, username, avatar_url)
-      `)
+      .select(`${COMMENT_COLUMNS}, author:profiles(${AUTHOR_COLS})`)
       .single();
 
     if (error) throw error;

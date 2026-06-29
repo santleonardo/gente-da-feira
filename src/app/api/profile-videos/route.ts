@@ -1,6 +1,7 @@
 // ============================================================
 // API de vídeos do perfil
 // Máximo: 5 vídeos por perfil, máximo 30 segundos cada
+// SEC-009: Added privacy check for private profiles
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -8,11 +9,13 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
-import { sanitizeMediaUrl } from "@/lib/sanitize";
 import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
 
 const MAX_VIDEOS_PER_PROFILE = 5;
 const MAX_VIDEO_DURATION = 30;
+
+// SEC-009: Explicit columns for profile_videos — no SELECT *
+const VIDEO_COLUMNS = "id, user_id, url, thumbnail_url, duration, created_at";
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,22 +25,47 @@ export async function GET(req: NextRequest) {
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
 
-    // SEC-004: Block access to profile videos if blocked
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser && authUser.id !== userId) {
+    const isOwnProfile = authUser?.id === userId;
+
+    // SEC-004: Block access to profile videos if blocked
+    if (authUser && !isOwnProfile) {
       const blocked = await isBlocked(supabase, authUser.id, userId);
       if (blocked) {
         return NextResponse.json({ videos: [], _privacy: { isBlocked: true } });
       }
     }
 
+    // SEC-009: Check if target profile is private
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("is_private")
+      .eq("id", userId)
+      .single();
+
+    if (targetProfile?.is_private && !isOwnProfile) {
+      if (authUser) {
+        const { data: followRow } = await supabase
+          .from("follows")
+          .select("status")
+          .eq("follower_id", authUser.id)
+          .eq("following_id", userId)
+          .maybeSingle();
+
+        if (!followRow || followRow.status !== "accepted") {
+          return NextResponse.json({ videos: [], _privacy: { isRestricted: true } });
+        }
+      } else {
+        return NextResponse.json({ videos: [], _privacy: { isRestricted: true } });
+      }
+    }
+
     const blocked = await rateLimitByRule(req, "videos:list", authUser?.id);
     if (blocked) return blocked;
 
-    // SEC-003: Select explícito de colunas
     const { data: videos, error } = await supabase
       .from("profile_videos")
-      .select("id, user_id, url, storage_path, thumbnail_url, duration, created_at")
+      .select(VIDEO_COLUMNS)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -102,7 +130,6 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // SEC-003: Select explícito no retorno
     const { data: video, error } = await supabase
       .from("profile_videos")
       .insert({
@@ -112,7 +139,7 @@ export async function POST(req: NextRequest) {
         thumbnail_url: safeThumb,
         duration: duration || 0,
       })
-      .select("id, user_id, url, storage_path, thumbnail_url, duration, created_at")
+      .select(VIDEO_COLUMNS)
       .single();
 
     if (error) throw error;
@@ -162,11 +189,12 @@ export async function DELETE(req: NextRequest) {
       } catch { /* silent */ }
     }
 
+    // SEC-008: Usar extractStoragePathFromUrl em vez de string splitting
     if (video?.thumbnail_url) {
       try {
-        const thumbPath = video.thumbnail_url.split("/post-photos/")[1];
-        if (thumbPath) {
-          await admin.storage.from("post-photos").remove([thumbPath]);
+        const thumbParsed = extractStoragePathFromUrl(video.thumbnail_url);
+        if (thumbParsed) {
+          await admin.storage.from(thumbParsed.bucket).remove([thumbParsed.path]);
         }
       } catch { /* silent */ }
     }

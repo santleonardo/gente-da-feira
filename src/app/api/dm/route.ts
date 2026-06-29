@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { selectCols } from "@/lib/safe-columns";
+
+// SEC-009: Explicit columns for DM conversation list — no SELECT * on direct_chats
+const DM_CHAT_COLUMNS = "id, initiator_id, receiver_id, updated_at";
+// SEC-009: Minimal profile columns for DM participant display
+const DM_PROFILE_COLS = selectCols([
+  "id", "display_name", "username", "avatar_url",
+] as const);
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,9 +24,9 @@ export async function GET(req: NextRequest) {
       supabase
         .from("direct_chats")
         .select(`
-          *,
-          initiator:profiles!direct_chats_initiator_id_fkey(id, display_name, username, avatar_url),
-          receiver:profiles!direct_chats_receiver_id_fkey(id, display_name, username, avatar_url)
+          ${DM_CHAT_COLUMNS},
+          initiator:profiles!direct_chats_initiator_id_fkey(${DM_PROFILE_COLS}),
+          receiver:profiles!direct_chats_receiver_id_fkey(${DM_PROFILE_COLS})
         `)
         .or(`initiator_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .order("updated_at", { ascending: false }),
@@ -68,14 +76,14 @@ export async function POST(req: NextRequest) {
     const [a, b] = user.id < receiverId ? [user.id, receiverId] : [receiverId, user.id];
 
     const { data: existing } = await supabase.from("direct_chats")
-      .select(`*, initiator:profiles!direct_chats_initiator_id_fkey(id, display_name, username, avatar_url), receiver:profiles!direct_chats_receiver_id_fkey(id, display_name, username, avatar_url)`)
+      .select(`${DM_CHAT_COLUMNS}, initiator:profiles!direct_chats_initiator_id_fkey(${DM_PROFILE_COLS}), receiver:profiles!direct_chats_receiver_id_fkey(${DM_PROFILE_COLS})`)
       .eq("initiator_id", a).eq("receiver_id", b).maybeSingle();
 
     if (existing) return NextResponse.json({ conversation: existing });
 
     const { data: conversation, error } = await supabase.from("direct_chats")
       .insert({ initiator_id: a, receiver_id: b })
-      .select(`*, initiator:profiles!direct_chats_initiator_id_fkey(id, display_name, username, avatar_url), receiver:profiles!direct_chats_receiver_id_fkey(id, display_name, username, avatar_url)`)
+      .select(`${DM_CHAT_COLUMNS}, initiator:profiles!direct_chats_initiator_id_fkey(${DM_PROFILE_COLS}), receiver:profiles!direct_chats_receiver_id_fkey(${DM_PROFILE_COLS})`)
       .single();
 
     if (error) throw error;

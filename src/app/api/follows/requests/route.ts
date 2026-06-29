@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
+import { batchFetchPrivacyFlags, filterFollowListItems } from "@/lib/privacy-filter";
 
 // GET /api/follows/requests — Buscar solicitações pendentes do usuário logado
 export async function GET(req: NextRequest) {
@@ -15,16 +17,24 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "follows:requests", user?.id);
     if (blocked) return blocked;
 
+    // SEC-009: Use FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH
+    const followProfileCols = selectCols(FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH);
+
     const { data: requests, error } = await supabase
       .from("follows")
-      .select("id, follower_id, created_at, follower:profiles!follows_follower_id_fkey(id, display_name, username, avatar_url, neighborhood, bio)")
+      .select(`id, follower_id, created_at, follower:profiles!follows_follower_id_fkey(${followProfileCols})`)
       .eq("following_id", user.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ requests: requests || [] });
+    // SEC-009: Filter neighborhood from follower profiles
+    const followerIds = (requests || []).map((r: any) => r.follower_id).filter(Boolean);
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, followerIds);
+    const filtered = filterFollowListItems(requests || [], hiddenNeighborhoodIds);
+
+    return NextResponse.json({ requests: filtered });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -8,16 +8,21 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ user: null });
     }
+
     const blocked = await rateLimitByRule(req, "auth:get", user?.id);
     if (blocked) return blocked;
+
+    // SEC-003: Select explícito de colunas — nunca SELECT *
     const { data: profile } = await supabase
       .from("profiles")
       .select(selectCols(PROFILE_SAFE_COLUMNS))
       .eq("id", user.id)
       .single();
+
     return NextResponse.json({ user: profile });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[auth GET]");
@@ -33,6 +38,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const blocked = await rateLimitByRule(req, "auth:delete", null);
     if (blocked) return blocked;
+
     const supabase = await createClient();
     await supabase.auth.signOut();
     return NextResponse.json({ success: true });

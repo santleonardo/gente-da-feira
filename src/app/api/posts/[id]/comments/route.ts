@@ -4,6 +4,11 @@ import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
+import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
+import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
+
+// SEC-009: Author profile columns for comment authors
+const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: postId } = await params;
@@ -13,14 +18,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .from("comments")
       .select(`
         id, content, created_at, author_id, parent_id,
-        author:profiles(id, display_name, username, avatar_url, neighborhood)
+        author:profiles(${AUTHOR_COLS})
       `)
       .eq("post_id", postId)
       .eq("is_deleted", false)
       .order("created_at", { ascending: true });
 
     if (error) throw error;
-    return NextResponse.json({ comments: comments || [] });
+
+    // SEC-009: Filter neighborhood from comment authors
+    const authorIds = (comments || []).map((c: any) => c.author_id).filter(Boolean);
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
+    const filtered = filterCommentAuthorsNeighborhood(comments || [], hiddenNeighborhoodIds);
+
+    return NextResponse.json({ comments: filtered });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -58,10 +69,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { data: comment, error } = await supabase
       .from("comments").insert(insertData)
-      .select(`id, content, created_at, author_id, parent_id, author:profiles(id, display_name, username, avatar_url, neighborhood)`)
+      .select(`id, content, created_at, author_id, parent_id, author:profiles(${AUTHOR_COLS})`)
       .single();
 
     if (error) throw error;
+
+    // SEC-009: Filter neighborhood from new comment's author
+    // (For the user's own comment, they'll always see their own neighborhood,
+    //  but we apply the filter for consistency)
+    const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, [user.id]);
+    const filtered = filterCommentAuthorsNeighborhood([comment], hiddenNeighborhoodIds);
 
     // Busca notificação criada pelo trigger para disparar push
     const notifType = parentId ? "reply" : "comment";
@@ -79,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       dispatchPushForNotification(notif.id).catch(() => {});
     }
 
-    return NextResponse.json({ comment });
+    return NextResponse.json({ comment: filtered[0] });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
