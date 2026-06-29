@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
     // SEC-004: Filter out blocked users from search results
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    let filteredUsers = users || [];
+    let filteredUsers: Record<string, any>[] = (users || []) as Record<string, any>[];
     if (authUser) {
       const blockedIds = await getBlockedUserIds(supabase, authUser.id);
       filteredUsers = filteredUsers.filter((u: any) => !blockedIds.has(u.id));
