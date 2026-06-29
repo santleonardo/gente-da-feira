@@ -46,7 +46,7 @@ export async function GET(
     }
 
     const result = {
-      ...post,
+      ...(post as any),
       comment_count: post.comments?.[0]?.count || 0,
       comments: undefined,
       shared_post:
@@ -210,7 +210,7 @@ export async function PATCH(
     if (error) throw error;
 
     const result = {
-      ...post,
+      ...(post as any),
       comment_count: post.comments?.[0]?.count || 0,
       comments: undefined,
       shared_post:
