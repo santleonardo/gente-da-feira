@@ -212,21 +212,24 @@ export async function PATCH(
 
     if (error) throw error;
 
+    // Cast to any — Supabase cannot infer types for complex nested joins
+    const p = post as any;
+
     const result = {
-      ...(post as any),
-      comment_count: post.comments?.[0]?.count || 0,
+      ...p,
+      comment_count: p.comments?.[0]?.count || 0,
       comments: undefined,
       shared_post:
-        post.shared_post && !Array.isArray(post.shared_post)
-          ? post.shared_post
-          : Array.isArray(post.shared_post)
-          ? post.shared_post[0]
+        p.shared_post && !Array.isArray(p.shared_post)
+          ? p.shared_post
+          : Array.isArray(p.shared_post)
+          ? p.shared_post[0]
           : null,
-      postStyle: post.post_style || null,
+      postStyle: p.post_style || null,
     };
 
     // SEC-009: Filter neighborhood from author profiles
-    const authorIds = [post.author_id, result.shared_post?.author_id].filter(Boolean);
+    const authorIds = [p.author_id, result.shared_post?.author_id].filter(Boolean);
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
     const filtered = filterPostsAuthorNeighborhood([result], hiddenNeighborhoodIds);
 
