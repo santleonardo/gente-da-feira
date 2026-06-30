@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkRoomMembership } from "@/lib/room-auth";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // ============================================================
-// SEC-002: POST /api/rooms/[id]/invite
+// SEC-002/REL-005: POST /api/rooms/[id]/invite
 // Body: { user_id }
 //
-// Regras de autorização:
-//   - Usuário autenticado
-//   - Membro ativo da sala (não banido)
-//   - Sala ativa
-//   - Se sala fechada (is_open=false): apenas criador/moderador
-//   - Não exceder max_members
+// REL-005: A inserção do convidado é executada inteiramente dentro
+// da RPC public.rpc_admin_add_room_member, que trava a MESMA linha
+// de rooms usada por rpc_join_room (SELECT ... FOR UPDATE). Isso
+// serializa "moderador convida X" contra "X se auto-junta" — não
+// importa qual caminho vence a corrida, nunca há estouro de
+// max_members nem filiação duplicada.
 //
-// Defense-in-depth: RLS em room_members bloqueia INSERT não-autorizado.
+// A função também reautoriza o chamador internamente (defense-in-depth),
+// então a checagem feita aqui na API é a primeira camada (resposta
+// rápida e amigável), e a RPC é a garantia final.
 // ============================================================
 export async function POST(
   req: NextRequest,
@@ -40,70 +42,60 @@ export async function POST(
       return NextResponse.json({ error: "Não é possível convidar este usuário" }, { status: 403 });
     }
 
-    // SEC-002: Verificar filiação do caller
-    const membership = await checkRoomMembership(roomId, user.id);
-
-    if (!membership.roomExists || !membership.roomIsActive) {
-      return NextResponse.json({ error: "Sala não encontrada ou inativa" }, { status: 404 });
-    }
-    if (membership.isBanned) {
-      return NextResponse.json({ error: "Você foi banido desta sala" }, { status: 403 });
-    }
-    if (!membership.isMember) {
-      return NextResponse.json({ error: "Você precisa ser membro para convidar" }, { status: 403 });
-    }
-
-    // Sala fechada: só creator/moderator pode convidar
-    if (!membership.roomIsOpen && membership.role !== "creator" && membership.role !== "moderator") {
-      return NextResponse.json(
-        { error: "Sala fechada — apenas moderadores podem convidar" },
-        { status: 403 }
-      );
-    }
-
-    // Verifica capacidade
-    if (membership.isFull) {
-      return NextResponse.json({ error: "Sala lotada" }, { status: 403 });
-    }
-
-    // Verifica se alvo já é membro ou banido
-    const { data: existingTarget } = await supabase
-      .from("room_members")
-      .select("id, is_banned, banned_until, role")
-      .eq("room_id", roomId)
-      .eq("user_id", targetId)
+    // REL-005: convite + checagem de capacidade + reautorização do
+    // chamador, tudo atômico dentro da RPC.
+    const { data, error } = await supabase
+      .rpc("rpc_admin_add_room_member", { p_room_id: roomId, p_target_user_id: targetId })
       .maybeSingle();
 
-    if (existingTarget) {
-      if (existingTarget.is_banned) {
-        return NextResponse.json({ error: "Este usuário está banido da sala" }, { status: 403 });
-      }
-      return NextResponse.json({ error: "Usuário já é membro desta sala" }, { status: 400 });
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; invited?: boolean; error?: string };
+
+    if (result.ok) {
+      return NextResponse.json({ invited: true });
     }
 
-    // Adiciona como membro
-    // RLS permite o INSERT porque o caller é moderador/criador da sala ativa
-    // (caso sala fechada) OU porque a sala está aberta e ativa (caso sala aberta).
-    const { error } = await supabase.from("room_members").insert({
-      room_id: roomId,
-      user_id: targetId,
-      role: "member",
-    });
+    switch (result.error) {
+      case "not_authenticated":
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-    if (error) {
-      console.error("[SEC-002 invite INSERT]", error);
-      // Se RLS bloqueou (ex: condições mudaram entre checagem e INSERT)
-      if (error.code === "42501" || error.message.includes("row-level security")) {
+      case "cannot_invite_self":
+        return NextResponse.json({ error: "Você não pode convidar a si mesmo" }, { status: 400 });
+
+      case "room_not_found":
+        return NextResponse.json({ error: "Sala não encontrada ou inativa" }, { status: 404 });
+
+      case "room_inactive":
+        return NextResponse.json({ error: "Sala não encontrada ou inativa" }, { status: 404 });
+
+      case "caller_not_member":
+        return NextResponse.json({ error: "Você precisa ser membro para convidar" }, { status: 403 });
+
+      case "closed_room_requires_moderator":
+        return NextResponse.json(
+          { error: "Sala fechada — apenas moderadores podem convidar" },
+          { status: 403 }
+        );
+
+      case "target_banned":
+        return NextResponse.json({ error: "Este usuário está banido da sala" }, { status: 403 });
+
+      case "already_member":
+        return NextResponse.json({ error: "Usuário já é membro desta sala" }, { status: 400 });
+
+      case "room_full":
+        return NextResponse.json({ error: "Sala lotada" }, { status: 403 });
+
+      default:
         return NextResponse.json(
           { error: "Não foi possível convidar este usuário (permissão negada)" },
           { status: 403 }
         );
-      }
-      throw error;
     }
-    return NextResponse.json({ invited: true });
-  } catch (error: any) {
-    console.error("[SEC-002 invite POST]", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[SEC-002 invite POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
