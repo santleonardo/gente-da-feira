@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { selectCols } from "@/lib/safe-columns";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // SEC-009: Explicit columns for DM conversation list — no SELECT * on direct_chats
 const DM_CHAT_COLUMNS = "id, initiator_id, receiver_id, updated_at";
@@ -39,11 +40,16 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ conversations });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[dm GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
+// REL-004: Criação de conversa DM totalmente atômica via RPC
+// (public.rpc_get_or_create_dm). Elimina a race condition do padrão
+// anterior "SELECT existing → INSERT", onde duplo-tap em "Conversar"
+// podia criar duas linhas direct_chats para o mesmo par de usuários.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -57,38 +63,44 @@ export async function POST(req: NextRequest) {
     if (!receiverId) return NextResponse.json({ error: "receiverId obrigatório" }, { status: 400 });
     if (user.id === receiverId) return NextResponse.json({ error: "Não pode conversar consigo" }, { status: 400 });
 
-    // SEC-004: Check bidirectional block before creating conversation
-    const { data: blockRows } = await supabase
-      .from("blocks")
-      .select("id")
-      .or(
-        `and(blocker_id.eq.${user.id},blocked_id.eq.${receiverId}),and(blocker_id.eq.${receiverId},blocked_id.eq.${user.id})`
-      )
+    // REL-004: get-or-create atômico no banco — sem janela de corrida
+    // entre a checagem de existência e o INSERT.
+    const { data, error } = await supabase
+      .rpc("rpc_get_or_create_dm", { p_other_user_id: receiverId })
       .maybeSingle();
 
-    if (blockRows) {
-      return NextResponse.json(
-        { error: "Não é possível iniciar conversa com este usuário" },
-        { status: 403 }
-      );
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; chat_id?: string };
+
+    if (!result.ok) {
+      if (result.error === "not_authenticated") {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+      }
+      if (result.error === "blocked") {
+        return NextResponse.json(
+          { error: "Não é possível iniciar conversa com este usuário" },
+          { status: 403 }
+        );
+      }
+      if (result.error === "cannot_dm_self") {
+        return NextResponse.json({ error: "Não pode conversar consigo" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Não foi possível iniciar a conversa" }, { status: 400 });
     }
 
-    const [a, b] = user.id < receiverId ? [user.id, receiverId] : [receiverId, user.id];
-
-    const { data: existing } = await supabase.from("direct_chats")
+    const { data: conversation, error: fetchErr } = await supabase
+      .from("direct_chats")
       .select(`${DM_CHAT_COLUMNS}, initiator:profiles!direct_chats_initiator_id_fkey(${DM_PROFILE_COLS}), receiver:profiles!direct_chats_receiver_id_fkey(${DM_PROFILE_COLS})`)
-      .eq("initiator_id", a).eq("receiver_id", b).maybeSingle();
+      .eq("id", result.chat_id as string)
+      .maybeSingle();
 
-    if (existing) return NextResponse.json({ conversation: existing });
+    if (fetchErr) throw fetchErr;
 
-    const { data: conversation, error } = await supabase.from("direct_chats")
-      .insert({ initiator_id: a, receiver_id: b })
-      .select(`${DM_CHAT_COLUMNS}, initiator:profiles!direct_chats_initiator_id_fkey(${DM_PROFILE_COLS}), receiver:profiles!direct_chats_receiver_id_fkey(${DM_PROFILE_COLS})`)
-      .single();
-
-    if (error) throw error;
     return NextResponse.json({ conversation });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[dm POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
