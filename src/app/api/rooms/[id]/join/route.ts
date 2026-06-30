@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import bcrypt from "bcryptjs";
+import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { ROOM_MEMBERSHIP_COLUMNS, selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 
 // ============================================================
-// SEC-002/SEC-003: POST /api/rooms/[id]/join
+// SEC-002/SEC-003/REL-005: POST /api/rooms/[id]/join
 // Body (opcional): { password }
 //
-// SEC-003: password_hash NUNCA é retornado ao cliente.
-// Verificação de senha usa RPC (verify_room_password) que faz
-// bcrypt.compare server-side. Fallback usa admin client APENAS
-// para comparação — hash nunca sai do escopo server-side.
+// REL-005: A entrada na sala é executada inteiramente dentro da RPC
+// public.rpc_join_room, que trava a linha da sala (SELECT ... FOR
+// UPDATE) durante toda a operação. Isso serializa qualquer tentativa
+// concorrente de entrada na MESMA sala — elimina o estouro de
+// max_members e a duplicação de filiação quando dois usuários (ou o
+// mesmo usuário em duplo-tap) tentam entrar simultaneamente em uma
+// sala quase cheia.
+//
+// SEC-003: password_hash NUNCA é retornado ao cliente. A comparação
+// bcrypt acontece inteiramente dentro da função SQL (via crypt()),
+// nunca saindo do banco.
 // ============================================================
 export async function POST(
   req: NextRequest,
@@ -27,133 +32,75 @@ export async function POST(
     const blocked = await rateLimitByRule(req, "rooms:join", user?.id);
     if (blocked) return blocked;
 
-    // SEC-003: Select explícito — nunca SELECT *
-    const { data: _room, error: roomErr } = await supabase
-      .from("rooms")
-      .select(selectCols(ROOM_MEMBERSHIP_COLUMNS))
-      .eq("id", roomId)
+    const body = await req.json().catch(() => ({}));
+    const providedPassword = (body?.password || "").trim() || null;
+
+    const { data, error } = await supabase
+      .rpc("rpc_join_room", { p_room_id: roomId, p_password: providedPassword })
       .maybeSingle();
 
-    // Type assertion necessário porque selectCols() retorna string dinâmica
-    const room = _room as { is_active: boolean; is_open: boolean; max_members: number; member_count: number; id: string } | null;
-    if (roomErr || !room) {
-      return NextResponse.json({ error: "Sala não encontrada" }, { status: 404 });
-    }
-    if (!room.is_active) {
-      return NextResponse.json({ error: "Sala inativa" }, { status: 403 });
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as {
+      ok: boolean;
+      joined?: boolean;
+      error?: string;
+      requires_password?: boolean;
+      banned_until?: string | null;
+    };
+
+    if (result.ok) {
+      return NextResponse.json({ joined: true });
     }
 
-    // Verifica se já é membro
-    const { data: existing } = await supabase
-      .from("room_members")
-      .select("id, is_banned, banned_until, role")
-      .eq("room_id", roomId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    switch (result.error) {
+      case "not_authenticated":
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-    if (existing) {
-      if (existing.is_banned && existing.banned_until && new Date(existing.banned_until) < new Date()) {
-        await supabase
-          .from("room_members")
-          .update({ is_banned: false, banned_until: null })
-          .eq("room_id", roomId)
-          .eq("user_id", user.id);
-      } else if (existing.is_banned) {
-        const until = existing.banned_until
-          ? ` até ${new Date(existing.banned_until).toLocaleDateString("pt-BR")}`
+      case "room_not_found":
+        return NextResponse.json({ error: "Sala não encontrada" }, { status: 404 });
+
+      case "room_inactive":
+        return NextResponse.json({ error: "Sala inativa" }, { status: 403 });
+
+      case "banned": {
+        const until = result.banned_until
+          ? ` até ${new Date(result.banned_until).toLocaleDateString("pt-BR")}`
           : " permanentemente";
         return NextResponse.json(
           { error: `Você está banido desta sala${until}.` },
           { status: 403 }
         );
       }
-      return NextResponse.json({ joined: true });
-    }
 
-    // Sala fechada: não pode entrar direto (precisa de convite)
-    if (room.is_open === false) {
-      return NextResponse.json(
-        { error: "Esta sala está fechada para novos membros." },
-        { status: 403 }
-      );
-    }
+      case "room_closed":
+        return NextResponse.json(
+          { error: "Esta sala está fechada para novos membros." },
+          { status: 403 }
+        );
 
-    // Capacidade
-    if (room.member_count >= room.max_members) {
-      return NextResponse.json(
-        { error: `Sala lotada (máx ${room.max_members} membros).` },
-        { status: 403 }
-      );
-    }
+      case "room_full":
+        return NextResponse.json({ error: "Sala lotada." }, { status: 403 });
 
-    // Verificar senha via RPC (hash nunca sai do banco)
-    const { data: hasPasswordData } = await supabase
-      .rpc("room_has_password", { p_room_id: roomId })
-      .maybeSingle();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const roomHasPassword = hasPasswordData === true || (hasPasswordData as any)?.has_password === true;
-
-    if (roomHasPassword) {
-      const body = await req.json().catch(() => ({}));
-      const provided = (body.password || "").trim();
-      if (!provided) {
+      case "password_required":
         return NextResponse.json(
           { error: "Esta sala é privada. Informe a senha.", requiresPassword: true },
           { status: 403 }
         );
-      }
 
-      // Verificar senha via RPC (bcrypt server-side — hash nunca sai do banco)
-      const { data: passwordOk, error: rpcErr } = await supabase
-        .rpc("verify_room_password", { p_room_id: roomId, p_password: provided })
-        .maybeSingle();
+      case "wrong_password":
+        return NextResponse.json(
+          { error: "Senha incorreta.", requiresPassword: true },
+          { status: 403 }
+        );
 
-      if (rpcErr || passwordOk !== true) {
-        // SEC-003: Log sem expor detalhes do erro RPC
-        console.warn("[room-join] verificação de senha falhou via RPC");
-
-        // Fallback: admin client para comparação server-side
-        // O hash NUNCA é retornado ao cliente — fica apenas na memória do servidor
-        const admin = createAdminClient();
-        const { data: roomCreds } = await admin
-          .from("rooms")
-          .select("password_hash")
-          .eq("id", roomId)
-          .maybeSingle();
-
-        // SEC-003: Variável local apenas para comparação — nunca serializada
-        const storedHash = roomCreds?.password_hash;
-        if (!storedHash) {
-          return NextResponse.json({ error: "Senha incorreta.", requiresPassword: true }, { status: 403 });
-        }
-
-        const match = await bcrypt.compare(provided, storedHash);
-        if (!match) {
-          return NextResponse.json({ error: "Senha incorreta.", requiresPassword: true }, { status: 403 });
-        }
-      }
-    }
-
-    // Inserir como membro
-    const { error: insertErr } = await supabase.from("room_members").insert({
-      room_id: roomId,
-      user_id: user.id,
-      role: "member",
-    });
-
-    if (insertErr) {
-      console.error("[room-join INSERT]", insertErr);
-      if (insertErr.code === "42501" || insertErr.message.includes("row-level security")) {
+      default:
         return NextResponse.json(
           { error: "Não foi possível entrar na sala (condições não atendidas)" },
           { status: 403 }
         );
-      }
-      throw insertErr;
     }
-
-    return NextResponse.json({ joined: true });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[room-join POST]");
     return NextResponse.json({ error: message }, { status });
