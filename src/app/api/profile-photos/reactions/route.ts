@@ -3,10 +3,14 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
 
+// REL-003: Toggle de reação totalmente atômico via RPC
+// (public.rpc_toggle_profile_photo_reaction). Elimina a race
+// condition do padrão anterior "SELECT existing → INSERT/DELETE".
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -30,36 +34,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: existing } = await supabase
-      .from("profile_photo_reactions")
-      .select("id")
-      .eq("photo_id", photoId)
-      .eq("user_id", user.id)
-      .eq("type", type)
+    // REL-003: operação atômica no banco — sem janela de corrida entre
+    // leitura e escrita.
+    const { data, error } = await supabase
+      .rpc("rpc_toggle_profile_photo_reaction", { p_photo_id: photoId, p_type: type })
       .maybeSingle();
 
-    if (existing) {
-      const admin = createAdminClient();
-      const { error } = await admin
-        .from("profile_photo_reactions")
-        .delete()
-        .eq("id", existing.id);
+    if (error) throw error;
 
-      if (error) throw error;
-      return NextResponse.json({ reacted: false });
-    } else {
-      const { error } = await supabase
-        .from("profile_photo_reactions")
-        .insert({
-          photo_id: photoId,
-          user_id: user.id,
-          type,
-        });
-
-      if (error) throw error;
-      return NextResponse.json({ reacted: true });
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; reacted?: boolean };
+    if (!result.ok) {
+      if (result.error === "not_authenticated") {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+      }
+      return NextResponse.json({ error: "Não foi possível processar a reação" }, { status: 400 });
     }
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ reacted: !!result.reacted });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[profile-photos/reactions POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
