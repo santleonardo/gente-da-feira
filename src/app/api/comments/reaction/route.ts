@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
+// REL-003: Toggle de reação totalmente atômico via RPC
+// (public.rpc_toggle_comment_reaction). Elimina a race condition do
+// padrão anterior "SELECT existing → INSERT/DELETE".
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -33,18 +37,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: existing } = await supabase.from("reactions").select("id").eq("comment_id", commentId).eq("user_id", user.id).eq("type", type).maybeSingle();
+    // REL-003: operação atômica no banco — sem janela de corrida entre
+    // leitura e escrita.
+    const { data, error } = await supabase
+      .rpc("rpc_toggle_comment_reaction", { p_comment_id: commentId, p_type: type })
+      .maybeSingle();
 
-    if (existing) {
-      const { error } = await supabase.from("reactions").delete().eq("id", existing.id);
-      if (error) throw error;
-      return NextResponse.json({ reacted: false });
-    } else {
-      const { error } = await supabase.from("reactions").insert({ comment_id: commentId, user_id: user.id, type });
-      if (error) throw error;
-      return NextResponse.json({ reacted: true });
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; reacted?: boolean };
+    if (!result.ok) {
+      if (result.error === "not_authenticated") {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+      }
+      return NextResponse.json({ error: "Não foi possível processar a reação" }, { status: 400 });
     }
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ reacted: !!result.reacted });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[comments/reaction POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
