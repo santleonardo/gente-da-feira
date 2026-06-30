@@ -22,8 +22,10 @@ export interface RateLimitRule {
 
 const rules: RateLimitRule[] = [
   // ── Auth (CRITICAL) ────────────────────────────────────────────────
-  { key: "auth:get",       limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
-  { key: "auth:delete",    limit: 5,   windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
+  { key: "auth:get",       limit: 30,  windowMs: 60_000,    methods: ["GET"],    byUser: true  },
+  { key: "auth:delete",    limit: 5,   windowMs: 60_000,    methods: ["DELETE"], byUser: true  },
+  // UX-001: Forgot password — 3 por hora por IP (anti-abuso + anti-enumeration)
+  { key: "auth:forgot",    limit: 3,   windowMs: 3_600_000, methods: ["POST"],   byUser: false },
 
   // ── Posts (HIGH) ───────────────────────────────────────────────────
   { key: "posts:create",   limit: 10,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
