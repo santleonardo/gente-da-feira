@@ -32,8 +32,6 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrl) {
-      // NEXT_PUBLIC_APP_URL não configurado — log para debug mas retorna
-      // mensagem genérica para não vazar info interna
       console.error(
         "[auth:forgot] NEXT_PUBLIC_APP_URL não definida. Defina no .env.local"
       );
@@ -42,18 +40,16 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Solicita envio de e-mail de recuperação ao Supabase.
-    // O Supabase retorna erro se o e-mail não existe, mas nós
-    // ignoramos o resultado para evitar enumeração de contas.
+    // Remove barra final para evitar URL dupla (ex: //reset-password)
+    const baseUrl = appUrl.replace(/\/+$/, "");
+
     await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${appUrl}/reset-password`,
+      redirectTo: `${baseUrl}/reset-password`,
     });
 
-    // UX-001: Anti-enumeration — SEMPRE retorna a mesma mensagem,
-    // independentemente do e-mail existir ou não.
+    // UX-001: Anti-enumeration — SEMPRE retorna a mesma mensagem
     return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
   } catch {
-    // Qualquer erro interno também retorna mensagem genérica
     return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
   }
 }
