@@ -5,6 +5,7 @@ import { sanitizeRichContent } from "@/lib/sanitize";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
+import { checkPostVisibility } from "@/lib/content-visibility";
 
 // SEC-009: Author profile columns with neighborhood (filtered post-query)
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -24,6 +25,14 @@ export async function GET(
     if (blocked) return blocked;
 
     const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    // SEC-010: Enforce visibility BEFORE returning post data.
+    // Prevents direct ID access to followers-only / private posts.
+    const visibility = await checkPostVisibility(supabase, postId, authUser?.id ?? null);
+    if (!visibility.allowed) {
+      return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+    }
 
     const { data: post, error } = await supabase
       .from("posts")

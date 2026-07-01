@@ -6,6 +6,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
+import { checkPostVisibility } from "@/lib/content-visibility";
 
 // SEC-009: Author profile columns for comment authors
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -14,6 +15,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id: postId } = await params;
   try {
     const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    // SEC-010: Check parent post visibility before returning comments.
+    // Prevents comment leakage on followers-only / private posts.
+    const visibility = await checkPostVisibility(supabase, postId, authUser?.id ?? null);
+    if (!visibility.allowed) {
+      return NextResponse.json({ comments: [] });
+    }
+
     const { data: comments, error } = await supabase
       .from("comments")
       .select(`

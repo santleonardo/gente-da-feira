@@ -4,6 +4,7 @@ import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
+import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 
 // SEC-009: Author columns for shared posts
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -82,16 +83,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       shared_post: p.shared_post && !Array.isArray(p.shared_post) ? p.shared_post : (Array.isArray(p.shared_post) ? p.shared_post[0] : null),
     }));
 
+    // SEC-010: Filter posts by visibility (followers-only, private)
+    // Even on a public profile, followers-only posts must be hidden from
+    // non-followers. Private posts are hidden from everyone except the author.
+    const viewerFollowingIds = await getViewerFollowingIds(supabase, authUser?.id ?? null);
+    const visibilityFiltered = filterByVisibility(mappedPosts, authUser?.id ?? null, viewerFollowingIds);
+
     // SEC-009: Filter neighborhood from shared post authors
     const authorIds = new Set<string>();
-    for (const p of mappedPosts) {
+    for (const p of visibilityFiltered) {
       if (p.shared_post?.author?.id) authorIds.add(p.shared_post.author.id);
     }
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
       supabase,
       Array.from(authorIds)
     );
-    const filtered = filterPostsAuthorNeighborhood(mappedPosts, hiddenNeighborhoodIds);
+    const filtered = filterPostsAuthorNeighborhood(visibilityFiltered, hiddenNeighborhoodIds);
 
     return NextResponse.json({ posts: filtered });
   } catch (error: any) {

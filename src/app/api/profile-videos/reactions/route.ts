@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { canViewProfileMedia } from "@/lib/content-visibility";
 
 // REL-003: Toggle de reação totalmente atômico via RPC
 // (public.rpc_toggle_profile_video_reaction). Elimina a race
@@ -25,8 +26,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "videoId e type são obrigatórios" }, { status: 400 });
     }
 
-    // SEC-004: Check bidirectional block with video owner
+    // SEC-010: Check profile privacy before allowing reaction.
+    // Prevents reacting to videos on private profiles the user can't see.
     const ownerId = await getProfileVideoOwnerId(supabase, videoId);
+    if (ownerId) {
+      const canView = await canViewProfileMedia(supabase, ownerId, user.id);
+      if (!canView) {
+        return NextResponse.json({ error: "Vídeo não encontrado" }, { status: 404 });
+      }
+    }
+
+    // SEC-004: Check bidirectional block with video owner
     if (ownerId && ownerId !== user.id) {
       const blocked = await isBlocked(supabase, user.id, ownerId);
       if (blocked) {

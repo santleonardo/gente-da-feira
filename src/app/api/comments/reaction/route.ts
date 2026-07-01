@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { checkPostVisibility } from "@/lib/content-visibility";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
@@ -22,14 +23,23 @@ export async function POST(req: NextRequest) {
     if (!commentId) return NextResponse.json({ error: "commentId obrigatório" }, { status: 400 });
     if (!type || !VALID_TYPES.includes(type)) return NextResponse.json({ error: "Tipo de reação inválido" }, { status: 400 });
 
-    // SEC-004: Check bidirectional block with comment author
+    // SEC-010: Check parent post visibility before allowing comment reaction.
+    // Prevents reacting to comments on followers-only / private posts.
     const { data: comment } = await supabase
       .from("comments")
-      .select("author_id")
+      .select("author_id, post_id")
       .eq("id", commentId)
       .eq("is_deleted", false)
       .maybeSingle();
 
+    if (comment?.post_id) {
+      const postVis = await checkPostVisibility(supabase, comment.post_id, user.id);
+      if (!postVis.allowed) {
+        return NextResponse.json({ error: "Comentário não encontrado" }, { status: 404 });
+      }
+    }
+
+    // SEC-004: Check bidirectional block with comment author
     if (comment && comment.author_id !== user.id) {
       const blocked = await isBlocked(supabase, user.id, comment.author_id);
       if (blocked) {

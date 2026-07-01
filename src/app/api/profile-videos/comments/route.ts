@@ -9,6 +9,7 @@ import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols } from "@/lib/safe-columns";
+import { canViewProfileMedia } from "@/lib/content-visibility";
 
 // SEC-009: Explicit columns for video comments and author profiles
 const COMMENT_COLUMNS = "id, user_id, video_id, content, parent_id, created_at";
@@ -21,6 +22,23 @@ export async function GET(req: NextRequest) {
     const videoId = searchParams.get("videoId");
 
     if (!videoId) return NextResponse.json({ error: "videoId necessário" }, { status: 400 });
+
+    // SEC-010: Check profile privacy before returning comments.
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const ownerId = await getProfileVideoOwnerId(supabase, videoId);
+    if (ownerId) {
+      const canView = await canViewProfileMedia(supabase, ownerId, authUser?.id ?? null);
+      if (!canView) {
+        return NextResponse.json({ comments: [] });
+      }
+      // SEC-004: Also check block
+      if (authUser && authUser.id !== ownerId) {
+        const blocked = await isBlocked(supabase, authUser.id, ownerId);
+        if (blocked) {
+          return NextResponse.json({ comments: [] });
+        }
+      }
+    }
 
     const { data: comments, error } = await supabase
       .from("profile_video_comments")

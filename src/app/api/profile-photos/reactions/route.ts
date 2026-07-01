@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { canViewProfileMedia } from "@/lib/content-visibility";
 
 // REL-003: Toggle de reação totalmente atômico via RPC
 // (public.rpc_toggle_profile_photo_reaction). Elimina a race
@@ -25,8 +26,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "photoId e type são obrigatórios" }, { status: 400 });
     }
 
-    // SEC-004: Check bidirectional block with photo owner
+    // SEC-010: Check profile privacy before allowing reaction.
+    // Prevents reacting to photos on private profiles the user can't see.
     const ownerId = await getProfilePhotoOwnerId(supabase, photoId);
+    if (ownerId) {
+      const canView = await canViewProfileMedia(supabase, ownerId, user.id);
+      if (!canView) {
+        return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
+      }
+    }
+
+    // SEC-004: Check bidirectional block with photo owner
     if (ownerId && ownerId !== user.id) {
       const blocked = await isBlocked(supabase, user.id, ownerId);
       if (blocked) {

@@ -9,6 +9,7 @@ import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols } from "@/lib/safe-columns";
+import { canViewProfileMedia } from "@/lib/content-visibility";
 
 // SEC-009: Explicit columns for photo comments and author profiles
 const COMMENT_COLUMNS = "id, user_id, photo_id, content, parent_id, created_at";
@@ -21,6 +22,24 @@ export async function GET(req: NextRequest) {
     const photoId = searchParams.get("photoId");
 
     if (!photoId) return NextResponse.json({ error: "photoId necessário" }, { status: 400 });
+
+    // SEC-010: Check profile privacy before returning comments.
+    // Prevents comment leakage on private profiles.
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const ownerId = await getProfilePhotoOwnerId(supabase, photoId);
+    if (ownerId) {
+      const canView = await canViewProfileMedia(supabase, ownerId, authUser?.id ?? null);
+      if (!canView) {
+        return NextResponse.json({ comments: [] });
+      }
+      // SEC-004: Also check block
+      if (authUser && authUser.id !== ownerId) {
+        const blocked = await isBlocked(supabase, authUser.id, ownerId);
+        if (blocked) {
+          return NextResponse.json({ comments: [] });
+        }
+      }
+    }
 
     const { data: comments, error } = await supabase
       .from("profile_photo_comments")

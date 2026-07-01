@@ -25,6 +25,7 @@ import {
   filterPostsAuthorNeighborhood,
   batchFetchPrivacyFlags,
 } from "@/lib/privacy-filter";
+import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 
 const MAX_PHOTOS_PER_POST = 5;
 const MAX_ACTIVE_MEDIA_POSTS = 5;
@@ -99,24 +100,12 @@ export async function GET(req: NextRequest) {
     const now = new Date().toISOString();
 
     let viewerFollowingIds = new Set<string>();
-    let viewerFollowerIds  = new Set<string>();
     let blockedUserIds     = new Set<string>();
 
-    if (authUser && !authorId) {
-      const [followingRes, followersRes] = await Promise.all([
-        supabase
-          .from("follows")
-          .select("following_id")
-          .eq("follower_id", authUser.id)
-          .eq("status", "accepted"),
-        supabase
-          .from("follows")
-          .select("follower_id")
-          .eq("following_id", authUser.id)
-          .eq("status", "accepted"),
-      ]);
-      if (followingRes.data) viewerFollowingIds = new Set(followingRes.data.map((f: any) => f.following_id));
-      if (followersRes.data) viewerFollowerIds  = new Set(followersRes.data.map((f: any) => f.follower_id));
+    // SEC-010: Always fetch following IDs when authenticated (needed for
+    // both feed visibility AND authorId-filtered queries)
+    if (authUser) {
+      viewerFollowingIds = await getViewerFollowingIds(supabase, authUser.id);
       blockedUserIds = await getBlockedUserIds(supabase, authUser.id);
     }
 
@@ -134,12 +123,9 @@ export async function GET(req: NextRequest) {
         // SEC-004: Filter out posts from blocked users
         if (blockedUserIds.size > 0 && blockedUserIds.has(p.author_id)) return false;
         if (p.shared_post && blockedUserIds.size > 0 && blockedUserIds.has(p.shared_post.author_id)) return false;
-        if (p.visibility === "followers") {
-          if (!authUser) return false;
-          if (p.author_id === authUser.id) return true;
-          return viewerFollowingIds.has(p.author_id) && viewerFollowerIds.has(p.author_id);
-        }
-        return true;
+        // SEC-010: Centralized visibility enforcement
+        // "public" → allowed, "followers" → viewer follows author (accepted), "private" → author only
+        return filterByVisibility([p], authUser?.id ?? null, viewerFollowingIds).length === 1;
       });
 
     // SEC-009: Batch-fetch privacy flags for all post authors and strip neighborhood

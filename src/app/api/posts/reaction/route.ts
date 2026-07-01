@@ -4,6 +4,7 @@ import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { checkPostVisibility } from "@/lib/content-visibility";
 
 const VALID_TYPES = ["like", "laugh", "sad", "wow", "angry", "love"];
 
@@ -23,6 +24,13 @@ export async function POST(req: NextRequest) {
     const { postId, type = "like" } = await req.json();
     if (!postId) return NextResponse.json({ error: "postId obrigatório" }, { status: 400 });
     if (!VALID_TYPES.includes(type)) return NextResponse.json({ error: "Tipo de reação inválido" }, { status: 400 });
+
+    // SEC-010: Check post visibility before allowing reaction.
+    // Prevents reacting to followers-only / private posts the user can't see.
+    const visibility = await checkPostVisibility(supabase, postId, user.id);
+    if (!visibility.allowed) {
+      return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+    }
 
     // SEC-004: Check bidirectional block with post author
     const authorId = await getPostAuthorId(supabase, postId);
