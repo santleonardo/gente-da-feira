@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
 
     const path = `${userId}/avatar.${ext}`;
 
-    await admin.storage.from("avatars").remove([path]);
-
+    // REL-006: Upload storage + update DB com compensação.
+    // 1. Upload para storage (pode falhar — retorna erro)
+    // 2. Update profile avatar_url (pode falhar — compensação: remove do storage)
     const { error: uploadError } = await admin.storage.from("avatars").upload(path, sanitizedBuffer, { contentType, cacheControl: "31536000", upsert: true });
     if (uploadError) throw uploadError;
 
@@ -43,7 +44,14 @@ export async function POST(req: NextRequest) {
     const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
     const { error: updateError } = await admin.from("profiles").update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() }).eq("id", userId);
-    if (updateError) throw updateError;
+
+    if (updateError) {
+      // REL-006: Compensação — remover do storage se DB falhou
+      // Previne arquivo órfão no storage sem referência no perfil
+      console.error("[avatar-upload] DB update falhou, compensando storage:", updateError.message);
+      admin.storage.from("avatars").remove([path]).catch(() => {});
+      throw updateError;
+    }
 
     return NextResponse.json({ avatar_url: avatarUrl });
   } catch (error: any) {

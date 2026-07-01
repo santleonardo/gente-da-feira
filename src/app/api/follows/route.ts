@@ -55,8 +55,7 @@ export async function GET(req: NextRequest) {
       followRow
     );
 
-    // SEC-009: Use FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH — neighborhood is added
-    // conditionally after checking hide_neighborhood for each user
+    // SEC-009: Use FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH
     const followProfileCols = selectCols(FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH);
 
     // Buscar quem o usuário segue (só aceitos)
@@ -91,10 +90,7 @@ export async function GET(req: NextRequest) {
       pendingRequests = pending || [];
     }
 
-    // SEC-009: Batch fetch privacy flags for all visible profile users
-    // Note: cast to any[] because Supabase's TS parser cannot resolve renamed
-    // foreign-key joins (e.g. `following:profiles!follows_following_id_fkey`)
-    // and emits a ParserError type instead of the real row shape.
+    // SEC-009: Batch fetch privacy flags
     const allVisibleUserIds = new Set<string>();
     for (const item of ((following || []) as any[])) {
       if (item.following?.id) allVisibleUserIds.add(item.following.id);
@@ -105,8 +101,6 @@ export async function GET(req: NextRequest) {
     for (const item of pendingRequests) {
       if (item.follower?.id) allVisibleUserIds.add(item.follower.id);
     }
-
-    // Add the viewer themselves (in case they see their own data)
     if (viewerId) allVisibleUserIds.add(viewerId);
 
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
@@ -114,27 +108,21 @@ export async function GET(req: NextRequest) {
       Array.from(allVisibleUserIds)
     );
 
-    // SEC-009: Filter neighborhood from list items
     let filteredFollowing = filterFollowListItems(following || [], hiddenNeighborhoodIds);
     let filteredFollowers = filterFollowListItems(followers || [], hiddenNeighborhoodIds);
     let filteredPending = filterFollowListItems(pendingRequests, hiddenNeighborhoodIds);
 
-    // Contagem (só aceitos)
     const followingCount = following?.length || 0;
     const followersCount = followers?.length || 0;
     const pendingCount = pendingRequests.length;
 
-    // SEC-009: Determine visibility of lists
     const canSeeFollowing = isOwnProfile || !ctx.privacy.hide_following;
     const canSeeFollowers = isOwnProfile || !ctx.privacy.hide_followers;
 
-    // SEC-009: Get safe counts (null when hidden from viewer)
     const safeCounts = getSafeFollowCounts(followingCount, followersCount, ctx);
 
-    // Derive isRestricted locally — not a direct property of PrivacyContext
     const isRestricted = ctx.privacy.is_private && !ctx.isOwnProfile && !ctx.isFollowing;
 
-    // Apply list visibility
     if (!canSeeFollowing) filteredFollowing = [];
     if (!canSeeFollowers) filteredFollowers = [];
 
@@ -163,7 +151,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/follows — Seguir, solicitar ou deixar de seguir
+// POST /api/follows — Seguir ou deixar de seguir
+// REL-006: Operação totalmente atômica via rpc_toggle_follow.
+// Verifica blocks, duplicidade e approve_followers dentro de uma
+// transação no banco, sem janela de corrida.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -179,70 +170,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "targetUserId é obrigatório" }, { status: 400 });
     }
 
-    if (user.id === targetUserId) {
-      return NextResponse.json({ error: "Não pode seguir a si mesmo" }, { status: 400 });
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_toggle_follow", { p_target_user_id: targetUserId })
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; action?: string; following?: boolean; pending?: boolean };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "cannot_follow_self":
+          return NextResponse.json({ error: "Não pode seguir a si mesmo" }, { status: 400 });
+        case "blocked":
+          return NextResponse.json({ error: "Não é possível seguir este usuário" }, { status: 403 });
+        default:
+          return NextResponse.json({ error: "Não foi possível processar" }, { status: 400 });
+      }
     }
 
-    // Verificar bloqueio em ambos os sentidos
-    const { data: blockedByViewer } = await supabase
-      .from("blocks")
-      .select("id")
-      .eq("blocker_id", user.id)
-      .eq("blocked_id", targetUserId)
-      .maybeSingle();
-
-    const { data: blockedByTarget } = await supabase
-      .from("blocks")
-      .select("id")
-      .eq("blocker_id", targetUserId)
-      .eq("blocked_id", user.id)
-      .maybeSingle();
-
-    if (blockedByViewer || blockedByTarget) {
-      return NextResponse.json({ error: "Não é possível seguir este usuário" }, { status: 403 });
-    }
-
-    // Verificar se já segue ou tem solicitação pendente
-    const { data: existing } = await supabase
-      .from("follows")
-      .select("id, status")
-      .eq("follower_id", user.id)
-      .eq("following_id", targetUserId)
-      .maybeSingle();
-
-    if (existing) {
-      // Deixar de seguir ou cancelar solicitação
-      const { error: delErr } = await supabase
-        .from("follows")
-        .delete()
-        .eq("id", existing.id);
-
-      if (delErr) throw delErr;
-      return NextResponse.json({ following: false, pending: false });
-    } else {
-      // Verificar se o alvo exige aprovação
-      const { data: targetProfile } = await supabase
-        .from("profiles")
-        .select("approve_followers")
-        .eq("id", targetUserId)
-        .single();
-
-      const approveFollowers = targetProfile?.approve_followers || false;
-      const status = approveFollowers ? "pending" : "accepted";
-
-      const { error: insertErr } = await supabase
-        .from("follows")
-        .insert({ follower_id: user.id, following_id: targetUserId, status });
-
-      if (insertErr) throw insertErr;
-
-      // Notificação é criada pelo TRIGGER notify_new_follow().
-      // SEC-001: Disparar push para a notificação criada pelo trigger.
+    // Disparar push para notificação criada pelo trigger (apenas em follow novo)
+    if (result.action === "followed") {
       (async () => {
         try {
-          // Aguardar um breve momento para o trigger completar
           await new Promise((r) => setTimeout(r, 200));
-          const notifType = approveFollowers ? "follow_request" : "follow";
+          const notifType = result.pending ? "follow_request" : "follow";
           const { data: notif } = await supabase
             .from("notifications")
             .select("id")
@@ -258,13 +214,12 @@ export async function POST(req: NextRequest) {
           }
         } catch { /* silent */ }
       })();
-
-      if (approveFollowers) {
-        return NextResponse.json({ following: false, pending: true });
-      } else {
-        return NextResponse.json({ following: true, pending: false });
-      }
     }
+
+    return NextResponse.json({
+      following: !!result.following,
+      pending: !!result.pending,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

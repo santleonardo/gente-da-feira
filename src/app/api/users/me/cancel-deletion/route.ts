@@ -1,13 +1,9 @@
 // POST /api/users/me/cancel-deletion
 // Cancela solicitação de exclusão de conta durante o período de carência.
 //
-// Fluxo:
-//   1. Verifica autenticação
-//   2. Rate limit
-//   3. Verifica se existe solicitação ativa (deletion_requested_at)
-//   4. Cancela o registro em account_deletion_requests
-//   5. Limpa campos do perfil
-//   6. Limpa app_metadata do auth user
+// REL-006: Operação atômica via rpc_cancel_account_deletion.
+// UPDATE account_deletion_requests + UPDATE profiles em transação única.
+// A atualização de app_metadata (auth.users) é feita separadamente.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
@@ -16,61 +12,42 @@ import { safeErrorResponse } from "@/lib/safe-error";
 
 export async function POST(req: NextRequest) {
   try {
-    // ── 1. Autenticação ─────────────────────────────────────────────────
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // ── 2. Rate limit ───────────────────────────────────────────────────
     const blocked = await rateLimitByRule(req, "account:cancel-deletion", user.id);
     if (blocked) return blocked;
 
-    // ── 3. Verificar se existe solicitação ativa ───────────────────────
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, deletion_requested_at")
-      .eq("id", user.id)
-      .single();
+    // REL-006: operação atômica no banco — update request + update profile
+    const { data, error } = await supabase
+      .rpc("rpc_cancel_account_deletion")
+      .maybeSingle();
 
-    if (!profile?.deletion_requested_at) {
-      return NextResponse.json(
-        { error: "Nenhuma solicitação de exclusão pendente" },
-        { status: 400 }
-      );
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "no_pending_request":
+          return NextResponse.json(
+            { error: "Nenhuma solicitação de exclusão pendente" },
+            { status: 400 }
+          );
+        default:
+          return NextResponse.json({ error: "Erro ao cancelar solicitação" }, { status: 500 });
+      }
     }
 
-    const admin = createAdminClient();
-
-    // ── 4. Cancelar registro em account_deletion_requests ────────────────
-    const { error: cancelError } = await admin
-      .from("account_deletion_requests")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("status", "pending");
-
-    if (cancelError) {
-      console.error("[cancel-deletion] Erro ao cancelar account_deletion_requests:", cancelError.message);
-      return NextResponse.json({ error: "Erro ao cancelar solicitação" }, { status: 500 });
-    }
-
-    // ── 5. Limpar campos do perfil ─────────────────────────────────────
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        deletion_requested_at: null,
-        deletion_scheduled_at: null,
-      })
-      .eq("id", user.id);
-
-    if (profileError) {
-      console.error("[cancel-deletion] Erro ao atualizar perfil:", profileError.message);
-      return NextResponse.json({ error: "Erro ao atualizar perfil" }, { status: 500 });
-    }
-
-    // ── 6. Limpar app_metadata do auth user ────────────────────────────
+    // Atualizar app_metadata do auth user (separado — é Auth API)
     try {
+      const admin = createAdminClient();
       const { data: authUser } = await admin.auth.admin.getUserById(user.id);
       const existingMetadata = authUser?.user?.app_metadata || {};
 
@@ -82,10 +59,9 @@ export async function POST(req: NextRequest) {
       });
     } catch (metaError) {
       console.error("[cancel-deletion] Erro ao atualizar app_metadata:", metaError);
-      // Não bloqueia o fluxo — perfil já foi atualizado
+      // Não bloqueia o fluxo — DB já está consistente
     }
 
-    // ── 7. Retornar sucesso ────────────────────────────────────────────
     return NextResponse.json({ success: true });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[cancel-deletion]");

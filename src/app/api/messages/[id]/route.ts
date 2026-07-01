@@ -1,19 +1,12 @@
-// ============================================================
-// API para apagar mídia de uma mensagem (DM ou sala)
-//
-// O usuário pode apagar apenas a mídia das próprias mensagens.
-// Ao apagar a mídia:
-//   - O arquivo é removido do storage (best effort)
-//   - Se a mensagem tinha apenas mídia (sem texto), ela é marcada
-//     como is_deleted = true
-//   - Se a mensagem tinha texto + mídia, o texto é preservado e
-//     apenas os campos de mídia são limpos
-// ============================================================
+// REL-006: Exclusão de mídia de mensagem atômica via rpc_delete_message_media.
+// Verifica ownership, atualiza/deleta mensagem em transação única.
+// Retorna URL de mídia para limpeza de storage (best effort).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { removeMessageMedia } from "@/lib/media-expiration";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
+import { extractStoragePathFromUrl } from "@/lib/storage-security";
 
 export async function DELETE(
   req: NextRequest,
@@ -28,49 +21,49 @@ export async function DELETE(
     const blocked = await rateLimitByRule(req, "dm:message:delete", user?.id);
     if (blocked) return blocked;
 
-    // Busca a mensagem e verifica se pertence ao usuário
-    const admin = createAdminClient();
-    const { data: message, error: msgError } = await admin
-      .from("messages")
-      .select("id, sender_id, content, media_url, media_type, is_deleted")
-      .eq("id", id)
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_delete_message_media", { p_message_id: id })
       .maybeSingle();
 
-    if (msgError || !message) {
-      return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
+    if (error) throw error;
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; media_url?: string; message_deleted?: boolean };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "message_not_found":
+          return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
+        case "not_owner":
+          return NextResponse.json({ error: "Sem permissão para apagar esta mídia" }, { status: 403 });
+        case "already_deleted":
+          return NextResponse.json({ error: "Mensagem já foi apagada" }, { status: 400 });
+        case "no_media":
+          return NextResponse.json({ error: "Esta mensagem não possui mídia" }, { status: 400 });
+        default:
+          return NextResponse.json({ error: "Não foi possível apagar a mídia" }, { status: 400 });
+      }
     }
 
-    if (message.sender_id !== user.id) {
-      return NextResponse.json({ error: "Sem permissão para apagar esta mídia" }, { status: 403 });
-    }
-
-    if (message.is_deleted) {
-      return NextResponse.json({ error: "Mensagem já foi apagada" }, { status: 400 });
-    }
-
-    if (!message.media_url) {
-      return NextResponse.json({ error: "Esta mensagem não possui mídia" }, { status: 400 });
-    }
-
-    // Remove o arquivo do storage (best effort)
-    removeMessageMedia(message.media_url).catch(() => {});
-
-    // Se a mensagem tinha apenas mídia (sem texto), marca como deletada
-    if (!message.content || !message.content.trim()) {
-      await admin
-        .from("messages")
-        .update({ is_deleted: true })
-        .eq("id", id);
-    } else {
-      // Se tinha texto + mídia, preserva o texto e limpa a mídia
-      await admin
-        .from("messages")
-        .update({ media_url: null, media_type: null, expires_at: null })
-        .eq("id", id);
+    // Limpeza de storage (best effort) — após DB em estado consistente
+    if (result.media_url) {
+      const admin = createAdminClient();
+      (async () => {
+        try {
+          const parsed = extractStoragePathFromUrl(result.media_url!);
+          if (parsed) {
+            await admin.storage.from(parsed.bucket).remove([parsed.path]);
+          }
+        } catch { /* silent — best effort */ }
+      })();
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[delete-message-media]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

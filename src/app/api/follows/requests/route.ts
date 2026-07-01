@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
@@ -17,7 +16,6 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "follows:requests", user?.id);
     if (blocked) return blocked;
 
-    // SEC-009: Use FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH
     const followProfileCols = selectCols(FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH);
 
     const { data: requests, error } = await supabase
@@ -29,7 +27,6 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // SEC-009: Filter neighborhood from follower profiles
     const followerIds = (requests || []).map((r: any) => r.follower_id).filter(Boolean);
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, followerIds);
     const filtered = filterFollowListItems(requests || [], hiddenNeighborhoodIds);
@@ -41,6 +38,9 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/follows/requests — Aceitar ou rejeitar uma solicitação
+// REL-006: Aceitar/rejeitar via RPCs atômicas (rpc_accept_follow_request /
+// rpc_reject_follow_request). Verifica blocks, ownership e status em
+// transação única no banco.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -62,73 +62,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "action deve ser 'accept' ou 'reject'" }, { status: 400 });
     }
 
-    // Verificar se a solicitação pertence ao usuário logado
-    const { data: followRow, error: fetchErr } = await supabase
-      .from("follows")
-      .select("id, follower_id, following_id, status")
-      .eq("id", requestId)
-      .eq("following_id", user.id)
-      .eq("status", "pending")
+    // REL-006: operação atômica via RPC
+    const rpcName = action === "accept"
+      ? "rpc_accept_follow_request"
+      : "rpc_reject_follow_request";
+
+    const { data, error } = await supabase
+      .rpc(rpcName, { p_request_id: requestId })
       .maybeSingle();
 
-    if (fetchErr) throw fetchErr;
+    if (error) throw error;
 
-    if (!followRow) {
-      return NextResponse.json({ error: "Solicitação não encontrada" }, { status: 404 });
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; accepted?: boolean; rejected?: boolean; follower_id?: string; reason?: string };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "request_not_found":
+          return NextResponse.json({ error: "Solicitação não encontrada" }, { status: 404 });
+        default:
+          return NextResponse.json({ error: "Não foi possível processar" }, { status: 400 });
+      }
     }
 
-    if (action === "accept") {
-      // SEC-004: Don't accept follow if either user blocked the other
-      const blocked = await isBlocked(supabase, user.id, followRow.follower_id);
-      if (blocked) {
-        // Silently reject — don't reveal the block reason
-        const { error: delErr } = await supabase
-          .from("follows")
-          .delete()
-          .eq("id", requestId);
-        if (delErr) throw delErr;
-        return NextResponse.json({ rejected: true });
+    // Aceitou (ou rejeitou por block — retorna rejected: true)
+    if (result.accepted) {
+      // Disparar push para notificação de follow_accepted
+      if (result.follower_id) {
+        (async () => {
+          try {
+            await new Promise((r) => setTimeout(r, 200));
+            const { data: notif } = await supabase
+              .from("notifications")
+              .select("id")
+              .eq("type", "follow_accepted")
+              .eq("user_id", result.follower_id)
+              .eq("actor_id", user.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (notif?.id) {
+              dispatchPushForNotification(notif.id).catch(() => {});
+            }
+          } catch { /* silent */ }
+        })();
       }
 
-      // Aceitar: atualizar status para 'accepted'
-      const { error: updateErr } = await supabase
-        .from("follows")
-        .update({ status: "accepted" })
-        .eq("id", requestId);
-
-      if (updateErr) throw updateErr;
-
-      // SEC-001: Disparar push para notificação de follow_accepted
-      (async () => {
-        try {
-          await new Promise((r) => setTimeout(r, 200));
-          const { data: notif } = await supabase
-            .from("notifications")
-            .select("id")
-            .eq("type", "follow_accepted")
-            .eq("user_id", followRow.follower_id)
-            .eq("actor_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (notif?.id) {
-            dispatchPushForNotification(notif.id).catch(() => {});
-          }
-        } catch { /* silent */ }
-      })();
-
       return NextResponse.json({ accepted: true });
-    } else {
-      // Rejeitar: deletar a solicitação
-      const { error: delErr } = await supabase
-        .from("follows")
-        .delete()
-        .eq("id", requestId);
-
-      if (delErr) throw delErr;
-      return NextResponse.json({ rejected: true });
     }
+
+    return NextResponse.json({ rejected: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

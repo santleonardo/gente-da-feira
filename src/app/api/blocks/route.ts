@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { extractStoragePathFromUrl } from "@/lib/storage-security";
 
 // GET /api/blocks — Listar usuários bloqueados
 export async function GET(req: NextRequest) {
@@ -52,6 +53,9 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/blocks — Bloquear ou desbloquear
+// REL-006: Operação totalmente atômica via rpc_block_user.
+// Insere block + remove follows + soft-delete DMs em transação única.
+// Retorna URLs de mídia DM para limpeza de storage.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -67,58 +71,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "targetUserId é obrigatório" }, { status: 400 });
     }
 
-    if (user.id === targetUserId) {
-      return NextResponse.json({ error: "Não pode bloquear a si mesmo" }, { status: 400 });
-    }
-
-    const { data: existing } = await supabase
-      .from("blocks")
-      .select("id")
-      .eq("blocker_id", user.id)
-      .eq("blocked_id", targetUserId)
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_block_user", { p_target_user_id: targetUserId })
       .maybeSingle();
 
-    if (existing) {
-      const { error: delErr } = await supabase
-        .from("blocks")
-        .delete()
-        .eq("id", existing.id);
+    if (error) throw error;
 
-      if (delErr) throw delErr;
-      return NextResponse.json({ blocked: false });
-    } else {
-      const { error: insertErr } = await supabase
-        .from("blocks")
-        .insert({ blocker_id: user.id, blocked_id: targetUserId });
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; blocked?: boolean; dm_media_urls?: string[] };
 
-      if (insertErr) throw insertErr;
-
-      // Remover follow nos dois sentidos
-      await supabase
-        .from("follows")
-        .delete()
-        .or(`and(follower_id.eq.${user.id},following_id.eq.${targetUserId}),and(follower_id.eq.${targetUserId},following_id.eq.${user.id})`);
-
-      // SEC-004: Soft-delete DM messages between the two users
-      // Find any direct_chat between them and mark all messages as deleted
-      const [a, b] = user.id < targetUserId ? [user.id, targetUserId] : [targetUserId, user.id];
-      const { data: dmChat } = await supabase
-        .from("direct_chats")
-        .select("id")
-        .eq("initiator_id", a)
-        .eq("receiver_id", b)
-        .maybeSingle();
-
-      if (dmChat) {
-        await supabase
-          .from("messages")
-          .update({ is_deleted: true })
-          .eq("dm_id", dmChat.id)
-          .eq("target_type", "dm");
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "cannot_block_self":
+          return NextResponse.json({ error: "Não pode bloquear a si mesmo" }, { status: 400 });
+        default:
+          return NextResponse.json({ error: "Não foi possível processar" }, { status: 400 });
       }
-
-      return NextResponse.json({ blocked: true });
     }
+
+    // Limpeza de storage (best effort) — após sucesso do DB
+    if (result.blocked && result.dm_media_urls && result.dm_media_urls.length > 0) {
+      const admin = createAdminClient();
+      (async () => {
+        for (const url of result.dm_media_urls!) {
+          try {
+            const parsed = extractStoragePathFromUrl(url);
+            if (parsed) {
+              await admin.storage.from(parsed.bucket).remove([parsed.path]);
+            }
+          } catch { /* silent — best effort */ }
+        }
+      })();
+    }
+
+    return NextResponse.json({ blocked: !!result.blocked });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

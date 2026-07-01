@@ -432,6 +432,9 @@ export async function POST(req: NextRequest) {
 }
 
 // ─── DELETE ──────────────────────────────────────────────────────────────────
+// REL-006: Soft-delete atômico via rpc_delete_post.
+// Marca post como deletado e retorna URLs de mídia para limpeza de storage.
+// A operação DB é atômica; storage cleanup é best effort após sucesso.
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -445,23 +448,39 @@ export async function DELETE(req: NextRequest) {
     const postId = new URL(req.url).searchParams.get("id");
     if (!postId) return NextResponse.json({ error: "ID necessário" }, { status: 400 });
 
-    const admin = createAdminClient();
-    const { data: post, error: fetchError } = await admin
-      .from("posts").select("image_urls, video_url, audio_url")
-      .eq("id", postId).eq("author_id", user.id).single();
-
-    if (fetchError || !post) {
-      return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
-    }
-
-    const { error } = await admin
-      .from("posts").update({ is_deleted: true })
-      .eq("id", postId).eq("author_id", user.id);
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_delete_post", { p_post_id: postId })
+      .maybeSingle();
 
     if (error) throw error;
 
-    // SEC-008: Limpeza de mídia com coverage total (post-photos + post-images)
-    cleanupPostMedia(admin, post);
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; media_urls?: string[] };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "post_not_found":
+          return NextResponse.json({ error: "Post não encontrado" }, { status: 404 });
+        default:
+          return NextResponse.json({ error: "Não foi possível excluir o post" }, { status: 400 });
+      }
+    }
+
+    // Limpeza de storage (best effort) — após DB em estado consistente
+    if (result.media_urls && result.media_urls.length > 0) {
+      const admin = createAdminClient();
+      (async () => {
+        for (const url of result.media_urls!) {
+          const parsed = extractStoragePathFromUrl(url);
+          if (parsed) {
+            admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+          }
+        }
+      })();
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

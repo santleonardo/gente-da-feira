@@ -2,6 +2,7 @@
 // API de fotos do perfil (galeria permanente)
 // Máximo: 20 fotos por perfil
 // SEC-009: Added privacy check for private profiles
+// REL-006: Delete atômico via rpc_delete_profile_photo
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -41,7 +42,6 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (targetProfile?.is_private && !isOwnProfile) {
-      // Check if viewer is an accepted follower
       if (authUser) {
         const { data: followRow } = await supabase
           .from("follows")
@@ -61,7 +61,6 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "photos:list", authUser?.id);
     if (blocked) return blocked;
 
-    // SEC-009: Explicit column selection — no SELECT *
     const { data: photos, error } = await supabase
       .from("profile_photos")
       .select("id, user_id, url, caption, created_at, reactions:profile_photo_reactions(user_id, type), comment_count:profile_photo_comments(count)")
@@ -70,7 +69,6 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // SEC-009: Strip storage_path (internal field) — never reaches client
     const formatted = stripStoragePaths(photos || []).map((p: any) => ({
       ...p,
       reactions: p.reactions || [],
@@ -95,14 +93,12 @@ export async function POST(req: NextRequest) {
     const { url, caption, storagePath } = await req.json();
     if (!url) return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
 
-    // SEC-008: Validar URL — deve ser do storage autorizado, bucket post-photos, ownership user.id
     const safeUrl = validateMediaUrl(url, {
       allowedBuckets: new Set(["post-photos"]),
       requireUserId: user.id,
     });
     if (!safeUrl) return NextResponse.json({ error: "URL da foto inválida" }, { status: 400 });
 
-    // SEC-008: Derivar storagePath da URL validada — NUNCA confiar no storagePath do cliente
     const parsedPath = extractStoragePathFromUrl(safeUrl);
     const derivedStoragePath = parsedPath?.path || "";
 
@@ -119,7 +115,6 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // SEC-009: Explicit column selection on insert response
     const { data: photo, error } = await supabase
       .from("profile_photos")
       .insert({
@@ -138,6 +133,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE /api/profile-photos?id=xxx
+// REL-006: Exclusão atômica via rpc_delete_profile_photo.
+// Deleta foto + comentários + reações em transação única.
+// Retorna storage_path para limpeza de storage (best effort).
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -151,27 +150,35 @@ export async function DELETE(req: NextRequest) {
     const photoId = searchParams.get("id");
     if (!photoId) return NextResponse.json({ error: "ID necessário" }, { status: 400 });
 
-    const admin = createAdminClient();
-
-    const { data: photo } = await admin
-      .from("profile_photos")
-      .select("storage_path")
-      .eq("id", photoId)
-      .eq("user_id", user.id)
-      .single();
-
-    const { error } = await admin
-      .from("profile_photos")
-      .delete()
-      .eq("id", photoId)
-      .eq("user_id", user.id);
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_delete_profile_photo", { p_photo_id: photoId })
+      .maybeSingle();
 
     if (error) throw error;
 
-    if (photo?.storage_path) {
-      try {
-        await admin.storage.from("post-photos").remove([photo.storage_path]);
-      } catch { /* silent */ }
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; storage_path?: string; bucket?: string };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "photo_not_found":
+          return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
+        default:
+          return NextResponse.json({ error: "Não foi possível excluir a foto" }, { status: 400 });
+      }
+    }
+
+    // Limpeza de storage (best effort) — após DB em estado consistente
+    if (result.storage_path) {
+      const admin = createAdminClient();
+      (async () => {
+        try {
+          await admin.storage.from(result.bucket || "post-photos").remove([result.storage_path!]);
+        } catch { /* silent — best effort */ }
+      })();
     }
 
     return NextResponse.json({ success: true });

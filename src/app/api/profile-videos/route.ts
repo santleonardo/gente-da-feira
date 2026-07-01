@@ -2,6 +2,7 @@
 // API de vídeos do perfil
 // Máximo: 5 vídeos por perfil, máximo 30 segundos cada
 // SEC-009: Added privacy check for private profiles
+// REL-006: Delete atômico via rpc_delete_profile_video
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     const { url, storagePath, thumbnailUrl, duration } = await req.json();
     if (!url) return NextResponse.json({ error: "URL do vídeo é obrigatória" }, { status: 400 });
 
-    // SEC-008: Validar URL do vídeo — deve ser do bucket profile-videos, ownership user.id
+    // SEC-008: Validar URL do vídeo
     const VIDEO_BUCKETS = new Set(["profile-videos"]);
     const safeUrl = validateMediaUrl(url, {
       allowedBuckets: VIDEO_BUCKETS,
@@ -98,11 +99,11 @@ export async function POST(req: NextRequest) {
     });
     if (!safeUrl) return NextResponse.json({ error: "URL do vídeo inválida" }, { status: 400 });
 
-    // SEC-008: Derivar storagePath da URL — NUNCA confiar no storagePath do cliente
+    // SEC-008: Derivar storagePath da URL
     const parsedPath = extractStoragePathFromUrl(safeUrl);
     const derivedStoragePath = parsedPath?.path || "";
 
-    // SEC-008: Validar thumbnail — deve ser do bucket post-photos
+    // SEC-008: Validar thumbnail
     let safeThumb = "";
     if (thumbnailUrl) {
       safeThumb = validateMediaUrl(thumbnailUrl, {
@@ -150,6 +151,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE /api/profile-videos?id=xxx
+// REL-006: Exclusão atômica via rpc_delete_profile_video.
+// Deleta vídeo + comentários + reações em transação única.
+// Retorna storage_paths para limpeza de storage (best effort).
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -163,41 +168,46 @@ export async function DELETE(req: NextRequest) {
     const videoId = searchParams.get("id");
     if (!videoId) return NextResponse.json({ error: "ID necessário" }, { status: 400 });
 
-    const admin = createAdminClient();
-
-    const { data: _video } = await admin
-      .from("profile_videos")
-      .select("storage_path, thumbnail_url")
-      .eq("id", videoId)
-      .eq("user_id", user.id)
-      .single();
-
-    // Type assertion necessário pois sem tipos gerados o retorno é genérico
-    const video = _video as any;
-
-    const { error } = await admin
-      .from("profile_videos")
-      .delete()
-      .eq("id", videoId)
-      .eq("user_id", user.id);
+    // REL-006: operação atômica no banco
+    const { data, error } = await supabase
+      .rpc("rpc_delete_profile_video", { p_video_id: videoId })
+      .maybeSingle();
 
     if (error) throw error;
 
-    if (video?.storage_path) {
-      try {
-        await admin.storage.from("profile-videos").remove([video.storage_path]);
-      } catch { /* silent */ }
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; storage_path?: string; video_bucket?: string; thumbnail_url?: string };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "video_not_found":
+          return NextResponse.json({ error: "Vídeo não encontrado" }, { status: 404 });
+        default:
+          return NextResponse.json({ error: "Não foi possível excluir o vídeo" }, { status: 400 });
+      }
     }
 
-    // SEC-008: Usar extractStoragePathFromUrl em vez de string splitting
-    if (video?.thumbnail_url) {
-      try {
-        const thumbParsed = extractStoragePathFromUrl(video.thumbnail_url);
-        if (thumbParsed) {
-          await admin.storage.from(thumbParsed.bucket).remove([thumbParsed.path]);
-        }
-      } catch { /* silent */ }
-    }
+    // Limpeza de storage (best effort) — após DB em estado consistente
+    const admin = createAdminClient();
+    (async () => {
+      // Remover vídeo
+      if (result.storage_path) {
+        try {
+          await admin.storage.from(result.video_bucket || "profile-videos").remove([result.storage_path!]);
+        } catch { /* silent */ }
+      }
+      // Remover thumbnail
+      if (result.thumbnail_url) {
+        try {
+          const thumbParsed = extractStoragePathFromUrl(result.thumbnail_url);
+          if (thumbParsed) {
+            await admin.storage.from(thumbParsed.bucket).remove([thumbParsed.path]);
+          }
+        } catch { /* silent */ }
+      }
+    })();
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

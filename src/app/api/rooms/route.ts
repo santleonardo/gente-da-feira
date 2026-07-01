@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { ROOM_SAFE_COLUMNS, selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
@@ -7,8 +7,6 @@ import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
 import bcrypt from "bcryptjs";
 
 // ── GET /api/rooms ──────────────────────────────────────────────
-// Retorna todas as salas ativas com informações de participação
-// do usuário autenticado (isMember, myRole, isBanned, canJoin, isOpen, memberCount)
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -17,7 +15,6 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "rooms:list", user?.id);
     if (blocked) return blocked;
 
-    // SEC-003: Select explícito — nunca SELECT * (password_hash fica de fora)
     const { data: rooms, error } = await supabase
       .from("rooms")
       .select(`${selectCols(ROOM_SAFE_COLUMNS)}, room_members(count)`)
@@ -27,7 +24,6 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // Buscar todas as participações do usuário autenticado em uma única query
     let memberRoomIds: Set<string> = new Set();
     let memberRoles: Record<string, string> = {};
     let bannedRoomIds: Set<string> = new Set();
@@ -61,7 +57,6 @@ export async function GET(req: NextRequest) {
         ...r,
         _count: { members: r.room_members?.[0]?.count || 0 },
         memberCount,
-        // SEC-003: has_password vem da coluna computada do banco
         has_password: !!r.has_password,
         isMember,
         myRole: memberRoles[r.id] || null,
@@ -80,7 +75,9 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST /api/rooms ─────────────────────────────────────────────
-// Body: { name, description, icon, max_members, rules, password, is_open }
+// REL-006: Criação de sala atômica via rpc_create_room_with_creator.
+// INSERT rooms + INSERT room_members (creator) em transação única.
+// Previne sala órfã sem criador.
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -114,40 +111,47 @@ export async function POST(req: NextRequest) {
         .replace(/^-|-$/g, "") +
       "-" + Date.now().toString(36);
 
-    // SEC-003: Select explícito no retorno — nunca SELECT *
-    const { data: _room, error } = await supabase
-      .from("rooms")
-      .insert({
-        name,
-        slug,
-        icon,
-        description: description || null,
-        rules,
-        type: "community",
-        is_active: true,
-        is_open: isOpen,
-        max_members: maxMembers,
-        password_hash: passwordHash,
-        created_by: user.id,
+    // REL-006: operação atômica — sala + membership do criador
+    const { data, error } = await supabase
+      .rpc("rpc_create_room_with_creator", {
+        p_name: name,
+        p_slug: slug,
+        p_icon: icon,
+        p_description: description || null,
+        p_rules: rules,
+        p_is_open: isOpen,
+        p_max_members: maxMembers,
+        p_password_hash: passwordHash,
       })
-      .select(selectCols(ROOM_SAFE_COLUMNS))
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
 
-    // Type assertion necessário porque selectCols() retorna string dinâmica
-    const room = _room as any;
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as { ok: boolean; error?: string; room_id?: string; has_password?: boolean };
 
-    await supabase.from("room_members").insert({
-      room_id: room.id,
-      user_id: user.id,
-      role: "creator",
-    });
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        default:
+          return NextResponse.json({ error: "Não foi possível criar a sala" }, { status: 400 });
+      }
+    }
+
+    // Buscar a sala criada para retornar dados completos
+    const { data: _room } = await supabase
+      .from("rooms")
+      .select(selectCols(ROOM_SAFE_COLUMNS))
+      .eq("id", result.room_id)
+      .single();
+
+    const room = _room as any;
 
     return NextResponse.json({
       room: {
         ...room,
-        has_password: !!passwordHash,
+        has_password: !!result.has_password,
         memberCount: 1,
         isMember: true,
         myRole: "creator",
