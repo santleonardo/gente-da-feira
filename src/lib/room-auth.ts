@@ -165,27 +165,6 @@ export async function canViewRoomMembers(
 }
 
 /**
- * Verifica se o usuário pode ver DETALHES COMPLETOS da sala.
- */
-export async function canViewRoomDetails(
-  roomId: string,
-  userId: string
-): Promise<{ allowed: boolean; membership: RoomMembership }> {
-  const membership = await checkRoomMembership(roomId, userId);
-
-  if (!membership.roomExists || !membership.roomIsActive) {
-    return { allowed: false, membership };
-  }
-  if (membership.isMember) {
-    return { allowed: true, membership };
-  }
-  if (membership.isBanned) {
-    return { allowed: false, membership };
-  }
-  return { allowed: false, membership } as any;
-}
-
-/**
  * Verifica se o usuário é moderador ou criador da sala.
  */
 export async function isRoomModeratorOrAbove(
@@ -205,30 +184,6 @@ export async function isRoomModeratorOrAbove(
   }
   if (membership.role !== "creator" && membership.role !== "moderator") {
     return { allowed: false, reason: "Apenas moderadores ou criadores podem realizar esta ação", membership };
-  }
-  return { allowed: true, membership };
-}
-
-/**
- * Verifica se o usuário é o criador da sala.
- */
-export async function isRoomCreator(
-  roomId: string,
-  userId: string
-): Promise<{ allowed: boolean; reason?: string; membership: RoomMembership }> {
-  const membership = await checkRoomMembership(roomId, userId);
-
-  if (!membership.roomExists) {
-    return { allowed: false, reason: "Sala não encontrada", membership };
-  }
-  if (membership.isBanned) {
-    return { allowed: false, reason: "Você foi banido desta sala", membership };
-  }
-  if (!membership.isMember) {
-    return { allowed: false, reason: "Você não é membro desta sala", membership };
-  }
-  if (membership.role !== "creator") {
-    return { allowed: false, reason: "Apenas o criador pode realizar esta ação", membership };
   }
   return { allowed: true, membership };
 }
