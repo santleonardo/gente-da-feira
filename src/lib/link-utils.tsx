@@ -90,7 +90,7 @@ export function parseInlineFormatting(
     if (match[1]) {
       // URL
       parts.push(
-        
+        <a
           key={`url-${key++}`}
           href={match[1]}
           target="_blank"
