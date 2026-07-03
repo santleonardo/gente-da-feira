@@ -54,24 +54,3 @@ export async function rateLimitByRule(
 
   return null;
 }
-
-/**
- * Aplica rate limiting genérico (para rotas sem regra no config).
- *
- * @deprecated Prefira rateLimitByRule com regra nomeada.
- */
-export async function applyRateLimit(
-  req: NextRequest,
-  limit = 20,
-  windowMs = 60_000,
-  userId?: string | null
-): Promise<Response | null> {
-  const identity = identifyRequest(req, userId, "generic");
-  const result = await checkRateLimit(identity, limit, windowMs);
-
-  if (!result.allowed) {
-    return rateLimitResponse(result);
-  }
-
-  return null;
-}
