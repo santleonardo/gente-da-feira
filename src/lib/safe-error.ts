@@ -34,18 +34,3 @@ export function safeErrorResponse(
     status,
   };
 }
-
-/**
- * Extrai mensagem de erro safe para logs (nunca para o cliente).
- * Remove possíveis dados sensíveis de mensagens de erro do banco.
- */
-export function sanitizeForLog(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    // Trunca mensagens muito longas (possível data exfil)
-    return error.length > 500 ? error.slice(0, 500) + "..." : error;
-  }
-  return "Erro desconhecido";
-}
