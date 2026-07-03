@@ -124,10 +124,3 @@ const rules: RateLimitRule[] = [
 export function getRule(key: string): RateLimitRule | undefined {
   return rules.find((r) => r.key === key);
 }
-
-/**
- * Retorna todas as regras (para debug/logging).
- */
-export function getAllRules(): RateLimitRule[] {
-  return [...rules];
-}
