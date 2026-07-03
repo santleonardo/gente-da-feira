@@ -18,7 +18,3 @@ export function createClient() {
   }
   return createBrowserClient<any>(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
-
-export function isSupabaseConfigured(): boolean {
-  return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
-}
