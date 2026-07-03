@@ -1,6 +1,5 @@
 import React, { Fragment } from "react";
 
-const URL_REGEX = /(https?:\/\/[^\s<>"')\]]+)/g;
 const MENTION_REGEX = /@(\w+)/g;
 
 // Regex combinado: URL | @menção | ***negrito itálico*** | **negrito** | _itálico_
@@ -48,57 +47,6 @@ export function openProfileFromMention(username: string, openUserProfile?: (user
 }
 
 /**
- * Extracts all @mentions from a text string.
- */
-export function extractMentions(text: string): string[] {
-  const matches = text.matchAll(MENTION_REGEX);
-  const mentions = new Set<string>();
-  for (const m of matches) {
-    mentions.add(m[1].toLowerCase());
-  }
-  return Array.from(mentions);
-}
-
-/**
- * Checks if text contains @mentions.
- */
-export function hasMentions(text: string): boolean {
-  MENTION_REGEX.lastIndex = 0;
-  return MENTION_REGEX.test(text);
-}
-
-/**
- * Renders text content with URLs converted to clickable links.
- * Returns an array of React elements (text spans and anchor tags).
- */
-export function renderContentWithLinks(text: string, linkClassName?: string): React.ReactNode[] {
-  if (!text) return [text];
-
-  const parts = text.split(URL_REGEX);
-  if (parts.length <= 1) return [text];
-
-  return parts.map((part, i) => {
-    if (URL_REGEX.test(part)) {
-      URL_REGEX.lastIndex = 0;
-      return (
-        <a
-          key={i}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={linkClassName || "text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors"}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {part}
-        </a>
-      );
-    }
-    URL_REGEX.lastIndex = 0;
-    return part;
-  });
-}
-
-/**
  * Renderiza um texto inline tratando, em uma única passada:
  *  - URLs (clicáveis, abrindo em nova aba)
  *  - @menções (abrem o perfil do usuário mencionado)
@@ -142,7 +90,7 @@ export function parseInlineFormatting(
     if (match[1]) {
       // URL
       parts.push(
-        <a
+        
           key={`url-${key++}`}
           href={match[1]}
           target="_blank"
