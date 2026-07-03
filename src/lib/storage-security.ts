@@ -257,12 +257,3 @@ export function validateMediaUrlArray(
 
   return validated;
 }
-
-/**
- * Retorna o Supabase Storage base URL (sem trailing slash).
- */
-export function getStorageBaseUrl(): string {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return "";
-  return supabaseUrl.replace(/\/$/, "");
-}
