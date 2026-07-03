@@ -54,29 +54,12 @@ export const PROFILE_SEARCH_COLUMNS = [
 ] as const;
 
 /**
- * SEC-009: Colunas de perfil para JOIN como "author" em posts, comentários, etc.
- * NÃO inclui neighborhood — este deve ser adicionado condicionalmente
- * usando filterPostsAuthorNeighborhood() após a query.
- */
-export const AUTHOR_PROFILE_COLUMNS = [
-  "id", "display_name", "username", "avatar_url",
-] as const;
-
-/**
  * SEC-009: Colunas de perfil para JOIN como "author" com neighborhood.
  * Usado quando o viewer é o próprio autor ou quando se aplicará
  * filterPostsAuthorNeighborhood() depois.
  */
 export const AUTHOR_PROFILE_COLUMNS_FULL = [
   "id", "display_name", "username", "avatar_url", "neighborhood",
-] as const;
-
-/**
- * SEC-009: Colunas de perfil para listas de seguidores/seguindo.
- * Bio pode ser filtrado se o perfil é privado.
- */
-export const FOLLOW_LIST_PROFILE_COLUMNS = [
-  "id", "display_name", "username", "avatar_url", "bio",
 ] as const;
 
 /**
