@@ -105,7 +105,6 @@ export function PWARegister() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {
-          console.log("SW registrado:", reg.scope);
           swRef.current = reg;
 
           // Registrar push após SW ativo
@@ -142,7 +141,7 @@ export function PWARegister() {
             }
           });
         })
-        .catch((err) => console.log("SW falhou:", err));
+        .catch((err) => console.error("SW falhou:", err));
     }
 
     const handler = (e: Event) => {
