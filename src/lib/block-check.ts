@@ -56,27 +56,6 @@ export async function getBlockedUserIds(
 }
 
 /**
- * Enforce block check — returns 403 response if blocked, or null if OK.
- * Convenience wrapper for API routes.
- */
-export async function enforceBlockCheck(
-  supabase: SupabaseClient,
-  currentUser: string,
-  targetUser: string
-): Promise<Response | null> {
-  if (currentUser === targetUser) return null;
-
-  const blocked = await isBlocked(supabase, currentUser, targetUser);
-  if (blocked) {
-    return new Response(
-      JSON.stringify({ error: "Ação não permitida devido a bloqueio" }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
-    );
-  }
-  return null;
-}
-
-/**
  * Get the author ID of a post. Returns null if not found.
  * Used before reacting/commenting to check blocks against the author.
  */
@@ -121,20 +100,4 @@ export async function getProfileVideoOwnerId(
     .eq("id", videoId)
     .maybeSingle();
   return data?.user_id ?? null;
-}
-
-/**
- * Get the author ID of a comment. Returns null if not found.
- */
-export async function getCommentAuthorId(
-  supabase: SupabaseClient,
-  commentId: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("comments")
-    .select("author_id, post_id")
-    .eq("id", commentId)
-    .eq("is_deleted", false)
-    .maybeSingle();
-  return data?.author_id ?? null;
 }
