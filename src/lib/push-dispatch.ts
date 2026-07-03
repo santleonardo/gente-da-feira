@@ -4,7 +4,7 @@
 // SEC-001: INTERNAL_API_SECRET é OBRIGATÓRIO. Se não estiver configurada,
 // o dispatch é silenciosamente abortado — nunca envia sem autenticação.
 
-import { getInternalSecret, isInternalAuthConfigured } from "@/lib/internal-auth";
+import { getInternalSecret } from "@/lib/internal-auth";
 
 // Flag para logar aviso apenas uma vez por processo
 let _warnedMissing = false;
@@ -67,12 +67,4 @@ export async function dispatchPushForNotification(notificationId: string): Promi
   } catch {
     // Fire-and-forget — nunca deve quebrar a rota chamadora
   }
-}
-
-/**
- * Verifica se o sistema de push está configurado e pronto.
- * Útil para decidir se deve tentar dispatcher notificações.
- */
-export function isPushDispatchReady(): boolean {
-  return isInternalAuthConfigured() && !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 }
