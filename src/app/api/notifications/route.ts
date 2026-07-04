@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // GET /api/notifications — Listar notificações
 export async function GET(req: NextRequest) {
@@ -55,6 +56,9 @@ export async function PUT(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "notifications:read", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { notificationId, markAll } = await req.json();
 
     if (markAll) {
@@ -65,7 +69,9 @@ export async function PUT(req: NextRequest) {
         .eq("is_read", false);
 
       if (error) throw error;
-      return NextResponse.json({ markedAll: true });
+      const responseData = { markedAll: true };
+      await idempotencyStore(req, responseData);
+      return NextResponse.json(responseData);
     }
 
     if (!notificationId) {
@@ -79,8 +85,11 @@ export async function PUT(req: NextRequest) {
       .eq("user_id", user.id);
 
     if (error) throw error;
-    return NextResponse.json({ marked: true });
+    const responseData = { marked: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

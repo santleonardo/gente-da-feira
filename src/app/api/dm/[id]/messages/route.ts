@@ -5,6 +5,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
 import { selectCols } from "@/lib/safe-columns";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
@@ -74,6 +75,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const blocked = await rateLimitByRule(req, "dm:messages:send", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { data: chat } = await supabase.from("direct_chats")
       .select("id, initiator_id, receiver_id")
       .eq("id", id)
@@ -136,8 +140,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ message });
+    const responseData = { message };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

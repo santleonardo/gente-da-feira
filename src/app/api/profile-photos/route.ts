@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
 import { stripStoragePaths } from "@/lib/privacy-filter";
@@ -90,6 +91,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "photos:create", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { url, caption, storagePath } = await req.json();
     if (!url) return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
 
@@ -127,8 +131,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ photo });
+    const photoData = { photo };
+    await idempotencyStore(req, photoData);
+    return NextResponse.json(photoData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -145,6 +152,9 @@ export async function DELETE(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "photos:delete", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const { searchParams } = new URL(req.url);
     const photoId = searchParams.get("id");
@@ -181,8 +191,11 @@ export async function DELETE(req: NextRequest) {
       })();
     }
 
-    return NextResponse.json({ success: true });
+    const responseData = { success: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

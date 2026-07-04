@@ -4,6 +4,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { ROOM_SAFE_COLUMNS, selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import bcrypt from "bcryptjs";
 
 // ── GET /api/rooms ──────────────────────────────────────────────
@@ -87,6 +88,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "rooms:create", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const body = await req.json();
     const name        = sanitizeShortText((body.name || ""), 50);
     const description = sanitizePlainText((body.description || ""));
@@ -148,7 +152,7 @@ export async function POST(req: NextRequest) {
 
     const room = _room as any;
 
-    return NextResponse.json({
+    const responseData = {
       room: {
         ...room,
         has_password: !!result.has_password,
@@ -159,8 +163,11 @@ export async function POST(req: NextRequest) {
         canJoin: false,
         isOpen,
       },
-    });
+    };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[rooms POST]");
     return NextResponse.json({ error: message }, { status });
   }

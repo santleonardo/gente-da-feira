@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const blocked = await rateLimitByRule(req, "users:avatar", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -53,8 +57,11 @@ export async function POST(req: NextRequest) {
       throw updateError;
     }
 
-    return NextResponse.json({ avatar_url: avatarUrl });
+    const responseData = { avatar_url: avatarUrl };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     console.error("Avatar upload error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

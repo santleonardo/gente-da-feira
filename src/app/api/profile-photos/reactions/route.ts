@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBlocked, getProfilePhotoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { canViewProfileMedia } from "@/lib/content-visibility";
 
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "photos:react", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const { photoId, type } = await req.json();
     if (!photoId || !type) {
@@ -61,8 +65,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Não foi possível processar a reação" }, { status: 400 });
     }
 
-    return NextResponse.json({ reacted: !!result.reacted });
+    const responseData = { reacted: !!result.reacted };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[profile-photos/reactions POST]");
     return NextResponse.json({ error: message }, { status });
   }

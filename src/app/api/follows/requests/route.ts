@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
 import { batchFetchPrivacyFlags, filterFollowListItems } from "@/lib/privacy-filter";
 
@@ -52,6 +53,9 @@ export async function POST(req: NextRequest) {
       const blocked = await rateLimitByRule(req, "follows:accept", user?.id);
       if (blocked) return blocked;
     }
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const { requestId, action } = await req.json();
     if (!requestId || !action) {
@@ -111,11 +115,16 @@ export async function POST(req: NextRequest) {
         })();
       }
 
-      return NextResponse.json({ accepted: true });
+      const acceptedData = { accepted: true };
+      await idempotencyStore(req, acceptedData);
+      return NextResponse.json(acceptedData);
     }
 
-    return NextResponse.json({ rejected: true });
+    const rejectedData = { rejected: true };
+    await idempotencyStore(req, rejectedData);
+    return NextResponse.json(rejectedData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isRoomModeratorOrAbove } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/toggle-open
@@ -26,6 +27,9 @@ export async function POST(
     const blocked = await rateLimitByRule(req, "rooms:toggle", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { is_open } = await req.json();
     if (typeof is_open !== "boolean") {
       return NextResponse.json({ error: "is_open deve ser boolean" }, { status: 400 });
@@ -47,8 +51,11 @@ export async function POST(
       console.error("[SEC-002 toggle-open UPDATE]", error);
       throw error;
     }
-    return NextResponse.json({ is_open });
+    const responseData = { is_open };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     console.error("[SEC-002 toggle-open POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

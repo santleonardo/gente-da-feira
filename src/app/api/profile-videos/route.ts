@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
 
@@ -88,6 +89,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "videos:create", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { url, storagePath, thumbnailUrl, duration } = await req.json();
     if (!url) return NextResponse.json({ error: "URL do vídeo é obrigatória" }, { status: 400 });
 
@@ -144,8 +148,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ video });
+    const videoData = { video };
+    await idempotencyStore(req, videoData);
+    return NextResponse.json(videoData);
   } catch (error: any) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[profile-videos POST]");
     return NextResponse.json({ error: message }, { status });
   }
@@ -163,6 +170,9 @@ export async function DELETE(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "videos:delete", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const { searchParams } = new URL(req.url);
     const videoId = searchParams.get("id");
@@ -209,8 +219,11 @@ export async function DELETE(req: NextRequest) {
       }
     })();
 
-    return NextResponse.json({ success: true });
+    const responseData = { success: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[profile-videos DELETE]");
     return NextResponse.json({ error: message }, { status });
   }

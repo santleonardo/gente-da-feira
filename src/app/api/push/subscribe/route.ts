@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // Validação básica do objeto de subscription do Push API
 function isValidSubscription(sub: any): boolean {
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "push:subscribe", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     let subscription: any;
     try {
@@ -95,8 +99,11 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ ok: true });
+    const responseData = { ok: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (err) {
+    await idempotencyFail(req);
     console.error("[push/subscribe]", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
@@ -110,6 +117,9 @@ export async function DELETE(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "push:subscribe", user?.id);
     if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
 
     const { endpoint } = await req.json();
     if (!endpoint) return NextResponse.json({ error: "Endpoint obrigatório" }, { status: 400 });
@@ -133,8 +143,11 @@ export async function DELETE(req: NextRequest) {
       .eq("user_id", user.id)
       .eq("endpoint", endpoint);
 
-    return NextResponse.json({ ok: true });
+    const responseData = { ok: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (err) {
+    await idempotencyFail(req);
     console.error("[push/subscribe DELETE]", err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }

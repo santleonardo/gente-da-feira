@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { extractStoragePathFromUrl } from "@/lib/storage-security";
 
 // GET /api/blocks — Listar usuários bloqueados
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "blocks:toggle", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { targetUserId } = await req.json();
     if (!targetUserId) {
       return NextResponse.json({ error: "targetUserId é obrigatório" }, { status: 400 });
@@ -107,8 +111,11 @@ export async function POST(req: NextRequest) {
       })();
     }
 
-    return NextResponse.json({ blocked: !!result.blocked });
+    const responseData = { blocked: !!result.blocked };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

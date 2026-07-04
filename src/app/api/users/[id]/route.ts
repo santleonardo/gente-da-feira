@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { PROFILE_SAFE_COLUMNS, selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
@@ -91,6 +92,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const blocked = await rateLimitByRule(req, "users:update", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const data = await req.json();
     const updates: Record<string, any> = {};
 
@@ -165,8 +169,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error) throw error;
     // Type assertion necessário porque selectCols() retorna string dinâmica
     const profile = _profile as any;
-    return NextResponse.json({ user: { ...profile, name: profile.display_name } });
+    const responseData = { user: { ...profile, name: profile.display_name } };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[users profile PUT]");
     return NextResponse.json({ error: message }, { status });
   }

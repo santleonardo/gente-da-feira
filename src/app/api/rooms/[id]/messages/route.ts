@@ -5,6 +5,7 @@ import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
@@ -103,6 +104,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const blocked = await rateLimitByRule(req, "rooms:msg:send", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     // SEC-002: Verificar filiação antes de qualquer escrita
     const auth = await canSendRoomMessage(id, user.id);
     if (!auth.allowed) {
@@ -172,8 +176,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       throw error;
     }
 
-    return NextResponse.json({ message });
+    const responseData = { message };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     console.error("[SEC-002 room-messages POST]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

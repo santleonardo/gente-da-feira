@@ -7,6 +7,7 @@ import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // SEC-009: Author profile columns for comment authors
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const blocked = await rateLimitByRule(req, "comments:create", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { content, parentId } = await req.json();
     if (!content || !content.trim()) return NextResponse.json({ error: "Comentário não pode estar vazio" }, { status: 400 });
     if (content.trim().length > 300) return NextResponse.json({ error: "Comentário muito longo (máx 300 chars)" }, { status: 400 });
@@ -106,8 +110,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       dispatchPushForNotification(notif.id).catch(() => {});
     }
 
-    return NextResponse.json({ comment: filtered[0] });
+    const responseData = { comment: filtered[0] };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -122,6 +129,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const blocked = await rateLimitByRule(req, "comments:delete", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("commentId");
     if (!commentId) return NextResponse.json({ error: "ID do comentário necessário" }, { status: 400 });
@@ -131,8 +141,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .eq("id", commentId).eq("author_id", user.id);
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
+    const responseData = { success: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

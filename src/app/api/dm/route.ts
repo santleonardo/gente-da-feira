@@ -4,6 +4,7 @@ import { getBlockedUserIds } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 
 // SEC-009: Explicit columns for DM conversation list — no SELECT * on direct_chats
 const DM_CHAT_COLUMNS = "id, initiator_id, receiver_id, updated_at";
@@ -59,6 +60,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "dm:create", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { receiverId } = await req.json();
     if (!receiverId) return NextResponse.json({ error: "receiverId obrigatório" }, { status: 400 });
     if (user.id === receiverId) return NextResponse.json({ error: "Não pode conversar consigo" }, { status: 400 });
@@ -98,8 +102,11 @@ export async function POST(req: NextRequest) {
 
     if (fetchErr) throw fetchErr;
 
-    return NextResponse.json({ conversation });
+    const responseData = { conversation };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error) {
+    await idempotencyFail(req);
     const { message, status } = safeErrorResponse(error, 500, "[dm POST]");
     return NextResponse.json({ error: message }, { status });
   }

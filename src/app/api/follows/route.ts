@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import {
@@ -165,6 +166,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "follows:toggle", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { targetUserId } = await req.json();
     if (!targetUserId) {
       return NextResponse.json({ error: "targetUserId é obrigatório" }, { status: 400 });
@@ -216,11 +220,14 @@ export async function POST(req: NextRequest) {
       })();
     }
 
-    return NextResponse.json({
+    const responseData = {
       following: !!result.following,
       pending: !!result.pending,
-    });
+    };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -236,6 +243,9 @@ export async function DELETE(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "follows:remove", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { searchParams } = new URL(req.url);
     const followerId = searchParams.get("followerId");
     if (!followerId) {
@@ -250,8 +260,11 @@ export async function DELETE(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ removed: true });
+    const responseData = { removed: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

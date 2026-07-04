@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked, getProfileVideoOwnerId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols } from "@/lib/safe-columns";
 import { canViewProfileMedia } from "@/lib/content-visibility";
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "videos:comment", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { videoId, content, parentId } = await req.json();
     if (!videoId || !content?.trim()) {
       return NextResponse.json({ error: "videoId e conteúdo são obrigatórios" }, { status: 400 });
@@ -91,8 +95,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ comment });
+    const commentData = { comment };
+    await idempotencyStore(req, commentData);
+    return NextResponse.json(commentData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -106,6 +113,9 @@ export async function DELETE(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "comments:delete", user?.id);
     if (blocked) return blocked;
 
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
     const { searchParams } = new URL(req.url);
     const commentId = searchParams.get("commentId");
     if (!commentId) return NextResponse.json({ error: "commentId necessário" }, { status: 400 });
@@ -118,8 +128,11 @@ export async function DELETE(req: NextRequest) {
       .eq("user_id", user.id);
 
     if (error) throw error;
-    return NextResponse.json({ success: true });
+    const responseData = { success: true };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
   } catch (error: any) {
+    await idempotencyFail(req);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
