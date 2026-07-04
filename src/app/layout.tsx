@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { PWARegister } from "@/components/gdf/PWARegister";
+import { getNonceHeaderName } from "@/lib/csp";
 import "./globals.css";
 
 // Nunito carregada via CSS para evitar fetch em build
@@ -40,11 +42,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read nonce set by middleware — Next.js uses this to automatically
+  // add nonce attributes to all framework-injected <script> tags
+  const headersList = await headers();
+  const nonce = headersList.get(getNonceHeaderName()) || "";
+
   return (
     <html lang="pt-BR" suppressHydrationWarning className={nunito.variable}>
       <head>
@@ -52,7 +59,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className="antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          nonce={nonce}
+        >
           {children}
           <Toaster position="top-center" richColors />
           <PWARegister />
