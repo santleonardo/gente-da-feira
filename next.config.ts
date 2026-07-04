@@ -14,32 +14,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co",
-              "media-src 'self' blob: https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-              "font-src 'self'",
-              "frame-ancestors 'none'",
-            ].join("; "),
-          },
-        ],
-      },
-    ];
-  },
+  // All security headers (CSP, HSTS, X-Content-Type-Options, etc.) are
+  // now applied dynamically per-request in middleware.ts with nonce-based CSP.
+  // Static headers in next.config.ts cannot use nonces — middleware is required.
 };
 
 export default nextConfig;
