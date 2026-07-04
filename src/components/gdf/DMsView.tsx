@@ -278,7 +278,6 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
             >
               <div className="relative shrink-0" onClick={(e) => { e.stopPropagation(); navigateToProfile(other.id); }}>
                 <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-12 w-12 hover:opacity-80 transition-opacity" />
-                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -847,11 +846,10 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
         </Button>
         <div className="relative" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
           <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-10 w-10 hover:opacity-80 transition-opacity" />
-          <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
         </div>
         <div className="flex-1 min-w-0" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
           <h3 className="text-sm font-bold truncate">{other.display_name}</h3>
-          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Online</p>
+          <p className="text-[11px] text-muted-foreground">@{other.username}</p>
         </div>
       </div>
 
