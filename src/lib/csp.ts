@@ -1,4 +1,7 @@
-import crypto from "crypto";
+// SEC-012 fix: o middleware.ts roda no Edge Runtime, que não suporta o
+// módulo "crypto" do Node (import crypto from "crypto"). Usamos a Web
+// Crypto API (globalThis.crypto), que é padrão web e funciona tanto no
+// Edge Runtime quanto no Node 20+ e no navegador.
 
 /**
  * SEC-012: Content Security Policy — Nonce-based CSP utility.
@@ -23,7 +26,14 @@ import crypto from "crypto";
 const NONCE_HEADER = "x-nonce";
 
 export function generateNonce(): string {
-  return crypto.randomBytes(16).toString("base64");
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  // Converte os bytes aleatórios para base64 sem depender de Buffer (Node-only)
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 export function getNonceHeaderName(): string {
