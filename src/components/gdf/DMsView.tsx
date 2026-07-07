@@ -10,7 +10,7 @@ import {
   ArrowLeft, UserPlus, Search, MessageSquare,
   Camera, Mic, X, ImagePlus, Video, Music,
   Play, Pause, Send, ChevronUp, Loader2,
-  Trash2,
+  Trash2, Flag,
 } from "lucide-react";
 import { timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -981,6 +981,15 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                 </div>
                 {!isMine && (
                   <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
+                )}
+                {!isMine && (
+                  <button
+                    onClick={() => useStore.getState().openReportDialog({ targetType: "dm_message", targetId: msg.id })}
+                    title="Denunciar mensagem"
+                    className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
+                  >
+                    <Flag className="h-3 w-3" />
+                  </button>
                 )}
               </div>
             </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Users as UsersIcon, Camera } from "lucide-react";
+import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Users as UsersIcon, Camera, Flag } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
@@ -633,6 +633,17 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         )}
                         <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading}>
                           {privacyInfo.isBlockedByViewer ? <><ShieldBan className="h-4 w-4 mr-2" />Desbloquear</> : <><Ban className="h-4 w-4 mr-2" />Bloquear</>}
+                        </DropdownMenuItem>
+                        {/* UX-024: Denunciar perfil */}
+                        <DropdownMenuItem
+                          onClick={() => useStore.getState().openReportDialog({
+                            targetType: "profile",
+                            targetId: userId!,
+                            label: `perfil de @${userData.username}`,
+                          })}
+                          className="text-red-500 focus:text-red-600"
+                        >
+                          <Flag className="h-4 w-4 mr-2" />Denunciar perfil
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

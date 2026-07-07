@@ -33,6 +33,7 @@ import {
   Monitor,
   FileText,
   ChevronRight,
+  Flag,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { AccountSection } from "./AccountSection";
@@ -442,6 +443,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   follow_accepted: "aceitou sua solicitação",
                   reaction:        "reagiu ao seu post",
                   comment:         "comentou no seu post",
+                  report_new:      "enviou uma nova denúncia — abra o Painel de moderação",
                 };
                 return (
                   <div key={notif.id} className={`flex items-center gap-3 rounded-lg border p-2.5 ${!notif.is_read ? "bg-primary/5 border-primary/20" : ""}`}>
@@ -487,6 +489,26 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* PAINEL DE MODERAÇÃO — apenas para moderadores (UX-024) */}
+      {profile?.is_moderator && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Flag className="h-4 w-4 text-red-500" />
+              <h3 className="text-sm font-semibold">Moderação</h3>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setProfileSubView("moderation")}
+              className="w-full justify-start gap-2"
+            >
+              <Flag className="h-4 w-4" /> Painel de denúncias
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* CONTA */}
       <AccountSection />
@@ -554,7 +576,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
 
             <section>
               <h4 className="font-semibold text-foreground mb-1">7. Moderação e denúncias</h4>
-              <p>Para denunciar conteúdo ou conduta que viole estes Termos, entre em contato pelo e-mail oficial. Conteúdo íntimo não consensual pode ser removido mediante notificação direta, sem necessidade de ordem judicial. A plataforma pode remover conteúdo em casos de violação grave sem aviso prévio.</p>
+              <p>Você pode denunciar posts, comentários, mensagens e perfis diretamente pelo aplicativo, tocando em "Denunciar" no menu do conteúdo. Conteúdo íntimo não consensual pode ser removido mediante notificação direta, sem necessidade de ordem judicial — nesse caso, use o e-mail oficial. A plataforma pode remover conteúdo em casos de violação grave sem aviso prévio.</p>
             </section>
 
             <section>

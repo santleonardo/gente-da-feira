@@ -34,6 +34,7 @@ import {
   Plus,
   Square,
   Music,
+  Flag,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -1519,6 +1520,15 @@ function PostThread({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
+
+          {!isOwnPost && (
+            <button
+              onClick={() => useStore.getState().openReportDialog({ targetType: "post", targetId: post.id })}
+              title="Denunciar post"
+              className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/25 hover:text-red-500 hover:bg-red-50 transition-colors">
+              <Flag className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {/* COMMENTS */}
@@ -1617,6 +1627,14 @@ function CommentItem({
             </div>
             <button onClick={() => onReply(comment)} className="text-[10px] text-[#0A4D5C]/30 hover:text-[#0A4D5C] transition-colors">Responder</button>
             {isOwn && <button onClick={() => onDelete(comment.id)} className="text-[10px] text-[#0A4D5C]/20 hover:text-red-500 transition-colors">Excluir</button>}
+            {!isOwn && (
+              <button
+                onClick={() => useStore.getState().openReportDialog({ targetType: "comment", targetId: comment.id })}
+                className="text-[10px] text-[#0A4D5C]/20 hover:text-red-500 transition-colors"
+              >
+                Denunciar
+              </button>
+            )}
           </div>
         </div>
       </div>

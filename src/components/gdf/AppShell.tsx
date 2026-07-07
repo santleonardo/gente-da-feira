@@ -12,6 +12,8 @@ import { AlbumView } from "@/components/gdf/AlbumView";
 import { DiscoverView } from "@/components/gdf/DiscoverView";
 import { UserProfileDialog } from "@/components/gdf/UserProfileDialog";
 import { PostDetailDialog } from "@/components/gdf/PostDetailDialog";
+import { ReportDialog } from "@/components/gdf/ReportDialog";
+import { AdminReportsView } from "@/components/gdf/AdminReportsView";
 import { createClient } from "@/lib/supabase/client";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,7 +30,8 @@ const tabs = [
 
 // SEC-003: Colunas seguras do perfil (mesma lista do backend)
 // SEC-013: Inclui deletion_requested_at e deletion_scheduled_at para LGPD
-const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at";
+// UX-024: Inclui is_moderator para exibir o acesso ao painel de moderação
+const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator";
 
 export function AppShell() {
   const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending } = useStore();
@@ -158,6 +161,9 @@ export function AppShell() {
   const renderProfileContent = () => {
     if (profileSubView === "settings") return <SettingsView />;
     if (profileSubView === "album") return <AlbumView />;
+    // UX-024: Painel de moderação — só acessível se profile.is_moderator,
+    // mas o AdminReportsView também revalida no servidor (RLS + API 403).
+    if (profileSubView === "moderation" && profile.is_moderator) return <AdminReportsView />;
     return <ProfileView />;
   };
 
@@ -249,6 +255,8 @@ export function AppShell() {
       {/* ── Dialogs ────────────────────────────────────────── */}
       <UserProfileDialog userId={profileDialogUserId} open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
       <PostDetailDialog post={postDetailPost} open={postDetailOpen} onOpenChange={setPostDetailOpen} />
+      {/* UX-024: Dialog global de denúncia — dirigido por useStore().reportTarget */}
+      <ReportDialog />
 
       {/* ── Nav mobile ─────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">

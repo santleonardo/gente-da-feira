@@ -24,7 +24,7 @@ import {
   Camera, Video, Mic, StopCircle, ImagePlus, Music,
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
-  DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle,
+  DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -2697,6 +2697,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     </div>
                     {!isMine && (
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
+                    )}
+                    {!isMine && (
+                      <button
+                        onClick={() => useStore.getState().openReportDialog({ targetType: "room_message", targetId: msg.id })}
+                        title="Denunciar mensagem"
+                        className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
+                      >
+                        <Flag className="h-3 w-3" />
+                      </button>
                     )}
                   </div>
                 </div>
