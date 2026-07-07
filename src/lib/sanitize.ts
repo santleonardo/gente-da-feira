@@ -17,7 +17,22 @@
  *   - Sanitização de <font> (apenas color permitido)
  */
 
-import DOMPurify from "dompurify";
+// PERF-001: DOMPurify importado dinamicamente apenas no browser.
+// O import estático puxa ~40kB no bundle inicial; esta otimização
+// remove-o completamente do primeiro carregamento.
+let _DOMPurify: typeof import("dompurify").default | null = null;
+let _domPurifyPromise: Promise<typeof import("dompurify").default> | null = null;
+
+async function getDOMPurify() {
+  if (_DOMPurify) return _DOMPurify;
+  if (!_domPurifyPromise) {
+    _domPurifyPromise = import("dompurify").then((m) => {
+      _DOMPurify = m.default;
+      return m.default;
+    });
+  }
+  return _domPurifyPromise;
+}
 
 // ── Configuração DOMPurify (BROWSER) ──────────────────────────────────────────
 
@@ -457,17 +472,21 @@ let domPurifyLoaded = false;
 /**
  * Sanitiza HTML de forma assíncrona.
  * Server: parser próprio robusto
- * Browser: DOMPurify
+ * Browser: DOMPurify (carregado sob demanda)
  */
 export async function sanitizeHTMLAsync(html: string): Promise<string> {
   if (!html) return "";
 
   if (typeof window !== "undefined") {
-    // Browser: usa DOMPurify
-    if (!domPurifyLoaded) {
+    // Browser: usa DOMPurify (lazy-loaded)
+    try {
+      const purify = await getDOMPurify();
       domPurifyLoaded = true;
+      return purify.sanitize(html, DOMPURIFY_CONFIG) as string;
+    } catch {
+      // Fallback para parser próprio se DOMPurify falhar
+      return sanitizeServerSide(html);
     }
-    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG) as string;
   }
 
   // Server: parser próprio
@@ -482,8 +501,8 @@ export async function sanitizeHTMLAsync(html: string): Promise<string> {
 export function sanitizeHTMLSync(html: string): string {
   if (!html) return "";
 
-  if (typeof window !== "undefined" && domPurifyLoaded) {
-    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG) as string;
+  if (typeof window !== "undefined" && domPurifyLoaded && _DOMPurify) {
+    return _DOMPurify.sanitize(html, DOMPURIFY_CONFIG) as string;
   }
 
   // Server ou browser sem DOMPurify carregado: parser próprio
