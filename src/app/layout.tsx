@@ -2,9 +2,16 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
-import { PWARegister } from "@/components/gdf/PWARegister";
+import dynamic from "next/dynamic";
 import { getNonceHeaderName } from "@/lib/csp";
 import "./globals.css";
+
+// PERF-002: PWARegister carregado sob demanda — service worker,
+// push subscription e install prompt não bloqueiam o first paint.
+const PWARegister = dynamic(
+  () => import("@/components/gdf/PWARegister").then((m) => ({ default: m.PWARegister })),
+  { ssr: false }
+);
 
 // Nunito carregada via CSS para evitar fetch em build
 const nunito = { variable: "--font-nunito" };

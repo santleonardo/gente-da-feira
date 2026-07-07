@@ -203,6 +203,18 @@
   margin-bottom: 0.2em;
 }
 
+/* ═══════ Tab transition (substitui framer-motion ~35kB) ═══════ */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ═══════ Landscape orientation support ═══════ */
 @media (orientation: landscape) and (max-height: 500px) {
   nav.fixed.bottom-0 .mb-3 {
