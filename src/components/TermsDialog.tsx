@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Loader2 } from "lucide-react";
 import { TERMS_OF_USE, TERMS_VERSION, TERMS_DATE } from "@/lib/constants";
 
 type TermsDialogProps = {
@@ -19,6 +17,25 @@ type TermsDialogProps = {
   onOpenChange: (open: boolean) => void;
   onAccept?: () => void;
 };
+
+// PERF-001: react-markdown (~80kB) + remark-gfm carregados sob demanda
+// apenas quando o dialog de termos é aberto. No caminho normal de
+// cadastro, esse chunk só é baixado após o primeiro render.
+const TermsContent = React.lazy(async () => {
+  const [{ default: ReactMarkdown }, { default: remarkGfm }] = await Promise.all([
+    import("react-markdown"),
+    import("remark-gfm"),
+  ]);
+  return {
+    default: function TermsContentInner() {
+      return (
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {TERMS_OF_USE}
+        </ReactMarkdown>
+      );
+    },
+  };
+});
 
 /**
  * Diálogo de leitura dos Termos de Uso da Gente da Feira.
@@ -62,9 +79,16 @@ export function TermsDialog({ open, onOpenChange, onAccept }: TermsDialogProps) 
           className="max-h-[60vh] overflow-y-auto px-6 py-5 [scrollbar-width:thin] [scrollbar-color:var(--ring)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ring/40 [&::-webkit-scrollbar-thumb:hover]:bg-ring [&::-webkit-scrollbar-track]:bg-transparent"
         >
           <article>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-              {TERMS_OF_USE}
-            </ReactMarkdown>
+            <React.Suspense
+              fallback={
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Carregando termos...
+                </div>
+              }
+            >
+              <TermsContent />
+            </React.Suspense>
           </article>
         </div>
 
