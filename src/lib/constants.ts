@@ -226,7 +226,7 @@ Usar a Plataforma, perfis falsos ou conversas para constranger alguém a entrega
 
 9.2. **Exceção para conteúdo íntimo não consensual**: nos termos do art. 21 do Marco Civil, se você for a pessoa retratada em conteúdo de nudez ou ato sexual divulgado sem seu consentimento, sua notificação direta — sem necessidade de ordem judicial — é suficiente para que a Plataforma promova a indisponibilização desse conteúdo. Use o canal da Seção 19 para esse tipo de denúncia, indicando o link ou identificação do conteúdo.
 
-9.3. Para denunciar qualquer outro conteúdo ou conduta que viole estes Termos ou a lei, envie uma mensagem ao canal indicado na Seção 19, com a maior quantidade de detalhes possível (link, prints, data e hora). A Plataforma ainda não conta com um botão de denúncia dentro do aplicativo; até que essa funcionalidade exista, esse canal externo é o meio oficial de denúncia.
+9.3. Você pode denunciar qualquer conteúdo ou conduta que viole estes Termos ou a lei diretamente pelo aplicativo, tocando na opção "Denunciar" disponível nos posts, comentários, mensagens (privadas e de salas) e perfis. Alternativamente, ou quando o recurso in-app não for aplicável, você pode enviar uma mensagem ao canal indicado na Seção 19, com a maior quantidade de detalhes possível (link, prints, data e hora). Denúncias enviadas pelo aplicativo são analisadas por moderadores da Plataforma, que podem manter, restringir ou remover o conteúdo denunciado conforme o resultado da análise.
 
 9.4. A Plataforma pode remover, restringir o alcance ou sinalizar conteúdo que viole estes Termos, mesmo sem notificação prévia, especialmente em casos de violação grave (ex.: exploração de menores, incitação à violência, golpes).
 

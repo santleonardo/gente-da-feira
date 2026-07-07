@@ -116,6 +116,15 @@ const rules: RateLimitRule[] = [
   { key: "account:request-deletion",  limit: 2,   windowMs: 3_600_000, methods: ["POST"],   byUser: true },
   { key: "account:cancel-deletion",   limit: 5,   windowMs: 3_600_000, methods: ["POST"],   byUser: true },
   { key: "account:export",           limit: 3,   windowMs: 3_600_000, methods: ["GET"],    byUser: true },
+
+  // ── UX-024: Denúncias (reports) ──────────────────────────────────────
+  // Limite baixo por usuário — denúncias legítimas não são feitas em
+  // grande volume; limita também o potencial de assédio via denúncias
+  // em massa contra uma vítima.
+  { key: "reports:create",       limit: 15,  windowMs: 3_600_000, methods: ["POST"], byUser: true },
+  { key: "reports:list",         limit: 30,  windowMs: 60_000,    methods: ["GET"],  byUser: true },
+  { key: "admin:reports:list",   limit: 60,  windowMs: 60_000,    methods: ["GET"],  byUser: true },
+  { key: "admin:reports:update", limit: 60,  windowMs: 60_000,    methods: ["PATCH"], byUser: true },
 ];
 
 /**
