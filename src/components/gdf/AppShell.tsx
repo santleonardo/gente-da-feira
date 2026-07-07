@@ -1,24 +1,97 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { AuthForm } from "@/components/gdf/AuthForm";
 import { FeedView } from "@/components/gdf/FeedView";
-import { RoomsView } from "@/components/gdf/RoomsView";
-import { DMsView } from "@/components/gdf/DMsView";
-import { ProfileView } from "@/components/gdf/ProfileView";
-import { SettingsView } from "@/components/gdf/SettingsView";
-import { AlbumView } from "@/components/gdf/AlbumView";
-import { DiscoverView } from "@/components/gdf/DiscoverView";
-import { UserProfileDialog } from "@/components/gdf/UserProfileDialog";
-import { PostDetailDialog } from "@/components/gdf/PostDetailDialog";
-import { ReportDialog } from "@/components/gdf/ReportDialog";
-import { AdminReportsView } from "@/components/gdf/AdminReportsView";
 import { createClient } from "@/lib/supabase/client";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
-import { DeletionPendingView } from "@/components/gdf/DeletionPendingView";
+
+// ═══════════════════════════════════════════════════════════════
+// PERF-001 / PERF-002: Dynamic imports — views não-default são
+// carregadas sob demanda, removendo ~9.000+ linhas do bundle
+// inicial. FeedView (tab default) e AuthForm permanecem estáticos.
+// ═══════════════════════════════════════════════════════════════
+
+const RoomsView = dynamic(
+  () => import("@/components/gdf/RoomsView").then((m) => ({ default: m.RoomsView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const DMsView = dynamic(
+  () => import("@/components/gdf/DMsView").then((m) => ({ default: m.DMsView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const ProfileView = dynamic(
+  () => import("@/components/gdf/ProfileView").then((m) => ({ default: m.ProfileView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const SettingsView = dynamic(
+  () => import("@/components/gdf/SettingsView").then((m) => ({ default: m.SettingsView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const AlbumView = dynamic(
+  () => import("@/components/gdf/AlbumView").then((m) => ({ default: m.AlbumView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const DiscoverView = dynamic(
+  () => import("@/components/gdf/DiscoverView").then((m) => ({ default: m.DiscoverView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const AdminReportsView = dynamic(
+  () => import("@/components/gdf/AdminReportsView").then((m) => ({ default: m.AdminReportsView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const DeletionPendingView = dynamic(
+  () => import("@/components/gdf/DeletionPendingView").then((m) => ({ default: m.DeletionPendingView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+// Dialogs — carregados apenas quando abertos
+const UserProfileDialog = dynamic(
+  () => import("@/components/gdf/UserProfileDialog").then((m) => ({ default: m.UserProfileDialog })),
+  { ssr: false }
+);
+
+const PostDetailDialog = dynamic(
+  () => import("@/components/gdf/PostDetailDialog").then((m) => ({ default: m.PostDetailDialog })),
+  { ssr: false }
+);
+
+const ReportDialog = dynamic(
+  () => import("@/components/gdf/ReportDialog").then((m) => ({ default: m.ReportDialog })),
+  { ssr: false }
+);
+
+// ── Skeleton loader para tabs lazy ──────────────────────────
+function TabSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 animate-pulse py-4">
+      <div className="h-10 w-3/4 rounded-lg bg-muted" />
+      <div className="h-10 w-1/2 rounded-lg bg-muted" />
+      <div className="space-y-3 pt-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex gap-3">
+            <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-1/3 rounded bg-muted" />
+              <div className="h-3 w-full rounded bg-muted" />
+              <div className="h-3 w-5/6 rounded bg-muted" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const tabs = [
   { id: "feed"     as const, icon: Home,          label: "Feed"      },
@@ -231,24 +304,19 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* ── Main content com animação ──────────────────────── */}
+      {/* ── Main content com transição CSS (substitui framer-motion) ── */}
       <main className={cn("flex-1 pb-20 md:pb-6", !isOnline && "mt-7 md:mt-0")}>
         <div className={cn("mx-auto px-4 py-4 md:py-6", inChat ? "max-w-2xl" : "max-w-lg")}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={inChat ? `${tab}-chat` : tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-            >
-              {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
-              {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
-              {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
-              {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
-              {tab === "profile"  && renderProfileContent()}
-            </motion.div>
-          </AnimatePresence>
+          <div
+            key={inChat ? `${tab}-chat` : tab}
+            className="animate-[tabFadeIn_160ms_ease-out]"
+          >
+            {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
+            {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
+            {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
+            {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
+            {tab === "profile"  && renderProfileContent()}
+          </div>
         </div>
       </main>
 
