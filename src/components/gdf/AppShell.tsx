@@ -1,90 +1,102 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
+import dynamic from "next/dynamic";
 import { AuthForm } from "@/components/gdf/AuthForm";
 import { FeedView } from "@/components/gdf/FeedView";
+import { DeletionPendingView } from "@/components/gdf/DeletionPendingView";
 import { createClient } from "@/lib/supabase/client";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 
-// ═══════════════════════════════════════════════════════════════
-// PERF-001 / PERF-002: Dynamic imports — views não-default são
-// carregadas sob demanda, removendo ~9.000+ linhas do bundle
-// inicial. FeedView (tab default) e AuthForm permanecem estáticos.
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERF-002: Lazy-loaded views — chunks carregados sob demanda por tab/ação.
+// FeedView permanece eager pois é a tab padrão (first contentful paint).
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const RoomsView = dynamic(
   () => import("@/components/gdf/RoomsView").then((m) => ({ default: m.RoomsView })),
-  { loading: () => <TabSkeleton />, ssr: false }
+  { loading: () => <TabSkeleton /> }
 );
 
 const DMsView = dynamic(
   () => import("@/components/gdf/DMsView").then((m) => ({ default: m.DMsView })),
-  { loading: () => <TabSkeleton />, ssr: false }
-);
-
-const ProfileView = dynamic(
-  () => import("@/components/gdf/ProfileView").then((m) => ({ default: m.ProfileView })),
-  { loading: () => <TabSkeleton />, ssr: false }
-);
-
-const SettingsView = dynamic(
-  () => import("@/components/gdf/SettingsView").then((m) => ({ default: m.SettingsView })),
-  { loading: () => <TabSkeleton />, ssr: false }
-);
-
-const AlbumView = dynamic(
-  () => import("@/components/gdf/AlbumView").then((m) => ({ default: m.AlbumView })),
-  { loading: () => <TabSkeleton />, ssr: false }
+  { loading: () => <TabSkeleton /> }
 );
 
 const DiscoverView = dynamic(
   () => import("@/components/gdf/DiscoverView").then((m) => ({ default: m.DiscoverView })),
-  { loading: () => <TabSkeleton />, ssr: false }
+  { loading: () => <TabSkeleton /> }
 );
 
+const ProfileView = dynamic(
+  () => import("@/components/gdf/ProfileView").then((m) => ({ default: m.ProfileView })),
+  { loading: () => <TabSkeleton /> }
+);
+
+// PERF-002: Profile sub-views — carregados ao navegar dentro da tab perfil
+const SettingsView = dynamic(
+  () => import("@/components/gdf/SettingsView").then((m) => ({ default: m.SettingsView })),
+  { loading: () => <TabSkeleton /> }
+);
+
+const AlbumView = dynamic(
+  () => import("@/components/gdf/AlbumView").then((m) => ({ default: m.AlbumView })),
+  { loading: () => <TabSkeleton /> }
+);
+
+// PERF-002: Admin-only — chunk NUNCA baixado para usuários comuns
 const AdminReportsView = dynamic(
   () => import("@/components/gdf/AdminReportsView").then((m) => ({ default: m.AdminReportsView })),
-  { loading: () => <TabSkeleton />, ssr: false }
+  { loading: () => <TabSkeleton /> }
 );
 
-const DeletionPendingView = dynamic(
-  () => import("@/components/gdf/DeletionPendingView").then((m) => ({ default: m.DeletionPendingView })),
-  { loading: () => <TabSkeleton />, ssr: false }
-);
-
-// Dialogs — carregados apenas quando abertos
+// PERF-002: Dialogs — carregados apenas quando abertos pelo usuário
 const UserProfileDialog = dynamic(
   () => import("@/components/gdf/UserProfileDialog").then((m) => ({ default: m.UserProfileDialog })),
-  { ssr: false }
+  { loading: () => null }
 );
 
 const PostDetailDialog = dynamic(
   () => import("@/components/gdf/PostDetailDialog").then((m) => ({ default: m.PostDetailDialog })),
-  { ssr: false }
+  { loading: () => null }
 );
 
 const ReportDialog = dynamic(
   () => import("@/components/gdf/ReportDialog").then((m) => ({ default: m.ReportDialog })),
-  { ssr: false }
+  { loading: () => null }
 );
 
-// ── Skeleton loader para tabs lazy ──────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Skeleton loader — exibido brevemente enquanto o chunk da view carrega
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function TabSkeleton() {
   return (
-    <div className="flex flex-col gap-4 animate-pulse py-4">
-      <div className="h-10 w-3/4 rounded-lg bg-muted" />
-      <div className="h-10 w-1/2 rounded-lg bg-muted" />
-      <div className="space-y-3 pt-2">
+    <div className="space-y-4 p-1">
+      <div className="flex items-center justify-between">
+        <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+        <div className="h-8 w-24 animate-pulse rounded-lg bg-muted" />
+      </div>
+      <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex gap-3">
-            <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/3 rounded bg-muted" />
-              <div className="h-3 w-full rounded bg-muted" />
-              <div className="h-3 w-5/6 rounded bg-muted" />
+          <div key={i} className="rounded-xl border p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-full animate-pulse rounded bg-muted" />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-3 w-12 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-16 animate-pulse rounded bg-muted" />
             </div>
           </div>
         ))}
@@ -92,6 +104,10 @@ function TabSkeleton() {
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab configuration
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const tabs = [
   { id: "feed"     as const, icon: Home,          label: "Feed"      },
@@ -107,7 +123,7 @@ const tabs = [
 const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator";
 
 export function AppShell() {
-  const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending } = useStore();
+  const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending, reportTarget } = useStore();
   const [checkedAuth, setCheckedAuth] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -185,7 +201,7 @@ export function AppShell() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [setProfile, logout]);
+  }, [setProfile, logout, setDeletionPending]);
 
   // ── Notificações não lidas ───────────────────────────────
   useEffect(() => {
@@ -304,27 +320,36 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* ── Main content com transição CSS (substitui framer-motion) ── */}
+      {/* ── Main content com animação ──────────────────────── */}
       <main className={cn("flex-1 pb-20 md:pb-6", !isOnline && "mt-7 md:mt-0")}>
         <div className={cn("mx-auto px-4 py-4 md:py-6", inChat ? "max-w-2xl" : "max-w-lg")}>
-          <div
-            key={inChat ? `${tab}-chat` : tab}
-            className="animate-[tabFadeIn_160ms_ease-out]"
-          >
-            {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
-            {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
-            {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
-            {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
-            {tab === "profile"  && renderProfileContent()}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={inChat ? `${tab}-chat` : tab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+            >
+              {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
+              {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
+              {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
+              {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
+              {tab === "profile"  && renderProfileContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
-      {/* ── Dialogs ────────────────────────────────────────── */}
-      <UserProfileDialog userId={profileDialogUserId} open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
-      <PostDetailDialog post={postDetailPost} open={postDetailOpen} onOpenChange={setPostDetailOpen} />
-      {/* UX-024: Dialog global de denúncia — dirigido por useStore().reportTarget */}
-      <ReportDialog />
+      {/* ── PERF-002: Dialogs — renderizados condicionalmente,
+           chunks baixados apenas quando o usuário abre o dialog ── */}
+      {profileDialogOpen && (
+        <UserProfileDialog userId={profileDialogUserId} open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
+      )}
+      {postDetailOpen && (
+        <PostDetailDialog post={postDetailPost} open={postDetailOpen} onOpenChange={setPostDetailOpen} />
+      )}
+      {reportTarget && <ReportDialog />}
 
       {/* ── Nav mobile ─────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
