@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { validatePasswordStrength } from "@/lib/utils";
 import { BAIRROS, TERMS_VERSION } from "@/lib/constants";
-import { TermsDialog } from "@/components/TermsDialog";
 import { toast } from "sonner";
 import { Eye, EyeOff, FileText, ShieldCheck, ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
+
+// PERF-002: TermsDialog usa react-markdown + remark-gfm (~45KB gzipped).
+// Lazy-load: só baixa o chunk quando o usuário clica "Ler Termos".
+const TermsDialog = dynamic(
+  () => import("@/components/TermsDialog").then((m) => ({ default: m.TermsDialog }))
+);
 
 const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at";
 
