@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useStore } from "@/lib/store";
+import { useEffect, useState, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
+import { useStore } from "@/lib/store";
 import { AuthForm } from "@/components/gdf/AuthForm";
 import { FeedView } from "@/components/gdf/FeedView";
 import { DeletionPendingView } from "@/components/gdf/DeletionPendingView";
 import { createClient } from "@/lib/supabase/client";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PERF-002: Lazy-loaded views — chunks carregados sob demanda por tab/ação.
@@ -132,6 +131,9 @@ export function AppShell() {
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
+  // PERF-002: CSS transition key instead of framer-motion for tab switching
+  const [transitionKey, setTransitionKey] = useState("feed");
+  const [isPending, startTransition] = useTransition();
 
   // ── Online/offline listener ──────────────────────────────
   useEffect(() => {
@@ -260,7 +262,10 @@ export function AppShell() {
     if (id === "rooms") setSelectedRoom(null);
     if (id === "dms") setSelectedDM(null);
     if (id === "profile") useStore.getState().setProfileSubView("profile");
-    setTab(id);
+    startTransition(() => {
+      setTab(id);
+      setTransitionKey(inChat ? `${id}-chat` : id);
+    });
   };
 
   return (
@@ -320,24 +325,19 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* ── Main content com animação ──────────────────────── */}
+      {/* ── Main content com transição CSS (sem framer-motion) ── */}
       <main className={cn("flex-1 pb-20 md:pb-6", !isOnline && "mt-7 md:mt-0")}>
         <div className={cn("mx-auto px-4 py-4 md:py-6", inChat ? "max-w-2xl" : "max-w-lg")}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={inChat ? `${tab}-chat` : tab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-            >
-              {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
-              {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
-              {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
-              {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
-              {tab === "profile"  && renderProfileContent()}
-            </motion.div>
-          </AnimatePresence>
+          <div
+            key={transitionKey}
+            className="animate-tab-in"
+          >
+            {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
+            {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
+            {tab === "dms"      && <DMsView     openUserProfile={openUserProfile} />}
+            {tab === "discover" && <DiscoverView openUserProfile={openUserProfile} />}
+            {tab === "profile"  && renderProfileContent()}
+          </div>
         </div>
       </main>
 
