@@ -6,6 +6,7 @@ import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
 import { selectCols } from "@/lib/safe-columns";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
@@ -61,7 +62,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ messages: sanitized });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[dm/messages GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -145,6 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[dm/messages POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

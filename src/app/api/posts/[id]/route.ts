@@ -77,7 +77,8 @@ export async function GET(
 
     return NextResponse.json({ post: filtered[0] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts/id GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

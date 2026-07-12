@@ -11,6 +11,7 @@ import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempo
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols } from "@/lib/safe-columns";
 import { canViewProfileMedia } from "@/lib/content-visibility";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // SEC-009: Explicit columns for video comments and author profiles
 const COMMENT_COLUMNS = "id, user_id, video_id, content, parent_id, created_at";
@@ -50,7 +51,8 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ comments: comments || [] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[profile-videos/comments GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -100,7 +102,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(commentData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[profile-videos/comments POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -133,6 +136,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[profile-videos/comments DELETE]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

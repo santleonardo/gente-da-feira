@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,7 +63,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    console.error("Avatar upload error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { message, status } = safeErrorResponse(error, 500, "[users/avatar POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

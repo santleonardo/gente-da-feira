@@ -8,6 +8,7 @@ import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // SEC-009: Author profile columns for comment authors
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -44,7 +45,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ comments: filtered });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts/comments GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -115,7 +117,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts/comments POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -146,6 +149,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts/comments DELETE]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

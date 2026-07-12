@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBlockedUserIds } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // GET /api/notifications — Listar notificações
 export async function GET(req: NextRequest) {
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest) {
       unreadCount,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[notifications GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -90,6 +92,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[notifications PUT]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

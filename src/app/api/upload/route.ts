@@ -10,6 +10,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { validateUploadFolder, validateStoragePath } from "@/lib/storage-security";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -96,8 +97,9 @@ export async function POST(req: NextRequest) {
       path,
     });
   } catch (error: any) {
-    console.error("Upload error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { message, status } = safeErrorResponse(error, 500, "[upload POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -127,6 +129,7 @@ export async function DELETE(req: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[upload DELETE]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

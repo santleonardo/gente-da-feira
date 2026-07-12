@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { validateUploadFolder } from "@/lib/storage-security";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest) {
       path,
     });
   } catch (error: any) {
-    console.error("Video upload error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { message, status } = safeErrorResponse(error, 500, "[upload/video POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

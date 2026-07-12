@@ -144,7 +144,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -175,6 +176,7 @@ async function cleanupExpiredPosts() {
 
 // SEC-008: Usa extractStoragePathFromUrl centralizado — cobre todos os buckets
 import { extractStoragePathFromUrl } from "@/lib/storage-security";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 function cleanupPostMedia(admin: any, post: any) {
   const IMAGE_BUCKETS = ["post-photos", "post-images"];
@@ -437,7 +439,8 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -494,7 +497,8 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[posts DELETE]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

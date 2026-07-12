@@ -5,6 +5,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // SEC-009: Author columns for shared posts
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -102,6 +103,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ posts: filtered });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[users/posts GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

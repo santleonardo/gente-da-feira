@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewRoomMembers } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // ============================================================
 // SEC-002: GET /api/rooms/[id]/members
@@ -84,6 +85,7 @@ export async function GET(
     return NextResponse.json({ members });
   } catch (error: any) {
     console.error("[SEC-002 room-members GET]", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[rooms/members GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

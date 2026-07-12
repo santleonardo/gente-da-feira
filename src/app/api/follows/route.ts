@@ -148,7 +148,8 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[follows GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -228,7 +229,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[follows POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -265,6 +267,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[follows DELETE]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

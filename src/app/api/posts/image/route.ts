@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 const MAX_PHOTOS_PER_USER = 25;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -63,7 +64,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ image_url: imageUrl });
   } catch (error: any) {
-    console.error("Post image upload error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { message, status } = safeErrorResponse(error, 500, "[posts/image POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

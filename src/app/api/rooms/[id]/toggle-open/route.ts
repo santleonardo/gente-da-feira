@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isRoomModeratorOrAbove } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // ============================================================
 // SEC-002: POST /api/rooms/[id]/toggle-open
@@ -57,6 +58,7 @@ export async function POST(
   } catch (error: any) {
     await idempotencyFail(req);
     console.error("[SEC-002 toggle-open POST]", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[rooms/toggle-open POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

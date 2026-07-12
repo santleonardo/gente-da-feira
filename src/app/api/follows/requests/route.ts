@@ -5,6 +5,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { selectCols, FOLLOW_LIST_PROFILE_COLUMNS_NO_NBH } from "@/lib/safe-columns";
 import { batchFetchPrivacyFlags, filterFollowListItems } from "@/lib/privacy-filter";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // GET /api/follows/requests — Buscar solicitações pendentes do usuário logado
 export async function GET(req: NextRequest) {
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ requests: filtered });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[follows/requests GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rejectedData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[follows/requests POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

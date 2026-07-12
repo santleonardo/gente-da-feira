@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { extractStoragePathFromUrl } from "@/lib/storage-security";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // GET /api/blocks — Listar usuários bloqueados
 export async function GET(req: NextRequest) {
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ blocks: blocks || [] });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[blocks GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -116,6 +118,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(responseData);
   } catch (error: any) {
     await idempotencyFail(req);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[blocks POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }

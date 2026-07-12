@@ -6,6 +6,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // Mídia em salas expira após 10 minutos (conteúdo efêmero,
 // salas são para conversas rápidas, não armazenamento)
@@ -79,7 +80,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ messages: sanitized });
   } catch (error: any) {
     console.error("[SEC-002 room-messages GET]", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[rooms/messages GET]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -182,6 +184,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (error: any) {
     await idempotencyFail(req);
     console.error("[SEC-002 room-messages POST]", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = safeErrorResponse(error, 500, "[rooms/messages POST]");
+    return NextResponse.json({ error: message }, { status });
   }
 }
