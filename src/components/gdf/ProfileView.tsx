@@ -1119,7 +1119,7 @@ export function ProfileView() {
                     />
 
                     {/* Shared/reposted post */}
-                    {post.shared_post && (
+                    {post.shared_post && !Array.isArray(post.shared_post) && (
                       <div className="mt-2.5 rounded-xl bg-[#0A4D5C]/[0.04] p-2.5 border border-[#0A4D5C]/8">
                         <div className="flex items-center gap-1.5 mb-1">
                           <Repeat2 className="h-3 w-3 text-[#0A4D5C]/40" />

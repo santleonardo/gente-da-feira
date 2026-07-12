@@ -1404,7 +1404,7 @@ function PostThread({
               />
             )}
 
-            {post.shared_post && (
+            {post.shared_post && !Array.isArray(post.shared_post) && (
               <div className="mt-2.5 rounded-2xl bg-[#0A4D5C]/[0.04] p-3 border border-[#0A4D5C]/8">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Repeat2 className="h-3 w-3 text-[#0A4D5C]/40" />
