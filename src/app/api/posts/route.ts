@@ -373,6 +373,16 @@ export async function POST(req: NextRequest) {
     // Cast to any — Supabase cannot infer types for complex nested joins
     const p = post as any;
 
+    // Self-referencing FK (shared_post_id → posts.id) faz o PostgREST às vezes
+    // devolver `shared_post` como array (mesmo vazio) em vez de objeto/null.
+    // Um array vazio [] é truthy em JS, então sem essa normalização o front
+    // renderiza o box "Compartilhado de" com dados de fallback mesmo quando
+    // o post não tem shared_post_id nenhum. (Mesmo tratamento do GET acima
+    // e de posts/[id]/route.ts.)
+    p.shared_post = Array.isArray(p.shared_post)
+      ? (p.shared_post[0] ?? null)
+      : (p.shared_post ?? null);
+
     // SEC-009: Filter neighborhood from the new post's author
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
       supabase,
