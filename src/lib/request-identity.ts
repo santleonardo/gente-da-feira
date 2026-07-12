@@ -15,7 +15,16 @@ import { NextRequest } from "next/server";
  * Prioridade: CF-Connecting-IP (Cloudflare) > X-Real-IP > X-Forwarded-For (primeiro) > conexao remota
  */
 export function getClientIP(req: NextRequest): string {
-  // Cloudflare — mais confiável em produção Vercel
+  // req.ip — detectado pela própria infraestrutura da Vercel na conexão
+  // TCP. É a ÚNICA fonte que o cliente não pode forjar via headers, por
+  // isso vem primeiro. Sem isso, "cf-connecting-ip" (útil só se houver
+  // Cloudflare na frente, o que não é o caso deste deploy em vercel.app)
+  // podia ser mandado pelo próprio atacante e furar o rate limit por IP.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vercelIP = (req as any)?.ip;
+  if (vercelIP && typeof vercelIP === "string" && isValidIP(vercelIP)) return vercelIP;
+
+  // Cloudflare — só é confiável se o app estiver de fato atrás do Cloudflare.
   const cfIP = req.headers.get("cf-connecting-ip");
   if (cfIP && isValidIP(cfIP)) return cfIP;
 
@@ -29,11 +38,6 @@ export function getClientIP(req: NextRequest): string {
     const firstIP = forwarded.split(",")[0]?.trim();
     if (firstIP && isValidIP(firstIP)) return firstIP;
   }
-
-  // Vercel fornece esse header em todas as requisições
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const vercelIP = (req as any)?.ip;
-  if (vercelIP && typeof vercelIP === "string") return vercelIP;
 
   return "unknown";
 }

@@ -67,6 +67,7 @@ type UpstashLimiter = {
 
 let redisLimiterCache = new Map<string, UpstashLimiter | null>();
 let redisInitError = false;
+let _warnedNoRedisConfig = false;
 
 async function getRedisLimiter(limit: number, windowMs: number): Promise<UpstashLimiter | null> {
   const cacheKey = `${limit}:${windowMs}`;
@@ -144,6 +145,18 @@ export async function checkRateLimit(
       // Redis configurado mas falhou na inicialização → bloquear
       return { allowed: false, remaining: 0, resetAt: Date.now() + windowMs, limit };
     }
+  } else if (isProduction && !_warnedNoRedisConfig) {
+    // SEC-005: Redis NUNCA foi configurado em produção. Isso não é "falha"
+    // (não há fail-closed pra isso acima), então cai silenciosamente pro
+    // fallback in-memory — que em serverless (Vercel) é por instância e
+    // na prática não limita quase nada entre invocações diferentes.
+    // Avisa uma vez por processo pra não passar despercebido.
+    console.error(
+      "[rate-limit] AVISO: rodando em produção sem UPSTASH_REDIS_REST_URL/TOKEN configurados. " +
+      "O rate limiting está usando o fallback in-memory, que é POR INSTÂNCIA em ambientes " +
+      "serverless e NÃO protege de forma confiável contra abuso. Configure o Upstash Redis."
+    );
+    _warnedNoRedisConfig = true;
   }
 
   // Fallback in-memory (dev ou quando Redis não está configurado)
