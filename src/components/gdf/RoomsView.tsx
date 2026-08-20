@@ -936,23 +936,25 @@ function BanDialog({
   roomId: string;
   onBanned: () => void;
 }) {
-  const [duration, setDuration] = useState<number | null>(7);
+  // null = permanente | 1 | 7
+  const [duration, setDuration] = useState<number | null>(1);
   const [loading, setLoading] = useState(false);
 
-  const presets = [
-    { label: "1 dia", value: 1 },
-    { label: "3 dias", value: 3 },
-    { label: "7 dias", value: 7 },
-    { label: "15 dias", value: 15 },
-    { label: "30 dias", value: 30 },
-    { label: "Permanente", value: null },
+  const presets: { label: string; value: number | null; hint: string }[] = [
+    { label: "1 dia", value: 1, hint: "Ban temporário de 24 horas" },
+    { label: "7 dias", value: 7, hint: "Ban temporário de uma semana" },
+    { label: "Permanente", value: null, hint: "Só sai com desbanimento manual" },
   ];
+
+  const durationLabel =
+    duration === null ? "permanentemente" : duration === 1 ? "por 1 dia" : `por ${duration} dias`;
 
   const handleBan = async () => {
     if (!targetUser) return;
     setLoading(true);
     try {
-      const body: any = { user_id: targetUser.id };
+      const body: Record<string, unknown> = { user_id: targetUser.id };
+      // API: omitir duration_days (ou null) = permanente
       if (duration !== null) body.duration_days = duration;
       const res = await fetch(`/api/rooms/${roomId}/ban`, {
         method: "POST",
@@ -964,9 +966,10 @@ function BanDialog({
         toast.error(data.error);
         return;
       }
-      toast.success(`${targetUser.display_name} foi banido${duration ? ` por ${duration} dia${duration > 1 ? "s" : ""}` : " permanentemente"}`);
+      toast.success(`${targetUser.display_name} foi banido ${durationLabel}`);
       onBanned();
       onOpenChange(false);
+      setDuration(1);
     } catch {
       toast.error("Erro ao banir membro");
     } finally {
@@ -975,41 +978,58 @@ function BanDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-2xl">
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (v) setDuration(1);
+      }}
+    >
+      <DialogContent className="max-w-sm rounded-2xl" aria-describedby="ban-dialog-desc">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Ban className="h-5 w-5 text-destructive" /> Banir membro
           </DialogTitle>
-          <DialogDescription>
-            Banir <strong>{targetUser?.display_name}</strong> da sala
+          <DialogDescription id="ban-dialog-desc">
+            Banir <strong>{targetUser?.display_name}</strong> da sala. Escolha o prazo:
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Duração do ban</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {presets.map((p) => (
                 <button
                   key={p.label}
+                  type="button"
                   onClick={() => setDuration(p.value)}
-                  className={`rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                  className={`rounded-xl px-3 py-2.5 text-left transition-all border ${
                     duration === p.value
-                      ? "bg-destructive text-destructive-foreground shadow-sm"
-                      : "bg-muted hover:bg-accent text-foreground"
+                      ? "bg-destructive text-destructive-foreground border-destructive shadow-sm"
+                      : "bg-muted/60 hover:bg-accent text-foreground border-transparent"
                   }`}
                 >
-                  {p.label}
+                  <span className="block text-sm font-semibold">{p.label}</span>
+                  <span
+                    className={`block text-[11px] mt-0.5 ${
+                      duration === p.value ? "text-destructive-foreground/80" : "text-muted-foreground"
+                    }`}
+                  >
+                    {p.hint}
+                  </span>
                 </button>
               ))}
             </div>
+            <p className="text-[11px] text-muted-foreground pt-1">
+              Confirmação: ban <strong>{durationLabel}</strong>
+            </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 rounded-xl h-10">
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleBan} disabled={loading} className="flex-1 rounded-xl h-10">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Banir"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `Banir ${durationLabel}`}
             </Button>
           </div>
         </div>
