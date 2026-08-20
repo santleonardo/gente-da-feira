@@ -272,10 +272,11 @@ export async function PATCH(
       throw error;
     }
 
+    const roomRow = (room ?? {}) as Record<string, unknown>;
     return NextResponse.json({
       room: {
-        ...room,
-        has_password: !!(room as any)?.has_password,
+        ...roomRow,
+        has_password: !!roomRow.has_password,
       },
     });
   } catch (error) {
