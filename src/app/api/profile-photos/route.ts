@@ -1,8 +1,8 @@
 // ============================================================
 // API de fotos do perfil (galeria permanente)
-// Máximo: 20 fotos por perfil
-// SEC-009: Added privacy check for private profiles
+// SEC-009: privacy check for private profiles
 // REL-006: Delete atômico via rpc_delete_profile_photo
+// LIGHT / FREE: POST (criar) desabilitado no beta
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,12 +10,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
-import { sanitizePlainText } from "@/lib/sanitize";
-import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
 import { stripStoragePaths } from "@/lib/privacy-filter";
 import { safeErrorResponse } from "@/lib/safe-error";
-
-const MAX_PHOTOS_PER_PROFILE = 20;
 
 export async function GET(req: NextRequest) {
   try {
@@ -84,69 +80,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   // Light / Supabase Free: álbum de fotos do perfil desabilitado no beta
   return NextResponse.json(
     { error: "Álbum de fotos do perfil está desabilitado nesta versão beta." },
     { status: 403 }
   );
-
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-    const blocked = await rateLimitByRule(req, "photos:create", user?.id);
-    if (blocked) return blocked;
-
-    const idemBlock = await idempotencyGate(req, user.id);
-    if (idemBlock) return idemBlock;
-
-    const { url, caption, storagePath } = await req.json();
-    if (!url) return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
-
-    const safeUrl = validateMediaUrl(url, {
-      allowedBuckets: new Set(["post-photos"]),
-      requireUserId: user.id,
-    });
-    if (!safeUrl) return NextResponse.json({ error: "URL da foto inválida" }, { status: 400 });
-
-    const parsedPath = extractStoragePathFromUrl(safeUrl);
-    const derivedStoragePath = parsedPath?.path || "";
-
-    const { count, error: countError } = await supabase
-      .from("profile_photos")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-
-    if (countError) throw countError;
-
-    if (count !== null && count >= MAX_PHOTOS_PER_PROFILE) {
-      return NextResponse.json({
-        error: `Limite de ${MAX_PHOTOS_PER_PROFILE} fotos no perfil atingido. Remova uma foto para adicionar outra.`
-      }, { status: 400 });
-    }
-
-    const { data: photo, error } = await supabase
-      .from("profile_photos")
-      .insert({
-        user_id: user.id,
-        url: safeUrl,
-        caption: sanitizePlainText(caption || ""),
-        storage_path: derivedStoragePath,
-      })
-      .select("id, user_id, url, caption, created_at")
-      .single();
-
-    if (error) throw error;
-    const photoData = { photo };
-    await idempotencyStore(req, photoData);
-    return NextResponse.json(photoData);
-  } catch (error: any) {
-    await idempotencyFail(req);
-    const { message, status } = safeErrorResponse(error, 500, "[profile-photos POST]");
-    return NextResponse.json({ error: message }, { status });
-  }
 }
 
 // DELETE /api/profile-photos?id=xxx

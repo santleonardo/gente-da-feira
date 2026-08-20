@@ -1,8 +1,8 @@
 // ============================================================
 // API de vídeos do perfil
-// Máximo: 5 vídeos por perfil, máximo 30 segundos cada
-// SEC-009: Added privacy check for private profiles
+// SEC-009: privacy check for private profiles
 // REL-006: Delete atômico via rpc_delete_profile_video
+// LIGHT / FREE: POST (criar) desabilitado no beta
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,10 +11,7 @@ import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
-import { validateMediaUrl, extractStoragePathFromUrl } from "@/lib/storage-security";
-
-const MAX_VIDEOS_PER_PROFILE = 5;
-const MAX_VIDEO_DURATION = 30;
+import { extractStoragePathFromUrl } from "@/lib/storage-security";
 
 // SEC-009: Explicit columns for profile_videos — no SELECT *
 const VIDEO_COLUMNS = "id, user_id, url, thumbnail_url, duration, created_at";
@@ -80,88 +77,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   // Light / Supabase Free: álbum de vídeos do perfil desabilitado no beta
   return NextResponse.json(
     { error: "Álbum de vídeos do perfil está desabilitado nesta versão beta." },
     { status: 403 }
   );
-
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-    const blocked = await rateLimitByRule(req, "videos:create", user?.id);
-    if (blocked) return blocked;
-
-    const idemBlock = await idempotencyGate(req, user.id);
-    if (idemBlock) return idemBlock;
-
-    const { url, storagePath, thumbnailUrl, duration } = await req.json();
-    if (!url) return NextResponse.json({ error: "URL do vídeo é obrigatória" }, { status: 400 });
-
-    // SEC-008: Validar URL do vídeo
-    const VIDEO_BUCKETS = new Set(["profile-videos"]);
-    const safeUrl = validateMediaUrl(url, {
-      allowedBuckets: VIDEO_BUCKETS,
-      requireUserId: user.id,
-    });
-    if (!safeUrl) return NextResponse.json({ error: "URL do vídeo inválida" }, { status: 400 });
-
-    // SEC-008: Derivar storagePath da URL
-    const parsedPath = extractStoragePathFromUrl(safeUrl);
-    const derivedStoragePath = parsedPath?.path || "";
-
-    // SEC-008: Validar thumbnail
-    let safeThumb = "";
-    if (thumbnailUrl) {
-      safeThumb = validateMediaUrl(thumbnailUrl, {
-        allowedBuckets: new Set(["post-photos"]),
-        requireUserId: user.id,
-      }) || "";
-    }
-
-    if (duration > MAX_VIDEO_DURATION) {
-      return NextResponse.json({
-        error: `Vídeo muito longo. Máximo ${MAX_VIDEO_DURATION} segundos.`
-      }, { status: 400 });
-    }
-
-    const { count, error: countError } = await supabase
-      .from("profile_videos")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-
-    if (countError) throw countError;
-
-    if (count !== null && count >= MAX_VIDEOS_PER_PROFILE) {
-      return NextResponse.json({
-        error: `Limite de ${MAX_VIDEOS_PER_PROFILE} vídeos no perfil atingido. Remova um vídeo para adicionar outro.`
-      }, { status: 400 });
-    }
-
-    const { data: video, error } = await supabase
-      .from("profile_videos")
-      .insert({
-        user_id: user.id,
-        url: safeUrl,
-        storage_path: derivedStoragePath,
-        thumbnail_url: safeThumb,
-        duration: duration || 0,
-      })
-      .select(VIDEO_COLUMNS)
-      .single();
-
-    if (error) throw error;
-    const videoData = { video };
-    await idempotencyStore(req, videoData);
-    return NextResponse.json(videoData);
-  } catch (error: any) {
-    await idempotencyFail(req);
-    const { message, status } = safeErrorResponse(error, 500, "[profile-videos POST]");
-    return NextResponse.json({ error: message }, { status });
-  }
 }
 
 // DELETE /api/profile-videos?id=xxx

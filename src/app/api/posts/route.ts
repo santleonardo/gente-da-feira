@@ -33,9 +33,6 @@ import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibil
 const MAX_PHOTOS_PER_POST = 1;
 const MAX_ACTIVE_MEDIA_POSTS = 2;
 const MEDIA_EXPIRATION_HOURS = 6;
-const MAX_VIDEO_POSTS_PER_12H = 0; // desabilitado
-const MAX_AUDIO_DURATION_SECONDS = 0;
-const MAX_VIDEO_DURATION_SECONDS = 0;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
@@ -214,28 +211,31 @@ export async function POST(req: NextRequest) {
 
     const {
       content, neighborhood, imageUrls, videoUrl, audioUrl, postType,
-      audioDuration, videoDuration, visibility, sharedPostId, postStyle,
+      visibility, sharedPostId, postStyle,
     } = await req.json();
 
-    const hasPhotos = imageUrls && imageUrls.length > 0;
-    const hasVideo  = !!videoUrl;
-    const hasAudio  = !!audioUrl;
-
     // Light / Free: vídeo e áudio desabilitados em posts
-    if (hasVideo || hasAudio) {
+    if (videoUrl || audioUrl) {
       return NextResponse.json(
         { error: "Upload de vídeo e áudio está desabilitado nesta versão beta." },
         { status: 403 }
       );
     }
 
+    const hasPhotos = Array.isArray(imageUrls) && imageUrls.length > 0;
     const hasMedia = hasPhotos;
 
-    // SEC-008: Validar TODAS as URLs de mídia — rejeitar externas
+    // SEC-008: Validar URLs de imagem — rejeitar externas
     const IMAGE_BUCKETS = new Set(["post-photos", "post-images"]);
 
     let validatedImageUrls: string[] | null = null;
     if (hasPhotos) {
+      if (imageUrls.length > MAX_PHOTOS_PER_POST) {
+        return NextResponse.json(
+          { error: `Máximo ${MAX_PHOTOS_PER_POST} foto(s) por post` },
+          { status: 400 }
+        );
+      }
       validatedImageUrls = validateMediaUrlArray(imageUrls, {
         allowedBuckets: IMAGE_BUCKETS,
         requireUserId: user.id,
@@ -244,9 +244,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
       }
     }
-
-    const validatedVideoUrl: string | null = null;
-    const validatedAudioUrl: string | null = null;
 
     if (!hasMedia && (!content || !content.trim())) {
       return NextResponse.json({ error: "Conteúdo é obrigatório" }, { status: 400 });
@@ -279,29 +276,6 @@ export async function POST(req: NextRequest) {
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
     let expiresAt: string | null = null;
-
-    if (hasPhotos && imageUrls.length > MAX_PHOTOS_PER_POST) {
-      return NextResponse.json({ error: `Máximo ${MAX_PHOTOS_PER_POST} fotos por post` }, { status: 400 });
-    }
-    if (hasVideo && videoDuration && videoDuration > MAX_VIDEO_DURATION_SECONDS) {
-      return NextResponse.json({ error: `Vídeo muito longo (máx ${MAX_VIDEO_DURATION_SECONDS}s)` }, { status: 400 });
-    }
-    if (hasAudio && audioDuration && audioDuration > MAX_AUDIO_DURATION_SECONDS) {
-      return NextResponse.json({ error: `Áudio muito longo (máx ${MAX_AUDIO_DURATION_SECONDS}s)` }, { status: 400 });
-    }
-
-    if (hasVideo) {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-      const { data: recentVideoPosts } = await supabase
-        .from("posts").select("id")
-        .eq("author_id", user.id).eq("is_deleted", false)
-        .not("video_url", "is", null).gte("created_at", twelveHoursAgo);
-      if (recentVideoPosts && recentVideoPosts.length >= MAX_VIDEO_POSTS_PER_12H) {
-        return NextResponse.json({
-          error: `Você já postou ${MAX_VIDEO_POSTS_PER_12H} vídeos nas últimas 12h. Aguarde para postar mais.`
-        }, { status: 400 });
-      }
-    }
 
     if (hasMedia) {
       const now = new Date().toISOString();
@@ -340,10 +314,10 @@ export async function POST(req: NextRequest) {
         neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
         author_id: user.id,
         image_urls: validatedImageUrls || [],
-        video_url: validatedVideoUrl,
-        audio_url: validatedAudioUrl,
-        audio_duration: hasAudio && audioDuration ? audioDuration : null,
-        video_duration: hasVideo && videoDuration ? videoDuration : null,
+        video_url: null,
+        audio_url: null,
+        audio_duration: null,
+        video_duration: null,
         visibility: validVisibility,
         expires_at: expiresAt,
         shared_post_id: validSharedPostId,
