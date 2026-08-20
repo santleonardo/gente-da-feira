@@ -264,7 +264,7 @@ export async function PATCH(
       .from("rooms")
       .update(updateData)
       .eq("id", roomId)
-      .select(selectCols(ROOM_SAFE_COLUMNS))
+      .select("id, name, slug, icon, description, type, rules, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
       .single();
 
     if (error) {
@@ -272,11 +272,27 @@ export async function PATCH(
       throw error;
     }
 
-    const roomRow = (room ?? {}) as Record<string, unknown>;
+    if (!room) {
+      return NextResponse.json({ error: "Sala não encontrada após atualização" }, { status: 404 });
+    }
+
     return NextResponse.json({
       room: {
-        ...roomRow,
-        has_password: !!roomRow.has_password,
+        id: room.id,
+        name: room.name,
+        slug: room.slug,
+        icon: room.icon,
+        description: room.description,
+        type: room.type,
+        rules: room.rules,
+        is_active: room.is_active,
+        is_open: room.is_open,
+        max_members: room.max_members,
+        member_count: room.member_count,
+        has_password: !!room.has_password,
+        created_by: room.created_by,
+        created_at: room.created_at,
+        updated_at: room.updated_at,
       },
     });
   } catch (error) {
