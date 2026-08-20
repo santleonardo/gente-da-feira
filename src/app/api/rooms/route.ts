@@ -138,23 +138,7 @@ export async function POST(req: NextRequest) {
       })
       .maybeSingle();
 
-    if (error) {
-      console.error("[rooms POST] RPC error:", error.message, error.code, error.details);
-      // Erro clássico: RPC antiga tentando INSERT em has_password (coluna GENERATED)
-      if (
-        typeof error.message === "string" &&
-        /has_password|generated/i.test(error.message)
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Falha ao criar sala no banco (RPC desatualizada). Rode FIX_rpc_create_room.sql no Supabase.",
-          },
-          { status: 500 }
-        );
-      }
-      throw error;
-    }
+    if (error) throw error;
 
     if (!data) throw new Error("RPC retornou vazio");
     const result = data as { ok: boolean; error?: string; room_id?: string; has_password?: boolean };

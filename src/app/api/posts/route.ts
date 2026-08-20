@@ -27,6 +27,7 @@ import {
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
+import { sanitizePostItStyle } from "@/lib/post-style";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -265,7 +266,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Light: posts rich / post-it / estilos desabilitados (post_style sempre null)
+    // Post-it: apenas a cor de fundo é aceita do client (demais estilos ricos
+    // — fonte, negrito, itálico, cor de fonte — seguem desabilitados nesta versão).
+    const validatedPostStyle = sanitizePostItStyle(postStyle);
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
     let expiresAt: string | null = null;
@@ -314,7 +317,7 @@ export async function POST(req: NextRequest) {
         visibility: validVisibility,
         expires_at: expiresAt,
         shared_post_id: validSharedPostId,
-        post_style: null,
+        post_style: validatedPostStyle,
         post_type: "simple",
       })
       .select(`
