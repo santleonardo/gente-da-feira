@@ -27,8 +27,8 @@ const rules: RateLimitRule[] = [
   // UX-001: Forgot password — 3 por hora por IP (anti-abuso + anti-enumeration)
   { key: "auth:forgot",    limit: 3,   windowMs: 3_600_000, methods: ["POST"],   byUser: false },
 
-  // ── Posts (HIGH) ───────────────────────────────────────────────────
-  { key: "posts:create",   limit: 10,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
+  // ── Posts (HIGH) — limites reduzidos para beta / Supabase Free ─────
+  { key: "posts:create",   limit: 4,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "posts:list",     limit: 60,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
   { key: "posts:delete",   limit: 20,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
 
@@ -78,12 +78,12 @@ const rules: RateLimitRule[] = [
   { key: "users:posts",      limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
   { key: "users:avatar",     limit: 5,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
 
-  // ── Uploads (CRITICAL) ────────────────────────────────────────────
-  { key: "upload:image",     limit: 30,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
+  // ── Uploads (CRITICAL) — limites agressivos para Supabase Free ─────
+  { key: "upload:image",     limit: 5,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "upload:image:del", limit: 20,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
-  { key: "upload:audio",     limit: 15,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
-  { key: "upload:video",     limit: 10,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
-  { key: "upload:postimg",   limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
+  { key: "upload:audio",     limit: 0,   windowMs: 60_000,  methods: ["POST"],   byUser: true  }, // desabilitado
+  { key: "upload:video",     limit: 0,   windowMs: 60_000,  methods: ["POST"],   byUser: true  }, // desabilitado
+  { key: "upload:postimg",   limit: 5,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
 
   // ── Notifications (LOW) ──────────────────────────────────────────
   { key: "notifications:list",  limit: 30, windowMs: 60_000, methods: ["GET"],  byUser: true },
@@ -96,17 +96,17 @@ const rules: RateLimitRule[] = [
   // ── Push (MEDIUM) ────────────────────────────────────────────────
   { key: "push:subscribe",  limit: 10,  windowMs: 60_000,  methods: ["POST","DELETE"], byUser: true  },
 
-  // ── Profile Photos/Videos (MEDIUM) ───────────────────────────────
-  { key: "photos:list",     limit: 30, windowMs: 60_000, methods: ["GET"],    byUser: true },
-  { key: "photos:create",   limit: 10, windowMs: 60_000, methods: ["POST"],   byUser: true },
-  { key: "photos:delete",   limit: 10, windowMs: 60_000, methods: ["DELETE"], byUser: true },
-  { key: "photos:react",    limit: 30, windowMs: 60_000, methods: ["POST"],   byUser: true },
-  { key: "photos:comment",  limit: 20, windowMs: 60_000, methods: ["POST"],   byUser: true },
-  { key: "videos:list",     limit: 30, windowMs: 60_000, methods: ["GET"],    byUser: true },
-  { key: "videos:create",   limit: 5,  windowMs: 60_000, methods: ["POST"],   byUser: true },
+  // ── Profile Photos/Videos (MEDIUM) — desabilitados na versão light ─
+  { key: "photos:list",     limit: 10, windowMs: 60_000, methods: ["GET"],    byUser: true },
+  { key: "photos:create",   limit: 0,  windowMs: 60_000, methods: ["POST"],   byUser: true }, // desabilitado
+  { key: "photos:delete",   limit: 5,  windowMs: 60_000, methods: ["DELETE"], byUser: true },
+  { key: "photos:react",    limit: 10, windowMs: 60_000, methods: ["POST"],   byUser: true },
+  { key: "photos:comment",  limit: 10, windowMs: 60_000, methods: ["POST"],   byUser: true },
+  { key: "videos:list",     limit: 10, windowMs: 60_000, methods: ["GET"],    byUser: true },
+  { key: "videos:create",   limit: 0,  windowMs: 60_000, methods: ["POST"],   byUser: true }, // desabilitado
   { key: "videos:delete",   limit: 5,  windowMs: 60_000, methods: ["DELETE"], byUser: true },
-  { key: "videos:react",    limit: 30, windowMs: 60_000, methods: ["POST"],   byUser: true },
-  { key: "videos:comment",  limit: 20, windowMs: 60_000, methods: ["POST"],   byUser: true },
+  { key: "videos:react",    limit: 10, windowMs: 60_000, methods: ["POST"],   byUser: true },
+  { key: "videos:comment",  limit: 10, windowMs: 60_000, methods: ["POST"],   byUser: true },
 
   // ── Post detail/edit (MEDIUM) ────────────────────────────────────
   { key: "post:detail",     limit: 60, windowMs: 60_000, methods: ["GET"],    byUser: true },
