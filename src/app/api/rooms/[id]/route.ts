@@ -272,7 +272,7 @@ export async function PATCH(
       throw error;
     }
 
-    const roomRow = (room ?? {}) as Record<string, unknown>;
+    const roomRow = (room ?? {}) as unknown as Record<string, unknown>;
     return NextResponse.json({
       room: {
         ...roomRow,
