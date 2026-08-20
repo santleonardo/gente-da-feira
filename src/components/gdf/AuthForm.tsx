@@ -22,6 +22,10 @@ const TermsDialog = dynamic(
 
 const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at";
 
+const SIGNUP_DISABLED = ["1", "true", "yes", "on"].includes(
+  (process.env.NEXT_PUBLIC_KILL_SWITCH_SIGNUP || "").trim().toLowerCase()
+);
+
 export function AuthForm() {
   const { setProfile } = useStore();
   const supabase = createClient();
@@ -49,6 +53,10 @@ export function AuthForm() {
   };
 
   const handleRegister = async () => {
+    if (SIGNUP_DISABLED) {
+      toast.error("Cadastros temporariamente desabilitados. Tente novamente mais tarde.");
+      return;
+    }
     if (!regData.name || !regData.username || !regData.email || !regData.password) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -235,17 +243,24 @@ export function AuthForm() {
               <div className="flex rounded-lg bg-muted p-1">
                 <button
                   onClick={() => setMode("login")}
-                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "login" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "login" || SIGNUP_DISABLED ? "bg-background shadow-sm" : "text-muted-foreground"}`}
                 >
                   Entrar
                 </button>
-                <button
-                  onClick={() => setMode("register")}
-                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-                >
-                  Criar conta
-                </button>
+                {!SIGNUP_DISABLED && (
+                  <button
+                    onClick={() => setMode("register")}
+                    className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    Criar conta
+                  </button>
+                )}
               </div>
+              {SIGNUP_DISABLED && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Cadastros temporariamente desabilitados.
+                </p>
+              )}
 
               {mode === "login" ? (
                 <div className="space-y-3">
