@@ -251,7 +251,8 @@ export function AppShell() {
 
   const renderProfileContent = () => {
     if (profileSubView === "settings") return <SettingsView />;
-    if (profileSubView === "album") return <AlbumView />;
+    // Light / Free: álbum desabilitado no beta
+    // if (profileSubView === "album") return <AlbumView />;
     // UX-024: Painel de moderação — só acessível se profile.is_moderator,
     // mas o AdminReportsView também revalida no servidor (RLS + API 403).
     if (profileSubView === "moderation" && profile.is_moderator) return <AdminReportsView />;

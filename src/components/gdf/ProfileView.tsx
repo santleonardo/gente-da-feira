@@ -1051,12 +1051,15 @@ export function ProfileView() {
           <PenSquare className="h-3.5 w-3.5" />
           Postar
         </button>
+        {/* Light / Free: aba Álbum desabilitada no beta */}
+        {/*
         <button
           onClick={() => setActiveTab("album")}
           className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "album" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
         >
           📷
         </button>
+        */}
         <button
           onClick={() => setActiveTab("config")}
           className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "config" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
@@ -1522,10 +1525,12 @@ export function ProfileView() {
         </div>
       )}
 
-      {/* ═══════ ABA ÁLBUM ═══════ */}
+      {/* Light / Free: aba Álbum desabilitada no beta */}
+      {/*
       <div style={{ display: activeTab === "album" ? "block" : "none" }}>
           <AlbumView embedded />
       </div>
+      */}
 
       {/* ═══════ ABA CONFIG — EDITAR PERFIL E CONFIGURAÇÕES ═══════ */}
       <div style={{ display: activeTab === "config" ? "block" : "none" }}>

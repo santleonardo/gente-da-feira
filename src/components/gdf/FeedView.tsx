@@ -48,13 +48,14 @@ import {
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 
 // ═══════════════════════════════════════════════════════════
-// Constantes
+// Constantes — Light / Supabase Free
 // ═══════════════════════════════════════════════════════════
-const MAX_PHOTOS_PER_POST = 5;
-const MAX_ACTIVE_MEDIA_POSTS = 5;
-const MAX_VIDEO_POSTS_PER_12H = 5;
-const MAX_VIDEO_DURATION = 30;
-const MAX_AUDIO_DURATION = 60;
+const MAX_PHOTOS_PER_POST = 1;
+const MAX_ACTIVE_MEDIA_POSTS = 2;
+const MAX_VIDEO_POSTS_PER_12H = 0; // desabilitado
+const MAX_VIDEO_DURATION = 0;
+const MAX_AUDIO_DURATION = 0;
+const VIDEO_AUDIO_ENABLED = false; // flag para esconder UI de vídeo/áudio
 
 const REACTION_EMOJIS = [
   { type: "like",  emoji: "❤️", label: "Curtir"   },
@@ -946,8 +947,9 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   const hasVideoInComposer  = !!selectedVideo;
   const hasAudioInComposer  = !!selectedAudio;
   const canAddPhotos = !hasVideoInComposer && !hasAudioInComposer && selectedFiles.length < MAX_PHOTOS_PER_POST;
-  const canAddVideo  = !hasPhotosInComposer && !hasAudioInComposer && !hasVideoInComposer;
-  const canAddAudio  = !hasPhotosInComposer && !hasVideoInComposer && !hasAudioInComposer;
+  // Light / Free: vídeo e áudio desabilitados
+  const canAddVideo  = VIDEO_AUDIO_ENABLED && !hasPhotosInComposer && !hasAudioInComposer && !hasVideoInComposer;
+  const canAddAudio  = VIDEO_AUDIO_ENABLED && !hasPhotosInComposer && !hasVideoInComposer && !hasAudioInComposer;
 
   if (loading) return <FeedSkeleton />;
 
@@ -1047,28 +1049,33 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                       className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
                       <Camera className="h-4 w-4" />
                     </button>
-                    <button onClick={() => { if (canAddPhotos) fileInputRef.current?.click(); }} disabled={!canAddPhotos} title="Escolher fotos"
+                    <button onClick={() => { if (canAddPhotos) fileInputRef.current?.click(); }} disabled={!canAddPhotos} title="Escolher foto"
                       className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
                       <ImagePlus className="h-4 w-4" />
                     </button>
-                    <div className="w-8 h-px bg-[#0A4D5C]/10" />
-                    <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) cameraVideoRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Gravar vídeo"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Video className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) videoInputRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Escolher vídeo"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Video className="h-4 w-4" />
-                    </button>
-                    <div className="w-8 h-px bg-[#0A4D5C]/10" />
-                    <button onClick={() => { if (canAddAudio && !isRecordingAudio) startAudioRecording(); }} disabled={!canAddAudio || isRecordingAudio} title="Gravar áudio"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio && !isRecordingAudio ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Mic className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => { if (canAddAudio) audioInputRef.current?.click(); }} disabled={!canAddAudio} title="Escolher áudio"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Music className="h-4 w-4" />
-                    </button>
+                    {/* Light / Free: vídeo e áudio desabilitados */}
+                    {VIDEO_AUDIO_ENABLED && (
+                      <>
+                        <div className="w-8 h-px bg-[#0A4D5C]/10" />
+                        <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) cameraVideoRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Gravar vídeo"
+                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                          <Video className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) videoInputRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Escolher vídeo"
+                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                          <Video className="h-4 w-4" />
+                        </button>
+                        <div className="w-8 h-px bg-[#0A4D5C]/10" />
+                        <button onClick={() => { if (canAddAudio && !isRecordingAudio) startAudioRecording(); }} disabled={!canAddAudio || isRecordingAudio} title="Gravar áudio"
+                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio && !isRecordingAudio ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                          <Mic className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => { if (canAddAudio) audioInputRef.current?.click(); }} disabled={!canAddAudio} title="Escolher áudio"
+                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                          <Music className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                     <div className="w-8 h-px bg-[#0A4D5C]/10" />
                     <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"}
                       className="flex items-center justify-center rounded-full p-2 text-[#0A4D5C] transition-colors hover:bg-[#f7f75e]/30">
@@ -1078,10 +1085,15 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                 )}
 
                 <input ref={cameraPhotoRef} type="file" accept="image/*" capture="environment" onChange={handleCameraPhotoSelect} className="hidden" />
-                <input ref={fileInputRef}   type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFileSelect} className="hidden" />
-                <input ref={cameraVideoRef} type="file" accept="video/*" capture="environment" onChange={handleCameraVideoSelect} className="hidden" />
-                <input ref={videoInputRef}  type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoSelect} className="hidden" />
-                <input ref={audioInputRef}  type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioSelect} className="hidden" />
+                {/* Light: no máximo 1 foto — sem multiple */}
+                <input ref={fileInputRef}   type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleFileSelect} className="hidden" />
+                {VIDEO_AUDIO_ENABLED && (
+                  <>
+                    <input ref={cameraVideoRef} type="file" accept="video/*" capture="environment" onChange={handleCameraVideoSelect} className="hidden" />
+                    <input ref={videoInputRef}  type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoSelect} className="hidden" />
+                    <input ref={audioInputRef}  type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioSelect} className="hidden" />
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
