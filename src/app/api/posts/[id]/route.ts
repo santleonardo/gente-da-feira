@@ -6,7 +6,6 @@ import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLU
 import { safeErrorResponse } from "@/lib/safe-error";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
-import { sanitizePostItStyle } from "@/lib/post-style";
 
 // SEC-009: Author profile columns with neighborhood (filtered post-query)
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -147,14 +146,14 @@ export async function PATCH(
       }
     }
 
-    // Post-it: aceita apenas a cor de fundo escolhida pelo usuário
-    // (demais estilos ricos seguem desabilitados nesta versão).
+    // Light: estilos / post-it / rich desabilitados — ignora postStyle do client
     const updateData: Record<string, any> = {};
     if (content !== undefined) {
       updateData.content = sanitizeRichContent(content?.trim() || "");
     }
+    // Se o client mandar postStyle, força null (não aceita estilos novos)
     if (postStyle !== undefined) {
-      updateData.post_style = sanitizePostItStyle(postStyle);
+      updateData.post_style = null;
     }
 
     if (Object.keys(updateData).length === 0) {

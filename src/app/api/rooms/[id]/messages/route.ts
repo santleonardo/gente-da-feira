@@ -197,3 +197,120 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: message }, { status });
   }
 }
+
+// ============================================================
+// DELETE /api/rooms/[id]/messages?messageId=...
+// Soft-delete: autor OU creator/moderator da sala
+// ============================================================
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: roomId } = await params;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const blocked = await rateLimitByRule(req, "rooms:msg:delete", user.id);
+    if (blocked) return blocked;
+
+    let resolvedId = req.nextUrl.searchParams.get("messageId");
+    if (!resolvedId) {
+      try {
+        const body = await req.json();
+        resolvedId = typeof body?.messageId === "string" ? body.messageId : null;
+      } catch {
+        /* sem body */
+      }
+    }
+
+    if (!resolvedId) {
+      return NextResponse.json({ error: "messageId obrigatório" }, { status: 400 });
+    }
+
+    // Confirma que a mensagem pertence a esta sala (defense-in-depth)
+    const { data: msgRow } = await supabase
+      .from("messages")
+      .select("id, room_id")
+      .eq("id", resolvedId)
+      .maybeSingle();
+
+    if (!msgRow || msgRow.room_id !== roomId) {
+      return NextResponse.json({ error: "Mensagem não encontrada nesta sala" }, { status: 404 });
+    }
+
+    const { data, error } = await supabase
+      .rpc("rpc_delete_room_message", { p_message_id: resolvedId })
+      .maybeSingle();
+
+    if (error) {
+      // RPC ainda não aplicada no banco
+      if (/function.*rpc_delete_room_message|does not exist/i.test(error.message || "")) {
+        return NextResponse.json(
+          {
+            error:
+              "RPC de exclusão não instalada. Rode sql/rpc_delete_room_message.sql no Supabase.",
+          },
+          { status: 500 }
+        );
+      }
+      throw error;
+    }
+
+    if (!data) throw new Error("RPC retornou vazio");
+    const result = data as {
+      ok: boolean;
+      error?: string;
+      media_url?: string | null;
+      deleted_by_mod?: boolean;
+    };
+
+    if (!result.ok) {
+      switch (result.error) {
+        case "not_authenticated":
+          return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        case "message_not_found":
+          return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
+        case "already_deleted":
+          return NextResponse.json({ error: "Mensagem já foi apagada" }, { status: 400 });
+        case "not_room_message":
+          return NextResponse.json({ error: "Não é mensagem de sala" }, { status: 400 });
+        case "insufficient_role":
+          return NextResponse.json(
+            { error: "Sem permissão para apagar esta mensagem" },
+            { status: 403 }
+          );
+        default:
+          return NextResponse.json({ error: "Não foi possível apagar a mensagem" }, { status: 400 });
+      }
+    }
+
+    // Limpeza de storage (best effort)
+    if (result.media_url) {
+      try {
+        const { createAdminClient } = await import("@/lib/supabase/server");
+        const { extractStoragePathFromUrl } = await import("@/lib/storage-security");
+        const admin = createAdminClient();
+        const parsed = extractStoragePathFromUrl(result.media_url);
+        if (parsed) {
+          await admin.storage.from(parsed.bucket).remove([parsed.path]);
+        }
+      } catch {
+        /* silent */
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedByMod: !!result.deleted_by_mod,
+    });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(error, 500, "[rooms/messages DELETE]");
+    return NextResponse.json({ error: message }, { status });
+  }
+}
