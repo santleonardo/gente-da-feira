@@ -85,6 +85,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Light / Supabase Free: álbum de fotos do perfil desabilitado no beta
+  return NextResponse.json(
+    { error: "Álbum de fotos do perfil está desabilitado nesta versão beta." },
+    { status: 403 }
+  );
+
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

@@ -2,80 +2,16 @@
 // API de upload de vídeos para o Supabase Storage
 // Bucket: post-videos (público)
 // Máximo: 50MB, formatos: video/mp4, video/webm
+//
+// LIGHT / SUPABASE FREE: desabilitado no beta público.
+// Para reativar, remova o early-return e restaure a lógica original.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { rateLimitByRule } from "@/lib/apply-rate-limit";
-import { validateUploadFolder } from "@/lib/storage-security";
-import { safeErrorResponse } from "@/lib/safe-error";
 
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-
-export async function POST(req: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-    const blocked = await rateLimitByRule(req, "upload:video", user?.id);
-    if (blocked) return blocked;
-
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const rawFolder = (formData.get("folder") as string) || "posts";
-
-    // SEC-008: Determinar bucket antes de validar folder
-    const targetBucket = rawFolder === "album-videos" ? "profile-videos" : "post-videos";
-    const folder = validateUploadFolder(rawFolder, targetBucket);
-    if (!folder) {
-      return NextResponse.json({ error: "Pasta de destino inválida" }, { status: 400 });
-    }
-
-    if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
-
-    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
-      return NextResponse.json({
-        error: "Tipo não suportado. Use MP4, WebM ou MOV."
-      }, { status: 400 });
-    }
-
-    if (file.size > MAX_VIDEO_SIZE) {
-      return NextResponse.json({
-        error: `Vídeo muito grande. Máximo ${MAX_VIDEO_SIZE / (1024 * 1024)}MB.`
-      }, { status: 400 });
-    }
-
-    const admin = createAdminClient();
-
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    const ext = file.type === "video/mp4" ? "mp4" : file.type === "video/quicktime" ? "mov" : "webm";
-    const path = `${user.id}/${folder}/${timestamp}-${random}.${ext}`;
-
-    // Mapeia folder → bucket do Supabase Storage (já determinado acima)
-    const bucket = targetBucket;
-
-    const arrayBuffer = await file.arrayBuffer();
-    const { error: uploadError } = await admin.storage
-      .from(bucket)
-      .upload(path, arrayBuffer, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (uploadError) throw uploadError;
-
-    const { data: urlData } = admin.storage.from(bucket).getPublicUrl(path);
-
-    return NextResponse.json({
-      url: urlData.publicUrl,
-      path,
-    });
-  } catch (error: any) {
-
-    const { message, status } = safeErrorResponse(error, 500, "[upload/video POST]");
-    return NextResponse.json({ error: message }, { status });
-  }
+export async function POST(_req: NextRequest) {
+  return NextResponse.json(
+    { error: "Upload de vídeo está desabilitado nesta versão beta." },
+    { status: 403 }
+  );
 }

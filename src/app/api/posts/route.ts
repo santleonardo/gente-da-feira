@@ -27,12 +27,15 @@ import {
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 
-const MAX_PHOTOS_PER_POST = 5;
-const MAX_ACTIVE_MEDIA_POSTS = 5;
-const MEDIA_EXPIRATION_HOURS = 12;
-const MAX_VIDEO_POSTS_PER_12H = 5;
-const MAX_AUDIO_DURATION_SECONDS = 60;
-const MAX_VIDEO_DURATION_SECONDS = 30;
+// ── Versão Light / Supabase Free ─────────────────────────────
+// Limites agressivos para beta público em plano gratuito
+// (1 GB storage / 2 GB egress). Vídeo e áudio desabilitados.
+const MAX_PHOTOS_PER_POST = 1;
+const MAX_ACTIVE_MEDIA_POSTS = 2;
+const MEDIA_EXPIRATION_HOURS = 6;
+const MAX_VIDEO_POSTS_PER_12H = 0; // desabilitado
+const MAX_AUDIO_DURATION_SECONDS = 0;
+const MAX_VIDEO_DURATION_SECONDS = 0;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
@@ -217,12 +220,19 @@ export async function POST(req: NextRequest) {
     const hasPhotos = imageUrls && imageUrls.length > 0;
     const hasVideo  = !!videoUrl;
     const hasAudio  = !!audioUrl;
-    const hasMedia  = hasPhotos || hasVideo || hasAudio;
+
+    // Light / Free: vídeo e áudio desabilitados em posts
+    if (hasVideo || hasAudio) {
+      return NextResponse.json(
+        { error: "Upload de vídeo e áudio está desabilitado nesta versão beta." },
+        { status: 403 }
+      );
+    }
+
+    const hasMedia = hasPhotos;
 
     // SEC-008: Validar TODAS as URLs de mídia — rejeitar externas
     const IMAGE_BUCKETS = new Set(["post-photos", "post-images"]);
-    const VIDEO_BUCKETS = new Set(["post-videos"]);
-    const AUDIO_BUCKETS = new Set(["post-audios"]);
 
     let validatedImageUrls: string[] | null = null;
     if (hasPhotos) {
@@ -235,27 +245,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    let validatedVideoUrl: string | null = null;
-    if (hasVideo) {
-      validatedVideoUrl = validateMediaUrl(videoUrl, {
-        allowedBuckets: VIDEO_BUCKETS,
-        requireUserId: user.id,
-      });
-      if (!validatedVideoUrl) {
-        return NextResponse.json({ error: "URL de vídeo inválida" }, { status: 400 });
-      }
-    }
-
-    let validatedAudioUrl: string | null = null;
-    if (hasAudio) {
-      validatedAudioUrl = validateMediaUrl(audioUrl, {
-        allowedBuckets: AUDIO_BUCKETS,
-        requireUserId: user.id,
-      });
-      if (!validatedAudioUrl) {
-        return NextResponse.json({ error: "URL de áudio inválida" }, { status: 400 });
-      }
-    }
+    const validatedVideoUrl: string | null = null;
+    const validatedAudioUrl: string | null = null;
 
     if (!hasMedia && (!content || !content.trim())) {
       return NextResponse.json({ error: "Conteúdo é obrigatório" }, { status: 400 });

@@ -18,9 +18,9 @@ const ALLOWED_IMAGE_TYPES = [
   "image/webp",
   "image/gif",
 ];
-const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB — aumentado de 500KB para dar
-// margem caso a compressão cliente não chegue a 150KB em alguns dispositivos
-const MAX_VIDEO_THUMB_SIZE = 500 * 1024; // 500KB para thumbnails de vídeo
+// Light / Supabase Free: 500 KB máx para economizar storage e egress
+const MAX_IMAGE_SIZE = 500 * 1024; // 500 KB
+const MAX_VIDEO_THUMB_SIZE = 300 * 1024; // 300 KB para thumbnails
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
 
 export async function POST(req: NextRequest) {
