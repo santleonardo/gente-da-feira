@@ -1363,6 +1363,11 @@ function AdminPanel({
   const [bannedMembers, setBannedMembers] = useState<any[]>([]);
   const [loadingBanned, setLoadingBanned] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [rulesDraft, setRulesDraft] = useState<string>(room.rules || "");
+  const [passwordDraft, setPasswordDraft] = useState("");
+  const [clearPassword, setClearPassword] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
   const fetchBanned = useCallback(async () => {
     setLoadingBanned(true);
@@ -1430,6 +1435,38 @@ function AdminPanel({
       fetchBanned();
     } catch {
       toast.error("Erro ao desbanir");
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const body: Record<string, unknown> = {
+        rules: rulesDraft.trim(),
+      };
+      if (clearPassword) {
+        body.password = "";
+      } else if (passwordDraft.trim()) {
+        body.password = passwordDraft.trim();
+      }
+      const res = await fetch(`/api/rooms/${room.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+      toast.success("Configurações salvas");
+      setPasswordDraft("");
+      setClearPassword(false);
+      onRefresh();
+    } catch {
+      toast.error("Erro ao salvar configurações");
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -1532,21 +1569,98 @@ function AdminPanel({
                   <Settings className="h-3 w-3" /> Configurações da Sala
                 </Label>
 
-                {/* Info da sala */}
                 <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{room.icon || "💬"}</span>
                     <span className="text-sm font-semibold">{room.name}</span>
                   </div>
-                  {room.description && (
-                    <p className="text-xs text-muted-foreground">{room.description}</p>
-                  )}
                   <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-0.5"><Users className="h-3 w-3" />{room.member_count || room.memberCount || 0} membros</span>
-                    {room.has_password && <span className="flex items-center gap-0.5"><Lock className="h-3 w-3" />Protegida</span>}
-                    <span>{room.is_open ? "Aberta" : "Fechada"}</span>
+                    <span className="flex items-center gap-0.5">
+                      <Users className="h-3 w-3" />
+                      {room.member_count || room.memberCount || 0} membros
+                    </span>
+                    {(room.has_password || clearPassword === false) && room.has_password && !clearPassword && (
+                      <span className="flex items-center gap-0.5">
+                        <Lock className="h-3 w-3" /> Protegida
+                      </span>
+                    )}
+                    <span>{isOpen ? "Aberta" : "Fechada"}</span>
                   </div>
                 </div>
+
+                {/* Regras */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Regras da sala</Label>
+                  <textarea
+                    value={rulesDraft}
+                    onChange={(e) => setRulesDraft(e.target.value.slice(0, 500))}
+                    placeholder="Ex.: Respeito mútuo, sem spam..."
+                    rows={3}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <span className="text-[10px] text-muted-foreground">{rulesDraft.length}/500</span>
+                </div>
+
+                {/* Senha (opcional) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <KeyRound className="h-3 w-3" /> Senha da sala
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {room.has_password && !clearPassword
+                      ? "Sala protegida. Digite uma nova senha para trocar, ou remova a proteção."
+                      : "Opcional. Deixe em branco para manter sem senha."}
+                  </p>
+                  <div className="relative">
+                    <input
+                      type={showPwd ? "text" : "password"}
+                      value={passwordDraft}
+                      disabled={clearPassword}
+                      onChange={(e) => {
+                        setPasswordDraft(e.target.value.slice(0, 64));
+                        if (e.target.value) setClearPassword(false);
+                      }}
+                      placeholder={room.has_password ? "Nova senha" : "Definir senha"}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 pr-10 text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                      {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {room.has_password && (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={clearPassword}
+                        onChange={(e) => {
+                          setClearPassword(e.target.checked);
+                          if (e.target.checked) setPasswordDraft("");
+                        }}
+                        className="rounded border-border"
+                      />
+                      Remover senha (sala pública)
+                    </label>
+                  )}
+                </div>
+
+                <Button
+                  size="sm"
+                  className="w-full rounded-xl gap-2"
+                  disabled={savingSettings}
+                  onClick={handleSaveSettings}
+                >
+                  {savingSettings ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...
+                    </>
+                  ) : (
+                    "Salvar regras e senha"
+                  )}
+                </Button>
 
                 {/* Zona de perigo */}
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">

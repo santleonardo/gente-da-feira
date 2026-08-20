@@ -66,6 +66,7 @@ const rules: RateLimitRule[] = [
   { key: "rooms:ban",        limit: 20,  windowMs: 60_000,  methods: ["POST","DELETE"], byUser: true },
   { key: "rooms:promote",    limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "rooms:toggle",     limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
+  { key: "rooms:update",     limit: 15,  windowMs: 60_000,  methods: ["PATCH"],  byUser: true  },
 
   // ── Follows (HIGH) ────────────────────────────────────────────────
   { key: "follows:list",     limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
