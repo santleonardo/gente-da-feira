@@ -1367,13 +1367,23 @@ function AdminPanel({
   const fetchBanned = useCallback(async () => {
     setLoadingBanned(true);
     try {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("room_bans")
-        .select("id, user_id, banned_until, created_at, profiles:user_id(id, display_name, username, avatar_url)")
-        .eq("room_id", room.id);
-      setBannedMembers(data || []);
-    } catch { /* silent */ }
+      const res = await fetch(`/api/rooms/${room.id}/members?banned=1`);
+      const data = await res.json();
+      if (res.ok) {
+        // Normaliza para o formato do painel (profile aninhado)
+        const list = (data.banned || data.members || []).map((b: any) => ({
+          id: b.id,
+          user_id: b.user_id,
+          banned_until: b.banned_until,
+          profiles: b.profile,
+        }));
+        setBannedMembers(list);
+      } else {
+        setBannedMembers([]);
+      }
+    } catch {
+      /* silent */
+    }
     setLoadingBanned(false);
   }, [room.id]);
 
@@ -1756,6 +1766,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [members, setMembers] = useState<any[]>([]);
   const [showMembers, setShowMembers] = useState(false);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [membersTab, setMembersTab] = useState<"active" | "banned">("active");
+  const [bannedMembers, setBannedMembers] = useState<any[]>([]);
+  const [bannedLoading, setBannedLoading] = useState(false);
+  const [unbanningId, setUnbanningId] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showDeleteRoom, setShowDeleteRoom] = useState(false);
@@ -1918,9 +1932,54 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     setMembersLoading(false);
   }, [room.id, profile]);
 
+  const fetchBannedMembers = useCallback(async () => {
+    setBannedLoading(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/members?banned=1`);
+      const data = await res.json();
+      if (res.ok) {
+        setBannedMembers(data.banned || data.members || []);
+      } else {
+        setBannedMembers([]);
+      }
+    } catch {
+      setBannedMembers([]);
+    }
+    setBannedLoading(false);
+  }, [room.id]);
+
+  const handleUnbanMember = async (userId: string) => {
+    setUnbanningId(userId);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/ban`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+      toast.success("Membro desbanido");
+      setBannedMembers((prev) => prev.filter((b) => b.user_id !== userId));
+      fetchMembers();
+    } catch {
+      toast.error("Erro ao desbanir");
+    } finally {
+      setUnbanningId(null);
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  useEffect(() => {
+    if (showMembers && membersTab === "banned" && isAdmin) {
+      fetchBannedMembers();
+    }
+  }, [showMembers, membersTab, isAdmin, fetchBannedMembers]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -2557,50 +2616,158 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         </div>
       </div>
 
-      {/* ═══════ Member Sidebar ═══════ */}
+      {/* ═══════ Member Sidebar (abas: Membros | Banidos) ═══════ */}
       {showMembers && (
         <div className="border-b bg-card/50 backdrop-blur-md px-4 py-3 max-h-72 overflow-y-auto custom-scrollbar">
           <div className="flex items-center justify-between mb-2.5">
             <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-              Membros · {members.length}
+              {membersTab === "active" ? `Membros · ${members.length}` : `Banidos · ${bannedMembers.length}`}
             </h4>
-            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setShowMembers(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-full"
+              onClick={() => {
+                setShowMembers(false);
+                setMembersTab("active");
+              }}
+            >
               <X className="h-3 w-3" />
             </Button>
           </div>
-          {membersLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-9 rounded-lg bg-muted/50 animate-pulse" />)}
+
+          {/* Abas — Banidos só para mod/creator */}
+          {isAdmin && (
+            <div className="flex rounded-lg bg-muted p-0.5 mb-2.5">
+              <button
+                type="button"
+                onClick={() => setMembersTab("active")}
+                className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors ${
+                  membersTab === "active" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Membros
+              </button>
+              <button
+                type="button"
+                onClick={() => setMembersTab("banned")}
+                className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 ${
+                  membersTab === "banned" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                <Ban className="h-3 w-3" /> Banidos
+              </button>
             </div>
-          ) : members.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-3">Nenhum membro ainda</p>
-          ) : (
-            <div className="space-y-0.5">
-              {sortedMembers.map((m: any) => {
-                const mp = m.profile;
-                if (!mp) {
-                  return (
-                    <div key={m.id || m.user_id} className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors">
-                      <UserAvatar user={{ id: m.user_id || "unknown", display_name: "?" }} className="h-8 w-8" />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium text-muted-foreground truncate">Usuário</span>
+          )}
+
+          {membersTab === "active" && (
+            <>
+              {membersLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-9 rounded-lg bg-muted/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : members.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">Nenhum membro ainda</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {sortedMembers.map((m: any) => {
+                    const mp = m.profile;
+                    if (!mp) {
+                      return (
+                        <div
+                          key={m.id || m.user_id}
+                          className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors"
+                        >
+                          <UserAvatar
+                            user={{ id: m.user_id || "unknown", display_name: "?" }}
+                            className="h-8 w-8"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-medium text-muted-foreground truncate">
+                              Usuário
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <MemberActionMenu
+                        key={m.id || m.user_id}
+                        member={m}
+                        currentMember={currentMember}
+                        roomId={room.id}
+                        onRefresh={fetchMembers}
+                        openUserProfile={openUserProfile}
+                        onInviteOpen={() => setShowInvite(true)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {membersTab === "banned" && isAdmin && (
+            <>
+              {bannedLoading ? (
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-9 rounded-lg bg-muted/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : bannedMembers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">
+                  Nenhum membro banido
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {bannedMembers.map((b: any) => {
+                    const prof = b.profile;
+                    const until = b.banned_until
+                      ? new Date(b.banned_until).toLocaleDateString("pt-BR")
+                      : null;
+                    return (
+                      <div
+                        key={b.id || b.user_id}
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 bg-muted/30"
+                      >
+                        <UserAvatar
+                          user={{
+                            id: prof?.id || b.user_id,
+                            display_name: prof?.display_name || "?",
+                            avatar_url: prof?.avatar_url,
+                          }}
+                          className="h-8 w-8"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">
+                            {prof?.display_name || "Usuário"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {until ? `Até ${until}` : "Banimento permanente"}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={unbanningId === b.user_id}
+                          onClick={() => handleUnbanMember(b.user_id)}
+                          className="text-[11px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 h-7 px-2 rounded-lg"
+                        >
+                          {unbanningId === b.user_id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Desbanir"
+                          )}
+                        </Button>
                       </div>
-                    </div>
-                  );
-                }
-                return (
-                  <MemberActionMenu
-                    key={m.id || m.user_id}
-                    member={m}
-                    currentMember={currentMember}
-                    roomId={room.id}
-                    onRefresh={fetchMembers}
-                    openUserProfile={openUserProfile}
-                    onInviteOpen={() => setShowInvite(true)}
-                  />
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
