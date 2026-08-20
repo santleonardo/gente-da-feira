@@ -26,6 +26,8 @@ const rules: RateLimitRule[] = [
   { key: "auth:delete",    limit: 5,   windowMs: 60_000,    methods: ["DELETE"], byUser: true  },
   // UX-001: Forgot password — 3 por hora por IP (anti-abuso + anti-enumeration)
   { key: "auth:forgot",    limit: 3,   windowMs: 3_600_000, methods: ["POST"],   byUser: false },
+  // Light / Free: cadastro — máx 5 contas novas por IP a cada 24h
+  { key: "auth:register",  limit: 5,   windowMs: 86_400_000, methods: ["POST"],  byUser: false },
 
   // ── Posts (HIGH) — limites reduzidos para beta / Supabase Free ─────
   { key: "posts:create",   limit: 4,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },

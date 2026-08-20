@@ -49,26 +49,72 @@ export function AuthForm() {
   };
 
   const handleRegister = async () => {
-    if (!regData.name || !regData.username || !regData.email || !regData.password) { toast.error("Preencha todos os campos obrigatórios"); return; }
+    if (!regData.name || !regData.username || !regData.email || !regData.password) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
     const passError = validatePasswordStrength(regData.password);
     if (passError) { toast.error(passError); return; }
-    if (!declaredAdult) { toast.error("Você precisa declarar que tem 18 anos ou mais"); return; }
-    if (!agreedTerms) { toast.error("Você precisa aceitar os Termos de Uso para se cadastrar"); return; }
+    if (!declaredAdult) {
+      toast.error("Você precisa declarar que tem 18 anos ou mais");
+      return;
+    }
+    if (!agreedTerms) {
+      toast.error("Você precisa aceitar os Termos de Uso para se cadastrar");
+      return;
+    }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: regData.email, password: regData.password,
-        options: { data: { name: regData.name, username: regData.username, neighborhood: regData.neighborhood } },
+      // Cadastro via API: rate limit por IP + Termos obrigatórios no servidor
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: regData.name,
+          username: regData.username,
+          email: regData.email,
+          password: regData.password,
+          neighborhood: regData.neighborhood || "",
+          agreedTerms: true,
+          declaredAdult: true,
+        }),
       });
-      if (error) { toast.error(error.message); return; }
-      if (data.user) {
-        await supabase.from("profiles").update({ neighborhood: regData.neighborhood || null }).eq("id", data.user.id);
-        const { data: geralRoom } = await supabase.from("rooms").select("id").eq("slug", "geral-fsa").single();
-        if (geralRoom) await supabase.from("room_members").insert({ room_id: geralRoom.id, user_id: data.user.id });
-        const { data: profile } = await supabase.from("profiles").select(PROFILE_SAFE_SELECT).eq("id", data.user.id).single();
-        if (profile) { setProfile(profile); toast.success("Conta criada com sucesso!"); }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Erro ao criar conta");
+        return;
       }
-    } catch { toast.error("Erro ao criar conta"); } finally { setLoading(false); }
+      if (data.needsEmailConfirmation) {
+        toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
+        setMode("login");
+        return;
+      }
+      if (data.user) {
+        setProfile(data.user);
+        toast.success("Conta criada com sucesso!");
+      } else {
+        // Fallback: tenta carregar sessão/perfil no client
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select(PROFILE_SAFE_SELECT)
+            .eq("id", sessionData.session.user.id)
+            .single();
+          if (profile) {
+            setProfile(profile);
+            toast.success("Conta criada com sucesso!");
+            return;
+          }
+        }
+        toast.success("Conta criada! Faça login para continuar.");
+        setMode("login");
+      }
+    } catch {
+      toast.error("Erro ao criar conta");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // UX-001: Solicitar e-mail de recuperação de senha
@@ -349,7 +395,11 @@ export function AuthForm() {
                       <FileText className="h-3.5 w-3.5" /> Ler Termos de Uso completos (v{TERMS_VERSION})
                     </button>
                   </div>
-                  <Button onClick={handleRegister} disabled={loading} className="w-full">
+                  <Button
+                    onClick={handleRegister}
+                    disabled={loading || !agreedTerms || !declaredAdult}
+                    className="w-full"
+                  >
                     <ShieldCheck className="h-4 w-4" />
                     {loading ? "Criando conta..." : "Criar conta"}
                   </Button>
