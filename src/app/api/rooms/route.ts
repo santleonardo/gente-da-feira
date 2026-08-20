@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { ROOM_SAFE_COLUMNS, selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
@@ -87,6 +88,14 @@ export async function POST(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "rooms:create", user?.id);
     if (blocked) return blocked;
+
+    if (isReadOnlyMode()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.readonly },
+        { status: 503 }
+      );
+    }
+
 
     const idemBlock = await idempotencyGate(req, user.id);
     if (idemBlock) return idemBlock;

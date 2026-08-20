@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpirationMinutes } from "@/lib/media-expiration";
 import { canReadRoomMessages, canSendRoomMessage } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
@@ -105,6 +106,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const blocked = await rateLimitByRule(req, "rooms:msg:send", user?.id);
     if (blocked) return blocked;
+
+    if (isReadOnlyMode()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.readonly },
+        { status: 503 }
+      );
+    }
+
 
     const idemBlock = await idempotencyGate(req, user.id);
     if (idemBlock) return idemBlock;

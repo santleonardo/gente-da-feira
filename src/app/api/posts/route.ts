@@ -26,6 +26,7 @@ import {
   batchFetchPrivacyFlags,
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
+import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -208,6 +209,14 @@ export async function POST(req: NextRequest) {
 
     const blocked = await rateLimitByRule(req, "posts:create", user?.id);
     if (blocked) return blocked;
+
+    // Kill switch: modo somente leitura
+    if (isReadOnlyMode()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.readonly },
+        { status: 503 }
+      );
+    }
 
     const {
       content, neighborhood, imageUrls, videoUrl, audioUrl, postType,

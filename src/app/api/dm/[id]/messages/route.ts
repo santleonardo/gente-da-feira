@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanupExpiredMessageMedia, getMessageMediaExpiration } from "@/lib/media-expiration";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { validateMediaUrl } from "@/lib/storage-security";
 import { selectCols } from "@/lib/safe-columns";
@@ -76,6 +77,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const blocked = await rateLimitByRule(req, "dm:messages:send", user?.id);
     if (blocked) return blocked;
+
+    if (isReadOnlyMode()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.readonly },
+        { status: 503 }
+      );
+    }
+
 
     const idemBlock = await idempotencyGate(req, user.id);
     if (idemBlock) return idemBlock;

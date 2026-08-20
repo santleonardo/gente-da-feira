@@ -12,6 +12,7 @@ import { sanitizeShortText } from "@/lib/sanitize";
 import { PROFILE_SAFE_COLUMNS, selectCols } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { TERMS_VERSION } from "@/lib/constants";
+import { isSignupDisabled, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,24}$/;
@@ -26,6 +27,14 @@ function validatePasswordStrength(password: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
+    // Kill switch: desliga cadastros sem tirar o app do ar
+    if (isSignupDisabled()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.signup },
+        { status: 503 }
+      );
+    }
+
     // Rate limit por IP — anti-spam de contas no beta
     const blocked = await rateLimitByRule(req, "auth:register", null);
     if (blocked) return blocked;

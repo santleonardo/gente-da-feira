@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
+import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { sanitizePlainText } from "@/lib/sanitize";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL } from "@/lib/safe-columns";
 import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
@@ -59,6 +60,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const blocked = await rateLimitByRule(req, "comments:create", user?.id);
     if (blocked) return blocked;
+
+    if (isReadOnlyMode()) {
+      return NextResponse.json(
+        { error: KILL_SWITCH_MESSAGES.readonly },
+        { status: 503 }
+      );
+    }
+
 
     const idemBlock = await idempotencyGate(req, user.id);
     if (idemBlock) return idemBlock;
