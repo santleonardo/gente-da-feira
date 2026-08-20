@@ -265,23 +265,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const validFonts      = ["Nunito","Quicksand","Poppins","Inter","Comfortaa","Montserrat","Lato","Raleway","DM Sans","Work Sans"];
-    const validAlignments = ["left","center","right","justify"];
-    let validatedStyle: any = null;
-
-    if (postStyle && typeof postStyle === "object") {
-      validatedStyle = {
-        font:        validFonts.includes(postStyle.font) ? postStyle.font : null,
-        bold:        typeof postStyle.bold === "boolean" ? postStyle.bold : false,
-        italic:      typeof postStyle.italic === "boolean" ? postStyle.italic : false,
-        alignment:   validAlignments.includes(postStyle.alignment) ? postStyle.alignment : "left",
-        postItColor: typeof postStyle.postItColor === "number" && postStyle.postItColor >= 0 && postStyle.postItColor <= 11 ? postStyle.postItColor : null,
-        fontColor:   typeof postStyle.fontColor === "string" && /^#[0-9a-fA-F]{6}$/.test(postStyle.fontColor) ? postStyle.fontColor : null,
-      };
-      if (!validatedStyle.font)             delete validatedStyle.font;
-      if (validatedStyle.postItColor === null) delete validatedStyle.postItColor;
-      if (!validatedStyle.fontColor)        delete validatedStyle.fontColor;
-    }
+    // Light: posts rich / post-it / estilos desabilitados (post_style sempre null)
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
     let expiresAt: string | null = null;
@@ -330,8 +314,8 @@ export async function POST(req: NextRequest) {
         visibility: validVisibility,
         expires_at: expiresAt,
         shared_post_id: validSharedPostId,
-        post_style: validatedStyle,
-        post_type: postType === "rich" ? "rich" : "simple",
+        post_style: null,
+        post_type: "simple",
       })
       .select(`
         ${selectCols(POST_COLUMNS)},

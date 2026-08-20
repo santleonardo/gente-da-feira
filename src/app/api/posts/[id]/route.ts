@@ -146,56 +146,14 @@ export async function PATCH(
       }
     }
 
-    // Validate postStyle if provided
-    const validFonts = [
-      "Nunito",
-      "Quicksand",
-      "Poppins",
-      "Inter",
-      "Comfortaa",
-      "Montserrat",
-      "Lato",
-      "Raleway",
-      "DM Sans",
-      "Work Sans",
-    ];
-    const validAlignments = ["left", "center", "right", "justify"];
-    let validatedStyle: Record<string, any> | undefined;
-
-    if (postStyle !== undefined) {
-      if (postStyle && typeof postStyle === "object") {
-        validatedStyle = {
-          font: validFonts.includes(postStyle.font) ? postStyle.font : null,
-          bold: typeof postStyle.bold === "boolean" ? postStyle.bold : false,
-          italic:
-            typeof postStyle.italic === "boolean" ? postStyle.italic : false,
-          alignment: validAlignments.includes(postStyle.alignment)
-            ? postStyle.alignment
-            : "left",
-          postItColor:
-            typeof postStyle.postItColor === "number" &&
-            postStyle.postItColor >= 0 &&
-            postStyle.postItColor <= 11
-              ? postStyle.postItColor
-              : null,
-        };
-        // Remove null values to keep it clean
-        if (!validatedStyle.font) delete validatedStyle.font;
-        if (validatedStyle.postItColor === null)
-          delete validatedStyle.postItColor;
-      } else {
-        // If postStyle is null or falsy, set to null to clear it
-        validatedStyle = null as any;
-      }
-    }
-
-    // Build update object
+    // Light: estilos / post-it / rich desabilitados — ignora postStyle do client
     const updateData: Record<string, any> = {};
     if (content !== undefined) {
       updateData.content = sanitizeRichContent(content?.trim() || "");
     }
+    // Se o client mandar postStyle, força null (não aceita estilos novos)
     if (postStyle !== undefined) {
-      updateData.post_style = validatedStyle;
+      updateData.post_style = null;
     }
 
     if (Object.keys(updateData).length === 0) {
