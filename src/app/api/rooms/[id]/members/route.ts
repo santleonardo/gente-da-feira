@@ -37,6 +37,62 @@ export async function GET(
       return NextResponse.json({ error: auth.reason }, { status: 403 });
     }
 
+    const wantBanned = req.nextUrl.searchParams.get("banned") === "1";
+
+    // Lista de banidos: só creator/moderator
+    if (wantBanned) {
+      const { data: myMembership } = await supabase
+        .from("room_members")
+        .select("role, is_banned")
+        .eq("room_id", roomId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const role = myMembership?.role;
+      if (
+        !myMembership ||
+        myMembership.is_banned ||
+        (role !== "creator" && role !== "moderator")
+      ) {
+        return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+      }
+
+      const { data: rawBanned, error: bannedErr } = await supabase
+        .from("room_members")
+        .select("id, user_id, role, banned_until, created_at, is_banned")
+        .eq("room_id", roomId)
+        .eq("is_banned", true)
+        .order("created_at", { ascending: false });
+
+      if (bannedErr) {
+        console.error("[SEC-002 room-members GET banned]", bannedErr);
+        throw bannedErr;
+      }
+
+      if (!rawBanned || rawBanned.length === 0) {
+        return NextResponse.json({ members: [], banned: [] });
+      }
+
+      const userIds = rawBanned.map((m: any) => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, username, avatar_url")
+        .in("id", userIds);
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+      const banned = rawBanned.map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role,
+        banned_until: m.banned_until,
+        is_banned: true,
+        profile: profileMap.get(m.user_id) || null,
+      }));
+
+      return NextResponse.json({ members: banned, banned });
+    }
+
     // Usa o client autenticado (NÃO admin) — RLS em room_members garante
     // que apenas membros da mesma sala consigam ver a lista.
     const { data: rawMembers, error } = await supabase
