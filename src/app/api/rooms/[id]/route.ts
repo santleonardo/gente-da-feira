@@ -274,7 +274,7 @@ export async function PATCH(
 
     return NextResponse.json({
       room: {
-        ...(room as unknown as Record<string, unknown>),
+        ...room,
         has_password: !!(room as any)?.has_password,
       },
     });
