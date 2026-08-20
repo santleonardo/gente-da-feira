@@ -125,9 +125,6 @@ export function ReportDialog() {
                 <Flag className="h-4 w-4 text-red-500" />
                 Denunciar {targetLabel.toLowerCase()}
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Descreva o motivo. A denúncia será analisada pela moderação.
-              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 pt-1">

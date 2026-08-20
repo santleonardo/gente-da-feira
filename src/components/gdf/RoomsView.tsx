@@ -373,12 +373,9 @@ function CreateRoomDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto" aria-describedby="create-room-desc">
+      <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg">Criar nova sala</DialogTitle>
-          <DialogDescription id="create-room-desc" className="text-xs text-muted-foreground">
-            Defina nome, regras e limites da sala comunitária.
-          </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           {/* Icon picker */}
