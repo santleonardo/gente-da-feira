@@ -914,19 +914,15 @@ export function ProfileView() {
         if (!audioUrl) { setPublishing(false); return; }
       }
 
-      const postContent = textContent.trim() ? editorRef.current!.innerHTML : (
+      // Light: só texto simples (sem HTML/rich/post-it)
+      const plainFromEditor = textContent.trim()
+        ? (editorRef.current?.innerText || textContent).trim()
+        : "";
+      const postContent = plainFromEditor || (
         selectedFiles.length > 0 ? "📷" :
         selectedVideo ? "🎥" :
         selectedAudio ? "🎙️" : ""
       );
-
-      const styleToSend: PostStyle = { ...postStyle };
-      if (!styleToSend.font) delete styleToSend.font;
-      if (!styleToSend.bold) delete styleToSend.bold;
-      if (!styleToSend.italic) delete styleToSend.italic;
-      if (styleToSend.alignment === "left") delete styleToSend.alignment;
-      if (styleToSend.postItColor === null || styleToSend.postItColor === undefined) delete styleToSend.postItColor;
-      if (!styleToSend.fontColor) delete styleToSend.fontColor;
 
       const res = await fetch("/api/posts", {
         method: "POST",
@@ -935,20 +931,17 @@ export function ProfileView() {
           content: postContent,
           neighborhood: profile.neighborhood,
           imageUrls,
-          videoUrl,
-          audioUrl,
-          audioDuration,
-          videoDuration,
+          videoUrl: null,
+          audioUrl: null,
           visibility,
-          postStyle: styleToSend,
-          postType: "rich",
+          postStyle: null,
+          postType: "simple",
         }),
       });
       const data = await res.json();
       if (data.post) {
         if (editorRef.current) editorRef.current.innerHTML = "";
         setTextContent("");
-        setPostStyle({ font: null, bold: false, italic: false, alignment: "left", postItColor: 0, fontColor: null });
         clearMedia();
         toast.success("Post publicado!");
         fetchMyPosts();
@@ -1280,101 +1273,9 @@ export function ProfileView() {
               </div>
             )}
 
-            {/* ═══════ TOOLBAR — LINHA 1: FORMATAÇÃO ═══════ */}
+            {/* Light: formatação / post-it / cores desabilitados — só mídia + publicar */}
             <div className="flex items-center gap-1 mt-2 flex-wrap">
-              {/* Negrito */}
-              <button
-                onClick={handleBold}
-                className={`flex items-center justify-center rounded-md h-7 w-7 shrink-0 transition-colors ${activeFormats.bold ? "bg-[#0A4D5C] text-[#f7f9fa]" : "bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                title="Negrito"
-              >
-                <Bold className="h-3.5 w-3.5" />
-              </button>
-              {/* Itálico */}
-              <button
-                onClick={handleItalic}
-                className={`flex items-center justify-center rounded-md h-7 w-7 shrink-0 transition-colors ${activeFormats.italic ? "bg-[#0A4D5C] text-[#f7f9fa]" : "bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                title="Itálico"
-              >
-                <Italic className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="w-px h-4 bg-[#0A4D5C]/10 shrink-0" />
-
-              {/* H1 */}
-              <button
-                onClick={handleH1}
-                className="flex items-center justify-center rounded-md h-7 px-1.5 shrink-0 text-[10px] font-bold transition-colors bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"
-                title="Título H1"
-              >
-                H1
-              </button>
-              {/* H2 */}
-              <button
-                onClick={handleH2}
-                className="flex items-center justify-center rounded-md h-7 px-1.5 shrink-0 text-[10px] font-bold transition-colors bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"
-                title="Título H2"
-              >
-                H2
-              </button>
-
-              <div className="w-px h-4 bg-[#0A4D5C]/10 shrink-0" />
-
-              {/* Alinhamento */}
-              {([
-                { align: "left" as const, Icon: AlignLeft },
-                { align: "center" as const, Icon: AlignCenter },
-                { align: "right" as const, Icon: AlignRight },
-                { align: "justify" as const, Icon: AlignJustify },
-              ]).map(({ align, Icon }) => (
-                <button
-                  key={align}
-                  onClick={() => setPostStyle((s) => ({ ...s, alignment: align }))}
-                  className={`flex items-center justify-center rounded-md h-7 w-7 shrink-0 transition-colors ${postStyle.alignment === align ? "bg-[#0A4D5C] text-[#f7f9fa]" : "bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                  title={align}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              ))}
-
-              <div className="w-px h-4 bg-[#0A4D5C]/10 shrink-0" />
-
-              {/* Fonte dropdown */}
-              <div className="relative shrink-0" ref={fontMenuRef}>
-                <button
-                  onClick={() => setFontMenuOpen(!fontMenuOpen)}
-                  className={`flex items-center gap-0.5 rounded-md h-7 px-1.5 text-[9px] font-medium transition-colors ${fontMenuOpen ? "bg-[#0A4D5C] text-[#f7f9fa]" : "bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                >
-                  <Type className="h-3 w-3" />
-                  <span className="max-w-[36px] truncate">{postStyle.font || "Fonte"}</span>
-                  <ChevronDown className={`h-2.5 w-2.5 transition-transform ${fontMenuOpen ? "rotate-180" : ""}`} />
-                </button>
-                {fontMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 w-36 rounded-xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10 animate-in fade-in-0 zoom-in-95 max-h-[180px] overflow-y-auto">
-                    <button
-                      onClick={() => { setPostStyle((s) => ({ ...s, font: null })); setFontMenuOpen(false); }}
-                      className={`w-full text-left rounded-lg px-2 py-1 text-[10px] transition-colors ${!postStyle.font ? "bg-[#0A4D5C] text-[#f7f9fa]" : "text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                    >
-                      Padrão
-                    </button>
-                    {FONTS.map((f) => (
-                      <button
-                        key={f.value}
-                        onClick={() => { setPostStyle((s) => ({ ...s, font: f.value })); setFontMenuOpen(false); }}
-                        className={`w-full text-left rounded-lg px-2 py-1 text-[10px] transition-colors ${postStyle.font === f.value ? "bg-[#0A4D5C] text-[#f7f9fa]" : "text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
-                        style={{ fontFamily: `'${f.value}', sans-serif` }}
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Espaçador */}
               <div className="flex-1" />
-
-              {/* Menu de mídias */}
               <div className="relative" ref={mediaMenuRef}>
                 <button
                   onClick={() => setMediaMenuOpen(!mediaMenuOpen)}
@@ -1383,9 +1284,8 @@ export function ProfileView() {
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
-
                 {mediaMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 flex flex-col items-center gap-px rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10 animate-in fade-in-0 zoom-in-95">
+                  <div className="absolute right-0 top-full mt-1 z-50 flex flex-col items-center gap-px rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10">
                     <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
                       <Camera className="h-3.5 w-3.5" />
                     </button>
@@ -1393,71 +1293,13 @@ export function ProfileView() {
                       <ImagePlus className="h-3.5 w-3.5" />
                     </button>
                     <div className="w-6 h-px bg-[#0A4D5C]/10" />
-                    <button onClick={() => { if (canAddVideo) cameraVideoRef.current?.click(); }} disabled={!canAddVideo} title="Gravar vídeo" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddVideo ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Video className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => { if (canAddVideo) videoInputRef.current?.click(); }} disabled={!canAddVideo} title="Escolher vídeo" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddVideo ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Video className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="w-6 h-px bg-[#0A4D5C]/10" />
-                    <button onClick={() => { if (canAddAudio && !isRecordingAudio) startAudioRecording(); }} disabled={!canAddAudio || isRecordingAudio} title="Gravar áudio" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddAudio && !isRecordingAudio ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Mic className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => { if (canAddAudio) audioInputRef.current?.click(); }} disabled={!canAddAudio} title="Escolher áudio" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddAudio ? "text-[#0A4D5C]/70 hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
-                      <Music className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="w-6 h-px bg-[#0A4D5C]/10" />
                     <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"} className="flex items-center justify-center rounded-full p-1.5 text-[#0A4D5C] transition-colors hover:bg-[#f7f75e]/30">
                       {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 )}
-
-                {/* Hidden inputs */}
                 <input ref={cameraPhotoRef} type="file" accept="image/*" capture="environment" onChange={handleCameraPhoto} className="hidden" />
-                <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handlePhotoSelect} className="hidden" />
-                <input ref={cameraVideoRef} type="file" accept="video/*" capture="environment" onChange={handleVideoSelect} className="hidden" />
-                <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoSelect} className="hidden" />
-                <input ref={audioInputRef} type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioSelect} className="hidden" />
-              </div>
-            </div>
-
-            {/* ═══════ CORES — GRID 2 LINHAS × 6 ═══════ */}
-            <div className="grid grid-cols-6 gap-1 mt-2">
-              {POST_IT_COLORS.map((color, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPostStyle((s) => ({ ...s, postItColor: i }))}
-                  className={`h-6 rounded-full border-2 transition-all hover:scale-105 ${postStyle.postItColor === i ? "border-[#0A4D5C] scale-105 shadow-sm" : "border-[#0A4D5C]/10"}`}
-                  style={{ backgroundColor: color.bg }}
-                  title={color.label}
-                />
-              ))}
-            </div>
-
-            {/* ═══════ COR DA FONTE — GRID 2 LINHAS × 6 ═══════ */}
-            <div className="mt-1.5">
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-[9px] font-medium text-[#0A4D5C]/50">Cor da fonte</span>
-                {postStyle.fontColor && (
-                  <button
-                    onClick={() => setPostStyle((s) => ({ ...s, fontColor: null }))}
-                    className="text-[8px] text-[#0A4D5C]/40 hover:text-[#0A4D5C] underline"
-                  >
-                    Auto
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-6 gap-1">
-                {FONT_COLORS.map((fc, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPostStyle((s) => ({ ...s, fontColor: fc.color }))}
-                    className={`h-5 rounded-full border-2 transition-all hover:scale-105 ${(postStyle.fontColor || null) === fc.color ? "border-[#0A4D5C] scale-105 shadow-sm" : "border-[#0A4D5C]/10"}`}
-                    style={{ backgroundColor: fc.color, boxShadow: fc.color === "#ffffff" ? "inset 0 0 0 1px rgba(0,0,0,0.1)" : undefined }}
-                    title={fc.label}
-                  />
-                ))}
+                <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handlePhotoSelect} className="hidden" />
               </div>
             </div>
 
