@@ -373,9 +373,12 @@ function CreateRoomDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto" aria-describedby="create-room-desc">
         <DialogHeader>
           <DialogTitle className="text-lg">Criar nova sala</DialogTitle>
+          <DialogDescription id="create-room-desc" className="text-xs text-muted-foreground">
+            Defina nome, regras e limites da sala comunitária.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           {/* Icon picker */}
@@ -2135,6 +2138,26 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     } catch { toast.error("Erro ao enviar mensagem"); }
   };
 
+  // ═══════ Apagar mensagem (autor ou mod/creator) ═══════
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("Apagar esta mensagem?")) return;
+    try {
+      const res = await fetch(
+        `/api/rooms/${room.id}/messages?messageId=${encodeURIComponent(messageId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Não foi possível apagar");
+        return;
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      toast.success(data?.deletedByMod ? "Mensagem removida pela moderação" : "Mensagem apagada");
+    } catch {
+      toast.error("Erro ao apagar mensagem");
+    }
+  };
+
   // ═══════ Captura de foto da câmera ═══════
   const handleCameraPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2705,6 +2728,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
                       >
                         <Flag className="h-3 w-3" />
+                      </button>
+                    )}
+                    {(isMine || isAdmin) && (
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        title={isMine ? "Apagar mensagem" : "Remover mensagem (moderação)"}
+                        className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     )}
                   </div>

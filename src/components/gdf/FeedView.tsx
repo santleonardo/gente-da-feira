@@ -35,8 +35,6 @@ import {
   Square,
   Music,
   Flag,
-  Palette,
-  Check,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -100,10 +98,6 @@ const POST_IT_COLORS_HEX = [
   { bg: "#ffffff", text: "#374151", border: "#d1d5db" },
   { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db" },
 ] as const;
-
-// Índice do post-it "neutro" (fundo branco) — padrão quando o usuário
-// não escolhe uma cor manualmente.
-const NEUTRAL_POST_IT_COLOR = 10;
 
 const EDITOR_FONTS = ["Nunito","Quicksand","Poppins","Inter","Comfortaa","Montserrat","Lato","Raleway","DM Sans","Work Sans"] as const;
 
@@ -553,10 +547,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   const [visibility,         setVisibility]         = useState<"public" | "followers">("public");
   const [menuOpen,           setMenuOpen]           = useState(false);
 
-  // Cor do post-it: null = usuário não escolheu (padrão neutro ao publicar)
-  const [postItColorIdx,     setPostItColorIdx]     = useState<number | null>(null);
-  const [colorPickerOpen,    setColorPickerOpen]    = useState(false);
-
   // Input refs
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const videoInputRef  = useRef<HTMLInputElement>(null);
@@ -564,7 +554,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   const cameraPhotoRef = useRef<HTMLInputElement>(null);
   const cameraVideoRef = useRef<HTMLInputElement>(null);
   const menuRef        = useRef<HTMLDivElement>(null);
-  const colorPickerRef = useRef<HTMLDivElement>(null);
 
   // ─── Audio recording state ────────────────────────────
   const [isRecordingAudio,   setIsRecordingAudio]   = useState(false);
@@ -595,16 +584,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
-
-  // Close color picker on outside click
-  useEffect(() => {
-    if (!colorPickerOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) setColorPickerOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [colorPickerOpen]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -901,20 +880,16 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       }
       if (selectedVideo) { videoUrl = await uploadVideo(selectedVideo); if (!videoUrl) { setUploading(false); return; } }
       if (selectedAudio) { audioUrl = await uploadAudio(selectedAudio); if (!audioUrl) { setUploading(false); return; } }
-      // Cor do post-it só se aplica a posts sem mídia; se o usuário não
-      // escolheu uma, cai no padrão neutro.
-      const postStyle = hasMediaInComposer ? null : { postItColor: postItColorIdx ?? NEUTRAL_POST_IT_COLOR };
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content.trim(), neighborhood: profile.neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, videoDuration, visibility, postStyle }),
+        body: JSON.stringify({ content: content.trim(), neighborhood: profile.neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, videoDuration, visibility }),
       });
       const data = await res.json();
       if (data.post) {
         setPosts((prev) => [{ ...data.post, comment_count: data.post.comment_count || 0 }, ...prev]);
         setContent("");
         clearMedia();
-        setPostItColorIdx(null);
         fetchMediaCounts();
         toast.success("Post publicado!");
       } else if (data.error) { toast.error(data.error); }
@@ -1001,9 +976,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       `}</style>
 
       {/* ═══════ COMPOSER ═══════ */}
-      <div
-        className={`relative z-10 rounded-3xl p-5 shadow-lg border transition-colors ${!hasMediaInComposer && postItColorIdx != null ? POST_IT_COLORS[postItColorIdx].bg : "bg-[#eef1f3]"} ${!hasMediaInComposer && postItColorIdx != null ? POST_IT_COLORS[postItColorIdx].border : "border-[#0A4D5C]/8"}`}
-      >
+      <div className="relative z-10 rounded-3xl bg-[#eef1f3] p-5 shadow-lg border border-[#0A4D5C]/8">
         <div className="flex items-start gap-3.5">
           <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-12 w-12 shrink-0" />
           <div className="flex-1 space-y-2">
@@ -1011,7 +984,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               placeholder={hasMediaInComposer ? "Adicione uma legenda... (opcional)" : "O que está acontecendo no seu bairro?"}
               value={content}
               onChange={(e) => setContent(e.target.value.slice(0, 500))}
-              className={`w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm focus:outline-none placeholder:text-[#0A4D5C]/30 ${!hasMediaInComposer && postItColorIdx != null ? POST_IT_COLORS[postItColorIdx].text : "text-[#000305]"}`}
+              className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-[#000305] focus:outline-none placeholder:text-[#0A4D5C]/30"
               rows={2}
             />
 
@@ -1060,7 +1033,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 
             {/* ACTION BAR */}
             <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2">
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
@@ -1122,47 +1094,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                     <input ref={audioInputRef}  type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioSelect} className="hidden" />
                   </>
                 )}
-              </div>
-
-              {/* Cor do post-it — só faz sentido em posts sem mídia (foto/vídeo/áudio) */}
-              {!hasMediaInComposer && (
-                <div className="relative" ref={colorPickerRef}>
-                  <button
-                    onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                    title="Cor do post"
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors border ${colorPickerOpen ? "border-[#0A4D5C]/30" : "border-[#0A4D5C]/10"} ${postItColorIdx != null ? POST_IT_COLORS[postItColorIdx].bg : "bg-[#f7f9fa]"} text-[#0A4D5C] hover:opacity-80`}
-                  >
-                    <Palette className="h-3.5 w-3.5" />
-                  </button>
-
-                  {colorPickerOpen && (
-                    <div className="absolute left-0 bottom-full mb-1.5 w-56 rounded-2xl bg-[#f7f9fa] p-3 shadow-lg border border-[#0A4D5C]/10 z-50 animate-in fade-in-0 zoom-in-95">
-                      <p className="text-[10px] font-semibold text-[#0A4D5C]/50 mb-2">Cor do post-it</p>
-                      <div className="grid grid-cols-6 gap-2">
-                        <button
-                          onClick={() => { setPostItColorIdx(null); setColorPickerOpen(false); }}
-                          title="Neutro (padrão)"
-                          className={`h-7 w-7 rounded-full ${POST_IT_COLORS[NEUTRAL_POST_IT_COLOR].bg} border ${POST_IT_COLORS[NEUTRAL_POST_IT_COLOR].border} flex items-center justify-center`}
-                        >
-                          {postItColorIdx == null && <Check className="h-3.5 w-3.5 text-[#0A4D5C]" />}
-                        </button>
-                        {POST_IT_COLORS.map((c, i) => (
-                          i === NEUTRAL_POST_IT_COLOR ? null : (
-                            <button
-                              key={i}
-                              onClick={() => { setPostItColorIdx(i); setColorPickerOpen(false); }}
-                              title={`Cor ${i + 1}`}
-                              className={`h-7 w-7 rounded-full ${c.bg} border ${c.border} flex items-center justify-center`}
-                            >
-                              {postItColorIdx === i && <Check className={`h-3.5 w-3.5 ${c.text}`} />}
-                            </button>
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
               </div>
 
               <div className="flex items-center gap-2">

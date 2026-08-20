@@ -59,6 +59,7 @@ const rules: RateLimitRule[] = [
   { key: "rooms:leave",      limit: 10,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "rooms:msg:send",   limit: 30,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "rooms:msg:list",   limit: 60,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
+  { key: "rooms:msg:delete", limit: 30,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
   { key: "rooms:members",    limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
   { key: "rooms:invite",     limit: 15,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "rooms:kick",       limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
