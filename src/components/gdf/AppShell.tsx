@@ -359,7 +359,12 @@ export function AppShell() {
         : "";
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div
+      className={cn(
+        "flex flex-col bg-background",
+        inChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
+      )}
+    >
 
       {/* ── Banner offline ─────────────────────────────────── */}
       {!isOnline && (
@@ -392,10 +397,11 @@ export function AppShell() {
         </div>
       )}
 
-      {/* ── Header desktop ─────────────────────────────────── */}
+      {/* ── Header desktop (oculto durante chat em tela cheia) ── */}
       <header
         className={cn(
-          "sticky z-40 hidden md:flex items-center justify-between border-b border-primary/10 px-6 py-2.5 bg-background/90 backdrop-blur-xl",
+          "sticky z-40 items-center justify-between border-b border-primary/10 px-6 py-2.5 bg-background/90 backdrop-blur-xl",
+          inChat ? "hidden" : "hidden md:flex",
           topOffsetClass
         )}
       >
@@ -439,11 +445,25 @@ export function AppShell() {
       </header>
 
       {/* ── Main content com transição CSS (sem framer-motion) ── */}
-      <main className={cn("flex-1 pb-20 md:pb-6", mainOffsetClass)}>
-        <div className={cn("mx-auto px-4 py-4 md:py-6", inChat ? "max-w-2xl" : "max-w-lg")}>
+      <main
+        className={cn(
+          "flex-1 min-h-0",
+          inChat
+            ? "flex flex-col pb-0 overflow-hidden"
+            : "pb-20 md:pb-6",
+          !inChat && mainOffsetClass
+        )}
+      >
+        <div
+          className={cn(
+            inChat
+              ? "flex flex-1 flex-col min-h-0 w-full max-w-none h-[100dvh]"
+              : cn("mx-auto px-4 py-4 md:py-6 max-w-lg", mainOffsetClass && "")
+          )}
+        >
           <div
             key={transitionKey}
-            className="animate-tab-in"
+            className={cn("animate-tab-in", inChat && "flex flex-1 flex-col min-h-0 h-full")}
           >
             {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
             {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
@@ -464,26 +484,28 @@ export function AppShell() {
       )}
       {reportTarget && <ReportDialog />}
 
-      {/* ── Nav mobile ─────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className="mx-3 mb-3 flex items-center justify-around rounded-2xl border border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg px-1 py-1.5">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => handleTabClick(t.id)}
-              className={cn(
-                "flex min-w-[56px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 transition-all duration-200",
-                tab === t.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-primary/40 active:scale-95"
-              )}
-            >
-              <t.icon className={cn("h-5 w-5", tab === t.id && "stroke-[2.5px]")} />
-              <span className="text-[10px] font-medium leading-none">{t.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* ── Nav mobile (oculto durante chat em tela cheia) ── */}
+      {!inChat && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
+          <div className="mx-3 mb-3 flex items-center justify-around rounded-2xl border border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg px-1 py-1.5">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleTabClick(t.id)}
+                className={cn(
+                  "flex min-w-[56px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 transition-all duration-200",
+                  tab === t.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-primary/40 active:scale-95"
+                )}
+              >
+                <t.icon className={cn("h-5 w-5", tab === t.id && "stroke-[2.5px]")} />
+                <span className="text-[10px] font-medium leading-none">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

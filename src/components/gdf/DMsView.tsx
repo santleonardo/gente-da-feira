@@ -839,21 +839,21 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   });
 
   return (
-    <div className="flex h-full flex-col -mx-4 -mt-4 md:-mx-0 md:-mt-0">
-      <div className="flex items-center gap-3 border-b px-4 py-3 bg-card/80 backdrop-blur-md sticky top-0 z-10">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-full hover:bg-accent">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-accent shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="relative" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
           <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-10 w-10 hover:opacity-80 transition-opacity" />
         </div>
         <div className="flex-1 min-w-0" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
-          <h3 className="text-sm font-bold truncate">{other.display_name}</h3>
-          <p className="text-[11px] text-muted-foreground">@{other.username}</p>
+          <h3 className="text-sm sm:text-base font-bold truncate">{other.display_name}</h3>
+          <p className="text-[11px] sm:text-xs text-muted-foreground">@{other.username}</p>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-1" style={{ maxHeight: "calc(100vh - 280px)" }}>
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20">
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
@@ -998,7 +998,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       </div>
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="border-t px-4 py-3 bg-card/80 backdrop-blur-md">
+      <div className="shrink-0 border-t border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {sendingMedia ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />

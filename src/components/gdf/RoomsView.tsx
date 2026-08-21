@@ -141,23 +141,28 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 pb-2">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Salas</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{rooms.length} salas ativas</p>
+          <h2 className="text-2xl font-bold tracking-tight">Salas</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {rooms.length} sala{rooms.length !== 1 ? "s" : ""} ativa{rooms.length !== 1 ? "s" : ""} · Feira de Santana
+          </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-4 shadow-sm">
+        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-4 h-10 shadow-sm shrink-0">
           <Plus className="h-4 w-4" /> Nova sala
         </Button>
       </div>
 
       {myRooms.length > 0 && (
-        <div className="rounded-2xl border bg-primary/5 p-3">
-          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-primary/70 flex items-center gap-1.5">
+        <section className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.07] to-primary/[0.02] p-3 sm:p-4">
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-primary/80 flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> Minhas Salas
+            <span className="ml-auto normal-case tracking-normal font-semibold text-primary/50">
+              {myRooms.length}
+            </span>
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {myRooms.map((room) => (
               <RoomCard
                 key={room.id}
@@ -166,27 +171,31 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
       {official.length > 0 && (
-        <div>
-          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Oficiais</h3>
-          <div className="space-y-1.5">
+        <section>
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+            <Crown className="h-3.5 w-3.5 text-primary/60" /> Oficiais
+          </h3>
+          <div className="space-y-2">
             {official.map((room) => (
               <RoomCard key={room.id} room={room} onClick={() => handleRoomClick(room)} />
             ))}
           </div>
-        </div>
+        </section>
       )}
       {community.length > 0 && (
-        <div>
-          <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Comunidades</h3>
-          <div className="space-y-1.5">
+        <section>
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+            <Hash className="h-3.5 w-3.5" /> Comunidades
+          </h3>
+          <div className="space-y-2">
             {community.map((room) => (
               <RoomCard key={room.id} room={room} onClick={() => handleRoomClick(room)} />
             ))}
           </div>
-        </div>
+        </section>
       )}
       {official.length === 0 && community.length === 0 && myRooms.length > 0 && (
         <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -264,38 +273,58 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="group flex w-full items-center gap-3.5 rounded-2xl bg-card px-4 py-3.5 text-left transition-all duration-200 hover:bg-accent hover:shadow-sm active:scale-[0.98] border border-transparent hover:border-border/50"
+      className={`group flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.98] border shadow-sm hover:shadow-md ${
+        isMember
+          ? "bg-primary/[0.04] border-primary/15 hover:bg-primary/[0.07]"
+          : "bg-card border-border/50 hover:bg-accent/60 hover:border-border"
+      }`}
     >
       {/* Icon */}
-      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl shrink-0 transition-transform group-hover:scale-105 ${
-        isOfficial ? "bg-primary/10 text-primary" : "bg-secondary"
-      }`}>
+      <div
+        className={`flex h-13 w-13 min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-2xl text-2xl shrink-0 transition-transform group-hover:scale-105 ${
+          isOfficial
+            ? "bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20"
+            : "bg-secondary ring-1 ring-border/40"
+        }`}
+      >
         {room.icon}
       </div>
 
       {/* Name + description */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold truncate">{room.name}</span>
-          {isOfficial && <Crown className="h-3 w-3 text-primary shrink-0" />}
-          {/* Membership role indicators */}
-          {isMember && room.myRole === "creator" && <Crown className="h-3 w-3 text-amber-500 shrink-0" />}
-          {isMember && room.myRole === "moderator" && <Shield className="h-3 w-3 text-primary shrink-0" />}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[15px] font-semibold truncate leading-tight">{room.name}</span>
+          {isOfficial && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+          {isMember && room.myRole === "creator" && (
+            <span className="text-[9px] font-bold uppercase tracking-wide text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+              Dono
+            </span>
+          )}
+          {isMember && room.myRole === "moderator" && (
+            <span className="text-[9px] font-bold uppercase tracking-wide text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+              Mod
+            </span>
+          )}
         </div>
         {room.description ? (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{room.description}</p>
+          <p className="text-xs text-muted-foreground truncate mt-1 leading-snug">{room.description}</p>
         ) : (
-          <p className="text-xs text-muted-foreground/60 mt-0.5">{memberCount} membro{memberCount !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            {memberCount} membro{memberCount !== 1 ? "s" : ""}
+          </p>
         )}
       </div>
 
       {/* Member count + action badge */}
       <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted/80">
-            <Users className="h-3 w-3" />
-          </div>
-          <span className="font-medium tabular-nums">{memberCount}{room.max_members ? `/${room.max_members}` : ""}</span>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Users className="h-3.5 w-3.5 opacity-70" />
+          <span className="font-semibold tabular-nums">
+            {memberCount}
+            {room.max_members ? (
+              <span className="font-normal text-muted-foreground/70">/{room.max_members}</span>
+            ) : null}
+          </span>
         </div>
         {renderActionBadge()}
       </div>
@@ -2665,23 +2694,23 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const existingMemberIds = members.map((m: any) => m.user_id);
 
   return (
-    <div className="flex h-full flex-col -mx-4 -mt-4 md:-mx-0 md:-mt-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b px-4 py-3 bg-card/80 backdrop-blur-md sticky top-0 z-10">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-full hover:bg-accent">
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      {/* Header — fixo no topo do chat */}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10 safe-area-pt">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-accent shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${room.type === "official" ? "bg-primary/10" : "bg-secondary"}`}>
-          <span className="text-lg">{room.icon}</span>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl shrink-0 ${room.type === "official" ? "bg-primary/10 ring-1 ring-primary/15" : "bg-secondary"}`}>
+          <span>{room.icon}</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-bold truncate">{room.name}</h3>
-            {room.type === "official" && <Crown className="h-3 w-3 text-primary shrink-0" />}
-            {room.has_password && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
-            {room.is_open === false && <DoorClosed className="h-3 w-3 text-red-500 shrink-0" />}
+            <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
+            {room.type === "official" && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+            {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+            {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
             {room.description ? ` · ${room.description}` : ""}
           </p>
@@ -2921,7 +2950,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
       {/* ═══════ Messages ═══════ */}
       {isMember && (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-1" style={{ maxHeight: "calc(100vh - 320px)" }}>
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-2">
@@ -3049,7 +3078,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       )}
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="border-t px-4 py-3 bg-card/80 backdrop-blur-md">
+      <div className="shrink-0 border-t border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {isMember ? (
           <>
             {sendingMedia ? (
@@ -3058,12 +3087,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 <span className="text-sm text-muted-foreground">Enviando mídia...</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full">
                 {/* Botão + para abrir menu de anexos (para cima) */}
                 <div className="relative" ref={attachMenuRef}>
                   <button
                     onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
                     title="Anexar mídia"
                   >
                     <ChevronUp className={`h-5 w-5 transition-transform ${attachMenuOpen ? "rotate-180" : ""}`} />
