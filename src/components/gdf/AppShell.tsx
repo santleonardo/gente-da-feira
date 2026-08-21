@@ -7,8 +7,34 @@ import { AuthForm } from "@/components/gdf/AuthForm";
 import { FeedView } from "@/components/gdf/FeedView";
 import { DeletionPendingView } from "@/components/gdf/DeletionPendingView";
 import { createClient } from "@/lib/supabase/client";
-import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff } from "lucide-react";
+import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const HIDDEN_BANNERS_KEY = "gdf_hidden_banners";
+
+function getHiddenBannerIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(HIDDEN_BANNERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function hideBannerId(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const current = getHiddenBannerIds();
+    if (!current.includes(id)) {
+      localStorage.setItem(HIDDEN_BANNERS_KEY, JSON.stringify([...current, id]));
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PERF-002: Lazy-loaded views — chunks carregados sob demanda por tab/ação.
@@ -135,6 +161,13 @@ export function AppShell() {
   const [transitionKey, setTransitionKey] = useState("feed");
   const [isPending, startTransition] = useTransition();
 
+  // Banner do admin (mensagem para todos)
+  const [adminBanner, setAdminBanner] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
+  const [bannerHidden, setBannerHidden] = useState(false);
+
   // ── Online/offline listener ──────────────────────────────
   useEffect(() => {
     const handleOnline  = () => setIsOnline(true);
@@ -223,6 +256,47 @@ export function AppShell() {
     return () => clearInterval(interval);
   }, [profile]);
 
+  // ── Banner do admin ──────────────────────────────────────
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    const loadBanner = () => {
+      fetch("/api/banners")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (cancelled || !data?.banner?.id) {
+            if (!cancelled) {
+              setAdminBanner(null);
+              setBannerHidden(false);
+            }
+            return;
+          }
+          const hidden = getHiddenBannerIds();
+          setAdminBanner({ id: data.banner.id, message: data.banner.message });
+          setBannerHidden(hidden.includes(data.banner.id));
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setAdminBanner(null);
+            setBannerHidden(false);
+          }
+        });
+    };
+    loadBanner();
+    // Revalida a cada 2 min (admin pode ter apagado ou enviado novo)
+    const interval = setInterval(loadBanner, 120000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [profile]);
+
+  const handleHideBanner = () => {
+    if (!adminBanner) return;
+    hideBannerId(adminBanner.id);
+    setBannerHidden(true);
+  };
+
   // ── Loading ──────────────────────────────────────────────
   if (!checkedAuth) {
     return (
@@ -269,6 +343,21 @@ export function AppShell() {
     });
   };
 
+  const showAdminBanner = !!adminBanner && !bannerHidden;
+  // Altura aproximada dos banners fixos no topo (para offset do header/main)
+  const topOffsetClass =
+    !isOnline && showAdminBanner
+      ? "top-14"
+      : !isOnline || showAdminBanner
+        ? "top-7"
+        : "top-0";
+  const mainOffsetClass =
+    !isOnline && showAdminBanner
+      ? "mt-14 md:mt-0"
+      : !isOnline || showAdminBanner
+        ? "mt-7 md:mt-0"
+        : "";
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
 
@@ -280,11 +369,34 @@ export function AppShell() {
         </div>
       )}
 
+      {/* ── Banner do admin ────────────────────────────────── */}
+      {showAdminBanner && (
+        <div
+          className={cn(
+            "fixed left-0 right-0 z-50 flex items-start gap-2 bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-sm",
+            !isOnline ? "top-7" : "top-0"
+          )}
+        >
+          <p className="flex-1 text-center leading-snug whitespace-pre-wrap break-words">
+            {adminBanner.message}
+          </p>
+          <button
+            type="button"
+            onClick={handleHideBanner}
+            className="shrink-0 rounded-md p-1 hover:bg-primary-foreground/15 active:scale-95"
+            title="Esconder"
+            aria-label="Esconder banner"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* ── Header desktop ─────────────────────────────────── */}
       <header
         className={cn(
           "sticky z-40 hidden md:flex items-center justify-between border-b border-primary/10 px-6 py-2.5 bg-background/90 backdrop-blur-xl",
-          !isOnline ? "top-7" : "top-0"
+          topOffsetClass
         )}
       >
         <div className="flex items-center gap-3">
@@ -327,7 +439,7 @@ export function AppShell() {
       </header>
 
       {/* ── Main content com transição CSS (sem framer-motion) ── */}
-      <main className={cn("flex-1 pb-20 md:pb-6", !isOnline && "mt-7 md:mt-0")}>
+      <main className={cn("flex-1 pb-20 md:pb-6", mainOffsetClass)}>
         <div className={cn("mx-auto px-4 py-4 md:py-6", inChat ? "max-w-2xl" : "max-w-lg")}>
           <div
             key={transitionKey}
