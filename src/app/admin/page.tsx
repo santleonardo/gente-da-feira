@@ -64,6 +64,15 @@ export default function AdminPanelPage() {
   const [notes, setNotes] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  type Section = "reports" | "rooms";
+  const [section, setSection] = useState<Section>("reports");
+  const [officialRooms, setOfficialRooms] = useState<any[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [roomActionId, setRoomActionId] = useState<string | null>(null);
+  const [editingRoom, setEditingRoom] = useState<any | null>(null);
+  const [rulesDraft, setRulesDraft] = useState("");
+  const [savingRules, setSavingRules] = useState(false);
+
   const checkSession = useCallback(async () => {
     setAuthState("loading");
     const {
@@ -120,6 +129,8 @@ export default function AdminPanelPage() {
     setAuthState("login");
     setReports([]);
     setSelected(null);
+    setOfficialRooms([]);
+    setEditingRoom(null);
   };
 
   const fetchReports = useCallback(async () => {
@@ -144,9 +155,88 @@ export default function AdminPanelPage() {
     }
   }, [statusFilter]);
 
+  const fetchOfficialRooms = useCallback(async () => {
+    setLoadingRooms(true);
+    try {
+      const res = await fetch("/api/admin/rooms?official=1");
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) throw new Error("Falha ao carregar salas");
+      const data = await res.json();
+      setOfficialRooms(data.rooms || []);
+    } catch {
+      setOfficialRooms([]);
+    } finally {
+      setLoadingRooms(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (authState === "ready") fetchReports();
-  }, [authState, fetchReports]);
+    if (authState === "ready" && section === "reports") fetchReports();
+  }, [authState, section, fetchReports]);
+
+  useEffect(() => {
+    if (authState === "ready" && section === "rooms") fetchOfficialRooms();
+  }, [authState, section, fetchOfficialRooms]);
+
+  const toggleRoomOpen = async (room: any) => {
+    setRoomActionId(room.id);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/toggle-open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_open: !room.is_open }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao alterar status");
+        return;
+      }
+      setOfficialRooms((prev) =>
+        prev.map((r) => (r.id === room.id ? { ...r, is_open: data.is_open } : r))
+      );
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setRoomActionId(null);
+    }
+  };
+
+  const openEditRules = (room: any) => {
+    setEditingRoom(room);
+    setRulesDraft(room.rules || "");
+  };
+
+  const saveRoomRules = async () => {
+    if (!editingRoom) return;
+    setSavingRules(true);
+    try {
+      const res = await fetch(`/api/rooms/${editingRoom.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules: rulesDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao salvar regras");
+        return;
+      }
+      setOfficialRooms((prev) =>
+        prev.map((r) =>
+          r.id === editingRoom.id
+            ? { ...r, rules: data.room?.rules ?? rulesDraft.trim() }
+            : r
+        )
+      );
+      setEditingRoom(null);
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setSavingRules(false);
+    }
+  };
 
   const updateReport = async (id: string, status: ReportStatus) => {
     setUpdating(true);
@@ -288,6 +378,128 @@ export default function AdminPanelPage() {
       </header>
 
       <main style={styles.main}>
+        {/* Navegação de seções */}
+        <div style={styles.sectionSwitch}>
+          <button
+            type="button"
+            onClick={() => setSection("reports")}
+            style={section === "reports" ? styles.sectionTabActive : styles.sectionTab}
+          >
+            Denúncias
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection("rooms")}
+            style={section === "rooms" ? styles.sectionTabActive : styles.sectionTab}
+          >
+            Salas oficiais
+          </button>
+        </div>
+
+        {section === "rooms" && (
+          <>
+            <div style={styles.sectionHead}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+                Salas oficiais
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
+                Espelho das salas oficiais do app — abrir/fechar, regras e visão
+                de membros. O controle completo continua disponível dentro do app
+                após o SQL de transferência de dono.
+              </p>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <button type="button" onClick={() => fetchOfficialRooms()} style={styles.tab}>
+                ↻ Atualizar
+              </button>
+            </div>
+            {loadingRooms ? (
+              <div style={styles.empty}>Carregando salas…</div>
+            ) : officialRooms.length === 0 ? (
+              <div style={styles.empty}>
+                Nenhuma sala oficial encontrada. Confira o seed do SQL e o script
+                SET_OFFICIAL_ROOMS_OWNER.sql.
+              </div>
+            ) : (
+              officialRooms.map((room) => (
+                <article key={room.id} style={styles.card}>
+                  <div style={styles.cardTop}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 22 }}>{room.icon || "💬"}</span>
+                      <div>
+                        <h3 style={{ ...styles.motivo, margin: 0 }}>{room.name}</h3>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>
+                          /{room.slug}
+                          {room.is_creator ? " · você é criador" : room.my_role ? ` · ${room.my_role}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        ...styles.badgePurple,
+                        background: room.is_open
+                          ? "rgba(46,204,113,.15)"
+                          : "rgba(232,67,147,.12)",
+                        color: room.is_open ? "#1a9c56" : "#E84393",
+                      }}
+                    >
+                      {room.is_open ? "Aberta" : "Fechada"}
+                    </span>
+                  </div>
+                  {room.description && (
+                    <p style={styles.desc}>{room.description}</p>
+                  )}
+                  <div style={styles.meta}>
+                    <span>
+                      <b>Membros:</b> {room.member_count ?? 0}
+                      {room.max_members ? ` / ${room.max_members}` : ""}
+                    </span>
+                    <span>
+                      <b>Banidos:</b> {room.banned_count ?? 0}
+                    </span>
+                    <span>
+                      <b>Senha:</b> {room.has_password ? "Sim" : "Não"}
+                    </span>
+                  </div>
+                  {room.rules ? (
+                    <div style={styles.snapshot}>
+                      <div style={styles.snapshotWho}>Regras</div>
+                      <div style={{ whiteSpace: "pre-wrap" }}>{room.rules}</div>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "#999", margin: "0 0 12px" }}>
+                      Sem regras definidas
+                    </p>
+                  )}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button
+                      type="button"
+                      disabled={roomActionId === room.id}
+                      onClick={() => toggleRoomOpen(room)}
+                      style={styles.btnSecondary}
+                    >
+                      {roomActionId === room.id
+                        ? "…"
+                        : room.is_open
+                          ? "Fechar sala"
+                          : "Abrir sala"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditRules(room)}
+                      style={styles.btnSecondary}
+                    >
+                      Editar regras
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </>
+        )}
+
+        {section === "reports" && (
+          <>
         <div style={styles.sectionHead}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Denúncias</h2>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
@@ -378,6 +590,8 @@ export default function AdminPanelPage() {
             </article>
           ))
         )}
+        </>
+        )}
       </main>
 
       {selected && (
@@ -426,6 +640,43 @@ export default function AdminPanelPage() {
                 style={styles.btnSecondary}
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {editingRoom && (
+        <div style={styles.overlay} onClick={() => setEditingRoom(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>
+              Regras — {editingRoom.icon} {editingRoom.name}
+            </h3>
+            <label style={styles.label}>Texto das regras</label>
+            <textarea
+              value={rulesDraft}
+              onChange={(e) => setRulesDraft(e.target.value.slice(0, 500))}
+              rows={5}
+              style={{ ...styles.input, resize: "vertical" as const }}
+              placeholder="Regras da sala..."
+            />
+            <p style={{ fontSize: 11, color: "#999" }}>{rulesDraft.length}/500</p>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                disabled={savingRules}
+                onClick={saveRoomRules}
+                style={styles.btnPrimary}
+              >
+                {savingRules ? "Salvando…" : "Salvar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingRoom(null)}
+                style={styles.btnSecondary}
+              >
+                Cancelar
               </button>
             </div>
           </div>
@@ -613,6 +864,57 @@ const styles: Record<string, CSSProperties> = {
   },
   main: { maxWidth: 1080, margin: "0 auto", padding: "22px 24px 60px" },
   sectionHead: { marginBottom: 16 },
+  sectionSwitch: {
+    display: "flex",
+    gap: 6,
+    marginBottom: 22,
+    padding: 6,
+    background: "#fff",
+    border: "1px solid rgba(26,27,37,.09)",
+    borderRadius: 999,
+    boxShadow: "0 1px 2px rgba(20,20,40,.04)",
+  },
+  sectionTab: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 13.5,
+    padding: "10px 16px",
+    borderRadius: 999,
+    background: "transparent",
+    color: "rgba(26,27,37,.55)",
+    border: "none",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  sectionTabActive: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 13.5,
+    padding: "10px 16px",
+    borderRadius: 999,
+    background: "#1A1B25",
+    color: "#fff",
+    border: "none",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  snapshot: {
+    background: "#FAFAFD",
+    border: "1px solid rgba(26,27,37,.09)",
+    borderLeft: "3px solid #6C5CE7",
+    borderRadius: 8,
+    padding: "10px 13px",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  snapshotWho: {
+    fontWeight: 800,
+    fontSize: 11.5,
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.2,
+    color: "rgba(26,27,37,.55)",
+  },
   tabs: {
     display: "flex",
     gap: 8,
