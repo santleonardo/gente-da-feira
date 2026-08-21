@@ -17,6 +17,35 @@ import {
   REPORT_TARGET_TYPE_LABELS,
   type ReportStatus,
 } from "@/lib/report-constants";
+import { CITY_CATEGORIES, type CityCategory } from "@/lib/city-monitoring";
+
+const CITY_CATEGORY_LABELS: Record<CityCategory, string> = {
+  geral: "Geral",
+  eventos: "Eventos",
+  emprego: "Emprego",
+  transito: "Trânsito",
+  seguranca: "Segurança",
+  clima: "Clima",
+  cultura: "Cultura",
+  esporte: "Esporte",
+  politica: "Política",
+  saude: "Saúde",
+  educacao: "Educação",
+};
+
+interface AdminCityUpdate {
+  id: string;
+  title: string;
+  summary: string | null;
+  url: string | null;
+  category: string;
+  platform: string;
+  neighborhood: string | null;
+  relevance_score: number;
+  is_published: boolean;
+  published_at: string | null;
+  created_at: string;
+}
 
 const OFFICIAL_ADMIN_EMAIL = "gentedafeira@gmail.com";
 
@@ -64,7 +93,7 @@ export default function AdminPanelPage() {
   const [notes, setNotes] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  type Section = "reports" | "rooms" | "banners" | "users";
+  type Section = "reports" | "rooms" | "banners" | "users" | "city";
   const [section, setSection] = useState<Section>("reports");
   const [officialRooms, setOfficialRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -91,6 +120,21 @@ export default function AdminPanelPage() {
   const [bannerMessage, setBannerMessage] = useState("");
   const [sendingBanner, setSendingBanner] = useState(false);
   const [bannerActionId, setBannerActionId] = useState<string | null>(null);
+
+  // "Na cidade" — cards editoriais manuais
+  const [cityUpdates, setCityUpdates] = useState<AdminCityUpdate[]>([]);
+  const [loadingCityUpdates, setLoadingCityUpdates] = useState(false);
+  const [cityFilter, setCityFilter] = useState<"all" | "published" | "draft">(
+    "all"
+  );
+  const [cityTitle, setCityTitle] = useState("");
+  const [citySummary, setCitySummary] = useState("");
+  const [cityUrl, setCityUrl] = useState("");
+  const [cityCategory, setCityCategory] = useState<CityCategory>("geral");
+  const [cityNeighborhood, setCityNeighborhood] = useState("");
+  const [cityPublishNow, setCityPublishNow] = useState(true);
+  const [creatingCityUpdate, setCreatingCityUpdate] = useState(false);
+  const [cityActionId, setCityActionId] = useState<string | null>(null);
 
   // Membros do app
   const [appUsers, setAppUsers] = useState<any[]>([]);
@@ -234,6 +278,31 @@ export default function AdminPanelPage() {
     if (authState === "ready" && section === "banners") fetchBanners();
   }, [authState, section, fetchBanners]);
 
+  const fetchCityUpdates = useCallback(async () => {
+    setLoadingCityUpdates(true);
+    try {
+      const params = new URLSearchParams();
+      if (cityFilter === "published") params.set("published", "1");
+      if (cityFilter === "draft") params.set("published", "0");
+      const res = await fetch(`/api/admin/city-updates?${params.toString()}`);
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) throw new Error("Falha ao carregar cards");
+      const data = await res.json();
+      setCityUpdates(data.updates || []);
+    } catch {
+      setCityUpdates([]);
+    } finally {
+      setLoadingCityUpdates(false);
+    }
+  }, [cityFilter]);
+
+  useEffect(() => {
+    if (authState === "ready" && section === "city") fetchCityUpdates();
+  }, [authState, section, fetchCityUpdates]);
+
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
@@ -356,6 +425,93 @@ export default function AdminPanelPage() {
       alert("Erro de rede");
     } finally {
       setBannerActionId(null);
+    }
+  };
+
+  const createCityUpdate = async () => {
+    const title = cityTitle.trim();
+    if (!title || title.length < 3) {
+      alert("Título obrigatório (mín. 3 caracteres)");
+      return;
+    }
+    setCreatingCityUpdate(true);
+    try {
+      const res = await fetch("/api/admin/city-updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          summary: citySummary.trim() || null,
+          url: cityUrl.trim() || null,
+          category: cityCategory,
+          platform: "manual",
+          neighborhood: cityNeighborhood.trim() || null,
+          publish: cityPublishNow,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao criar card");
+        return;
+      }
+      setCityTitle("");
+      setCitySummary("");
+      setCityUrl("");
+      setCityCategory("geral");
+      setCityNeighborhood("");
+      setCityPublishNow(true);
+      await fetchCityUpdates();
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setCreatingCityUpdate(false);
+    }
+  };
+
+  const toggleCityPublished = async (update: AdminCityUpdate) => {
+    setCityActionId(update.id);
+    try {
+      const res = await fetch("/api/admin/city-updates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: update.id,
+          is_published: !update.is_published,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao alterar publicação");
+        return;
+      }
+      setCityUpdates((prev) =>
+        prev.map((u) => (u.id === update.id ? { ...u, ...data.update } : u))
+      );
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setCityActionId(null);
+    }
+  };
+
+  const deleteCityUpdate = async (id: string) => {
+    if (!confirm("Apagar este card? Ele sumirá do feed imediatamente.")) return;
+    setCityActionId(id);
+    try {
+      const res = await fetch(
+        `/api/admin/city-updates?id=${encodeURIComponent(id)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao apagar card");
+        return;
+      }
+      setCityUpdates((prev) => prev.filter((u) => u.id !== id));
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setCityActionId(null);
     }
   };
 
@@ -677,6 +833,13 @@ export default function AdminPanelPage() {
           >
             Membros
           </button>
+          <button
+            type="button"
+            onClick={() => setSection("city")}
+            style={section === "city" ? styles.sectionTabActive : styles.sectionTab}
+          >
+            Na cidade
+          </button>
         </div>
 
         {section === "banners" && (
@@ -809,6 +972,348 @@ export default function AdminPanelPage() {
                       }}
                     >
                       {bannerActionId === b.id ? "…" : "Apagar"}
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </>
+        )}
+
+        {section === "city" && (
+          <>
+            <div style={styles.sectionHead}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+                Na cidade — cards editoriais
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
+                Crie manualmente os cards que aparecem no bloco &quot;Na
+                cidade&quot; do feed. Ainda não há ingestão automática de
+                notícias/RSS — este painel é a forma de alimentar o bloco
+                enquanto isso.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid rgba(26,27,37,.09)",
+                borderRadius: 16,
+                padding: "18px 20px",
+                marginBottom: 20,
+                boxShadow: "0 1px 2px rgba(20,20,40,.04)",
+              }}
+            >
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: "rgba(26,27,37,.7)",
+                }}
+              >
+                Título *
+              </label>
+              <input
+                type="text"
+                value={cityTitle}
+                onChange={(e) => setCityTitle(e.target.value)}
+                placeholder="Ex.: Feira Livre do Centro muda de local neste sábado"
+                maxLength={300}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(26,27,37,.14)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  marginBottom: 12,
+                }}
+              />
+
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: "rgba(26,27,37,.7)",
+                }}
+              >
+                Resumo
+              </label>
+              <textarea
+                value={citySummary}
+                onChange={(e) => setCitySummary(e.target.value)}
+                placeholder="Um ou dois parágrafos curtos sobre o que está acontecendo."
+                maxLength={2000}
+                rows={3}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(26,27,37,.14)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  marginBottom: 12,
+                }}
+              />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      marginBottom: 8,
+                      color: "rgba(26,27,37,.7)",
+                    }}
+                  >
+                    Categoria
+                  </label>
+                  <select
+                    value={cityCategory}
+                    onChange={(e) =>
+                      setCityCategory(e.target.value as CityCategory)
+                    }
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid rgba(26,27,37,.14)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                      background: "#fff",
+                    }}
+                  >
+                    {CITY_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {CITY_CATEGORY_LABELS[c]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      marginBottom: 8,
+                      color: "rgba(26,27,37,.7)",
+                    }}
+                  >
+                    Bairro (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={cityNeighborhood}
+                    onChange={(e) => setCityNeighborhood(e.target.value)}
+                    placeholder="Ex.: Centro"
+                    maxLength={80}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      border: "1px solid rgba(26,27,37,.14)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: "rgba(26,27,37,.7)",
+                }}
+              >
+                Link (opcional)
+              </label>
+              <input
+                type="text"
+                value={cityUrl}
+                onChange={(e) => setCityUrl(e.target.value)}
+                placeholder="https://..."
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(26,27,37,.14)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  marginBottom: 14,
+                }}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "rgba(26,27,37,.7)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={cityPublishNow}
+                    onChange={(e) => setCityPublishNow(e.target.checked)}
+                  />
+                  Publicar imediatamente
+                </label>
+                <button
+                  type="button"
+                  onClick={createCityUpdate}
+                  disabled={creatingCityUpdate || !cityTitle.trim()}
+                  style={{
+                    ...styles.btnSecondary,
+                    background: "#1A1B25",
+                    color: "#fff",
+                    border: "none",
+                    opacity:
+                      creatingCityUpdate || !cityTitle.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {creatingCityUpdate ? "Criando…" : "Criar card"}
+                </button>
+              </div>
+            </div>
+
+            <div style={styles.tabs}>
+              <button
+                type="button"
+                onClick={() => setCityFilter("all")}
+                style={cityFilter === "all" ? styles.tabActive : styles.tab}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setCityFilter("published")}
+                style={
+                  cityFilter === "published" ? styles.tabActive : styles.tab
+                }
+              >
+                Publicados
+              </button>
+              <button
+                type="button"
+                onClick={() => setCityFilter("draft")}
+                style={cityFilter === "draft" ? styles.tabActive : styles.tab}
+              >
+                Rascunhos
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchCityUpdates()}
+                style={styles.tab}
+              >
+                ↻ Atualizar
+              </button>
+            </div>
+
+            {loadingCityUpdates ? (
+              <div style={styles.empty}>Carregando cards…</div>
+            ) : cityUpdates.length === 0 ? (
+              <div style={styles.empty}>
+                Nenhum card por aqui ainda. Crie o primeiro acima — ele
+                aparece no bloco &quot;Na cidade&quot; do feed assim que
+                publicado.
+              </div>
+            ) : (
+              cityUpdates.map((u) => (
+                <article key={u.id} style={{ ...styles.card, cursor: "default" }}>
+                  <div style={styles.cardTop}>
+                    <span
+                      style={{
+                        ...styles.badgePurple,
+                        background: u.is_published
+                          ? "rgba(46,204,113,.15)"
+                          : "rgba(26,27,37,.08)",
+                        color: u.is_published ? "#1a9c56" : "rgba(26,27,37,.45)",
+                      }}
+                    >
+                      {u.is_published ? "Publicado" : "Rascunho"}
+                    </span>
+                    <span style={styles.date}>
+                      {new Date(u.created_at).toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <p style={styles.motivo}>{u.title}</p>
+                  {u.summary && <p style={styles.desc}>{u.summary}</p>}
+                  <div style={styles.meta}>
+                    <span>
+                      {CITY_CATEGORY_LABELS[u.category as CityCategory] ||
+                        u.category}
+                    </span>
+                    {u.neighborhood && <span>📍 {u.neighborhood}</span>}
+                    <span>Score {u.relevance_score}</span>
+                    {u.url && (
+                      <a
+                        href={u.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#6C5CE7", fontWeight: 700 }}
+                      >
+                        Ver link ↗
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button
+                      type="button"
+                      disabled={cityActionId === u.id}
+                      onClick={() => toggleCityPublished(u)}
+                      style={styles.btnSecondary}
+                    >
+                      {cityActionId === u.id
+                        ? "…"
+                        : u.is_published
+                        ? "Despublicar"
+                        : "Publicar"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cityActionId === u.id}
+                      onClick={() => deleteCityUpdate(u.id)}
+                      style={{
+                        ...styles.btnSecondary,
+                        color: "#E84393",
+                        borderColor: "rgba(232,67,147,.35)",
+                      }}
+                    >
+                      {cityActionId === u.id ? "…" : "Apagar"}
                     </button>
                   </div>
                 </article>
