@@ -27,6 +27,8 @@ import {
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
+import { checkSpam } from "@/lib/spam-check";
+import { autoReportSpam } from "@/lib/auto-report";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -300,10 +302,17 @@ export async function POST(req: NextRequest) {
     // SEC-009: Use AUTHOR_PROFILE_COLUMNS_FULL for author in new post response
     const authorCols = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
 
+    const sanitizedContent = sanitizeRichContent((content || "").trim());
+
+    // MOD-001: checagem de spam via Gemini Flash-Lite — síncrona, fail-open.
+    // Nunca bloqueia a publicação; apenas decide se o post entra na fila
+    // de moderação (ver autoReportSpam após o insert).
+    const spamResult = await checkSpam(sanitizedContent);
+
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
-        content: sanitizeRichContent((content || "").trim()),
+        content: sanitizedContent,
         neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
         author_id: user.id,
         image_urls: validatedImageUrls || [],
@@ -332,6 +341,18 @@ export async function POST(req: NextRequest) {
 
     // Cast to any — Supabase cannot infer types for complex nested joins
     const p = post as any;
+
+    // MOD-001: post já foi publicado (nunca bloqueamos por causa da IA) —
+    // se sinalizado como spam, registra denúncia automática pra fila de
+    // moderação. Best-effort, não afeta a resposta ao usuário.
+    if (spamResult.isSpam) {
+      autoReportSpam({
+        targetType: "post",
+        targetId: p.id,
+        targetOwnerId: user.id,
+        reason: spamResult.reason,
+      }).catch(() => {});
+    }
 
     // Self-referencing FK (shared_post_id → posts.id) faz o PostgREST às vezes
     // devolver `shared_post` como array (mesmo vazio) em vez de objeto/null.
