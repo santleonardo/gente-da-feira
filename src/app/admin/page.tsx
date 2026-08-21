@@ -73,6 +73,16 @@ export default function AdminPanelPage() {
   const [rulesDraft, setRulesDraft] = useState("");
   const [savingRules, setSavingRules] = useState(false);
 
+  // Gestão de membros (salas oficiais)
+  const [membersRoom, setMembersRoom] = useState<any | null>(null);
+  const [roomMembers, setRoomMembers] = useState<any[]>([]);
+  const [roomBanned, setRoomBanned] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [memberActionId, setMemberActionId] = useState<string | null>(null);
+  const [inviteUsername, setInviteUsername] = useState("");
+  const [membersTab, setMembersTab] = useState<"active" | "banned">("active");
+  const [banDays, setBanDays] = useState<string>(""); // vazio = permanente
+
   // Banners (mensagens para todos os usuários)
   const [banners, setBanners] = useState<
     { id: string; message: string; created_at: string; is_active: boolean }[]
@@ -289,6 +299,97 @@ export default function AdminPanelPage() {
   const openEditRules = (room: any) => {
     setEditingRoom(room);
     setRulesDraft(room.rules || "");
+  };
+
+  const openMembers = async (room: any) => {
+    setMembersRoom(room);
+    setMembersTab("active");
+    setInviteUsername("");
+    setBanDays("");
+    setLoadingMembers(true);
+    setRoomMembers([]);
+    setRoomBanned([]);
+    try {
+      const res = await fetch(`/api/admin/rooms/${room.id}/members`);
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Falha ao carregar membros");
+        setMembersRoom(null);
+        return;
+      }
+      const data = await res.json();
+      setRoomMembers(data.members || []);
+      setRoomBanned(data.banned || []);
+    } catch {
+      alert("Erro de rede");
+      setMembersRoom(null);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const refreshMembers = async () => {
+    if (!membersRoom) return;
+    setLoadingMembers(true);
+    try {
+      const res = await fetch(`/api/admin/rooms/${membersRoom.id}/members`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRoomMembers(data.members || []);
+      setRoomBanned(data.banned || []);
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const memberAction = async (
+    action: "invite" | "kick" | "ban" | "unban",
+    opts: { user_id?: string; username?: string; duration_days?: number | null } = {}
+  ) => {
+    if (!membersRoom) return;
+    const key = opts.user_id || opts.username || "invite";
+    setMemberActionId(key);
+    try {
+      const body: Record<string, unknown> = { action };
+      if (opts.user_id) body.user_id = opts.user_id;
+      if (opts.username) body.username = opts.username;
+      if (action === "ban" && opts.duration_days != null) {
+        body.duration_days = opts.duration_days;
+      }
+      const res = await fetch(`/api/admin/rooms/${membersRoom.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Falha na operação");
+        return;
+      }
+      if (action === "invite") setInviteUsername("");
+      await refreshMembers();
+      // Atualiza contagem na lista de salas
+      fetchOfficialRooms();
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setMemberActionId(null);
+    }
+  };
+
+  const handleInvite = () => {
+    const u = inviteUsername.trim().replace(/^@/, "");
+    if (!u) {
+      alert("Digite o username do usuário");
+      return;
+    }
+    memberAction("invite", { username: u });
   };
 
   const saveRoomRules = async () => {
@@ -630,9 +731,8 @@ export default function AdminPanelPage() {
                 Salas oficiais
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
-                Espelho das salas oficiais do app — abrir/fechar, regras e visão
-                de membros. O controle completo continua disponível dentro do app
-                após o SQL de transferência de dono.
+                Salas oficiais: abrir/fechar, editar regras e gerenciar membros
+                (convidar, expulsar, banir/desbanir) direto pelo painel.
               </p>
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -717,6 +817,13 @@ export default function AdminPanelPage() {
                       style={styles.btnSecondary}
                     >
                       Editar regras
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openMembers(room)}
+                      style={styles.btnSecondary}
+                    >
+                      Membros
                     </button>
                   </div>
                 </article>
@@ -905,6 +1012,300 @@ export default function AdminPanelPage() {
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {membersRoom && (
+        <div style={styles.overlay} onClick={() => setMembersRoom(null)}>
+          <div
+            style={{ ...styles.modal, maxWidth: 560 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>
+                Membros — {membersRoom.icon || "💬"} {membersRoom.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMembersRoom(null)}
+                style={styles.btnSecondary}
+              >
+                Fechar
+              </button>
+            </div>
+
+            {/* Convidar */}
+            <div
+              style={{
+                background: "#FAFAFD",
+                border: "1px solid rgba(26,27,37,.09)",
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 16,
+              }}
+            >
+              <label style={{ ...styles.label, marginBottom: 6 }}>
+                Convidar por username
+              </label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  value={inviteUsername}
+                  onChange={(e) => setInviteUsername(e.target.value)}
+                  placeholder="@username"
+                  style={{ ...styles.input, flex: 1, minWidth: 140, margin: 0 }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleInvite();
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleInvite}
+                  disabled={
+                    !!memberActionId &&
+                    memberActionId ===
+                      (inviteUsername.trim().replace(/^@/, "") || "invite")
+                  }
+                  style={styles.btnPrimary}
+                >
+                  {memberActionId &&
+                  memberActionId ===
+                    (inviteUsername.trim().replace(/^@/, "") || "invite")
+                    ? "…"
+                    : "Convidar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Tabs ativos / banidos */}
+            <div style={{ ...styles.tabs, marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setMembersTab("active")}
+                style={
+                  membersTab === "active" ? styles.tabActive : styles.tab
+                }
+              >
+                Ativos ({roomMembers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMembersTab("banned")}
+                style={
+                  membersTab === "banned" ? styles.tabActive : styles.tab
+                }
+              >
+                Banidos ({roomBanned.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => refreshMembers()}
+                style={styles.tab}
+              >
+                ↻
+              </button>
+            </div>
+
+            {loadingMembers ? (
+              <div style={{ ...styles.empty, padding: "24px 12px" }}>
+                Carregando…
+              </div>
+            ) : membersTab === "active" ? (
+              roomMembers.length === 0 ? (
+                <div style={{ ...styles.empty, padding: "24px 12px" }}>
+                  Nenhum membro ativo
+                </div>
+              ) : (
+                <div style={{ maxHeight: 340, overflow: "auto" }}>
+                  {roomMembers.map((m) => {
+                    const name =
+                      m.profile?.display_name ||
+                      m.profile?.username ||
+                      m.user_id.slice(0, 8);
+                    const uname = m.profile?.username
+                      ? `@${m.profile.username}`
+                      : "";
+                    const isCreator = m.role === "creator";
+                    return (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "10px 4px",
+                          borderBottom: "1px solid rgba(26,27,37,.06)",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14 }}>
+                            {name}{" "}
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "rgba(26,27,37,.4)",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {m.role}
+                            </span>
+                          </div>
+                          {uname && (
+                            <div style={{ fontSize: 12, color: "#888" }}>
+                              {uname}
+                            </div>
+                          )}
+                        </div>
+                        {!isCreator && (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              flexWrap: "wrap",
+                              justifyContent: "flex-end",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              disabled={memberActionId === m.user_id}
+                              onClick={() => {
+                                if (
+                                  !confirm(
+                                    `Expulsar ${name} da sala? Ele poderá entrar de novo se a sala estiver aberta.`
+                                  )
+                                )
+                                  return;
+                                memberAction("kick", { user_id: m.user_id });
+                              }}
+                              style={{
+                                ...styles.btnSecondary,
+                                fontSize: 12,
+                                padding: "6px 10px",
+                              }}
+                            >
+                              {memberActionId === m.user_id ? "…" : "Expulsar"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={memberActionId === m.user_id}
+                              onClick={() => {
+                                const daysStr = banDays.trim();
+                                const days = daysStr
+                                  ? parseInt(daysStr, 10)
+                                  : null;
+                                const label =
+                                  days && days > 0
+                                    ? `${days} dia(s)`
+                                    : "permanente";
+                                if (
+                                  !confirm(
+                                    `Banir ${name} (${label})?`
+                                  )
+                                )
+                                  return;
+                                memberAction("ban", {
+                                  user_id: m.user_id,
+                                  duration_days:
+                                    days && days > 0 ? days : null,
+                                });
+                              }}
+                              style={{
+                                ...styles.btnSecondary,
+                                fontSize: 12,
+                                padding: "6px 10px",
+                                color: "#E84393",
+                                borderColor: "rgba(232,67,147,.35)",
+                              }}
+                            >
+                              Banir
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : roomBanned.length === 0 ? (
+              <div style={{ ...styles.empty, padding: "24px 12px" }}>
+                Nenhum usuário banido
+              </div>
+            ) : (
+              <div style={{ maxHeight: 340, overflow: "auto" }}>
+                {roomBanned.map((m) => {
+                  const name =
+                    m.profile?.display_name ||
+                    m.profile?.username ||
+                    m.user_id.slice(0, 8);
+                  const until = m.banned_until
+                    ? new Date(m.banned_until).toLocaleString("pt-BR")
+                    : "Permanente";
+                  return (
+                    <div
+                      key={m.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        padding: "10px 4px",
+                        borderBottom: "1px solid rgba(26,27,37,.06)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>
+                          {name}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#888" }}>
+                          Até: {until}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={memberActionId === m.user_id}
+                        onClick={() => {
+                          if (!confirm(`Desbanir ${name}?`)) return;
+                          memberAction("unban", { user_id: m.user_id });
+                        }}
+                        style={{
+                          ...styles.btnSecondary,
+                          fontSize: 12,
+                          padding: "6px 10px",
+                        }}
+                      >
+                        {memberActionId === m.user_id ? "…" : "Desbanir"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ ...styles.label, marginBottom: 4 }}>
+                Duração do ban (dias) — vazio = permanente
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={banDays}
+                onChange={(e) => setBanDays(e.target.value)}
+                placeholder="Ex.: 7"
+                style={{ ...styles.input, width: 120, margin: 0 }}
+              />
             </div>
           </div>
         </div>
