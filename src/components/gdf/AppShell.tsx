@@ -151,6 +151,11 @@ const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhoo
 export function AppShell() {
   const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending, reportTarget } = useStore();
   const [checkedAuth, setCheckedAuth] = useState(false);
+  const [moderationBlock, setModerationBlock] = useState<null | {
+    kind: "banned" | "suspended";
+    reason?: string | null;
+    until?: string | null;
+  }>(null);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [postDetailPost, setPostDetailPost] = useState<any>(null);
@@ -220,25 +225,35 @@ export function AppShell() {
         // SEC-003: Select explícito — nunca SELECT *
         const { data: prof } = await supabase.from("profiles").select(PROFILE_SAFE_SELECT).eq("id", user.id).single();
         if (prof) {
-          // Ban global — encerra sessão
+          // Ban global — mostra aviso e encerra sessão
           if (prof.is_banned) {
+            setModerationBlock({
+              kind: "banned",
+              reason: prof.banned_reason || null,
+            });
             await supabase.auth.signOut();
             logout();
             setCheckedAuth(true);
             return;
           }
-          // Suspensão ativa
+          // Suspensão ativa — mostra prazo/motivo e encerra sessão
           if (prof.is_suspended) {
             const until = prof.suspended_until
               ? new Date(prof.suspended_until)
               : null;
             if (!until || until > new Date()) {
+              setModerationBlock({
+                kind: "suspended",
+                reason: prof.suspend_reason || null,
+                until: prof.suspended_until || null,
+              });
               await supabase.auth.signOut();
               logout();
               setCheckedAuth(true);
               return;
             }
           }
+          setModerationBlock(null);
           setProfile(prof);
           // SEC-013: Detectar conta com exclusão pendente (LGPD)
           if (prof.deletion_requested_at) {
@@ -329,6 +344,61 @@ export function AppShell() {
             <Loader2 className="h-4 w-4 animate-spin text-primary/40" />
             <p className="text-sm text-primary/40">Carregando...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Conta banida ou suspensa — aviso antes do login
+  if (moderationBlock) {
+    const isBan = moderationBlock.kind === "banned";
+    const untilLabel = moderationBlock.until
+      ? new Date(moderationBlock.until).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div
+            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${
+              isBan ? "bg-red-500/10" : "bg-amber-500/10"
+            }`}
+          >
+            <span className="text-3xl">{isBan ? "🚫" : "⏸️"}</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">
+            {isBan ? "Conta banida" : "Conta suspensa"}
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {isBan
+              ? "Sua conta foi banida pela moderação do Gente da Feira e não pode mais ser usada."
+              : "Sua conta está temporariamente suspensa e não pode acessar o app neste momento."}
+          </p>
+          {untilLabel && (
+            <p className="text-sm font-medium">
+              Até: <span className="text-foreground">{untilLabel}</span>
+            </p>
+          )}
+          {moderationBlock.reason && (
+            <div className="rounded-xl border bg-muted/40 px-4 py-3 text-left">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                Motivo
+              </p>
+              <p className="text-sm whitespace-pre-wrap">{moderationBlock.reason}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setModerationBlock(null)}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm"
+          >
+            Entendi
+          </button>
         </div>
       </div>
     );

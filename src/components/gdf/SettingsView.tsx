@@ -444,6 +444,10 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   reaction:        "reagiu ao seu post",
                   comment:         "comentou no seu post",
                   report_new:      "enviou uma nova denúncia — abra o Painel de moderação",
+                  moderation_suspend:   "sua conta foi suspensa pela moderação",
+                  moderation_unsuspend: "sua suspensão foi encerrada",
+                  moderation_ban:       "sua conta foi banida pela moderação",
+                  moderation_unban:     "o banimento da sua conta foi removido",
                 };
                 return (
                   <div key={notif.id} className={`flex items-center gap-3 rounded-lg border p-2.5 ${!notif.is_read ? "bg-primary/5 border-primary/20" : ""}`}>
