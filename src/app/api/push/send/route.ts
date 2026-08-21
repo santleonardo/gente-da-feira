@@ -23,7 +23,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 function buildPayload(
   type: string,
   actorName: string,
-  postId: string | null
+  postId: string | null,
+  extra?: { suspendUntil?: string | null; reason?: string | null }
 ): PushPayload {
   const url = postId ? `/?post=${postId}` : "/";
 
@@ -35,6 +36,30 @@ function buildPayload(
     follow_accepted: { title: "Seguindo você",         body: `${actorName} aceitou seu pedido`,          tag: "follow_accepted" },
     follow:          { title: "Novo seguidor",         body: `${actorName} começou a te seguir`,         tag: "follow"          },
     mention:         { title: "Você foi mencionado",   body: `${actorName} te mencionou em um post`,     tag: "mention"         },
+    moderation_suspend: {
+      title: "Conta suspensa",
+      body: extra?.suspendUntil
+        ? `Sua conta foi suspensa até ${extra.suspendUntil}.${extra.reason ? ` Motivo: ${extra.reason}` : ""}`
+        : `Sua conta foi suspensa pela moderação.${extra?.reason ? ` Motivo: ${extra.reason}` : ""}`,
+      tag: "moderation_suspend",
+    },
+    moderation_unsuspend: {
+      title: "Suspensão encerrada",
+      body: "Sua conta foi reativada. Você já pode usar o app normalmente.",
+      tag: "moderation_unsuspend",
+    },
+    moderation_ban: {
+      title: "Conta banida",
+      body: extra?.reason
+        ? `Sua conta foi banida. Motivo: ${extra.reason}`
+        : "Sua conta foi banida pela moderação.",
+      tag: "moderation_ban",
+    },
+    moderation_unban: {
+      title: "Banimento removido",
+      body: "O banimento da sua conta foi removido. Você já pode usar o app.",
+      tag: "moderation_unban",
+    },
   };
 
   const msg = messages[type] ?? {
@@ -55,6 +80,8 @@ function isValidUUID(id: string): boolean {
 const ALLOWED_NOTIF_TYPES = new Set([
   "reaction", "comment", "reply", "follow_request",
   "follow_accepted", "follow", "mention",
+  "moderation_suspend", "moderation_unsuspend",
+  "moderation_ban", "moderation_unban",
 ]);
 
 export async function POST(req: NextRequest) {
@@ -126,8 +153,39 @@ export async function POST(req: NextRequest) {
 
     // Não enviar push para o próprio autor da ação
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const actorName = (notif.actor as any)?.display_name ?? "Alguém";
-    const payload = buildPayload(notif.type, actorName, notif.post_id);
+    const actorName = (notif.actor as any)?.display_name ?? "Moderação";
+
+    // Para moderação, incluir motivo/prazo no corpo do push
+    let extra: { suspendUntil?: string | null; reason?: string | null } | undefined;
+    if (
+      notif.type === "moderation_suspend" ||
+      notif.type === "moderation_ban"
+    ) {
+      const { data: targetProf } = await admin
+        .from("profiles")
+        .select("suspend_reason, suspended_until, banned_reason")
+        .eq("id", notif.user_id)
+        .maybeSingle();
+      if (notif.type === "moderation_suspend" && targetProf) {
+        extra = {
+          reason: targetProf.suspend_reason,
+          suspendUntil: targetProf.suspended_until
+            ? new Date(targetProf.suspended_until).toLocaleString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : null,
+        };
+      }
+      if (notif.type === "moderation_ban" && targetProf) {
+        extra = { reason: targetProf.banned_reason };
+      }
+    }
+
+    const payload = buildPayload(notif.type, actorName, notif.post_id, extra);
 
     await sendPushToUser(notif.user_id, payload);
 

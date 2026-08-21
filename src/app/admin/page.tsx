@@ -64,7 +64,7 @@ export default function AdminPanelPage() {
   const [notes, setNotes] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  type Section = "reports" | "rooms" | "banners";
+  type Section = "reports" | "rooms" | "banners" | "users";
   const [section, setSection] = useState<Section>("reports");
   const [officialRooms, setOfficialRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -91,6 +91,18 @@ export default function AdminPanelPage() {
   const [bannerMessage, setBannerMessage] = useState("");
   const [sendingBanner, setSendingBanner] = useState(false);
   const [bannerActionId, setBannerActionId] = useState<string | null>(null);
+
+  // Membros do app
+  const [appUsers, setAppUsers] = useState<any[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersFilter, setUsersFilter] = useState("all");
+  const [usersQuery, setUsersQuery] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userActionId, setUserActionId] = useState<string | null>(null);
+  const [suspendDays, setSuspendDays] = useState("7");
+  const [modReason, setModReason] = useState("");
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
   const checkSession = useCallback(async () => {
     setAuthState("loading");
@@ -221,6 +233,80 @@ export default function AdminPanelPage() {
   useEffect(() => {
     if (authState === "ready" && section === "banners") fetchBanners();
   }, [authState, section, fetchBanners]);
+
+  const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(usersPage));
+      params.set("limit", "30");
+      if (usersFilter !== "all") params.set("filter", usersFilter);
+      if (usersQuery.trim()) params.set("q", usersQuery.trim());
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) throw new Error("Falha ao carregar usuários");
+      const data = await res.json();
+      setAppUsers(data.users || []);
+      setUsersTotal(data.total || 0);
+    } catch {
+      setAppUsers([]);
+      setUsersTotal(0);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [usersPage, usersFilter, usersQuery]);
+
+  useEffect(() => {
+    if (authState === "ready" && section === "users") fetchUsers();
+  }, [authState, section, fetchUsers]);
+
+  const userModAction = async (
+    action: "ban" | "unban" | "suspend" | "unsuspend" | "delete" | "message",
+    userId: string,
+    extra: { reason?: string; days?: number } = {}
+  ) => {
+    setUserActionId(userId + action);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          user_id: userId,
+          reason: extra.reason || modReason || undefined,
+          days: extra.days,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Falha na operação");
+        return;
+      }
+      if (action === "message") {
+        alert(
+          data.chat_id
+            ? "Conversa DM criada/aberta. Entre no app em Mensagens para falar com o usuário."
+            : "Pedido de mensagem processado. Abra o app em Mensagens."
+        );
+        return;
+      }
+      if (action === "delete") {
+        setAppUsers((prev) => prev.filter((u) => u.id !== userId));
+        setUsersTotal((t) => Math.max(0, t - 1));
+        setSelectedUser(null);
+        return;
+      }
+      await fetchUsers();
+      setSelectedUser(null);
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setUserActionId(null);
+    }
+  };
 
   const sendBanner = async () => {
     const msg = bannerMessage.trim();
@@ -584,6 +670,13 @@ export default function AdminPanelPage() {
           >
             Banner
           </button>
+          <button
+            type="button"
+            onClick={() => setSection("users")}
+            style={section === "users" ? styles.sectionTabActive : styles.sectionTab}
+          >
+            Membros
+          </button>
         </div>
 
         {section === "banners" && (
@@ -721,6 +814,337 @@ export default function AdminPanelPage() {
                 </article>
               ))
             )}
+          </>
+        )}
+
+        {section === "users" && (
+          <>
+            <div style={styles.sectionHead}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+                Membros do app
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
+                Liste usuários, banir, suspender, excluir conta ou abrir conversa
+                (DM) com o membro.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 10,
+                marginBottom: 14,
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="search"
+                value={usersQuery}
+                onChange={(e) => {
+                  setUsersQuery(e.target.value);
+                  setUsersPage(1);
+                }}
+                placeholder="Buscar nome ou @username"
+                style={{ ...styles.input, margin: 0, maxWidth: 260 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") fetchUsers();
+                }}
+              />
+              <button type="button" onClick={() => fetchUsers()} style={styles.tab}>
+                Buscar
+              </button>
+              {(
+                [
+                  ["all", "Todos"],
+                  ["banned", "Banidos"],
+                  ["suspended", "Suspensos"],
+                  ["moderators", "Mods"],
+                  ["deletion", "Exclusão pendente"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setUsersFilter(key);
+                    setUsersPage(1);
+                  }}
+                  style={
+                    usersFilter === key ? styles.tabActive : styles.tab
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                marginBottom: 14,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <label style={{ fontSize: 12, color: "#666" }}>
+                Motivo (ban/suspensão):
+              </label>
+              <input
+                type="text"
+                value={modReason}
+                onChange={(e) => setModReason(e.target.value)}
+                placeholder="Opcional"
+                style={{ ...styles.input, margin: 0, maxWidth: 280 }}
+              />
+              <label style={{ fontSize: 12, color: "#666" }}>
+                Dias suspensão:
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={suspendDays}
+                onChange={(e) => setSuspendDays(e.target.value)}
+                style={{ ...styles.input, margin: 0, width: 80 }}
+              />
+            </div>
+
+            <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
+              {usersTotal} usuário{usersTotal !== 1 ? "s" : ""} · página{" "}
+              {usersPage}
+            </p>
+
+            {loadingUsers ? (
+              <div style={styles.empty}>Carregando membros…</div>
+            ) : appUsers.length === 0 ? (
+              <div style={styles.empty}>Nenhum usuário encontrado.</div>
+            ) : (
+              appUsers.map((u) => {
+                const name = u.display_name || u.username || u.id.slice(0, 8);
+                const busy = !!userActionId && userActionId.startsWith(u.id);
+                return (
+                  <article
+                    key={u.id}
+                    style={{ ...styles.card, cursor: "default" }}
+                  >
+                    <div style={styles.cardTop}>
+                      <div>
+                        <h3 style={{ ...styles.motivo, margin: 0 }}>{name}</h3>
+                        <p
+                          style={{
+                            margin: "2px 0 0",
+                            fontSize: 12,
+                            color: "#888",
+                          }}
+                        >
+                          @{u.username}
+                          {u.is_moderator ? " · moderador" : ""}
+                        </p>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          flexWrap: "wrap",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        {u.is_banned && (
+                          <span
+                            style={{
+                              ...styles.badgePurple,
+                              background: "rgba(232,67,147,.12)",
+                              color: "#E84393",
+                            }}
+                          >
+                            Banido
+                          </span>
+                        )}
+                        {u.is_suspended && (
+                          <span
+                            style={{
+                              ...styles.badgePurple,
+                              background: "rgba(255,140,66,.15)",
+                              color: "#cc6a1f",
+                            }}
+                          >
+                            Suspenso
+                          </span>
+                        )}
+                        {u.deletion_requested_at && (
+                          <span
+                            style={{
+                              ...styles.badgePurple,
+                              background: "rgba(26,27,37,.08)",
+                              color: "rgba(26,27,37,.55)",
+                            }}
+                          >
+                            Exclusão pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {(u.banned_reason || u.suspend_reason) && (
+                      <p style={styles.desc}>
+                        {u.banned_reason
+                          ? `Ban: ${u.banned_reason}`
+                          : `Suspensão: ${u.suspend_reason}`}
+                        {u.suspended_until
+                          ? ` · até ${new Date(u.suspended_until).toLocaleString("pt-BR")}`
+                          : ""}
+                      </p>
+                    )}
+                    <div style={styles.meta}>
+                      <span>
+                        <b>Desde:</b>{" "}
+                        {new Date(u.created_at).toLocaleDateString("pt-BR")}
+                      </span>
+                      {u.neighborhood && (
+                        <span>
+                          <b>Bairro:</b> {u.neighborhood}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 12,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => userModAction("message", u.id)}
+                        style={styles.btnSecondary}
+                      >
+                        Mensagem
+                      </button>
+                      {u.is_banned ? (
+                        <button
+                          type="button"
+                          disabled={busy || u.is_moderator}
+                          onClick={() => userModAction("unban", u.id)}
+                          style={styles.btnSecondary}
+                        >
+                          Desbanir
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busy || u.is_moderator}
+                          onClick={() => {
+                            if (
+                              !confirm(
+                                `Banir ${name} permanentemente do app?`
+                              )
+                            )
+                              return;
+                            userModAction("ban", u.id, {
+                              reason: modReason || undefined,
+                            });
+                          }}
+                          style={{
+                            ...styles.btnSecondary,
+                            color: "#E84393",
+                            borderColor: "rgba(232,67,147,.35)",
+                          }}
+                        >
+                          Banir
+                        </button>
+                      )}
+                      {u.is_suspended ? (
+                        <button
+                          type="button"
+                          disabled={busy || u.is_moderator}
+                          onClick={() => userModAction("unsuspend", u.id)}
+                          style={styles.btnSecondary}
+                        >
+                          Tirar suspensão
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busy || u.is_moderator}
+                          onClick={() => {
+                            const d = parseInt(suspendDays, 10) || 7;
+                            if (
+                              !confirm(
+                                `Suspender ${name} por ${d} dia(s)?`
+                              )
+                            )
+                              return;
+                            userModAction("suspend", u.id, {
+                              reason: modReason || undefined,
+                              days: d,
+                            });
+                          }}
+                          style={styles.btnSecondary}
+                        >
+                          Suspender
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy || u.is_moderator}
+                        onClick={() => {
+                          if (
+                            !confirm(
+                              `EXCLUIR permanentemente a conta de ${name}? Esta ação não pode ser desfeita.`
+                            )
+                          )
+                            return;
+                          if (
+                            !confirm(
+                              "Confirma exclusão definitiva? Dados e arquivos serão removidos."
+                            )
+                          )
+                            return;
+                          userModAction("delete", u.id);
+                        }}
+                        style={{
+                          ...styles.btnSecondary,
+                          color: "#fff",
+                          background: "#E84393",
+                          borderColor: "#E84393",
+                        }}
+                      >
+                        Excluir conta
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                marginTop: 8,
+                alignItems: "center",
+              }}
+            >
+              <button
+                type="button"
+                disabled={usersPage <= 1}
+                onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                style={styles.tab}
+              >
+                ← Anterior
+              </button>
+              <button
+                type="button"
+                disabled={usersPage * 30 >= usersTotal}
+                onClick={() => setUsersPage((p) => p + 1)}
+                style={styles.tab}
+              >
+                Próxima →
+              </button>
+            </div>
           </>
         )}
 
