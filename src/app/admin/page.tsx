@@ -64,7 +64,7 @@ export default function AdminPanelPage() {
   const [notes, setNotes] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  type Section = "reports" | "rooms";
+  type Section = "reports" | "rooms" | "banners";
   const [section, setSection] = useState<Section>("reports");
   const [officialRooms, setOfficialRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -72,6 +72,15 @@ export default function AdminPanelPage() {
   const [editingRoom, setEditingRoom] = useState<any | null>(null);
   const [rulesDraft, setRulesDraft] = useState("");
   const [savingRules, setSavingRules] = useState(false);
+
+  // Banners (mensagens para todos os usuários)
+  const [banners, setBanners] = useState<
+    { id: string; message: string; created_at: string; is_active: boolean }[]
+  >([]);
+  const [loadingBanners, setLoadingBanners] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState("");
+  const [sendingBanner, setSendingBanner] = useState(false);
+  const [bannerActionId, setBannerActionId] = useState<string | null>(null);
 
   const checkSession = useCallback(async () => {
     setAuthState("loading");
@@ -173,6 +182,24 @@ export default function AdminPanelPage() {
     }
   }, []);
 
+  const fetchBanners = useCallback(async () => {
+    setLoadingBanners(true);
+    try {
+      const res = await fetch("/api/admin/banners");
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) throw new Error("Falha ao carregar banners");
+      const data = await res.json();
+      setBanners(data.banners || []);
+    } catch {
+      setBanners([]);
+    } finally {
+      setLoadingBanners(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (authState === "ready" && section === "reports") fetchReports();
   }, [authState, section, fetchReports]);
@@ -180,6 +207,61 @@ export default function AdminPanelPage() {
   useEffect(() => {
     if (authState === "ready" && section === "rooms") fetchOfficialRooms();
   }, [authState, section, fetchOfficialRooms]);
+
+  useEffect(() => {
+    if (authState === "ready" && section === "banners") fetchBanners();
+  }, [authState, section, fetchBanners]);
+
+  const sendBanner = async () => {
+    const msg = bannerMessage.trim();
+    if (!msg) {
+      alert("Digite a mensagem do banner");
+      return;
+    }
+    if (msg.length > 500) {
+      alert("Mensagem muito longa (máx. 500 caracteres)");
+      return;
+    }
+    setSendingBanner(true);
+    try {
+      const res = await fetch("/api/admin/banners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, deactivate_others: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao enviar banner");
+        return;
+      }
+      setBannerMessage("");
+      await fetchBanners();
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setSendingBanner(false);
+    }
+  };
+
+  const deleteBanner = async (id: string) => {
+    if (!confirm("Apagar este banner? Ele sumirá para todos os usuários.")) return;
+    setBannerActionId(id);
+    try {
+      const res = await fetch(`/api/admin/banners?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao apagar banner");
+        return;
+      }
+      setBanners((prev) => prev.filter((b) => b.id !== id));
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setBannerActionId(null);
+    }
+  };
 
   const toggleRoomOpen = async (room: any) => {
     setRoomActionId(room.id);
@@ -394,7 +476,152 @@ export default function AdminPanelPage() {
           >
             Salas oficiais
           </button>
+          <button
+            type="button"
+            onClick={() => setSection("banners")}
+            style={section === "banners" ? styles.sectionTabActive : styles.sectionTab}
+          >
+            Banner
+          </button>
         </div>
+
+        {section === "banners" && (
+          <>
+            <div style={styles.sectionHead}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+                Banner para todos os usuários
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
+                Envie uma mensagem que aparece no topo do app para todos. O
+                usuário só pode esconder localmente; quem apaga é o admin aqui no
+                painel.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid rgba(26,27,37,.09)",
+                borderRadius: 16,
+                padding: "18px 20px",
+                marginBottom: 20,
+                boxShadow: "0 1px 2px rgba(20,20,40,.04)",
+              }}
+            >
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: "rgba(26,27,37,.7)",
+                }}
+              >
+                Nova mensagem
+              </label>
+              <textarea
+                value={bannerMessage}
+                onChange={(e) => setBannerMessage(e.target.value)}
+                placeholder="Ex.: Manutenção programada hoje às 22h. O app pode ficar instável por alguns minutos."
+                maxLength={500}
+                rows={3}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(26,27,37,.14)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 10,
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: 12, color: "rgba(26,27,37,.4)" }}>
+                  {bannerMessage.trim().length}/500
+                </span>
+                <button
+                  type="button"
+                  onClick={sendBanner}
+                  disabled={sendingBanner || !bannerMessage.trim()}
+                  style={{
+                    ...styles.btnSecondary,
+                    background: "#1A1B25",
+                    color: "#fff",
+                    border: "none",
+                    opacity: sendingBanner || !bannerMessage.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {sendingBanner ? "Enviando…" : "Enviar banner"}
+                </button>
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: "#888" }}>
+                Ao enviar, o banner anterior ativo é desativado automaticamente.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <button type="button" onClick={() => fetchBanners()} style={styles.tab}>
+                ↻ Atualizar
+              </button>
+            </div>
+
+            {loadingBanners ? (
+              <div style={styles.empty}>Carregando banners…</div>
+            ) : banners.length === 0 ? (
+              <div style={styles.empty}>
+                Nenhum banner cadastrado ainda. Envie a primeira mensagem acima.
+              </div>
+            ) : (
+              banners.map((b) => (
+                <article key={b.id} style={{ ...styles.card, cursor: "default" }}>
+                  <div style={styles.cardTop}>
+                    <span
+                      style={{
+                        ...styles.badgePurple,
+                        background: b.is_active
+                          ? "rgba(46,204,113,.15)"
+                          : "rgba(26,27,37,.08)",
+                        color: b.is_active ? "#1a9c56" : "rgba(26,27,37,.45)",
+                      }}
+                    >
+                      {b.is_active ? "Ativo" : "Inativo"}
+                    </span>
+                    <span style={styles.date}>
+                      {new Date(b.created_at).toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <p style={{ ...styles.desc, marginBottom: 12, whiteSpace: "pre-wrap" }}>
+                    {b.message}
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      disabled={bannerActionId === b.id}
+                      onClick={() => deleteBanner(b.id)}
+                      style={{
+                        ...styles.btnSecondary,
+                        color: "#E84393",
+                        borderColor: "rgba(232,67,147,.35)",
+                      }}
+                    >
+                      {bannerActionId === b.id ? "…" : "Apagar"}
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </>
+        )}
 
         {section === "rooms" && (
           <>
