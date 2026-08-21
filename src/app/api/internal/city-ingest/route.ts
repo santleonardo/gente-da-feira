@@ -8,6 +8,7 @@ import {
   isCityPlatform,
   looksLikeFeiraDeSantana,
 } from "@/lib/city-monitoring";
+import { publishCityFeedPost } from "@/lib/city-feed-post";
 
 /**
  * POST /api/internal/city-ingest
@@ -162,6 +163,18 @@ export async function POST(req: NextRequest) {
         continue;
       }
       inserted++;
+
+      // Post no feed principal (timeline de todos)
+      if (autoPublish) {
+        await publishCityFeedPost(admin, {
+          title,
+          summary,
+          url: row.url,
+          sourceName: sourceSlug || "Cidade",
+          category,
+          relevanceScore: relevance_score,
+        });
+      }
     }
 
     return NextResponse.json({
