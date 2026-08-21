@@ -145,7 +145,8 @@ const tabs = [
 // SEC-003: Colunas seguras do perfil (mesma lista do backend)
 // SEC-013: Inclui deletion_requested_at e deletion_scheduled_at para LGPD
 // UX-024: Inclui is_moderator para exibir o acesso ao painel de moderação
-const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator";
+// Moderação global: is_banned / is_suspended
+const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator,is_banned,banned_reason,is_suspended,suspended_until,suspend_reason";
 
 export function AppShell() {
   const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending, reportTarget } = useStore();
@@ -219,6 +220,25 @@ export function AppShell() {
         // SEC-003: Select explícito — nunca SELECT *
         const { data: prof } = await supabase.from("profiles").select(PROFILE_SAFE_SELECT).eq("id", user.id).single();
         if (prof) {
+          // Ban global — encerra sessão
+          if (prof.is_banned) {
+            await supabase.auth.signOut();
+            logout();
+            setCheckedAuth(true);
+            return;
+          }
+          // Suspensão ativa
+          if (prof.is_suspended) {
+            const until = prof.suspended_until
+              ? new Date(prof.suspended_until)
+              : null;
+            if (!until || until > new Date()) {
+              await supabase.auth.signOut();
+              logout();
+              setCheckedAuth(true);
+              return;
+            }
+          }
           setProfile(prof);
           // SEC-013: Detectar conta com exclusão pendente (LGPD)
           if (prof.deletion_requested_at) {
