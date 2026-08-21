@@ -10,6 +10,8 @@ import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/
 import { checkPostVisibility } from "@/lib/content-visibility";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { checkSpam } from "@/lib/spam-check";
+import { autoReportSpam } from "@/lib/auto-report";
 
 // SEC-009: Author profile columns for comment authors
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -89,8 +91,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    const insertData: Record<string, any> = { content: sanitizePlainText(content.trim()), post_id: postId, author_id: user.id };
+    const sanitizedContent = sanitizePlainText(content.trim());
+    const insertData: Record<string, any> = { content: sanitizedContent, post_id: postId, author_id: user.id };
     if (parentId) insertData.parent_id = parentId;
+
+    // MOD-001: mesma checagem de spam dos posts — síncrona, fail-open.
+    const spamResult = await checkSpam(sanitizedContent);
 
     const { data: comment, error } = await supabase
       .from("comments").insert(insertData)
@@ -98,6 +104,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
 
     if (error) throw error;
+
+    if (spamResult.isSpam) {
+      autoReportSpam({
+        targetType: "comment",
+        targetId: (comment as any).id,
+        targetOwnerId: user.id,
+        reason: spamResult.reason,
+      }).catch(() => {});
+    }
 
     // SEC-009: Filter neighborhood from new comment's author
     // (For the user's own comment, they'll always see their own neighborhood,
