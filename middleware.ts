@@ -74,6 +74,8 @@ export async function middleware(req: NextRequest) {
     //   - /api/account-cleanup — internal call from Postgres (pg_net.http_post,
     //     see sec013_schedule_http_cleanup), same story: no cookies, secured by
     //     validateInternalAuth() inside the route.
+    //   - /api/cron/* e /api/internal/* — jobs (Vercel Cron, city-ingest etc.)
+    //     autenticados só com Bearer INTERNAL_API_SECRET / CRON_SECRET.
     // Without these exceptions this middleware 401s both routes before they
     // ever run, which silently breaks push notifications and the LGPD account
     // deletion storage/auth cleanup — the session check simply isn't the right
@@ -84,7 +86,9 @@ export async function middleware(req: NextRequest) {
       req.nextUrl.pathname.startsWith("/api/csp-report");
     const isInternalRoute =
       req.nextUrl.pathname.startsWith("/api/push/send") ||
-      req.nextUrl.pathname.startsWith("/api/account-cleanup");
+      req.nextUrl.pathname.startsWith("/api/account-cleanup") ||
+      req.nextUrl.pathname.startsWith("/api/cron/") ||
+      req.nextUrl.pathname.startsWith("/api/internal/");
 
     if (isApiRoute && !isAuthRoute && !isCspReportRoute && !isInternalRoute && !user) {
       return NextResponse.json(
