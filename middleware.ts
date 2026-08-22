@@ -65,21 +65,11 @@ export async function middleware(req: NextRequest) {
 
     // Protect all /api/* routes — return 401 if not authenticated
     // Exceptions:
-    //   - /api/auth (Supabase login/callback) — no session yet
-    //   - /api/csp-report — browser-sent, no session
-    //   - /api/push/send — internal server-to-server call (push-dispatch.ts),
-    //     authenticated via Authorization: Bearer <INTERNAL_API_SECRET>, never
-    //     carries a Supabase session cookie. validateInternalAuth() inside the
-    //     route is the real (fail-closed) gate for this one.
-    //   - /api/account-cleanup — internal call from Postgres (pg_net.http_post,
-    //     see sec013_schedule_http_cleanup), same story: no cookies, secured by
-    //     validateInternalAuth() inside the route.
-    //   - /api/cron/* e /api/internal/* — jobs (Vercel Cron, city-ingest etc.)
-    //     autenticados só com Bearer INTERNAL_API_SECRET / CRON_SECRET.
-    // Without these exceptions this middleware 401s both routes before they
-    // ever run, which silently breaks push notifications and the LGPD account
-    // deletion storage/auth cleanup — the session check simply isn't the right
-    // gate for machine-to-machine calls that use their own secret.
+    //   - /api/auth
+    //   - /api/csp-report
+    //   - /api/push/send — Bearer INTERNAL_API_SECRET
+    //   - /api/account-cleanup — Bearer INTERNAL_API_SECRET
+    //   - /api/cron/* e /api/internal/* — Vercel Cron / jobs internos
     const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
     const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
     const isCspReportRoute =
@@ -90,7 +80,13 @@ export async function middleware(req: NextRequest) {
       req.nextUrl.pathname.startsWith("/api/cron/") ||
       req.nextUrl.pathname.startsWith("/api/internal/");
 
-    if (isApiRoute && !isAuthRoute && !isCspReportRoute && !isInternalRoute && !user) {
+    if (
+      isApiRoute &&
+      !isAuthRoute &&
+      !isCspReportRoute &&
+      !isInternalRoute &&
+      !user
+    ) {
       return NextResponse.json(
         { error: "Não autenticado" },
         { status: 401 }
