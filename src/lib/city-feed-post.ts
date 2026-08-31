@@ -34,8 +34,9 @@ export async function resolveCityBotUserId(
     .limit(1)
     .maybeSingle();
 
-  _cachedBotId = data?.id ?? null;
-  return _cachedBotId;
+  const resolvedId: string | null = data?.id ?? null;
+  _cachedBotId = resolvedId;
+  return resolvedId;
 }
 
 export function buildCityPostContent(opts: {
