@@ -6,10 +6,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Máximo de posts da conta "Cidade" por dia (UTC) — evita poluir o feed */
-export const MAX_CITY_POSTS_PER_DAY = 5;
+export const MAX_CITY_POSTS_PER_DAY = 20;
 
-/** Score mínimo para virar post na timeline (além de city_updates) */
-export const MIN_SCORE_FOR_FEED_POST = 70;
+/** Score mínimo para virar post na timeline (antes ia para o bloco de cards em ≥65) */
+export const MIN_SCORE_FOR_FEED_POST = 65;
 
 let _cachedBotId: string | null | undefined;
 
@@ -51,14 +51,13 @@ export function buildCityPostContent(opts: {
   const source = (opts.sourceName || "Fonte pública").trim().slice(0, 80);
   const url = (opts.url || "").trim();
 
-  const lines = [
-    `📍 Na cidade — ${title}`,
-    "",
-  ];
+  // Post normal na timeline (sem prefixo de bloco "Na cidade")
+  const lines = [title];
   if (summary) {
-    lines.push(summary);
     lines.push("");
+    lines.push(summary);
   }
+  lines.push("");
   lines.push(`Fonte: ${source}`);
   if (url && /^https?:\/\//i.test(url)) {
     lines.push(url);
