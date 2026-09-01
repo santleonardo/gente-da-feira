@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, memo, Fragment } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo, Fragment } from "react";
 import { useStore, Profile } from "@/lib/store";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import { Button } from "@/components/ui/button";
@@ -139,8 +139,47 @@ function FormattedText({
     sanitizeHTMLAsync(content).then(setSafeHTML);
   }, [content, domPurifyReady]);
 
+  const isHtml = useMemo(
+    () => (content ? isHTMLContent(content) : false),
+    [content]
+  );
+
+  const plainLines = useMemo(() => {
+    if (!content || isHtml) return null;
+    return content.split("\n").map((line, i) => {
+      let headingLevel = 0;
+      let text = line;
+      if (text.startsWith("### ")) {
+        headingLevel = 3;
+        text = text.slice(4);
+      } else if (text.startsWith("## ")) {
+        headingLevel = 2;
+        text = text.slice(3);
+      } else if (text.startsWith("# ")) {
+        headingLevel = 1;
+        text = text.slice(2);
+      }
+      const headingStyle: React.CSSProperties =
+        headingLevel > 0
+          ? {
+              fontSize:
+                headingLevel === 1
+                  ? "1.25rem"
+                  : headingLevel === 2
+                    ? "1.1rem"
+                    : "1rem",
+              fontWeight: 700,
+              lineHeight: 1.3,
+              display: "block",
+              marginTop: i > 0 ? "0.35em" : undefined,
+            }
+          : {};
+      return { i, text, headingStyle };
+    });
+  }, [content, isHtml]);
+
   if (!content) return null;
-  if (isHTMLContent(content)) {
+  if (isHtml) {
     // Enquanto DOMPurify não está pronto, renderiza sem formatação para evitar flash
     const html = safeHTML ?? sanitizeHTML(content);
     return (
@@ -149,29 +188,14 @@ function FormattedText({
     );
   }
 
-  const lines = content.split("\n");
   return (
     <div className={className} style={style}>
-      {lines.map((line, i) => {
-        let headingLevel = 0;
-        let text = line;
-        if (text.startsWith("### "))      { headingLevel = 3; text = text.slice(4); }
-        else if (text.startsWith("## ")) { headingLevel = 2; text = text.slice(3); }
-        else if (text.startsWith("# "))  { headingLevel = 1; text = text.slice(2); }
-
-        const headingStyle: React.CSSProperties = headingLevel > 0 ? {
-          fontSize: headingLevel === 1 ? "1.25rem" : headingLevel === 2 ? "1.1rem" : "1rem",
-          fontWeight: 700, lineHeight: 1.3, display: "block",
-          marginTop: i > 0 ? "0.35em" : undefined,
-        } : {};
-
-        return (
-          <Fragment key={i}>
-            {i > 0 && <br />}
-            <span style={headingStyle}>{parseInlineFormatting(text, openUserProfile)}</span>
-          </Fragment>
-        );
-      })}
+      {(plainLines || []).map(({ i, text, headingStyle }) => (
+        <Fragment key={i}>
+          {i > 0 && <br />}
+          <span style={headingStyle}>{parseInlineFormatting(text, openUserProfile)}</span>
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -191,6 +215,22 @@ function buildReactionGroups(reactions: { user_id: string; type: string }[]) {
     groups[r.type].count++;
   }
   return Object.values(groups);
+}
+
+/** Árvore de comentários — função pura (fora do componente p/ useMemo estável) */
+function buildCommentTree(flatComments: Comment[]) {
+  const map = new Map<string, Comment[]>();
+  const roots: Comment[] = [];
+  for (const c of flatComments) {
+    if (c.parent_id) {
+      const children = map.get(c.parent_id) || [];
+      children.push(c);
+      map.set(c.parent_id, children);
+    } else {
+      roots.push(c);
+    }
+  }
+  return { roots, map };
 }
 
 function getExpirationLabel(expiresAt: string): string {
@@ -1273,22 +1313,84 @@ const PostThread = memo(function PostThread({
   const commentInputRef = useRef<HTMLInputElement>(null);
   const shareRef        = useRef<HTMLDivElement>(null);
 
-  const reactionGroups = buildReactionGroups(post.reactions || []);
-  const commentCount   = post.comment_count || 0;
-  const hasPhotos      = post.image_urls && post.image_urls.length > 0;
-  const hasVideo       = !!post.video_url;
-  const hasAudio       = !!post.audio_url;
-  const isOwnPost      = post.author_id === profile?.id;
-  const isTextOnly     = !hasPhotos && !hasVideo && !hasAudio;
+  const reactionGroups = useMemo(
+    () => buildReactionGroups(post.reactions || []),
+    [post.reactions]
+  );
 
-  const hasPostStyle   = post.post_style && typeof post.post_style === "object";
-  const styleColorIdx  = hasPostStyle && post.post_style!.postItColor != null ? post.post_style!.postItColor : -1;
-  const postItColor    = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length ? POST_IT_COLORS[styleColorIdx] : getPostItColor(post.id)) : null;
-  const postItColorHex = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length ? POST_IT_COLORS_HEX[styleColorIdx] : null) : null;
-  const useInlineStyle = isTextOnly && styleColorIdx >= 0;
+  const commentCount = post.comment_count || 0;
 
-  const cardBg     = isTextOnly ? (useInlineStyle ? "" : (postItColor?.bg || "bg-[#fdf6b2]")) : "bg-[#eef1f3]";
-  const commentsBg = "bg-[#0A4D5C]/[0.04]";
+  const {
+    hasPhotos,
+    hasVideo,
+    hasAudio,
+    isOwnPost,
+    isTextOnly,
+    postItColor,
+    postItColorHex,
+    useInlineStyle,
+    cardBg,
+    commentsBg,
+    viewerReactionTypes,
+  } = useMemo(() => {
+    const hasPhotos = !!(post.image_urls && post.image_urls.length > 0);
+    const hasVideo = !!post.video_url;
+    const hasAudio = !!post.audio_url;
+    const isOwnPost = post.author_id === profile?.id;
+    const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
+
+    const hasPostStyle = post.post_style && typeof post.post_style === "object";
+    const styleColorIdx =
+      hasPostStyle && post.post_style!.postItColor != null
+        ? post.post_style!.postItColor
+        : -1;
+    const postItColor = isTextOnly
+      ? styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length
+        ? POST_IT_COLORS[styleColorIdx]
+        : getPostItColor(post.id)
+      : null;
+    const postItColorHex = isTextOnly
+      ? styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length
+        ? POST_IT_COLORS_HEX[styleColorIdx]
+        : null
+      : null;
+    const useInlineStyle = isTextOnly && styleColorIdx >= 0;
+    const cardBg = isTextOnly
+      ? useInlineStyle
+        ? ""
+        : postItColor?.bg || "bg-[#fdf6b2]"
+      : "bg-[#eef1f3]";
+    const commentsBg = "bg-[#0A4D5C]/[0.04]";
+
+    const viewerReactionTypes = new Set(
+      (post.reactions || [])
+        .filter((r) => r.user_id === profile?.id)
+        .map((r) => r.type)
+    );
+
+    return {
+      hasPhotos,
+      hasVideo,
+      hasAudio,
+      isOwnPost,
+      isTextOnly,
+      postItColor,
+      postItColorHex,
+      useInlineStyle,
+      cardBg,
+      commentsBg,
+      viewerReactionTypes,
+    };
+  }, [
+    post.image_urls,
+    post.video_url,
+    post.audio_url,
+    post.author_id,
+    post.post_style,
+    post.id,
+    post.reactions,
+    profile?.id,
+  ]);
 
   const [expirationLabel, setExpirationLabel] = useState<string>("");
   useEffect(() => {
@@ -1375,17 +1477,10 @@ const PostThread = memo(function PostThread({
     } catch { /* silent */ }
   };
 
-  const buildCommentTree = (flatComments: Comment[]) => {
-    const map = new Map<string, Comment[]>();
-    const roots: Comment[] = [];
-    for (const c of flatComments) {
-      if (c.parent_id) { const children = map.get(c.parent_id) || []; children.push(c); map.set(c.parent_id, children); }
-      else roots.push(c);
-    }
-    return { roots, map };
-  };
-
-  const { roots: commentRoots, map: commentMap } = buildCommentTree(comments);
+  const { roots: commentRoots, map: commentMap } = useMemo(
+    () => buildCommentTree(comments),
+    [comments]
+  );
 
   const handleOpenPostDetail = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -1512,14 +1607,14 @@ const PostThread = memo(function PostThread({
           <div className="relative">
             <button
               onClick={() => setShowReactions(!showReactions)}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${post.reactions?.some((r) => r.user_id === profile?.id) ? "text-[#0A4D5C] bg-[#0A4D5C]/10 font-medium" : "text-[#0A4D5C]/40 hover:bg-[#0A4D5C]/[0.04] hover:text-[#0A4D5C]"}`}>
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${viewerReactionTypes.size > 0 ? "text-[#0A4D5C] bg-[#0A4D5C]/10 font-medium" : "text-[#0A4D5C]/40 hover:bg-[#0A4D5C]/[0.04] hover:text-[#0A4D5C]"}`}>
               <Heart className="h-4 w-4" />
               {post.reactions?.length > 0 && <span>{post.reactions.length}</span>}
             </button>
             {showReactions && (
               <div className="absolute bottom-full left-0 mb-1.5 flex gap-0.5 rounded-2xl bg-[#f7f9fa] p-1.5 shadow-lg border border-[#0A4D5C]/10 z-20">
                 {REACTION_EMOJIS.map(({ type, emoji, label }) => {
-                  const isActive = post.reactions?.some((r) => r.user_id === profile?.id && r.type === type);
+                  const isActive = viewerReactionTypes.has(type);
                   return (
                     <button key={type} onClick={() => { onReaction(post.id, type); setShowReactions(false); }}
                       className={`rounded-xl p-1.5 text-lg transition-all hover:scale-125 ${isActive ? "bg-[#0A4D5C]/10 ring-1 ring-[#0A4D5C]" : ""}`} title={label}>
