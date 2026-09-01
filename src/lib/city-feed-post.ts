@@ -39,49 +39,84 @@ export async function resolveCityBotUserId(
   return resolvedId;
 }
 
+const MAX_HEADLINE_CHARS = 110;
+const MAX_BODY_CHARS = 240;
+
+function cleanText(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&\w+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1).replace(/\s+\S*$/, "").trim();
+  return (cut || text.slice(0, max - 1).trim()) + "…";
+}
+
 /**
- * Lead curto estilo pirâmide invertida (o essencial primeiro).
- * Vira um "# título" (H1) no feed via FormattedText.
+ * Manchete (H1): o fato principal em poucas palavras.
  */
-function buildInvertedPyramidLead(
+function buildHeadline(title: string): string {
+  let h = cleanText(title);
+  const words = h.split(/\s+/).filter(Boolean);
+  if (words.length > 14) {
+    h = words.slice(0, 14).join(" ");
+    if (!/[.!?…]$/.test(h)) h += "…";
+  }
+  h = truncateAtWord(h, MAX_HEADLINE_CHARS);
+  return h.replace(/[\s:;,\-–—]+$/g, "").trim();
+}
+
+/**
+ * Corpo estilo pirâmide invertida: o essencial primeiro, máx. 240 chars.
+ * Usa o resumo do RSS; se faltar, monta a partir do título.
+ */
+function buildInvertedPyramidBody(
   title: string,
   summary?: string | null
 ): string {
-  const clean = (s: string) =>
-    s
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&\w+;/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  const t = cleanText(title);
+  const s = summary ? cleanText(summary) : "";
 
-  let lead = clean(title);
+  // Prioriza frases do resumo (já costumam trazer o lead jornalístico)
+  const sentences = (s || t)
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.trim())
+    .filter((x) => x.length > 8);
 
-  // Se o título for genérico/curto demais, completa com o 1º fato do resumo
-  if (lead.length < 28 && summary) {
-    const firstSentence =
-      clean(summary)
-        .split(/(?<=[.!?])\s+/)
-        .map((s) => s.trim())
-        .find((s) => s.length > 12) || clean(summary);
-    if (firstSentence) {
-      lead = lead ? `${lead}: ${firstSentence}` : firstSentence;
+  let body = "";
+  for (const sentence of sentences) {
+    const next = body ? `${body} ${sentence}` : sentence;
+    if (next.length > MAX_BODY_CHARS) {
+      if (!body) {
+        body = truncateAtWord(sentence, MAX_BODY_CHARS);
+      }
+      break;
     }
+    body = next;
+    // Pirâmide invertida curta: 1–2 frases bastam no feed
+    if (body.length >= 120 && sentences.indexOf(sentence) >= 1) break;
   }
 
-  // Poucas palavras — manchetão (máx. ~14 palavras / ~110 chars)
-  const words = lead.split(/\s+/).filter(Boolean);
-  if (words.length > 14) {
-    lead = words.slice(0, 14).join(" ");
-    if (!/[.!?…]$/.test(lead)) lead += "…";
-  }
-  if (lead.length > 110) {
-    lead = lead.slice(0, 107).replace(/\s+\S*$/, "") + "…";
+  if (!body) {
+    body = truncateAtWord(s || t, MAX_BODY_CHARS);
   }
 
-  // Remove pontuação final solta antes do H1
-  lead = lead.replace(/[\s:;,\-–—]+$/g, "").trim();
-  return lead;
+  // Evita repetir a manchete inteira no corpo
+  const headline = buildHeadline(title).replace(/…$/, "").toLowerCase();
+  if (
+    headline.length >= 20 &&
+    body.toLowerCase().startsWith(headline.toLowerCase())
+  ) {
+    const rest = body.slice(headline.length).replace(/^[\s:;,\-–—]+/, "");
+    if (rest.length >= 40) body = rest;
+  }
+
+  return truncateAtWord(body, MAX_BODY_CHARS);
 }
 
 export function buildCityPostContent(opts: {
@@ -93,14 +128,15 @@ export function buildCityPostContent(opts: {
 }): string {
   const source = (opts.sourceName || "Fonte pública").trim().slice(0, 80);
   const url = (opts.url || "").trim();
-  const lead = buildInvertedPyramidLead(opts.title || "", opts.summary);
+  const headline = buildHeadline(opts.title || "");
+  const body = buildInvertedPyramidBody(opts.title || "", opts.summary);
 
-  // H1 no feed (# …) + fonte + link — sem corpo longo
-  const lines = [`# ${lead}`, "", `Fonte: ${source}`];
+  // H1 + lead (≤240) + fonte + link
+  const lines = [`# ${headline}`, "", body, "", `Fonte: ${source}`];
   if (url && /^https?:\/\//i.test(url)) {
     lines.push(url);
   }
-  return lines.join("\n").slice(0, 2000);
+  return lines.join("\n").slice(0, 1000);
 }
 
 /**
