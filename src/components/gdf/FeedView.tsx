@@ -38,7 +38,6 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
-import { CityUpdatesBlock } from "./CityUpdatesBlock";
 import { toast } from "sonner";
 import {
   compressImage,
@@ -1143,9 +1142,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
           </div>
         </div>
       )}
-
-      {/* ═══════ NA CIDADE — monitoramento local ═══════ */}
-      <CityUpdatesBlock />
 
       {/* Empty state */}
       {posts.length === 0 && (
