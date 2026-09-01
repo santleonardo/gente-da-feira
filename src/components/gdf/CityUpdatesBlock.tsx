@@ -49,6 +49,11 @@ const PLATFORM_LABELS: Record<string, string> = {
   other: "Web",
 };
 
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd() + "…";
+}
+
 function formatWhen(iso: string | null | undefined): string {
   if (!iso) return "";
   try {
@@ -157,12 +162,12 @@ export function CityUpdatesBlock() {
                         </span>
                       )}
                     </div>
-                    <h4 className="text-[13px] font-bold leading-snug text-foreground line-clamp-2 mb-1">
+                    <h4 className="text-[11px] font-bold leading-snug text-foreground line-clamp-2 mb-1">
                       {u.title}
                     </h4>
                     {u.summary && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3 mb-2">
-                        {u.summary}
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
+                        {truncate(u.summary, 500)}
                       </p>
                     )}
                     <div className="mt-auto flex items-center justify-between gap-2 pt-1">
@@ -189,7 +194,7 @@ export function CityUpdatesBlock() {
                 );
 
                 const cardClass =
-                  "snap-start shrink-0 w-[min(100%,280px)] sm:w-[260px] flex flex-col rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md hover:border-primary/25 transition-all text-left";
+                  "snap-start shrink-0 w-[min(100%,320px)] sm:w-[300px] flex flex-col rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md hover:border-primary/25 transition-all text-left";
 
                 if (href) {
                   return (
