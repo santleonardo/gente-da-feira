@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import {
   ExternalLink,
   Newspaper,
@@ -49,9 +49,12 @@ const PLATFORM_LABELS: Record<string, string> = {
   other: "Web",
 };
 
-function truncate(text: string, max: number): string {
+function truncateAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
-  return text.slice(0, max).trimEnd() + "…";
+  const sliced = text.slice(0, max);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const safe = lastSpace > max * 0.6 ? sliced.slice(0, lastSpace) : sliced;
+  return safe.trimEnd() + "…";
 }
 
 function formatWhen(iso: string | null | undefined): string {
@@ -73,6 +76,18 @@ export function CityUpdatesBlock() {
   const [updates, setUpdates] = useState<CityUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
+  const [expandedSummaries, setExpandedSummaries] = useState<Record<string, boolean>>({});
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+
+  const toggleSummary = useCallback((id: string, e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedSummaries((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const markImageBroken = useCallback((id: string) => {
+    setBrokenImages((prev) => ({ ...prev, [id]: true }));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -146,9 +161,28 @@ export function CityUpdatesBlock() {
                 const fonte = PLATFORM_LABELS[u.platform] || u.platform;
                 const when = formatWhen(u.published_at || u.source_published_at);
                 const href = u.url && /^https?:\/\//i.test(u.url) ? u.url : null;
+                const hasImage = !!u.image_url && !brokenImages[u.id];
+                const isExpanded = !!expandedSummaries[u.id];
+                const summaryText = u.summary || "";
+                const SUMMARY_LIMIT = 500;
+                const needsTruncate = summaryText.length > SUMMARY_LIMIT;
+                const displaySummary =
+                  isExpanded || !needsTruncate
+                    ? summaryText
+                    : truncateAtWord(summaryText, SUMMARY_LIMIT);
 
                 const CardInner = (
                   <>
+                    {hasImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={u.image_url as string}
+                        alt=""
+                        loading="lazy"
+                        onError={() => markImageBroken(u.id)}
+                        className="w-full h-28 object-cover rounded-lg mb-2"
+                      />
+                    )}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <Badge
                         variant="secondary"
@@ -165,10 +199,19 @@ export function CityUpdatesBlock() {
                     <h4 className="text-[11px] font-bold leading-snug text-foreground line-clamp-2 mb-1">
                       {u.title}
                     </h4>
-                    {u.summary && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
-                        {truncate(u.summary, 500)}
+                    {summaryText && (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-1 whitespace-pre-line">
+                        {displaySummary}
                       </p>
+                    )}
+                    {needsTruncate && (
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSummary(u.id, e)}
+                        className="self-start text-[10px] font-semibold text-primary hover:underline mb-1"
+                      >
+                        {isExpanded ? "Ler menos" : "Ler mais"}
+                      </button>
                     )}
                     <div className="mt-auto flex items-center justify-between gap-2 pt-1">
                       <div className="flex items-center gap-1.5 min-w-0 text-[10px] text-muted-foreground">
@@ -198,15 +241,21 @@ export function CityUpdatesBlock() {
 
                 if (href) {
                   return (
-                    <a
+                    <div
                       key={u.id}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cardClass}
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => window.open(href, "_blank", "noopener,noreferrer")}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          window.open(href, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                      className={`${cardClass} cursor-pointer`}
                     >
                       {CardInner}
-                    </a>
+                    </div>
                   );
                 }
 
