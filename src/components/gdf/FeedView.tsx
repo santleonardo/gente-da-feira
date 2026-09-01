@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import React, { useState, useEffect, useRef, useCallback, memo, Fragment } from "react";
 import { useStore, Profile } from "@/lib/store";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import { Button } from "@/components/ui/button";
@@ -507,10 +507,10 @@ function FeedSkeleton() {
 // ═══════════════════════════════════════════════════════════
 export function FeedView({ openUserProfile }: { openUserProfile?: (userId: string) => void }) {
   const { profile } = useStore();
-  const navigateToProfile = (uid: string) => {
+  const navigateToProfile = useCallback((uid: string) => {
     if (openUserProfile) openUserProfile(uid);
     else window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: uid } }));
-  };
+  }, [openUserProfile]);
 
   // Carregar Google Fonts para post_style
   useEffect(() => {
@@ -909,7 +909,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         setPosts((prev) => [{ ...data.post, comment_count: data.post.comment_count || 0 }, ...prev]);
         setContent("");
         clearMedia();
-        fetchMediaCounts();
         toast.success("Post publicado!");
       } else if (data.error) { toast.error(data.error); }
     } catch { toast.error("Erro ao publicar"); }
@@ -934,7 +933,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     } catch { toast.error("Erro ao compartilhar"); }
   };
 
-  const handleReaction = async (postId: string, type: string) => {
+  const handleReaction = useCallback(async (postId: string, type: string) => {
     if (!profile) return;
     try {
       const res = await fetch("/api/posts/reaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId, type }) });
@@ -943,24 +942,28 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, reactions: data.reacted ? [...p.reactions, { user_id: profile.id, type }] : p.reactions.filter((r) => !(r.user_id === profile.id && r.type === type)) } : p));
       }
     } catch { /* silent */ }
-  };
+  }, [profile]);
 
-  const handleDelete = async (postId: string) => {
+  const handleDelete = useCallback(async (postId: string) => {
     try {
       await fetch(`/api/posts?id=${postId}`, { method: "DELETE" });
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       toast.success("Post excluído");
-      fetchMediaCounts();
     } catch { toast.error("Erro ao excluir"); }
-  };
+  }, []);
 
-  const updateCommentCount = (postId: string, delta: number) => {
+  const updateCommentCount = useCallback((postId: string, delta: number) => {
     setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, comment_count: Math.max(0, (p.comment_count || 0) + delta) } : p));
-  };
+  }, []);
 
-  const openPhotoViewer = (photos: string[], index: number) => {
+  const openPhotoViewer = useCallback((photos: string[], index: number) => {
     setViewerPhotos(photos); setViewerIndex(index); setViewerOpen(true);
-  };
+  }, []);
+
+  const handleRepostRequest = useCallback((p: PostWithAuthor) => {
+    setRepostingPost(p);
+    setRepostContent("");
+  }, []);
 
   const hasPhotosInComposer = selectedFiles.length > 0;
   const hasVideoInComposer  = !!selectedVideo;
@@ -1184,8 +1187,8 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               onDelete={handleDelete}
               onUpdateCommentCount={updateCommentCount}
               openUserProfile={navigateToProfile}
-              onPhotoClick={(index) => openPhotoViewer(post.image_urls || [], index)}
-              onRepost={(p) => { setRepostingPost(p); setRepostContent(""); }}
+              onPhotoClick={openPhotoViewer}
+              onRepost={handleRepostRequest}
               shareMenuOpen={shareMenuOpen}
               setShareMenuOpen={setShareMenuOpen}
             />
