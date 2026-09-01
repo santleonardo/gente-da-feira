@@ -260,7 +260,7 @@ interface PostWithAuthor {
 // ═══════════════════════════════════════════════════════════
 // VideoPlayer
 // ═══════════════════════════════════════════════════════════
-function VideoPlayer({ src }: { src: string }) {
+const VideoPlayer = memo(function VideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -306,12 +306,12 @@ function VideoPlayer({ src }: { src: string }) {
       </div>
     </div>
   );
-}
+});
 
 // ═══════════════════════════════════════════════════════════
 // AudioPlayer
 // ═══════════════════════════════════════════════════════════
-function AudioPlayer({ src }: { src: string }) {
+const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -351,12 +351,12 @@ function AudioPlayer({ src }: { src: string }) {
         onEnded={() => setPlaying(false)} />
     </div>
   );
-}
+});
 
 // ═══════════════════════════════════════════════════════════
 // PhotoGrid
 // ═══════════════════════════════════════════════════════════
-function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: (index: number) => void }) {
+const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: (index: number) => void }) {
   const count = photos.length;
   if (count === 0) return null;
 
@@ -405,7 +405,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
       ))}
     </div>
   );
-}
+});
 
 // ═══════════════════════════════════════════════════════════
 // PhotoViewer
@@ -1187,9 +1187,9 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               onDelete={handleDelete}
               onUpdateCommentCount={updateCommentCount}
               openUserProfile={navigateToProfile}
-              onPhotoClick={(index) => openPhotoViewer(post.image_urls || [], index)}
+              onPhotoClick={openPhotoViewer}
               onRepost={handleRepostRequest}
-              shareMenuOpen={shareMenuOpen}
+              isShareOpen={shareMenuOpen === post.id}
               setShareMenuOpen={setShareMenuOpen}
             />
           </div>
@@ -1250,17 +1250,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 // ═══════════════════════════════════════════════════════════
 // PostThread
 // ═══════════════════════════════════════════════════════════
-function PostThread({
-  post, profile, onReaction, onDelete, onUpdateCommentCount, openUserProfile, onPhotoClick, onRepost, shareMenuOpen, setShareMenuOpen,
+const PostThread = memo(function PostThread({
+  post, profile, onReaction, onDelete, onUpdateCommentCount, openUserProfile, onPhotoClick, onRepost, isShareOpen, setShareMenuOpen,
 }: {
   post: PostWithAuthor; profile: Profile | null;
   onReaction: (postId: string, type: string) => void;
   onDelete: (postId: string) => void;
   onUpdateCommentCount: (postId: string, delta: number) => void;
   openUserProfile?: (userId: string) => void;
-  onPhotoClick?: (index: number) => void;
+  onPhotoClick?: (photos: string[], index: number) => void;
   onRepost: (post: PostWithAuthor) => void;
-  shareMenuOpen: string | null;
+  isShareOpen: boolean;
   setShareMenuOpen: (id: string | null) => void;
 }) {
   const [showComments,    setShowComments]    = useState(false);
@@ -1300,13 +1300,13 @@ function PostThread({
   }, [post.expires_at]);
 
   useEffect(() => {
-    if (shareMenuOpen !== post.id) return;
+    if (!isShareOpen) return;
     const handler = (e: MouseEvent) => {
       if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShareMenuOpen(null);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [shareMenuOpen, post.id, setShareMenuOpen]);
+  }, [isShareOpen, setShareMenuOpen]);
 
   const fetchComments = async () => {
     setCommentsLoading(true);
@@ -1395,7 +1395,7 @@ function PostThread({
 
   return (
     <div
-      className={`rounded-2xl ${cardBg} shadow-md ${shareMenuOpen === post.id ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#f7f75e]" : ""} ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle ? "border border-[#0A4D5C]/8" : ""}`}
+      className={`rounded-2xl ${cardBg} shadow-md ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#f7f75e]" : ""} ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle ? "border border-[#0A4D5C]/8" : ""}`}
       style={useInlineStyle && postItColorHex ? { backgroundColor: postItColorHex.bg, border: `1px solid ${postItColorHex.border}` } : undefined}
       onClick={handleOpenPostDetail}
     >
@@ -1496,7 +1496,12 @@ function PostThread({
         {/* FULL-BLEED MEDIA — outside the avatar flex row */}
         {(hasPhotos || hasVideo || hasAudio) && (
           <div className="-mx-3 sm:-mx-4">
-            {hasPhotos && <PhotoGrid photos={post.image_urls!} onPhotoClick={onPhotoClick} />}
+            {hasPhotos && (
+              <PhotoGrid
+                photos={post.image_urls!}
+                onPhotoClick={(index) => onPhotoClick?.(post.image_urls || [], index)}
+              />
+            )}
             {hasVideo  && <VideoPlayer src={post.video_url!} />}
             {hasAudio  && <AudioPlayer src={post.audio_url!} />}
           </div>
@@ -1541,11 +1546,11 @@ function PostThread({
           </button>
 
           <div className="relative" ref={shareRef}>
-            <button onClick={() => setShareMenuOpen(shareMenuOpen === post.id ? null : post.id)}
+            <button onClick={() => setShareMenuOpen(isShareOpen ? null : post.id)}
               className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/40 hover:bg-[#0A4D5C]/[0.04] hover:text-[#0A4D5C] transition-colors">
               <Share2 className="h-4 w-4" />
             </button>
-            {shareMenuOpen === post.id && <ShareMenu post={post} onClose={() => setShareMenuOpen(null)} onRepost={onRepost} />}
+            {isShareOpen && <ShareMenu post={post} onClose={() => setShareMenuOpen(null)} onRepost={onRepost} />}
           </div>
 
           {isOwnPost && (
@@ -1613,12 +1618,12 @@ function PostThread({
       </div>
     </div>
   );
-}
+});
 
 // ═══════════════════════════════════════════════════════════
 // CommentItem
 // ═══════════════════════════════════════════════════════════
-function CommentItem({
+const CommentItem = memo(function CommentItem({
   comment, replies, profile, onReply, onDelete, onReaction, openUserProfile,
 }: {
   comment: Comment; replies: Comment[]; profile: Profile | null;
@@ -1681,4 +1686,4 @@ function CommentItem({
       )}
     </div>
   );
-}
+});
