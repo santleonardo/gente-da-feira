@@ -131,10 +131,12 @@ export function buildCityPostContent(opts: {
   const headline = buildHeadline(opts.title || "");
   const body = buildInvertedPyramidBody(opts.title || "", opts.summary);
 
-  // H1 + lead (≤240) + fonte + link
-  const lines = [`# ${headline}`, "", body, "", `Fonte: ${source}`];
+  // H1 + lead (≤240) + fonte com link na mesma linha (rótulo curto no feed)
+  const lines = [`# ${headline}`, "", body, ""];
   if (url && /^https?:\/\//i.test(url)) {
-    lines.push(url);
+    lines.push(`Fonte: ${source} · ${url}`);
+  } else {
+    lines.push(`Fonte: ${source}`);
   }
   return lines.join("\n").slice(0, 1000);
 }

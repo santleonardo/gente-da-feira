@@ -7,6 +7,20 @@ const MENTION_REGEX = /@(\w+)/g;
 // renderização inline em posts (feed/detalhe) e mensagens (DM/salas).
 const INLINE_REGEX = /(https?:\/\/[^\s<>"')\]]+)|@(\w+)|(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|_(.+?)_/g;
 
+/** Rótulo curto para não estourar o layout com URLs enormes */
+function formatUrlLabel(raw: string): string {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./i, "");
+    // Só domínio — limpo no feed; path longo fica no title/tooltip
+    if (host.length <= 40) return host;
+    return host.slice(0, 37) + "…";
+  } catch {
+    if (raw.length <= 36) return raw;
+    return raw.slice(0, 33) + "…";
+  }
+}
+
 // Cache username → userId to avoid repeated lookups
 const usernameCache = new Map<string, string | null>();
 
@@ -88,7 +102,7 @@ export function parseInlineFormatting(
     }
 
     if (match[1]) {
-      // URL
+      // URL — mostra rótulo curto (domínio); href continua completo
       parts.push(
         <a
           key={`url-${key++}`}
@@ -96,9 +110,10 @@ export function parseInlineFormatting(
           target="_blank"
           rel="noopener noreferrer"
           className={defaultLinkClass}
+          title={match[1]}
           onClick={(e) => e.stopPropagation()}
         >
-          {match[1]}
+          {formatUrlLabel(match[1])}
         </a>
       );
     } else if (match[2]) {
