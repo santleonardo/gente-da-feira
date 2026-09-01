@@ -39,6 +39,51 @@ export async function resolveCityBotUserId(
   return resolvedId;
 }
 
+/**
+ * Lead curto estilo pirâmide invertida (o essencial primeiro).
+ * Vira um "# título" (H1) no feed via FormattedText.
+ */
+function buildInvertedPyramidLead(
+  title: string,
+  summary?: string | null
+): string {
+  const clean = (s: string) =>
+    s
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&\w+;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  let lead = clean(title);
+
+  // Se o título for genérico/curto demais, completa com o 1º fato do resumo
+  if (lead.length < 28 && summary) {
+    const firstSentence =
+      clean(summary)
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .find((s) => s.length > 12) || clean(summary);
+    if (firstSentence) {
+      lead = lead ? `${lead}: ${firstSentence}` : firstSentence;
+    }
+  }
+
+  // Poucas palavras — manchetão (máx. ~14 palavras / ~110 chars)
+  const words = lead.split(/\s+/).filter(Boolean);
+  if (words.length > 14) {
+    lead = words.slice(0, 14).join(" ");
+    if (!/[.!?…]$/.test(lead)) lead += "…";
+  }
+  if (lead.length > 110) {
+    lead = lead.slice(0, 107).replace(/\s+\S*$/, "") + "…";
+  }
+
+  // Remove pontuação final solta antes do H1
+  lead = lead.replace(/[\s:;,\-–—]+$/g, "").trim();
+  return lead;
+}
+
 export function buildCityPostContent(opts: {
   title: string;
   summary?: string | null;
@@ -46,19 +91,12 @@ export function buildCityPostContent(opts: {
   sourceName?: string | null;
   category?: string | null;
 }): string {
-  const title = opts.title.trim().slice(0, 200);
-  const summary = (opts.summary || "").trim().slice(0, 400);
   const source = (opts.sourceName || "Fonte pública").trim().slice(0, 80);
   const url = (opts.url || "").trim();
+  const lead = buildInvertedPyramidLead(opts.title || "", opts.summary);
 
-  // Post normal na timeline (sem prefixo de bloco "Na cidade")
-  const lines = [title];
-  if (summary) {
-    lines.push("");
-    lines.push(summary);
-  }
-  lines.push("");
-  lines.push(`Fonte: ${source}`);
+  // H1 no feed (# …) + fonte + link — sem corpo longo
+  const lines = [`# ${lead}`, "", `Fonte: ${source}`];
   if (url && /^https?:\/\//i.test(url)) {
     lines.push(url);
   }
