@@ -1187,7 +1187,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               onDelete={handleDelete}
               onUpdateCommentCount={updateCommentCount}
               openUserProfile={navigateToProfile}
-              onPhotoClick={openPhotoViewer}
+              onPhotoClick={(index) => openPhotoViewer(post.image_urls || [], index)}
               onRepost={handleRepostRequest}
               shareMenuOpen={shareMenuOpen}
               setShareMenuOpen={setShareMenuOpen}
