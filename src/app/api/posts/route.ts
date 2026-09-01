@@ -105,11 +105,14 @@ export async function GET(req: NextRequest) {
     let viewerFollowingIds = new Set<string>();
     let blockedUserIds     = new Set<string>();
 
-    // SEC-010: Always fetch following IDs when authenticated (needed for
-    // both feed visibility AND authorId-filtered queries)
+    // SEC-010: parallelize secondary lookups (following + blocks)
     if (authUser) {
-      viewerFollowingIds = await getViewerFollowingIds(supabase, authUser.id);
-      blockedUserIds = await getBlockedUserIds(supabase, authUser.id);
+      const [following, blocked] = await Promise.all([
+        getViewerFollowingIds(supabase, authUser.id),
+        getBlockedUserIds(supabase, authUser.id),
+      ]);
+      viewerFollowingIds = following;
+      blockedUserIds = blocked;
     }
 
     const filteredPosts = posts
@@ -143,7 +146,11 @@ export async function GET(req: NextRequest) {
     );
     const privacyFilteredPosts = filterPostsAuthorNeighborhood(filteredPosts, hiddenNeighborhoodIds);
 
-    cleanupExpiredPosts().catch(() => {});
+    // Não rodar cleanup em todo GET do feed (custa query extra).
+    // ~5% das requisições mantém a faxina sem degradar a listagem.
+    if (Math.random() < 0.05) {
+      cleanupExpiredPosts().catch(() => {});
+    }
 
     return NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
   } catch (error: any) {
