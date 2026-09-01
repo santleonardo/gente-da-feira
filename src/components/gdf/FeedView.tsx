@@ -595,56 +595,75 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Página menor = 1º paint mais rápido; scroll infinito completa o resto
+  const FEED_PAGE_SIZE = 15;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   // ─── Fetch inicial ────────────────────────────────────
   useEffect(() => {
+    const ac = new AbortController();
     setLoading(true);
     setNextCursor(null);
     setHasMore(false);
     const nb = profile?.neighborhood || "all";
-    fetch(`/api/posts?neighborhood=${nb}&limit=20`)
+    fetch(`/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}`, {
+      signal: ac.signal,
+    })
       .then((r) => r.json())
       .then((data) => {
+        if (ac.signal.aborted) return;
         setPosts(data.posts || []);
         setNextCursor(data.nextCursor ?? null);
         setHasMore(data.hasMore ?? false);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
+      });
+    return () => ac.abort();
   }, [profile?.neighborhood]);
 
   // ─── Load more (cursor pagination) ───────────────────
-  const loadMorePosts = async () => {
+  const loadMorePosts = useCallback(async () => {
     if (!hasMore || loadingMore || !nextCursor) return;
     setLoadingMore(true);
     const nb = profile?.neighborhood || "all";
     try {
-      const res  = await fetch(`/api/posts?neighborhood=${nb}&limit=20&cursor=${encodeURIComponent(nextCursor)}`);
+      const res = await fetch(
+        `/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`
+      );
       const data = await res.json();
       setPosts((prev) => [...prev, ...(data.posts || [])]);
       setNextCursor(data.nextCursor ?? null);
       setHasMore(data.hasMore ?? false);
-    } catch { /* silent */ }
-    finally { setLoadingMore(false); }
-  };
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, nextCursor, profile?.neighborhood]);
 
+  // Scroll infinito — carrega próxima página ao aproximar do fim
   useEffect(() => {
-    if (!profile) return;
-    fetchMediaCounts();
-  }, [profile]);
+    const el = loadMoreRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMorePosts();
+      },
+      { rootMargin: "400px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loadMorePosts]);
 
-  const fetchMediaCounts = async () => {
-    if (!profile) return;
-    try {
-      const now = new Date().toISOString();
-      const res = await fetch(`/api/posts?authorId=${profile.id}&limit=50`);
-      const data = await res.json();
-      const active = (data.posts || []).filter((p: PostWithAuthor) => p.expires_at && p.expires_at > now);
-      setActiveMediaCount(active.length);
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-      const recentVideos = (data.posts || []).filter((p: PostWithAuthor) => p.video_url && p.created_at > twelveHoursAgo);
-      setVideoPostsInWindow(recentVideos.length);
-    } catch { /* silent */ }
-  };
+  // Light beta: vídeo/áudio desabilitados na API — evita GET pesado de 50 posts só para contagem
+  useEffect(() => {
+    setActiveMediaCount(0);
+    setVideoPostsInWindow(0);
+  }, [profile?.id]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1174,9 +1193,9 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         ))}
       </div>
 
-      {/* ─── Carregar mais ─────────────────────────────── */}
+      {/* ─── Scroll infinito + fallback botão ───────────── */}
       {hasMore && (
-        <div className="mt-5 flex justify-center pb-2">
+        <div ref={loadMoreRef} className="mt-5 flex justify-center pb-2">
           <button
             onClick={loadMorePosts}
             disabled={loadingMore}
