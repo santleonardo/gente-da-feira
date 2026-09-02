@@ -15,6 +15,7 @@ export const CITY_CATEGORIES = [
   "politica",
   "saude",
   "educacao",
+  "entretenimento",
 ] as const;
 
 export type CityCategory = (typeof CITY_CATEGORIES)[number];
@@ -30,6 +31,20 @@ export const CITY_PLATFORMS = [
 ] as const;
 
 export type CityPlatform = (typeof CITY_PLATFORMS)[number];
+
+/**
+ * Escopo geográfico de uma fonte:
+ * - "local": conteúdo é filtrado por menção a Feira de Santana (looksLikeFeiraDeSantana)
+ * - "national": conteúdo nacional/geral (política, esporte, entretenimento etc.)
+ *   entra sem exigir menção à cidade — o filtro local é pulado na ingestão.
+ */
+export const CITY_SOURCE_SCOPES = ["local", "national"] as const;
+
+export type CitySourceScope = (typeof CITY_SOURCE_SCOPES)[number];
+
+export function isCitySourceScope(v: string): v is CitySourceScope {
+  return (CITY_SOURCE_SCOPES as readonly string[]).includes(v);
+}
 
 /** Palavras que indicam relação com Feira de Santana */
 const FSA_KEYWORDS = [
