@@ -19,6 +19,14 @@ const DEFAULT_OPTIONS: CompressionOptions = {
   maxSizeKB: 300,
 };
 
+/** Preset do feed: bom equilíbrio visual × tamanho (WebP) */
+export const FEED_IMAGE_OPTIONS: CompressionOptions = {
+  maxWidth: 1280,
+  maxHeight: 1280,
+  quality: 0.72,
+  maxSizeKB: 180,
+};
+
 // Detecta se o browser suporta codificação WebP no canvas
 let _webpSupported: boolean | null = null;
 
@@ -117,20 +125,30 @@ export async function compressImage(
         return;
       }
 
-      // Fundo branco para imagens com transparência (PNG → JPEG)
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-
       // Tenta WebP primeiro; se não suportado, usa JPEG
       const outputType = webpSupported ? "image/webp" : "image/jpeg";
-      const quality = webpSupported ? opts.quality! : Math.min(opts.quality! + 0.1, 0.85);
+      const quality = webpSupported
+        ? opts.quality!
+        : Math.min((opts.quality ?? 0.55) + 0.12, 0.85);
+
+      // Fundo branco só no JPEG (transparência PNG/WebP precisa ser preservável no WebP)
+      if (outputType === "image/jpeg") {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        ctx.clearRect(0, 0, width, height);
+      }
+      ctx.drawImage(img, 0, 0, width, height);
 
       canvas.toBlob(
         (blob) => {
           if (!blob) {
             // WebP falhou? Tenta JPEG como fallback
             if (outputType === "image/webp") {
+              // Re-desenha com fundo branco para JPEG
+              ctx.fillStyle = "#FFFFFF";
+              ctx.fillRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
               canvas.toBlob(
                 (jpegBlob) => {
                   if (!jpegBlob) {
@@ -245,6 +263,30 @@ export function getExtensionForBlob(blob: Blob): string {
   if (blob.type === "image/gif") return "gif";
   // Default para webp (ou unknown)
   return "webp";
+}
+
+/**
+ * Compressão otimizada para o feed: WebP quando possível, alvo ≤180KB, lado ≤1280px.
+ * Retorna um File com nome/extensão corretos para o FormData.
+ */
+export async function compressImageForFeed(file: File): Promise<File> {
+  // GIF animado: não re-encoda no canvas (perde animação) — envia original se ≤ max
+  const isGif =
+    file.type === "image/gif" || getExtension(file.name) === "gif";
+  if (isGif) {
+    if (file.size > 500 * 1024) {
+      throw new Error("GIF muito grande (máx 500KB).");
+    }
+    return file;
+  }
+
+  const blob = await compressImage(file, FEED_IMAGE_OPTIONS);
+  const ext = getExtensionForBlob(blob);
+  const mime = blob.type || (ext === "jpg" ? "image/jpeg" : `image/${ext}`);
+  const base = (file.name.replace(/\.[^.]+$/, "") || "photo")
+    .slice(0, 40)
+    .replace(/[^\w\-]+/g, "_");
+  return new File([blob], `${base}.${ext}`, { type: mime, lastModified: Date.now() });
 }
 
 export function createPreviewUrl(file: File): string {

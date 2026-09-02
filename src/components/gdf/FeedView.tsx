@@ -41,7 +41,7 @@ import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
 import {
-  compressImage,
+  compressImageForFeed,
   validateImageFile,
   createPreviewUrl,
   revokePreviewUrl,
@@ -926,15 +926,18 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     const urls: string[] = [];
     for (const file of selectedFiles) {
       try {
-        const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.55, maxSizeKB: 150 });
+        // Cliente: WebP (ou JPEG fallback) ≤ ~180KB, lado ≤ 1280
+        const compressed = await compressImageForFeed(file);
         const formData = new FormData();
-        formData.append("file", compressed, "photo.webp");
+        formData.append("file", compressed, compressed.name);
         formData.append("folder", "posts");
         const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data.url) urls.push(data.url);
         else toast.error(data.error || "Erro ao enviar foto");
-      } catch { toast.error("Erro ao processar foto"); }
+      } catch (err: any) {
+        toast.error(err?.message || "Erro ao processar foto");
+      }
     }
     return urls;
   };

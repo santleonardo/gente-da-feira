@@ -64,16 +64,22 @@ export async function POST(req: NextRequest) {
     const admin = createAdminClient();
 
     // Reprocessa a imagem via sharp: remove metadados EXIF/GPS,
-    // corrige orientação e re-encoda para um formato previsível.
+    // corrige orientação e re-encoda (WebP no feed = menos storage/egress).
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const inputType = (file.type && ALLOWED_IMAGE_TYPES.includes(file.type))
       ? file.type
       : (fileExt === "png" ? "image/png" : fileExt === "gif" ? "image/gif" : fileExt === "webp" ? "image/webp" : "image/jpeg");
     const inputBuffer = Buffer.from(await file.arrayBuffer());
+
+    const isFeedPhoto = folder === "posts" || folder === "post-photos";
     const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(
       inputBuffer,
       inputType,
-      folder === "video-thumbs" ? { maxWidth: 640, maxHeight: 640 } : {}
+      folder === "video-thumbs"
+        ? { maxWidth: 640, maxHeight: 640, preferWebP: true, quality: 72 }
+        : isFeedPhoto
+          ? { maxWidth: 1280, maxHeight: 1280, preferWebP: true, quality: 78 }
+          : { preferWebP: true, quality: 80 }
     );
 
     const timestamp = Date.now();
