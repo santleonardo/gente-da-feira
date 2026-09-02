@@ -2024,6 +2024,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   // ── Mídia no chat ──
   const [sendingMedia, setSendingMedia] = useState(false);
+  /** Preview local antes do upload (foto/vídeo/áudio) */
+  const [mediaPreview, setMediaPreview] = useState<{
+    file: File;
+    type: "image" | "video" | "audio";
+    objectUrl: string;
+  } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadXhrRef = useRef<XMLHttpRequest | null>(null);
   const cameraPhotoRef = useRef<HTMLInputElement>(null);
   const galleryPhotoRef = useRef<HTMLInputElement>(null);
   const cameraVideoRef = useRef<HTMLInputElement>(null);
@@ -2070,15 +2078,29 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     return () => document.removeEventListener("mousedown", handler);
   }, [attachMenuOpen]);
 
-  // Cleanup gravação ao desmontar
+  // Cleanup gravação e preview ao desmontar
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       if (videoRecTimerRef.current) clearInterval(videoRecTimerRef.current);
       if (videoStreamRef.current) videoStreamRef.current.getTracks().forEach((t) => t.stop());
+      if (uploadXhrRef.current) {
+        uploadXhrRef.current.abort();
+        uploadXhrRef.current = null;
+      }
     };
   }, []);
+
+  // Revoga object URL do preview quando muda/some
+  useEffect(() => {
+    return () => {
+      if (mediaPreview?.objectUrl) {
+        URL.revokeObjectURL(mediaPreview.objectUrl);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaPreview?.objectUrl]);
 
   // Conecta stream da câmera ao preview de vídeo quando a gravação começa
   useEffect(() => {
@@ -2425,22 +2447,138 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     if (showMembers) fetchMembers();
   }, [showMembers, fetchMembers]);
 
-  // ═══════ Upload de mídia ═══════
-  const uploadChatMedia = async (file: File, type: "image" | "video" | "audio"): Promise<string | null> => {
-    try {
+  // ═══════ Preview + upload de mídia com progresso ═══════
+  const openMediaPreview = (file: File, type: "image" | "video" | "audio") => {
+    // Revoga URL anterior se houver
+    if (mediaPreview?.objectUrl) URL.revokeObjectURL(mediaPreview.objectUrl);
+    const objectUrl = URL.createObjectURL(file);
+    setMediaPreview({ file, type, objectUrl });
+    setAttachMenuOpen(false);
+  };
+
+  const cancelMediaPreview = () => {
+    if (uploadXhrRef.current) {
+      uploadXhrRef.current.abort();
+      uploadXhrRef.current = null;
+    }
+    if (mediaPreview?.objectUrl) URL.revokeObjectURL(mediaPreview.objectUrl);
+    setMediaPreview(null);
+    setUploadProgress(null);
+    setSendingMedia(false);
+  };
+
+  const uploadChatMedia = (
+    file: File,
+    type: "image" | "video" | "audio",
+    onProgress?: (pct: number) => void
+  ): Promise<string | null> => {
+    return new Promise((resolve) => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folder", "chat");
-      const endpoint = type === "image" ? "/api/upload" : type === "video" ? "/api/upload/video" : "/api/upload/audio";
-      const res = await fetch(endpoint, { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.url) return data.url;
-      toast.error(data.error || "Erro ao enviar mídia");
-      return null;
-    } catch {
-      toast.error("Erro ao enviar mídia");
-      return null;
+      const endpoint =
+        type === "image"
+          ? "/api/upload"
+          : type === "video"
+            ? "/api/upload/video"
+            : "/api/upload/audio";
+
+      const xhr = new XMLHttpRequest();
+      uploadXhrRef.current = xhr;
+      xhr.open("POST", endpoint);
+      xhr.responseType = "json";
+
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          const pct = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+          onProgress?.(pct);
+          setUploadProgress(pct);
+        } else {
+          onProgress?.(0);
+          setUploadProgress(0);
+        }
+      };
+
+      xhr.onload = () => {
+        uploadXhrRef.current = null;
+        setUploadProgress(100);
+        try {
+          const data = xhr.response ?? JSON.parse(xhr.responseText || "{}");
+          if (xhr.status >= 200 && xhr.status < 300 && data?.url) {
+            resolve(data.url);
+            return;
+          }
+          toast.error(data?.error || "Erro ao enviar mídia");
+          resolve(null);
+        } catch {
+          toast.error("Erro ao enviar mídia");
+          resolve(null);
+        }
+      };
+
+      xhr.onerror = () => {
+        uploadXhrRef.current = null;
+        toast.error("Erro ao enviar mídia");
+        resolve(null);
+      };
+
+      xhr.onabort = () => {
+        uploadXhrRef.current = null;
+        resolve(null);
+      };
+
+      xhr.send(formData);
+    });
+  };
+
+  const confirmMediaPreview = async () => {
+    if (!mediaPreview || !profile || !isMember) return;
+    const { file, type, objectUrl } = mediaPreview;
+    const caption = input.trim();
+    const replyingTo = replyTo;
+    setSendingMedia(true);
+    setUploadProgress(0);
+    const url = await uploadChatMedia(file, type);
+    if (!url) {
+      setSendingMedia(false);
+      setUploadProgress(null);
+      return;
     }
+    try {
+      setInput("");
+      setReplyTo(null);
+      setMentionQuery(null);
+      const body: any = {
+        content: caption || undefined,
+        media_url: url,
+        media_type: type,
+      };
+      if (replyingTo?.id) body.reply_to_id = replyingTo.id;
+      const res = await fetch(`/api/rooms/${room.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+        setInput(caption);
+        if (replyingTo) setReplyTo(replyingTo);
+      } else if (data.message) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+        URL.revokeObjectURL(objectUrl);
+        setMediaPreview(null);
+      }
+    } catch {
+      toast.error("Erro ao enviar mensagem");
+      setInput(caption);
+      if (replyingTo) setReplyTo(replyingTo);
+    }
+    setSendingMedia(false);
+    setUploadProgress(null);
   };
 
   // ═══════ Reply + menções ═══════
@@ -2563,91 +2701,68 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Captura de foto da câmera ═══════
-  const handleCameraPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "image");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "image" });
-    }
-    setSendingMedia(false);
+    openMediaPreview(file, "image");
     if (cameraPhotoRef.current) cameraPhotoRef.current.value = "";
   };
 
   // ═══════ Foto da galeria ═══════
-  const handleGalleryPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "image");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "image" });
-    }
-    setSendingMedia(false);
+    openMediaPreview(file, "image");
     if (galleryPhotoRef.current) galleryPhotoRef.current.value = "";
   };
 
   // ═══════ Captura de vídeo da câmera ═══════
-  const handleCameraVideoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraVideoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
     if (file.size > 50 * 1024 * 1024) {
       toast.error("Vídeo muito grande (máx 50MB)");
+      if (cameraVideoRef.current) cameraVideoRef.current.value = "";
       return;
     }
+    const objectUrl = URL.createObjectURL(file);
     const videoEl = document.createElement("video");
     videoEl.preload = "metadata";
-    videoEl.onloadedmetadata = async () => {
+    videoEl.onloadedmetadata = () => {
       if (videoEl.duration > MAX_VIDEO_DURATION) {
         toast.error(`Vídeo muito longo (máx ${MAX_VIDEO_DURATION}s)`);
-        URL.revokeObjectURL(videoEl.src);
+        URL.revokeObjectURL(objectUrl);
         return;
       }
-      URL.revokeObjectURL(videoEl.src);
-      setSendingMedia(true);
-      const url = await uploadChatMedia(file, "video");
-      if (url) {
-        await sendMessage({ media_url: url, media_type: "video" });
-      }
-      setSendingMedia(false);
+      URL.revokeObjectURL(objectUrl);
+      openMediaPreview(file, "video");
     };
-    videoEl.src = URL.createObjectURL(file);
+    videoEl.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      toast.error("Não foi possível ler o vídeo");
+    };
+    videoEl.src = objectUrl;
     if (cameraVideoRef.current) cameraVideoRef.current.value = "";
   };
 
   // ═══════ Vídeo de arquivo ═══════
-  const handleVideoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
     if (file.size > 50 * 1024 * 1024) {
       toast.error("Vídeo muito grande (máx 50MB)");
+      if (videoFileRef.current) videoFileRef.current.value = "";
       return;
     }
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "video");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "video" });
-    }
-    setSendingMedia(false);
+    openMediaPreview(file, "video");
     if (videoFileRef.current) videoFileRef.current.value = "";
   };
 
   // ═══════ Áudio de arquivo ═══════
-  const handleAudioFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAttachMenuOpen(false);
-    setSendingMedia(true);
-    const url = await uploadChatMedia(file, "audio");
-    if (url) {
-      await sendMessage({ media_url: url, media_type: "audio" });
-    }
-    setSendingMedia(false);
+    openMediaPreview(file, "audio");
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
@@ -2681,14 +2796,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         }
         mediaRecorderRef.current = null;
 
-        setSendingMedia(true);
-        const url = await uploadChatMedia(file, "audio");
-        if (url) {
-          await sendMessage({ media_url: url, media_type: "audio" });
-        }
-        setSendingMedia(false);
         setIsRecordingAudio(false);
         setIsPausedRecording(false);
+        openMediaPreview(file, "audio");
       };
 
       mediaRecorder.start(1000);
@@ -2803,13 +2913,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         }
         videoMediaRecorderRef.current = null;
 
-        setSendingMedia(true);
-        const url = await uploadChatMedia(file, "video");
-        if (url) {
-          await sendMessage({ media_url: url, media_type: "video" });
-        }
-        setSendingMedia(false);
         setIsRecordingVideo(false);
+        openMediaPreview(file, "video");
       };
 
       mediaRecorder.start(1000);
@@ -3297,12 +3402,119 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       <div className="shrink-0 border-t border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {isMember ? (
           <>
-            {sendingMedia ? (
-              <div className="flex items-center justify-center gap-2 py-2">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Enviando mídia...</span>
+            {/* Preview de mídia antes de enviar */}
+            {mediaPreview && !sendingMedia && (
+              <div className="mb-2 max-w-3xl mx-auto w-full rounded-2xl border border-border bg-muted/40 overflow-hidden">
+                <div className="flex items-start gap-3 p-3">
+                  <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+                    {mediaPreview.type === "image" && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mediaPreview.objectUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    {mediaPreview.type === "video" && (
+                      <video
+                        src={mediaPreview.objectUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        controls
+                      />
+                    )}
+                    {mediaPreview.type === "audio" && (
+                      <div className="flex flex-col items-center gap-1 p-2 w-full">
+                        <Mic className="h-6 w-6 text-primary" />
+                        <audio src={mediaPreview.objectUrl} controls className="w-full max-w-[88px] h-8" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-muted-foreground truncate">
+                        {mediaPreview.type === "image"
+                          ? "📷 Foto"
+                          : mediaPreview.type === "video"
+                            ? "🎬 Vídeo"
+                            : "🎤 Áudio"}
+                        {" · "}
+                        {(mediaPreview.file.size / 1024).toFixed(0)} KB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={cancelMediaPreview}
+                        className="text-muted-foreground hover:text-foreground rounded-full p-1"
+                        title="Cancelar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Escreva uma legenda abaixo (opcional) e toque em enviar.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={cancelMediaPreview}
+                        className="rounded-full h-8 text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={confirmMediaPreview}
+                        className="rounded-full h-8 text-xs gap-1.5"
+                      >
+                        <Send className="h-3.5 w-3.5" /> Enviar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : (
+            )}
+
+            {/* Progresso de upload */}
+            {sendingMedia && (
+              <div className="mb-2 max-w-3xl mx-auto w-full space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span>
+                      {uploadProgress === null || uploadProgress < 100
+                        ? "Enviando mídia..."
+                        : "Publicando..."}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold tabular-nums text-primary">
+                      {uploadProgress != null ? `${uploadProgress}%` : "…"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={cancelMediaPreview}
+                      className="text-xs text-muted-foreground hover:text-red-500 underline-offset-2 hover:underline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-150 ease-out"
+                    style={{
+                      width: `${uploadProgress != null ? Math.max(uploadProgress, 2) : 5}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {!sendingMedia && (
               <div className="flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full">
                 {/* Botão + para abrir menu de anexos (para cima) */}
                 <div className="relative" ref={attachMenuRef}>
@@ -3485,10 +3697,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
                 {/* Botão enviar 💬 */}
                 <button
-                  onClick={() => sendMessage()}
-                  disabled={!input.trim()}
+                  onClick={() => {
+                    if (mediaPreview) {
+                      confirmMediaPreview();
+                    } else {
+                      sendMessage();
+                    }
+                  }}
+                  disabled={mediaPreview ? false : !input.trim()}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 self-end"
-                  title="Enviar"
+                  title={mediaPreview ? "Enviar mídia" : "Enviar"}
                 >
                   <span className="text-lg leading-none">💬</span>
                 </button>
