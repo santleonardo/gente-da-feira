@@ -123,9 +123,114 @@
   * {
     @apply border-border;
   }
+
+  html {
+    /* Evita bounce/overflow horizontal em mobile */
+    max-width: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-nunito), sans-serif;
+    max-width: 100%;
+    overflow-x: hidden;
+    /* Altura estável no mobile (barra de endereço / teclado) */
+    min-height: 100dvh;
+    /* Toques sem highlight cinza do iOS */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Inputs ≥16px evitam zoom automático no iOS Safari */
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Imagens e mídia nunca estouram a largura */
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ═══════ Utilitários mobile / safe-area ═══════ */
+@layer utilities {
+  .safe-area-pt {
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  }
+  .safe-area-pb {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+  .safe-area-px {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+  /* Área de toque mínima recomendada (~44px) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  /* Conteúdo principal mobile: não ultrapassa viewport */
+  .mobile-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  /* Texto longo / URLs */
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+/* Scrollbars discretos (listas de chat / membros) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Nav inferior mobile — respira a home indicator */
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Conteúdo acima da nav fixa (não-chat) */
+.mobile-main-pad {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .mobile-main-pad {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* Tab transition */
+.animate-tab-in {
+  animation: tabFadeIn 0.22s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-in {
+    animation: none;
   }
 }
 
@@ -215,9 +320,23 @@
   }
 }
 
-/* ═══════ Landscape orientation support ═══════ */
+/* ═══════ Landscape / telas baixas ═══════ */
 @media (orientation: landscape) and (max-height: 500px) {
-  nav.fixed.bottom-0 .mb-3 {
-    margin-bottom: 0.5rem;
+  .mobile-bottom-nav .nav-pill {
+    margin-bottom: 0.25rem;
+  }
+  .mobile-bottom-nav button span {
+    display: none; /* só ícones em landscape baixo */
+  }
+  .mobile-main-pad {
+    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Dialogs / sheets: não ultrapassam a viewport */
+@media (max-width: 767px) {
+  [data-slot="dialog-content"],
+  [role="dialog"] {
+    max-width: min(100vw - 1.5rem, 28rem) !important;
   }
 }

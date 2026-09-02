@@ -537,23 +537,26 @@ export function AppShell() {
       {/* ── Main content com transição CSS (sem framer-motion) ── */}
       <main
         className={cn(
-          "flex-1 min-h-0",
+          "flex-1 min-h-0 mobile-shell",
           inChat
             ? "flex flex-col pb-0 overflow-hidden"
-            : "pb-20 md:pb-6",
+            : "mobile-main-pad",
           !inChat && mainOffsetClass
         )}
       >
         <div
           className={cn(
             inChat
-              ? "flex flex-1 flex-col min-h-0 w-full max-w-none h-[100dvh]"
-              : cn("mx-auto px-4 py-4 md:py-6 max-w-lg", mainOffsetClass && "")
+              ? "flex flex-1 flex-col min-h-0 w-full max-w-full h-[100dvh] overflow-x-hidden"
+              : "mx-auto w-full max-w-lg px-3 sm:px-4 py-3 sm:py-4 md:py-6 min-w-0"
           )}
         >
           <div
             key={transitionKey}
-            className={cn("animate-tab-in", inChat && "flex flex-1 flex-col min-h-0 h-full")}
+            className={cn(
+              "animate-tab-in min-w-0 w-full",
+              inChat && "flex flex-1 flex-col min-h-0 h-full max-w-full overflow-x-hidden"
+            )}
           >
             {tab === "feed"     && <FeedView    openUserProfile={openUserProfile} />}
             {tab === "rooms"    && <RoomsView   openUserProfile={openUserProfile} />}
@@ -576,21 +579,23 @@ export function AppShell() {
 
       {/* ── Nav mobile (oculto durante chat em tela cheia) ── */}
       {!inChat && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-          <div className="mx-3 mb-3 flex items-center justify-around rounded-2xl border border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg px-1 py-1.5">
+        <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
+          <div className="nav-pill pointer-events-auto mx-2 mb-2 sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-full">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => handleTabClick(t.id)}
                 className={cn(
-                  "flex min-w-[56px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 transition-all duration-200",
+                  "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-all duration-200",
                   tab === t.id
                     ? "bg-primary text-primary-foreground"
                     : "text-primary/40 active:scale-95"
                 )}
               >
-                <t.icon className={cn("h-5 w-5", tab === t.id && "stroke-[2.5px]")} />
-                <span className="text-[10px] font-medium leading-none">{t.label}</span>
+                <t.icon className={cn("h-5 w-5 shrink-0", tab === t.id && "stroke-[2.5px]")} />
+                <span className="text-[9px] sm:text-[10px] font-medium leading-none truncate max-w-full">
+                  {t.label}
+                </span>
               </button>
             ))}
           </div>

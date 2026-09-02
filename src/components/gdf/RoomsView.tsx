@@ -167,16 +167,17 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
   };
 
   return (
-    <div className="space-y-6 pb-2">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Salas</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+    <div className="space-y-5 sm:space-y-6 pb-2 w-full min-w-0 max-w-full overflow-x-hidden">
+      <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Salas</h2>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
             {rooms.length} sala{rooms.length !== 1 ? "s" : ""} ativa{rooms.length !== 1 ? "s" : ""} · Feira de Santana
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-4 h-10 shadow-sm shrink-0">
-          <Plus className="h-4 w-4" /> Nova sala
+        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-3 sm:px-4 h-10 min-h-10 shadow-sm shrink-0">
+          <Plus className="h-4 w-4" />
+          <span className="text-sm">Nova</span>
         </Button>
       </div>
 
@@ -342,7 +343,7 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`group flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.98] border shadow-sm hover:shadow-md ${
+      className={`group flex w-full min-w-0 max-w-full items-center gap-2.5 sm:gap-3.5 rounded-2xl px-3 sm:px-4 py-3 sm:py-3.5 text-left transition-all duration-200 active:scale-[0.98] border shadow-sm hover:shadow-md touch-manipulation ${
         isMember
           ? hasUnread
             ? "bg-primary/[0.08] border-primary/25 hover:bg-primary/[0.11]"
