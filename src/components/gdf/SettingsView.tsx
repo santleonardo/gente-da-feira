@@ -310,6 +310,22 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   dot: "bg-[#3dd9c6]",
                 },
                 {
+                  id: "a11y",
+                  label: "Alto contraste",
+                  desc: "Preto no branco",
+                  icon: Contrast,
+                  swatch: "bg-white border-black",
+                  dot: "bg-black",
+                },
+                {
+                  id: "a11y-dark",
+                  label: "Contraste escuro",
+                  desc: "Branco no preto",
+                  icon: Contrast,
+                  swatch: "bg-black border-white",
+                  dot: "bg-white",
+                },
+                {
                   id: "system",
                   label: "Sistema",
                   desc: "Segue o aparelho",
