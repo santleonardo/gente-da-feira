@@ -48,24 +48,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "40") || 40, 1), 100);
+    // Cursor: mensagens mais antigas que este timestamp ISO (infinite scroll para cima)
+    const before = searchParams.get("before")?.trim() || null;
 
     // SEC-009: Explicit columns for messages — no SELECT *
-    // (MESSAGE_COLS and SENDER_COLS are defined at module scope below)
-
-    // O RLS em messages garantirá que apenas mensagens de salas do usuário
-    // sejam retornadas, mesmo se houver bug no filtro .eq("room_id", id).
-    const { data: messages, error } = await supabase.from("messages")
+    // Paginação: busca as N mais recentes (ou anteriores a `before`) em ordem DESC
+    // e devolve em ordem ASC para o client.
+    let query = supabase
+      .from("messages")
       .select(`${MESSAGE_COLS}, sender:profiles(${SENDER_COLS})`)
       .eq("room_id", id)
       .eq("target_type", "room")
       .eq("is_deleted", false)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (before) {
+      // Valida ISO aproximado para evitar filtro inválido
+      const t = Date.parse(before);
+      if (!Number.isNaN(t)) {
+        query = query.lt("created_at", new Date(t).toISOString());
+      }
+    }
+
+    const { data: messages, error } = await query;
 
     if (error) {
       console.error("[SEC-002 room-messages GET query]", error);
       throw error;
+    }
+
+    // Reverte para ordem cronológica (antiga → recente)
+    if (messages && messages.length > 1) {
+      messages.reverse();
     }
 
     // Defesa extra: se a limpeza em background ainda não rodou,
@@ -131,25 +147,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       });
     }
 
-    // Mark-as-read: usuário está visualizando a sala → atualiza last_read_at.
-    // Fire-and-forget para não atrasar a resposta das mensagens.
-    // Se a coluna ainda não existir (migration não rodada), o update falha
-    // silenciosamente e a lista continua funcionando sem unread.
-    void supabase
-      .from("room_members")
-      .update({ last_read_at: now })
-      .eq("room_id", id)
-      .eq("user_id", user.id)
-      .then(({ error: markErr }) => {
-        if (markErr) {
-          console.warn("[rooms/messages mark-read]", markErr.message);
-        }
-      });
+    // Mark-as-read só na carga “recente” (sem cursor before).
+    // Scroll de histórico antigo não deve alterar last_read_at.
+    if (!before) {
+      void supabase
+        .from("room_members")
+        .update({ last_read_at: now })
+        .eq("room_id", id)
+        .eq("user_id", user.id)
+        .then(({ error: markErr }) => {
+          if (markErr) {
+            console.warn("[rooms/messages mark-read]", markErr.message);
+          }
+        });
+    }
 
     // Fire-and-forget: limpa mídia expirada (best effort)
     cleanupExpiredMessageMedia().catch(() => {});
 
-    return NextResponse.json({ messages: sanitized });
+    const hasMore = (sanitized?.length ?? 0) >= limit;
+
+    return NextResponse.json({ messages: sanitized, hasMore });
   } catch (error: any) {
     console.error("[SEC-002 room-messages GET]", error);
     const { message, status } = safeErrorResponse(error, 500, "[rooms/messages GET]");

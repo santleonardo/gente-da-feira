@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Users, Plus, LogOut, UserPlus, UserCheck,
-  ChevronUp, X, MoreVertical, Hash, Crown, Shield,
+  ChevronUp, ChevronDown, X, MoreVertical, Hash, Crown, Shield,
   Camera, Video, Mic, StopCircle, ImagePlus, Music,
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
@@ -2005,6 +2005,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
+  /** Infinite scroll: há mensagens mais antigas? */
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  /** Usuário não está no final do chat → mostra botão “Ir para o final” */
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  /** Se true, auto-scroll quando chega mensagem nova */
+  const stickToBottomRef = useRef(true);
+  const loadingOlderRef = useRef(false);
+  const MSG_PAGE_SIZE = 40;
   // isMember e isBanned são derivados exclusivamente do objeto room (vindo da API / Zustand)
   // Nunca usar estado local para participação — a API é a única fonte de verdade
   const isMember = room.isMember === true;
@@ -2252,10 +2261,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/rooms/${room.id}/messages?limit=50`);
+      const res = await fetch(`/api/rooms/${room.id}/messages?limit=${MSG_PAGE_SIZE}`);
       const data = await res.json();
       if (res.status === 404 || data.error === "Sala não encontrada") {
-        // Sala foi excluída — redirecionar
         setRoomDeletedDetected(true);
         toast.error("Esta sala foi excluída", { duration: 5000 });
         setSelectedRoom(null);
@@ -2264,11 +2272,87 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       }
       if (data.error) return;
       setMessages(data.messages || []);
+      setHasMoreOlder(data.hasMore !== false && (data.messages?.length || 0) >= MSG_PAGE_SIZE);
+      stickToBottomRef.current = true;
+      setShowJumpToBottom(false);
     } catch { /* silent */ }
     setLoading(false);
   }, [room.id, setSelectedRoom, onRefreshRooms]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
+
+  /** Carrega mensagens mais antigas (scroll para cima) */
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlderRef.current || !hasMoreOlder || messages.length === 0) return;
+    const oldest = messages[0];
+    if (!oldest?.created_at) return;
+
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight ?? 0;
+    const prevTop = el?.scrollTop ?? 0;
+
+    try {
+      const res = await fetch(
+        `/api/rooms/${room.id}/messages?limit=${MSG_PAGE_SIZE}&before=${encodeURIComponent(oldest.created_at)}`
+      );
+      const data = await res.json();
+      if (data.error || !Array.isArray(data.messages)) {
+        setHasMoreOlder(false);
+        return;
+      }
+      const older = data.messages as any[];
+      if (older.length === 0) {
+        setHasMoreOlder(false);
+        return;
+      }
+      setHasMoreOlder(data.hasMore === true && older.length >= MSG_PAGE_SIZE);
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        const unique = older.filter((m) => !seen.has(m.id));
+        return [...unique, ...prev];
+      });
+      // Mantém a posição visual após prepend
+      requestAnimationFrame(() => {
+        if (el) {
+          const newHeight = el.scrollHeight;
+          el.scrollTop = prevTop + (newHeight - prevHeight);
+        }
+      });
+    } catch {
+      /* silent */
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [hasMoreOlder, messages, room.id]);
+
+  const isNearBottom = (el: HTMLDivElement, threshold = 80) => {
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  };
+
+  const handleMessagesScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const nearBottom = isNearBottom(el);
+    stickToBottomRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom && messages.length > 0);
+
+    // Infinite scroll: perto do topo
+    if (el.scrollTop < 80 && hasMoreOlder && !loadingOlderRef.current) {
+      loadOlderMessages();
+    }
+  }, [hasMoreOlder, loadOlderMessages, messages.length]);
+
+  const jumpToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    stickToBottomRef.current = true;
+    setShowJumpToBottom(false);
+  }, []);
 
   // ── Verificar participação ao montar e quando a sala mudar ──
   // Re-valida com a API para garantir que o estado está correto
@@ -2401,8 +2485,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     enabled: !!profile,
   });
 
+  // Auto-scroll só se o usuário já estiver no final (ou na carga inicial)
   useEffect(() => {
-    setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 100);
+    if (loading) return;
+    if (!stickToBottomRef.current) return;
+    const t = setTimeout(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight });
+    }, 50);
+    return () => clearTimeout(t);
   }, [messages, loading]);
 
   const handleJoin = async () => {
@@ -2536,6 +2627,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     const { file, type, objectUrl } = mediaPreview;
     const caption = input.trim();
     const replyingTo = replyTo;
+    stickToBottomRef.current = true;
+    setShowJumpToBottom(false);
     setSendingMedia(true);
     setUploadProgress(0);
     const url = await uploadChatMedia(file, type);
@@ -2642,6 +2735,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     setReplyTo(null);
     setMentionQuery(null);
     setSendingMedia(false);
+    // Ao enviar, gruda no final
+    stickToBottomRef.current = true;
+    setShowJumpToBottom(false);
     try {
       const body: any = { content: text || undefined };
       if (mediaData) {
@@ -3237,7 +3333,24 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
       {/* ═══════ Messages ═══════ */}
       {isMember && (
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20">
+        <div className="relative flex-1 min-h-0 flex flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={handleMessagesScroll}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20"
+        >
+          {/* Loader no topo: histórico antigo */}
+          {loadingOlder && (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="ml-2 text-[11px] text-muted-foreground">Carregando histórico...</span>
+            </div>
+          )}
+          {!loadingOlder && !hasMoreOlder && messages.length > 0 && (
+            <p className="text-center text-[10px] text-muted-foreground/60 py-2">
+              Início da conversa
+            </p>
+          )}
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-2">
@@ -3395,6 +3508,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </div>
             );
           })}
+        </div>
+
+          {/* Botão flutuante: ir para o final */}
+          {showJumpToBottom && (
+            <button
+              type="button"
+              onClick={jumpToBottom}
+              className="absolute bottom-3 right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border shadow-lg text-foreground hover:bg-accent active:scale-95 transition-all"
+              title="Ir para o final"
+            >
+              <ChevronDown className="h-5 w-5" />
+            </button>
+          )}
         </div>
       )}
 
