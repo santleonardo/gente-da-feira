@@ -31,6 +31,7 @@ import {
   Moon,
   Sun,
   Monitor,
+  Contrast,
   FileText,
   ChevronRight,
   Flag,
@@ -290,8 +291,8 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   label: "Claro",
                   desc: "Dia na feira",
                   icon: Sun,
-                  swatch: "bg-[#f7f9fa] border-[#c8dde3]",
-                  dot: "bg-[#0A4D5C]",
+                  swatch: "bg-background border-border",
+                  dot: "bg-primary",
                 },
                 {
                   id: "dark",
@@ -299,7 +300,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   desc: "Padrão noturno",
                   icon: Moon,
                   swatch: "bg-[#0a0f10] border-[#1e3338]",
-                  dot: "bg-[#2EC4B6]",
+                  dot: "bg-primary",
                 },
                 {
                   id: "noite",
@@ -330,7 +331,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
                   label: "Sistema",
                   desc: "Segue o aparelho",
                   icon: Monitor,
-                  swatch: "bg-gradient-to-br from-[#f7f9fa] to-[#0a0f10] border-border",
+                  swatch: "bg-gradient-to-br from-background to-foreground border-border",
                   dot: "bg-primary",
                 },
               ] as const
