@@ -86,9 +86,9 @@ export function parseInlineFormatting(
 
   const defaultMentionClass = isMine
     ? "text-primary-foreground/90 font-semibold underline decoration-primary-foreground/30 underline-offset-2 hover:decoration-primary-foreground/60 cursor-pointer transition-colors"
-    : "text-[#0A4D5C] font-semibold underline decoration-[#0A4D5C]/30 underline-offset-2 hover:decoration-[#0A4D5C]/60 cursor-pointer transition-colors";
+    : "text-primary font-semibold underline decoration-primary/30 underline-offset-2 hover:decoration-primary/60 cursor-pointer transition-colors";
 
-  const defaultLinkClass = linkClassName || "text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors";
+  const defaultLinkClass = linkClassName || "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition-colors";
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
