@@ -2022,7 +2022,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   /** Autocomplete de @menção: query após o @ e índice selecionado */
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [loading, setLoading] = useState(true);
   /** Infinite scroll: há mensagens mais antigas? */
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
@@ -2033,8 +2033,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const stickToBottomRef = useRef(true);
   const loadingOlderRef = useRef(false);
   const MSG_PAGE_SIZE = 40;
-  /** Picker de reação aberto nesta mensagem */
-  const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
+  /** Sheet de reações (mobile-friendly) */
+  const [reactionSheetMsgId, setReactionSheetMsgId] = useState<string | null>(null);
+  /** Long-press → sheet de ações da mensagem */
+  const [messageActionMsg, setMessageActionMsg] = useState<any | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Presença: user_ids online nesta sala */
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   /** Busca na lista de membros */
@@ -2867,9 +2870,24 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
   // ═══════ Apagar mensagem (autor ou mod/creator) ═══════
   /** Toggle reação com optimistic UI */
+  const clearLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const openMessageActions = (msg: any) => {
+    clearLongPress();
+    setMessageActionMsg(msg);
+    setReactionSheetMsgId(null);
+    setAttachMenuOpen(false);
+  };
+
   const toggleReaction = async (messageId: string, emoji: string) => {
     if (!profile || !isMember) return;
-    setReactionPickerId(null);
+    setReactionSheetMsgId(null);
+    setMessageActionMsg(null);
 
     // Snapshot para rollback
     let snapshot: any[] | null = null;
@@ -3316,10 +3334,22 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         </div>
       </div>
 
-      {/* ═══════ Member Sidebar (abas: Membros | Banidos) ═══════ */}
+      {/* ═══════ Membros: bottom sheet (mobile-first) ═══════ */}
       {showMembers && (
-        <div className="border-b bg-card/50 backdrop-blur-md px-4 py-3 max-h-72 overflow-y-auto custom-scrollbar">
-          <div className="flex items-center justify-between mb-2.5">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            aria-label="Fechar membros"
+            onClick={() => {
+              setShowMembers(false);
+              setMembersTab("active");
+              setMemberSearch("");
+            }}
+          />
+          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-border bg-card shadow-2xl max-h-[85dvh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden shrink-0" />
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
             <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
               {membersTab === "active"
                 ? `Membros · ${members.length}${onlineCount > 0 ? ` · ${onlineCount} online` : ""}`
@@ -3328,16 +3358,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 rounded-full"
+              className="h-10 w-10 rounded-full"
               onClick={() => {
                 setShowMembers(false);
                 setMembersTab("active");
                 setMemberSearch("");
               }}
             >
-              <X className="h-3 w-3" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
+          <div className="px-4 pb-3 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
 
           {/* Abas — Banidos só para mod/creator */}
           {isAdmin && (
@@ -3507,6 +3538,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               )}
             </>
           )}
+          </div>
+          </div>
         </div>
       )}
 
@@ -3627,13 +3660,36 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     {isMine && (
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
                     )}
-                    <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block break-words ${
-                      hasMedia && !msg.content?.trim() && !msg.reply_to
-                        ? "bg-transparent p-0"
-                        : isMine
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "bg-muted rounded-bl-md"
-                    }`}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        openMessageActions(msg);
+                      }}
+                      onTouchStart={() => {
+                        clearLongPress();
+                        longPressTimerRef.current = setTimeout(() => {
+                          openMessageActions(msg);
+                        }, 480);
+                      }}
+                      onTouchEnd={clearLongPress}
+                      onTouchMove={clearLongPress}
+                      onTouchCancel={clearLongPress}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openMessageActions(msg);
+                        }
+                      }}
+                      className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block break-words select-none touch-manipulation ${
+                        hasMedia && !msg.content?.trim() && !msg.reply_to
+                          ? "bg-transparent p-0"
+                          : isMine
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : "bg-muted rounded-bl-md"
+                      }`}
+                    >
                       {/* Quote da mensagem respondida */}
                       {msg.reply_to && (
                         <div
@@ -3667,12 +3723,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             src={msg.media_url}
                             alt="Foto"
                             className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                            onClick={() => window.open(msg.media_url, "_blank")}
+                            loading="lazy"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(msg.media_url, "_blank");
+                            }}
                           />
                         </div>
                       )}
                       {hasVideo && (
-                        <div className="mb-1">
+                        <div className="mb-1" onClick={(e) => e.stopPropagation()}>
                           <video
                             src={msg.media_url}
                             className="max-w-full max-h-64 rounded-xl object-cover"
@@ -3683,68 +3743,43 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         </div>
                       )}
                       {hasAudio && (
-                        <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                        </div>
                       )}
                       {msg.content?.trim() && msg.content !== "📷" && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
                     </div>
                     {!isMine && (
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
                     )}
-                    <div className="relative mb-1 shrink-0 flex items-center gap-0.5">
+                    {/* Desktop: ações rápidas com área de toque maior */}
+                    <div className="hidden sm:flex mb-1 shrink-0 items-center gap-0.5">
                       <button
-                        onClick={() =>
-                          setReactionPickerId((id) => (id === msg.id ? null : msg.id))
-                        }
+                        type="button"
+                        onClick={() => setReactionSheetMsgId(msg.id)}
                         title="Reagir"
-                        className="text-muted-foreground/30 hover:text-primary transition-colors p-0.5"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/50 hover:text-primary hover:bg-accent transition-colors"
                       >
-                        <SmilePlus className="h-3.5 w-3.5" />
+                        <SmilePlus className="h-4 w-4" />
                       </button>
-                      {reactionPickerId === msg.id && (
-                        <div
-                          className={`absolute bottom-full mb-1 z-30 flex gap-0.5 rounded-full border border-border bg-popover p-1 shadow-lg ${
-                            isMine ? "right-0" : "left-0"
-                          }`}
-                        >
-                          {ROOM_REACTION_EMOJIS.map((em) => (
-                            <button
-                              key={em}
-                              type="button"
-                              onClick={() => toggleReaction(msg.id, em)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-accent active:scale-110 transition-transform"
-                              title={em}
-                            >
-                              {em}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => startReply(msg)}
+                        title="Responder"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/50 hover:text-primary hover:bg-accent transition-colors"
+                      >
+                        <Reply className="h-4 w-4" />
+                      </button>
                     </div>
+                    {/* Mobile: botão único “mais” (além do long-press) */}
                     <button
-                      onClick={() => startReply(msg)}
-                      title="Responder"
-                      className="mb-1 shrink-0 text-muted-foreground/30 hover:text-primary transition-colors"
+                      type="button"
+                      onClick={() => openMessageActions(msg)}
+                      title="Ações"
+                      className="sm:hidden mb-1 shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/40 hover:bg-accent"
                     >
-                      <Reply className="h-3 w-3" />
+                      <MoreVertical className="h-4 w-4" />
                     </button>
-                    {!isMine && (
-                      <button
-                        onClick={() => useStore.getState().openReportDialog({ targetType: "room_message", targetId: msg.id })}
-                        title="Denunciar mensagem"
-                        className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
-                      >
-                        <Flag className="h-3 w-3" />
-                      </button>
-                    )}
-                    {(isMine || isAdmin) && (
-                      <button
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        title={isMine ? "Apagar mensagem" : "Remover mensagem (moderação)"}
-                        className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
                   </div>
 
                   {/* Chips de reações */}
@@ -3912,69 +3947,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
             {!sendingMedia && (
               <div className="flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full">
-                {/* Botão + para abrir menu de anexos (para cima) */}
-                <div className="relative" ref={attachMenuRef}>
+                {/* Anexar — abre action sheet */}
+                <div className="relative self-end" ref={attachMenuRef}>
                   <button
-                    onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
+                    type="button"
+                    onClick={() => setAttachMenuOpen(true)}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
                     title="Anexar mídia"
                   >
-                    <ChevronUp className={`h-5 w-5 transition-transform ${attachMenuOpen ? "rotate-180" : ""}`} />
+                    <Plus className="h-5 w-5" />
                   </button>
-
-                  {/* ═══════ Menu de anexos — somente ícones ═══════ */}
-                  {attachMenuOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 rounded-full bg-popover p-1.5 shadow-lg border border-border z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
-                      <button
-                        onClick={() => cameraPhotoRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
-                        title="Tirar foto"
-                      >
-                        <Camera className="h-5 w-5 text-primary" />
-                      </button>
-
-                      <button
-                        onClick={() => galleryPhotoRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
-                        title="Foto da galeria"
-                      >
-                        <ImagePlus className="h-5 w-5 text-primary" />
-                      </button>
-
-                      <button
-                        onClick={() => cameraVideoRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
-                        title="Filmar com câmera"
-                      >
-                        <Video className="h-5 w-5 text-primary" />
-                      </button>
-
-                      <button
-                        onClick={() => videoFileRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
-                        title="Escolher vídeo"
-                      >
-                        <Video className="h-5 w-5 text-primary/40" />
-                      </button>
-
-                      <button
-                        onClick={() => { if (!isRecordingAudio) startAudioRecording(); }}
-                        disabled={isRecordingAudio}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-accent ${isRecordingAudio ? "text-muted-foreground cursor-not-allowed" : "text-popover-foreground"}`}
-                        title="Gravar áudio"
-                      >
-                        <Mic className={`h-5 w-5 ${isRecordingAudio ? "" : "text-primary"}`} />
-                      </button>
-
-                      <button
-                        onClick={() => audioFileRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
-                        title="Escolher áudio"
-                      >
-                        <Music className="h-5 w-5 text-primary/40" />
-                      </button>
-                    </div>
-                  )}
 
                   {/* Hidden inputs */}
                   <input ref={cameraPhotoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={handleCameraPhotoCapture} className="hidden" />
@@ -4049,14 +4031,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     </div>
                   )}
 
-                  <Input
+                  <Textarea
                     ref={inputRef}
-                    placeholder={replyTo ? "Escreva sua resposta..." : "Escreva uma mensagem... @para mencionar"}
+                    rows={1}
+                    placeholder={replyTo ? "Escreva sua resposta..." : "Mensagem… use @ para mencionar"}
                     value={input}
                     onChange={(e) => {
                       const v = e.target.value.slice(0, 2000);
                       setInput(v);
                       detectMention(v, e.target.selectionStart ?? v.length);
+                      // auto-grow até ~4 linhas
+                      const el = e.target;
+                      el.style.height = "auto";
+                      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
                     }}
                     onKeyDown={(e) => {
                       if (mentionQuery !== null && mentionCandidates.length > 0) {
@@ -4084,10 +4071,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       }
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        sendMessage();
+                        if (mediaPreview) confirmMediaPreview();
+                        else sendMessage();
                       }
                     }}
-                    className="h-11 rounded-full pl-4 pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
+                    className="min-h-[44px] max-h-[120px] resize-none rounded-2xl py-2.5 pl-4 pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30 text-[15px] leading-snug shadow-none"
                   />
                 </div>
 
@@ -4111,6 +4099,166 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </>
         ) : null}
       </div>
+
+      {/* ═══════ Action sheet: anexos ═══════ */}
+      {attachMenuOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setAttachMenuOpen(false)} />
+          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-border bg-card shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
+            <p className="px-4 pt-3 pb-2 text-sm font-semibold">Anexar</p>
+            <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+              {[
+                { label: "Câmera", icon: Camera, action: () => cameraPhotoRef.current?.click() },
+                { label: "Galeria", icon: ImagePlus, action: () => galleryPhotoRef.current?.click() },
+                { label: "Filmar", icon: Video, action: () => cameraVideoRef.current?.click() },
+                { label: "Vídeo", icon: Video, action: () => videoFileRef.current?.click() },
+                { label: "Áudio", icon: Mic, action: () => { if (!isRecordingAudio) startAudioRecording(); } },
+                { label: "Arquivo áudio", icon: Music, action: () => audioFileRef.current?.click() },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    item.action();
+                  }}
+                  className="flex flex-col items-center gap-2 rounded-2xl bg-muted/50 py-4 px-2 active:scale-95 transition-transform hover:bg-accent"
+                >
+                  <item.icon className="h-6 w-6 text-primary" />
+                  <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAttachMenuOpen(false)}
+              className="mx-4 mb-2 mt-1 flex h-12 w-[calc(100%-2rem)] items-center justify-center rounded-2xl bg-muted text-sm font-semibold"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ Action sheet: ações da mensagem (long-press) ═══════ */}
+      {messageActionMsg && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setMessageActionMsg(null)} />
+          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-border bg-card shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
+            <p className="px-4 pt-3 pb-1 text-sm font-semibold truncate">
+              {messageActionMsg.sender?.display_name || "Mensagem"}
+            </p>
+            <p className="px-4 pb-3 text-xs text-muted-foreground truncate">
+              {messageActionMsg.media_type === "image"
+                ? "📷 Foto"
+                : messageActionMsg.media_type === "video"
+                  ? "🎬 Vídeo"
+                  : messageActionMsg.media_type === "audio"
+                    ? "🎤 Áudio"
+                    : (messageActionMsg.content || "").slice(0, 80)}
+            </p>
+            <div className="flex flex-col px-2 pb-2">
+              <button
+                type="button"
+                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent active:bg-accent"
+                onClick={() => {
+                  const id = messageActionMsg.id;
+                  setMessageActionMsg(null);
+                  setReactionSheetMsgId(id);
+                }}
+              >
+                <SmilePlus className="h-5 w-5 text-primary" /> Reagir
+              </button>
+              <button
+                type="button"
+                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent"
+                onClick={() => {
+                  startReply(messageActionMsg);
+                  setMessageActionMsg(null);
+                }}
+              >
+                <Reply className="h-5 w-5 text-primary" /> Responder
+              </button>
+              {!!messageActionMsg.content?.trim() && (
+                <button
+                  type="button"
+                  className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(messageActionMsg.content);
+                      toast.success("Copiado");
+                    } catch {
+                      toast.error("Não foi possível copiar");
+                    }
+                    setMessageActionMsg(null);
+                  }}
+                >
+                  <Hash className="h-5 w-5 text-muted-foreground" /> Copiar texto
+                </button>
+              )}
+              {messageActionMsg.sender_id !== profile?.id && (
+                <button
+                  type="button"
+                  className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium text-red-600 hover:bg-red-500/10"
+                  onClick={() => {
+                    useStore.getState().openReportDialog({
+                      targetType: "room_message",
+                      targetId: messageActionMsg.id,
+                    });
+                    setMessageActionMsg(null);
+                  }}
+                >
+                  <Flag className="h-5 w-5" /> Denunciar
+                </button>
+              )}
+              {(messageActionMsg.sender_id === profile?.id || isAdmin) && (
+                <button
+                  type="button"
+                  className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium text-red-600 hover:bg-red-500/10"
+                  onClick={() => {
+                    const id = messageActionMsg.id;
+                    setMessageActionMsg(null);
+                    handleDeleteMessage(id);
+                  }}
+                >
+                  <Trash2 className="h-5 w-5" /> Apagar
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMessageActionMsg(null)}
+              className="mx-4 mb-2 flex h-12 w-[calc(100%-2rem)] items-center justify-center rounded-2xl bg-muted text-sm font-semibold"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ Sheet de reações ═══════ */}
+      {reactionSheetMsgId && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end sm:justify-center sm:items-center">
+          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setReactionSheetMsgId(null)} />
+          <div className="relative z-10 mx-auto w-full max-w-sm rounded-t-3xl sm:rounded-3xl border border-border bg-card p-4 shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in zoom-in-95 duration-150">
+            <p className="mb-3 text-center text-sm font-semibold">Reagir</p>
+            <div className="flex justify-center gap-1.5 flex-wrap">
+              {ROOM_REACTION_EMOJIS.map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => toggleReaction(reactionSheetMsgId, em)}
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl hover:bg-accent active:scale-110 transition-transform"
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════ Overlay de gravação de áudio ═══════ */}
       {isRecordingAudio && (
