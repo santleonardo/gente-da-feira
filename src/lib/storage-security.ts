@@ -28,12 +28,12 @@ export const ALLOWED_BUCKETS = new Set([
  * Usado para validar que a URL corresponde ao tipo de mídia esperado.
  */
 export const BUCKET_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
-  "post-photos": new Set(["jpg", "jpeg", "png", "webp", "gif"]),
+  "post-photos": new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]),
   "post-videos": new Set(["mp4", "webm", "mov"]),
   "post-audios": new Set(["mp3", "m4a", "webm", "ogg", "wav"]),
-  "post-images": new Set(["jpg", "jpeg", "png", "webp", "gif"]),
+  "post-images": new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]),
   "profile-videos": new Set(["mp4", "webm", "mov"]),
-  "avatars": new Set(["jpg", "jpeg", "png", "webp", "gif"]),
+  "avatars": new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]),
 };
 
 /**
