@@ -292,7 +292,7 @@ function AudioPlayer({ src }: { src: string }) {
   return (
     <div className="mt-2.5 rounded-3xl bg-primary/[0.06] p-4 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3.5">
-        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-md hover:bg-primary/90 transition-all hover:scale-105">
+        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all hover:scale-105">
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
@@ -1123,7 +1123,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
             />
             <div className="flex items-center gap-2 mt-3">
               <Button variant="outline" size="sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }} className="rounded-full border-primary/10 text-primary">Cancelar</Button>
-              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-primary text-[#f7f9fa] hover:bg-primary/90 border-0">
+              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border-0">
                 <Repeat2 className="h-3.5 w-3.5" /> Compartilhar
               </Button>
             </div>

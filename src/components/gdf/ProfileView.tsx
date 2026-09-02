@@ -230,7 +230,7 @@ function AudioPlayer({ src }: { src: string }) {
   return (
     <div className="mt-2.5 rounded-2xl bg-primary/[0.06] p-3 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3">
-        <button onClick={toggle} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-md hover:bg-primary/90 transition-all hover:scale-105">
+        <button onClick={toggle} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all hover:scale-105">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
@@ -992,7 +992,7 @@ export function ProfileView() {
                   user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
                   className="h-16 w-16"
                 />
-                <button onClick={() => avatarInputRef.current?.click()} disabled={uploading} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#f7f9fa] bg-primary text-[#f7f9fa] shadow-sm transition-colors hover:bg-primary/90">
+                <button onClick={() => avatarInputRef.current?.click()} disabled={uploading} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#f7f9fa] bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
                   <Camera className="h-3.5 w-3.5" />
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarUpload} className="hidden" />
@@ -1235,7 +1235,7 @@ export function ProfileView() {
                 {previewUrls.map((url, i) => (
                   <div key={i} className="relative group">
                     <img src={url} alt={`Preview ${i + 1}`} className="h-12 w-12 rounded-lg object-cover shadow-sm border border-[#f7f9fa]" />
-                    <button onClick={() => removePhoto(i)} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[#f7f9fa] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => removePhoto(i)} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                       <X className="h-2.5 w-2.5" />
                     </button>
                   </div>
@@ -1249,7 +1249,7 @@ export function ProfileView() {
                 <div className="absolute top-1 left-1 flex items-center gap-1 rounded-full bg-[#f7f75e] px-1.5 py-0.5 text-[9px] font-semibold text-[#000305]">
                   <Video className="h-2.5 w-2.5" /> {formatDuration(videoDuration)}
                 </div>
-                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -1258,14 +1258,14 @@ export function ProfileView() {
             {hasAudioInComposer && audioPreview && (
               <div className="relative rounded-lg bg-primary/[0.06] p-1.5 border border-primary/10 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Music className="h-3 w-3" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-medium text-foreground">Áudio</span>
                     <span className="text-[9px] text-primary/40 ml-1">{formatDuration(audioDuration)}</span>
                   </div>
-                  <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                  <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <X className="h-2 w-2" />
                   </button>
                 </div>
@@ -1308,7 +1308,7 @@ export function ProfileView() {
               {/* Visibilidade */}
               <button
                 onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")}
-                className={`flex items-center gap-1 rounded-md h-7 px-2 text-[9px] font-medium transition-colors ${visibility === "followers" ? "bg-primary text-[#f7f9fa]" : "bg-primary/[0.06] text-primary hover:bg-primary/10"}`}
+                className={`flex items-center gap-1 rounded-md h-7 px-2 text-[9px] font-medium transition-colors ${visibility === "followers" ? "bg-primary text-primary-foreground" : "bg-primary/[0.06] text-primary hover:bg-primary/10"}`}
                 title={visibility === "public" ? "Público" : "Seguidores"}
               >
                 {visibility === "public" ? <Globe className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
@@ -1342,7 +1342,7 @@ export function ProfileView() {
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-5 p-6">
-            <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-10 w-10" />
             </div>
             <div className="text-center">
@@ -1394,7 +1394,7 @@ export function ProfileView() {
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleSave} size="sm" className="bg-primary text-[#f7f9fa] hover:bg-primary/90 border-0">Salvar</Button>
+                  <Button onClick={handleSave} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 border-0">Salvar</Button>
                 </div>
               </div>
             </CardContent>

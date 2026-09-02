@@ -369,7 +369,7 @@ const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
   return (
     <div className="mt-2.5 rounded-3xl bg-primary/[0.06] p-4 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3.5">
-        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-md hover:bg-primary/90 transition-all hover:scale-105">
+        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all hover:scale-105">
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
@@ -1161,7 +1161,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                 {previewUrls.map((url, i) => (
                   <div key={i} className="relative group">
                     <img src={url} alt={`Preview ${i + 1}`} className="h-20 w-20 rounded-2xl object-cover shadow-md border-2 border-[#f7f9fa]" />
-                    <button onClick={() => removeSelectedFile(i)} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa] opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                    <button onClick={() => removeSelectedFile(i)} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
@@ -1175,7 +1175,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                 <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-card-foreground">
                   <Video className="h-3 w-3" /> {formatDuration(videoDuration)}
                 </div>
-                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <X className="h-3 w-3" />
                 </button>
               </div>
@@ -1184,7 +1184,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
             {hasAudioInComposer && audioPreview && (
               <div className="relative rounded-2xl bg-primary/[0.06] p-3 border border-primary/10">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Music className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1193,7 +1193,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                   </div>
                 </div>
                 <audio src={audioPreview} controls className="mt-2 w-full h-8" />
-                <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
+                <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -1303,7 +1303,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               className="w-full min-h-[60px] resize-none border-0 bg-transparent p-3 text-sm text-card-foreground focus:outline-none placeholder:text-primary/30" rows={2} />
             <div className="flex items-center gap-2 mt-3">
               <Button variant="outline" size="sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }} className="rounded-full border-primary/10 text-primary">Cancelar</Button>
-              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-primary text-[#f7f9fa] hover:bg-primary/90 border-0">
+              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border-0">
                 <Repeat2 className="h-3.5 w-3.5" /> Compartilhar
               </Button>
             </div>
@@ -1366,7 +1366,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">

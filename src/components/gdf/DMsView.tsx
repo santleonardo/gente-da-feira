@@ -1149,7 +1149,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">
