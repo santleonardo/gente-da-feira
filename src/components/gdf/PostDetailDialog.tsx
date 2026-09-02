@@ -249,7 +249,7 @@ function VideoPlayer({ src }: { src: string }) {
       />
       {!playing && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/30 cursor-pointer" onClick={toggle}>
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0A4D5C] shadow-lg transition-transform hover:scale-110">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg transition-transform hover:scale-110">
             <Play className="h-8 w-8 text-[#f7f9fa] fill-[#f7f9fa] ml-1" />
           </div>
         </div>
@@ -290,23 +290,23 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="mt-2.5 rounded-3xl bg-[#0A4D5C]/[0.06] p-4 shadow-sm border border-[#0A4D5C]/10">
+    <div className="mt-2.5 rounded-3xl bg-primary/[0.06] p-4 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3.5">
-        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa] shadow-md hover:bg-[#0A4D5C]/90 transition-all hover:scale-105">
+        <button onClick={toggle} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-md hover:bg-primary/90 transition-all hover:scale-105">
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[11px] font-semibold text-card-foreground/70 tabular-nums">{formatDuration(currentTime)}</span>
-            <span className="text-[10px] text-[#0A4D5C]/30">/</span>
-            <span className="text-[11px] text-[#0A4D5C]/40 tabular-nums">{formatDuration(duration)}</span>
+            <span className="text-[10px] text-primary/30">/</span>
+            <span className="text-[11px] text-primary/40 tabular-nums">{formatDuration(duration)}</span>
           </div>
-          <div className="h-1.5 bg-[#0A4D5C]/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
+          <div className="h-1.5 bg-primary/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
             if (audioRef.current && duration) audioRef.current.currentTime = pct * duration;
           }}>
-            <div className="h-full bg-[#0A4D5C] rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
           </div>
         </div>
       </div>
@@ -427,15 +427,15 @@ function ShareMenu({
   };
 
   return (
-    <div className="absolute right-0 bottom-full mb-2 w-12 rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10 z-30 animate-in fade-in-0 zoom-in-95 flex flex-col items-center gap-0.5">
+    <div className="absolute right-0 bottom-full mb-2 w-12 rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-primary/10 z-30 animate-in fade-in-0 zoom-in-95 flex flex-col items-center gap-0.5">
       <button onClick={() => { onRepost(post); onClose(); }} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar no feed">
-        <Repeat2 className="h-4 w-4 text-[#0A4D5C]" />
+        <Repeat2 className="h-4 w-4 text-primary" />
       </button>
       <button onClick={handleExternalShare} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar fora">
-        <ExternalLink className="h-4 w-4 text-[#0A4D5C]/50" />
+        <ExternalLink className="h-4 w-4 text-primary/50" />
       </button>
       <button onClick={handleCopyLink} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Copiar texto">
-        <Copy className="h-4 w-4 text-[#0A4D5C]/50" />
+        <Copy className="h-4 w-4 text-primary/50" />
       </button>
     </div>
   );
@@ -469,16 +469,16 @@ function CommentItem({
             <button onClick={() => comment.author?.id && openUserProfile?.(comment.author.id)} className="text-[10px] sm:text-[11px] font-semibold text-card-foreground hover:underline">
               {comment.author?.display_name || "Usuário"}
             </button>
-            <span className="text-[9px] sm:text-[10px] text-[#0A4D5C]/30">{timeAgo(comment.created_at)}</span>
+            <span className="text-[9px] sm:text-[10px] text-primary/30">{timeAgo(comment.created_at)}</span>
           </div>
           <p className="text-[11px] sm:text-xs text-card-foreground/80 leading-relaxed">{comment.content}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
             <div className="relative">
-              <button onClick={() => setShowCommentReactions(!showCommentReactions)} className="text-[10px] text-[#0A4D5C]/30 hover:text-[#0A4D5C] transition-colors">
+              <button onClick={() => setShowCommentReactions(!showCommentReactions)} className="text-[10px] text-primary/30 hover:text-primary transition-colors">
                 {comment.reactions?.length > 0 ? `❤️ ${comment.reactions.length}` : "❤️"}
               </button>
               {showCommentReactions && (
-                <div className="absolute bottom-full left-0 mb-1 flex gap-0.5 rounded-xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10 z-20">
+                <div className="absolute bottom-full left-0 mb-1 flex gap-0.5 rounded-xl bg-[#f7f9fa] p-1 shadow-lg border border-primary/10 z-20">
                   {REACTION_EMOJIS.map(({ type, emoji }) => (
                     <button key={type} onClick={() => { onReaction(comment.id, type); setShowCommentReactions(false); }} className="rounded-lg p-1 text-sm hover:scale-110 transition-transform">
                       {emoji}
@@ -487,14 +487,14 @@ function CommentItem({
                 </div>
               )}
             </div>
-            <button onClick={() => onReply(comment)} className="text-[10px] text-[#0A4D5C]/30 hover:text-[#0A4D5C] transition-colors">Responder</button>
+            <button onClick={() => onReply(comment)} className="text-[10px] text-primary/30 hover:text-primary transition-colors">Responder</button>
             {isOwn && (
-              <button onClick={() => onDelete(comment.id)} className="text-[10px] text-[#0A4D5C]/20 hover:text-red-500 transition-colors">Excluir</button>
+              <button onClick={() => onDelete(comment.id)} className="text-[10px] text-primary/20 hover:text-red-500 transition-colors">Excluir</button>
             )}
             {!isOwn && (
               <button
                 onClick={() => useStore.getState().openReportDialog({ targetType: "comment", targetId: comment.id })}
-                className="text-[10px] text-[#0A4D5C]/20 hover:text-red-500 transition-colors"
+                className="text-[10px] text-primary/20 hover:text-red-500 transition-colors"
               >
                 Denunciar
               </button>
@@ -503,7 +503,7 @@ function CommentItem({
         </div>
       </div>
       {replies.length > 0 && (
-        <div className="ml-6 mt-1 space-y-1 border-l-2 border-[#0A4D5C]/8 pl-2">
+        <div className="ml-6 mt-1 space-y-1 border-l-2 border-primary/8 pl-2">
           {replies.map((reply) => (
             <CommentItem key={reply.id} comment={reply} replies={[]} profile={profile} onReply={onReply} onDelete={onDelete} onReaction={onReaction} openUserProfile={openUserProfile} />
           ))}
@@ -770,31 +770,31 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const hasPostStyle = localPost.post_style && typeof localPost.post_style === "object";
   // Todos os posts: fundo branco + texto preto (sem cores de post-it)
   const cardBg = "bg-card";
-  const commentsBg = "bg-[#0A4D5C]/[0.04]";
+  const commentsBg = "bg-primary/[0.04]";
 
   // Link class based on post type
   const linkClass = isTextOnly
-    ? "text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors"
-    : "text-[#0A4D5C] underline decoration-[#0A4D5C]/40 underline-offset-2 hover:decoration-[#0A4D5C] transition-colors";
+    ? "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition-colors"
+    : "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition-colors";
 
   return (
     <>
       {/* Full-screen dialog overlay */}
       <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#000305]/50 backdrop-blur-sm overflow-y-auto" onClick={() => onOpenChange(false)}>
         <div
-          className="w-full max-w-lg mx-4 my-8 rounded-3xl bg-[#f7f9fa] shadow-2xl border border-[#0A4D5C]/10 overflow-hidden"
+          className="w-full max-w-lg mx-4 my-8 rounded-3xl bg-[#f7f9fa] shadow-2xl border border-primary/10 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#0A4D5C]/8">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-primary/8">
             <h3 className="text-sm font-semibold text-card-foreground">Post</h3>
-            <button onClick={() => onOpenChange(false)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#0A4D5C]/10 transition-colors">
-              <X className="h-4 w-4 text-[#0A4D5C]/60" />
+            <button onClick={() => onOpenChange(false)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+              <X className="h-4 w-4 text-primary/60" />
             </button>
           </div>
 
           {/* Post content */}
-          <div className={`rounded-none ${cardBg} text-card-foreground overflow-hidden border border-[#0A4D5C]/10`}>
+          <div className={`rounded-none ${cardBg} text-card-foreground overflow-hidden border border-primary/10`}>
             <div className="p-4 sm:p-5">
               {/* Header */}
               <div className="flex items-start gap-2.5">
@@ -814,17 +814,17 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       </span>
                     )}
                     {isOwnPost && (
-                      <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-[#0A4D5C]">
+                      <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-primary">
                         Seu post
                       </span>
                     )}
                     {wasEdited && (
-                      <span className="inline-flex items-center rounded-full bg-[#0A4D5C]/10 px-2 py-0.5 text-[10px] font-medium text-[#0A4D5C]/60">
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary/60">
                         Editado
                       </span>
                     )}
-                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/20" : "text-[#0A4D5C]/25"}`}>·</span>
-                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/40" : "text-[#0A4D5C]/40"}`}>{timeAgo(localPost.created_at)}</span>
+                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/20" : "text-primary/25"}`}>·</span>
+                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/40" : "text-primary/40"}`}>{timeAgo(localPost.created_at)}</span>
                   </div>
 
                   {/* Content with clickable links and mentions */}
@@ -833,15 +833,15 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value.slice(0, 500))}
-                        className="w-full resize-none rounded-xl border border-[#0A4D5C]/20 bg-white/80 p-2.5 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#0A4D5C]/30"
+                        className="w-full resize-none rounded-xl border border-primary/20 bg-white/80 p-2.5 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#0A4D5C]/30"
                         rows={3}
                         autoFocus
                       />
                       <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-[10px] text-[#0A4D5C]/40">{editContent.length}/500</span>
+                        <span className="text-[10px] text-primary/40">{editContent.length}/500</span>
                         <div className="flex gap-1.5">
-                          <button onClick={handleCancelEdit} className="rounded-full px-3 py-1 text-xs text-[#0A4D5C]/50 hover:bg-[#0A4D5C]/[0.04] transition-colors">Cancelar</button>
-                          <button onClick={handleSaveEdit} disabled={!editContent.trim() && !((localPost?.image_urls && localPost.image_urls.length > 0) || localPost?.video_url || localPost?.audio_url)} className="rounded-full px-3 py-1 text-xs bg-[#0A4D5C] text-white hover:bg-[#0A4D5C]/90 transition-colors disabled:opacity-40">Salvar</button>
+                          <button onClick={handleCancelEdit} className="rounded-full px-3 py-1 text-xs text-primary/50 hover:bg-primary/[0.04] transition-colors">Cancelar</button>
+                          <button onClick={handleSaveEdit} disabled={!editContent.trim() && !((localPost?.image_urls && localPost.image_urls.length > 0) || localPost?.video_url || localPost?.audio_url)} className="rounded-full px-3 py-1 text-xs bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40">Salvar</button>
                         </div>
                       </div>
                     </div>
@@ -864,10 +864,10 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
 
                   {/* Shared post (repost) */}
                   {localPost.shared_post && !Array.isArray(localPost.shared_post) && (
-                    <div className="mt-2.5 rounded-2xl bg-[#0A4D5C]/[0.04] p-3 border border-[#0A4D5C]/8">
+                    <div className="mt-2.5 rounded-2xl bg-primary/[0.04] p-3 border border-primary/8">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <Repeat2 className="h-3 w-3 text-[#0A4D5C]/40" />
-                        <span className="text-[10px] text-[#0A4D5C]/40">Compartilhado de</span>
+                        <Repeat2 className="h-3 w-3 text-primary/40" />
+                        <span className="text-[10px] text-primary/40">Compartilhado de</span>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <button onClick={() => localPost.shared_post?.author?.id && navigateToProfile(localPost.shared_post.author.id)} className="shrink-0">
@@ -877,14 +877,14 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                           {localPost.shared_post?.author?.display_name || "Usuário"}
                         </button>
                       </div>
-                      <FormattedContent className="text-xs text-[#0A4D5C]/60 leading-relaxed" content={localPost.shared_post.content} openUserProfile={navigateToProfile} linkClassName={linkClass} />
+                      <FormattedContent className="text-xs text-primary/60 leading-relaxed" content={localPost.shared_post.content} openUserProfile={navigateToProfile} linkClassName={linkClass} />
                       {localPost.shared_post.image_urls && localPost.shared_post.image_urls.length > 0 && (
                         <div className="mt-1.5 flex gap-1 overflow-x-auto">
                           {localPost.shared_post.image_urls.slice(0, 2).map((url, i) => (
                             <img key={i} src={url} alt="" className="h-16 w-16 rounded-xl object-cover shrink-0" />
                           ))}
                           {localPost.shared_post.image_urls.length > 2 && (
-                            <div className="h-16 w-16 rounded-xl bg-[#0A4D5C]/[0.04] flex items-center justify-center text-xs text-[#0A4D5C]/40 shrink-0">
+                            <div className="h-16 w-16 rounded-xl bg-primary/[0.04] flex items-center justify-center text-xs text-primary/40 shrink-0">
                               +{localPost.shared_post.image_urls.length - 2}
                             </div>
                           )}
@@ -943,20 +943,20 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     <div className="relative">
                       <button
                         onClick={() => setShowReactions(!showReactions)}
-                        className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-[#0A4D5C] bg-[#0A4D5C]/10 font-medium" : "text-[#0A4D5C]/40 hover:bg-[#0A4D5C]/[0.04] hover:text-[#0A4D5C]"}`}
+                        className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-primary bg-primary/10 font-medium" : "text-primary/40 hover:bg-primary/[0.04] hover:text-primary"}`}
                       >
                         <Heart className="h-4 w-4" />
                         {localPost.reactions?.length > 0 && <span>{localPost.reactions.length}</span>}
                       </button>
                       {showReactions && (
-                        <div className="absolute bottom-full left-0 mb-1.5 flex gap-0.5 rounded-2xl bg-[#f7f9fa] p-1.5 shadow-lg border border-[#0A4D5C]/10 z-20">
+                        <div className="absolute bottom-full left-0 mb-1.5 flex gap-0.5 rounded-2xl bg-[#f7f9fa] p-1.5 shadow-lg border border-primary/10 z-20">
                           {REACTION_EMOJIS.map(({ type, emoji, label }) => {
                             const isActive = localPost.reactions?.some((r) => r.user_id === profile?.id && r.type === type);
                             return (
                               <button
                                 key={type}
                                 onClick={() => handleReaction(type)}
-                                className={`rounded-xl p-1.5 text-lg transition-all hover:scale-125 ${isActive ? "bg-[#0A4D5C]/10 ring-1 ring-[#0A4D5C]" : ""}`}
+                                className={`rounded-xl p-1.5 text-lg transition-all hover:scale-125 ${isActive ? "bg-primary/10 ring-1 ring-[#0A4D5C]" : ""}`}
                                 title={label}
                               >
                                 {emoji}
@@ -971,7 +971,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     {reactionGroups.length > 0 && (
                       <div className="flex gap-0.5 ml-0.5">
                         {reactionGroups.slice(0, 3).map((g, i) => (
-                          <span key={i} className="inline-flex items-center gap-0.5 rounded-full bg-[#0A4D5C]/[0.06] px-1.5 py-0.5 text-[10px]">
+                          <span key={i} className="inline-flex items-center gap-0.5 rounded-full bg-primary/[0.06] px-1.5 py-0.5 text-[10px]">
                             {g.emoji} {g.count}
                           </span>
                         ))}
@@ -981,7 +981,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     {/* Comments */}
                     <button
                       onClick={() => commentInputRef.current?.focus()}
-                      className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C] bg-[#0A4D5C]/10 font-medium"
+                      className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary bg-primary/10 font-medium"
                     >
                       <MessageCircle className="h-4 w-4" />
                       {commentCount > 0 && <span>{commentCount}</span>}
@@ -991,7 +991,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     <div className="relative" ref={shareRef}>
                       <button
                         onClick={() => setShareMenuOpen(!shareMenuOpen)}
-                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/40 hover:bg-[#0A4D5C]/[0.04] hover:text-[#0A4D5C] transition-colors"
+                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/40 hover:bg-primary/[0.04] hover:text-primary transition-colors"
                       >
                         <Share2 className="h-4 w-4" />
                       </button>
@@ -1004,7 +1004,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     {isOwnPost && !isEditing && (
                       <button
                         onClick={handleEdit}
-                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/25 hover:text-[#0A4D5C] hover:bg-[#0A4D5C]/[0.04] transition-colors"
+                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-primary hover:bg-primary/[0.04] transition-colors"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -1014,7 +1014,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     {isOwnPost && (
                       <button
                         onClick={handleDelete}
-                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/25 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1025,7 +1025,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       <button
                         onClick={() => useStore.getState().openReportDialog({ targetType: "post", targetId: localPost.id })}
                         title="Denunciar post"
-                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-[#0A4D5C]/25 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
                       >
                         <Flag className="h-3.5 w-3.5" />
                       </button>
@@ -1040,8 +1040,8 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                   <div className="space-y-2 py-2">
                     {[1, 2].map((i) => (
                       <div key={i} className="flex items-center gap-2 animate-pulse">
-                        <div className="h-6 w-6 rounded-full bg-[#0A4D5C]/10" />
-                        <div className="flex-1 h-3 bg-[#0A4D5C]/8 rounded" />
+                        <div className="h-6 w-6 rounded-full bg-primary/10" />
+                        <div className="flex-1 h-3 bg-primary/8 rounded" />
                       </div>
                     ))}
                   </div>
@@ -1060,7 +1060,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       />
                     ))}
                     {comments.length === 0 && (
-                      <p className="text-xs text-[#0A4D5C]/30 text-center py-2">Nenhum comentário ainda</p>
+                      <p className="text-xs text-primary/30 text-center py-2">Nenhum comentário ainda</p>
                     )}
                   </>
                 )}
@@ -1070,10 +1070,10 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                   <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-5 w-5 shrink-0" />
                   <div className="flex-1 relative">
                     {replyTo && (
-                      <div className="absolute -top-3.5 left-0 flex items-center gap-1 text-[9px] text-[#0A4D5C]/40">
+                      <div className="absolute -top-3.5 left-0 flex items-center gap-1 text-[9px] text-primary/40">
                         <Reply className="h-2 w-2" />
                         <span>Respondendo a {replyTo?.author?.display_name || "Usuário"}</span>
-                        <button onClick={() => setReplyTo(null)} className="text-[#0A4D5C]/60 hover:text-[#0A4D5C] ml-1">✕</button>
+                        <button onClick={() => setReplyTo(null)} className="text-primary/60 hover:text-primary ml-1">✕</button>
                       </div>
                     )}
                     <div className="flex items-center gap-1">
@@ -1083,7 +1083,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                         value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && submitComment()}
-                        className="flex-1 min-w-0 rounded-full border border-[#0A4D5C]/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-card-foreground focus:outline-none focus:border-[#2EC4B6] placeholder:text-[#0A4D5C]/30"
+                        className="flex-1 min-w-0 rounded-full border border-primary/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-card-foreground focus:outline-none focus:border-[#2EC4B6] placeholder:text-primary/30"
                       />
                       <button
                         onClick={submitComment}
@@ -1104,26 +1104,26 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
       {/* Repost dialog */}
       {repostingPost && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-[#000305]/50 backdrop-blur-sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }}>
-          <div className="w-full max-w-md mx-4 rounded-3xl bg-[#f7f9fa] p-5 shadow-lg border border-[#0A4D5C]/10" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md mx-4 rounded-3xl bg-[#f7f9fa] p-5 shadow-lg border border-primary/10" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold text-card-foreground mb-3">Compartilhar no feed</h3>
-            <div className="rounded-2xl bg-[#0A4D5C]/[0.04] p-3 mb-3 border border-[#0A4D5C]/8">
+            <div className="rounded-2xl bg-primary/[0.04] p-3 mb-3 border border-primary/8">
               <div className="flex items-center gap-2 mb-1">
                 <UserAvatar user={repostingPost.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-6 w-6" />
                 <span className="text-xs font-semibold text-card-foreground">{repostingPost.author?.display_name || "Usuário"}</span>
-                <span className="text-[10px] text-[#0A4D5C]/40">@{repostingPost.author?.username || "usuario"}</span>
+                <span className="text-[10px] text-primary/40">@{repostingPost.author?.username || "usuario"}</span>
               </div>
-              <p className="text-xs text-[#0A4D5C]/60 line-clamp-3">{repostingPost.content}</p>
+              <p className="text-xs text-primary/60 line-clamp-3">{repostingPost.content}</p>
             </div>
             <textarea
               placeholder="Adicione um comentário (opcional)..."
               value={repostContent}
               onChange={(e) => setRepostContent(e.target.value.slice(0, 200))}
-              className="w-full min-h-[60px] resize-none border-0 bg-transparent p-3 text-sm text-card-foreground focus:outline-none placeholder:text-[#0A4D5C]/30"
+              className="w-full min-h-[60px] resize-none border-0 bg-transparent p-3 text-sm text-card-foreground focus:outline-none placeholder:text-primary/30"
               rows={2}
             />
             <div className="flex items-center gap-2 mt-3">
-              <Button variant="outline" size="sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }} className="rounded-full border-[#0A4D5C]/10 text-[#0A4D5C]">Cancelar</Button>
-              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-[#0A4D5C] text-[#f7f9fa] hover:bg-[#0A4D5C]/90 border-0">
+              <Button variant="outline" size="sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }} className="rounded-full border-primary/10 text-primary">Cancelar</Button>
+              <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-primary text-[#f7f9fa] hover:bg-primary/90 border-0">
                 <Repeat2 className="h-3.5 w-3.5" /> Compartilhar
               </Button>
             </div>

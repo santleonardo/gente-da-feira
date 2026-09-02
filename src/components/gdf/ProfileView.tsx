@@ -184,7 +184,7 @@ function VideoPlayer({ src }: { src: string }) {
       />
       {!playing && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/30 cursor-pointer" onClick={toggle}>
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0A4D5C] shadow-lg transition-transform hover:scale-110">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg transition-transform hover:scale-110">
             <Play className="h-7 w-7 text-[#f7f9fa] fill-[#f7f9fa] ml-1" />
           </div>
         </div>
@@ -228,23 +228,23 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="mt-2.5 rounded-2xl bg-[#0A4D5C]/[0.06] p-3 shadow-sm border border-[#0A4D5C]/10">
+    <div className="mt-2.5 rounded-2xl bg-primary/[0.06] p-3 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3">
-        <button onClick={toggle} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa] shadow-md hover:bg-[#0A4D5C]/90 transition-all hover:scale-105">
+        <button onClick={toggle} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-md hover:bg-primary/90 transition-all hover:scale-105">
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-semibold text-[#000305]/70 tabular-nums">{formatDuration(currentTime)}</span>
-            <span className="text-[9px] text-[#0A4D5C]/30">/</span>
-            <span className="text-[10px] text-[#0A4D5C]/40 tabular-nums">{formatDuration(duration)}</span>
+            <span className="text-[10px] font-semibold text-foreground/70 tabular-nums">{formatDuration(currentTime)}</span>
+            <span className="text-[9px] text-primary/30">/</span>
+            <span className="text-[10px] text-primary/40 tabular-nums">{formatDuration(duration)}</span>
           </div>
-          <div className="h-1.5 bg-[#0A4D5C]/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
+          <div className="h-1.5 bg-primary/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
             if (audioRef.current && duration) audioRef.current.currentTime = pct * duration;
           }}>
-            <div className="h-full bg-[#0A4D5C] rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
           </div>
         </div>
       </div>
@@ -953,7 +953,7 @@ export function ProfileView() {
     setPublishing(false);
   };
 
-  if (loading) return <div className="space-y-4">{[1,2].map(i=><div key={i} className="h-24 rounded-xl bg-[#01386A]/[0.04] animate-pulse"/>)}</div>;
+  if (loading) return <div className="space-y-4">{[1,2].map(i=><div key={i} className="h-24 rounded-xl bg-primary/[0.04] animate-pulse"/>)}</div>;
 
   const isPrivate = profile?.is_private || false;
   const selectedColor = POST_IT_COLORS[postStyle.postItColor ?? 0];
@@ -992,19 +992,19 @@ export function ProfileView() {
                   user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
                   className="h-16 w-16"
                 />
-                <button onClick={() => avatarInputRef.current?.click()} disabled={uploading} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#f7f9fa] bg-[#01386A] text-[#f7f9fa] shadow-sm transition-colors hover:bg-[#01386A]/90">
+                <button onClick={() => avatarInputRef.current?.click()} disabled={uploading} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#f7f9fa] bg-primary text-[#f7f9fa] shadow-sm transition-colors hover:bg-primary/90">
                   <Camera className="h-3.5 w-3.5" />
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarUpload} className="hidden" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-lg font-bold text-[#000305]">{profile?.display_name}</h2>
-                  {isPrivate && <Lock className="h-4 w-4 text-[#01386A]/40" />}
+                  <h2 className="text-lg font-bold text-foreground">{profile?.display_name}</h2>
+                  {isPrivate && <Lock className="h-4 w-4 text-primary/40" />}
                 </div>
-                <p className="text-sm text-[#01386A]/40">@{profile?.username}</p>
+                <p className="text-sm text-primary/40">@{profile?.username}</p>
                 {profile?.neighborhood && (
-                  <Badge variant="secondary" className="mt-1.5 gap-1 bg-[#01386A]/10 text-[#01386A] border-0">
+                  <Badge variant="secondary" className="mt-1.5 gap-1 bg-primary/10 text-primary border-0">
                     <MapPin className="h-3 w-3" /> {profile.neighborhood}
                   </Badge>
                 )}
@@ -1013,33 +1013,33 @@ export function ProfileView() {
           </div>
 
           <div className="mt-4">
-            {profile?.bio ? <p className="text-sm text-[#000305] whitespace-pre-wrap">{parseInlineContent(profile.bio, openUserProfileById)}</p> : <p className="text-sm text-[#01386A]/40 italic">Sem bio ainda</p>}
+            {profile?.bio ? <p className="text-sm text-foreground whitespace-pre-wrap">{parseInlineContent(profile.bio, openUserProfileById)}</p> : <p className="text-sm text-primary/40 italic">Sem bio ainda</p>}
           </div>
 
           <div className="mt-6 flex gap-6">
-            <div className="text-center"><p className="text-lg font-bold text-[#000305]">{postCount}</p><p className="text-xs text-[#01386A]/40">Posts</p></div>
+            <div className="text-center"><p className="text-lg font-bold text-foreground">{postCount}</p><p className="text-xs text-primary/40">Posts</p></div>
             <button onClick={() => openFollowDialog("following")} className="text-center hover:opacity-70 transition-opacity">
-              <p className="text-lg font-bold text-[#000305]">{followingCount}</p><p className="text-xs text-[#01386A]/40">Seguindo</p>
+              <p className="text-lg font-bold text-foreground">{followingCount}</p><p className="text-xs text-primary/40">Seguindo</p>
             </button>
             <button onClick={() => openFollowDialog("followers")} className="text-center hover:opacity-70 transition-opacity">
-              <p className="text-lg font-bold text-[#000305]">{followersCount}</p><p className="text-xs text-[#01386A]/40">Seguidores</p>
+              <p className="text-lg font-bold text-foreground">{followersCount}</p><p className="text-xs text-primary/40">Seguidores</p>
             </button>
           </div>
         </CardContent>
       </Card>
 
       {/* ═══════ ABAS: Meus Posts / Postar / ⚙️ ═══════ */}
-      <div className="flex rounded-xl bg-[#0A4D5C]/[0.06] p-1">
+      <div className="flex rounded-xl bg-primary/[0.06] p-1">
         <button
           onClick={() => setActiveTab("posts")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "posts" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "posts" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           <FileText className="h-3.5 w-3.5" />
           Meus Posts
         </button>
         <button
           onClick={() => setActiveTab("postar")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "postar" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "postar" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           <PenSquare className="h-3.5 w-3.5" />
           Postar
@@ -1048,14 +1048,14 @@ export function ProfileView() {
         {/*
         <button
           onClick={() => setActiveTab("album")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "album" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "album" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           📷
         </button>
         */}
         <button
           onClick={() => setActiveTab("config")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "config" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "config" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           ⚙️
         </button>
@@ -1116,25 +1116,25 @@ export function ProfileView() {
 
                     {/* Shared/reposted post */}
                     {post.shared_post && !Array.isArray(post.shared_post) && (
-                      <div className="mt-2.5 rounded-xl bg-[#0A4D5C]/[0.04] p-2.5 border border-[#0A4D5C]/8">
+                      <div className="mt-2.5 rounded-xl bg-primary/[0.04] p-2.5 border border-primary/8">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <Repeat2 className="h-3 w-3 text-[#0A4D5C]/40" />
-                          <span className="text-[10px] text-[#0A4D5C]/40">Compartilhado de</span>
+                          <Repeat2 className="h-3 w-3 text-primary/40" />
+                          <span className="text-[10px] text-primary/40">Compartilhado de</span>
                         </div>
                         <div className="flex items-center gap-2 mb-1">
                           {post.shared_post.author?.avatar_url && (
                             <img src={post.shared_post.author.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
                           )}
-                          <span className="text-xs font-semibold text-[#000305]">{post.shared_post.author?.display_name}</span>
+                          <span className="text-xs font-semibold text-foreground">{post.shared_post.author?.display_name}</span>
                         </div>
-                        <FormattedText className="text-xs text-[#0A4D5C]/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
+                        <FormattedText className="text-xs text-primary/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
                         {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
                           <div className="mt-1.5 flex gap-1 overflow-x-auto">
                             {post.shared_post.image_urls.slice(0, 2).map((url: string, i: number) => (
                               <img key={i} src={url} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
                             ))}
                             {post.shared_post.image_urls.length > 2 && (
-                              <div className="h-14 w-14 rounded-lg bg-[#0A4D5C]/[0.04] flex items-center justify-center text-xs text-[#0A4D5C]/40 shrink-0">
+                              <div className="h-14 w-14 rounded-lg bg-primary/[0.04] flex items-center justify-center text-xs text-primary/40 shrink-0">
                                 +{post.shared_post.image_urls.length - 2}
                               </div>
                             )}
@@ -1181,9 +1181,9 @@ export function ProfileView() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <FileText className="h-10 w-10 text-[#0A4D5C]/15 mb-2" />
-              <p className="text-sm text-[#0A4D5C]/40">Nenhum post ainda</p>
-              <button onClick={() => setActiveTab("postar")} className="mt-2 text-xs font-semibold text-[#0A4D5C] hover:underline">
+              <FileText className="h-10 w-10 text-primary/15 mb-2" />
+              <p className="text-sm text-primary/40">Nenhum post ainda</p>
+              <button onClick={() => setActiveTab("postar")} className="mt-2 text-xs font-semibold text-primary hover:underline">
                 Criar primeiro post
               </button>
             </div>
@@ -1193,10 +1193,10 @@ export function ProfileView() {
 
       <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
           {/* ═══════ ABA POSTAR — MINI EDITOR COMPLETO ═══════ */}
-          <div className="rounded-2xl bg-[#eef1f3] p-3 shadow-lg border border-[#0A4D5C]/8">
+          <div className="rounded-2xl bg-[#eef1f3] p-3 shadow-lg border border-primary/8">
             {/* ═══════ EDITOR WYSIWYG ═══════ */}
             <div
-              className="rounded-xl border border-[#0A4D5C]/8 overflow-hidden transition-all"
+              className="rounded-xl border border-primary/8 overflow-hidden transition-all"
               style={{ backgroundColor: selectedColor.bg }}
             >
               <div className="relative">
@@ -1221,7 +1221,7 @@ export function ProfileView() {
                 />
                 <button
                   onClick={() => setEditorExpanded(!editorExpanded)}
-                  className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-[#0A4D5C]/[0.08] text-[#0A4D5C]/50 hover:bg-[#0A4D5C]/15 hover:text-[#0A4D5C] transition-colors"
+                  className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-primary/[0.08] text-primary/50 hover:bg-primary/15 hover:text-primary transition-colors"
                   title={editorExpanded ? "Reduzir" : "Expandir"}
                 >
                   {editorExpanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
@@ -1235,7 +1235,7 @@ export function ProfileView() {
                 {previewUrls.map((url, i) => (
                   <div key={i} className="relative group">
                     <img src={url} alt={`Preview ${i + 1}`} className="h-12 w-12 rounded-lg object-cover shadow-sm border border-[#f7f9fa]" />
-                    <button onClick={() => removePhoto(i)} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => removePhoto(i)} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[#f7f9fa] opacity-0 group-hover:opacity-100 transition-opacity">
                       <X className="h-2.5 w-2.5" />
                     </button>
                   </div>
@@ -1249,23 +1249,23 @@ export function ProfileView() {
                 <div className="absolute top-1 left-1 flex items-center gap-1 rounded-full bg-[#f7f75e] px-1.5 py-0.5 text-[9px] font-semibold text-[#000305]">
                   <Video className="h-2.5 w-2.5" /> {formatDuration(videoDuration)}
                 </div>
-                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa]">
+                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
             )}
 
             {hasAudioInComposer && audioPreview && (
-              <div className="relative rounded-lg bg-[#0A4D5C]/[0.06] p-1.5 border border-[#0A4D5C]/10 mt-2">
+              <div className="relative rounded-lg bg-primary/[0.06] p-1.5 border border-primary/10 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa]">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
                     <Music className="h-3 w-3" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-medium text-[#000305]">Áudio</span>
-                    <span className="text-[9px] text-[#0A4D5C]/40 ml-1">{formatDuration(audioDuration)}</span>
+                    <span className="text-[10px] font-medium text-foreground">Áudio</span>
+                    <span className="text-[9px] text-primary/40 ml-1">{formatDuration(audioDuration)}</span>
                   </div>
-                  <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa]">
+                  <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[#f7f9fa]">
                     <X className="h-2 w-2" />
                   </button>
                 </div>
@@ -1279,21 +1279,21 @@ export function ProfileView() {
               <div className="relative" ref={mediaMenuRef}>
                 <button
                   onClick={() => setMediaMenuOpen(!mediaMenuOpen)}
-                  className={`flex items-center justify-center rounded-md h-7 w-7 transition-colors ${mediaMenuOpen ? "bg-[#f7f75e] text-[#0A4D5C]" : "bg-[#f7f75e]/60 text-[#0A4D5C] hover:bg-[#f7f75e]"}`}
+                  className={`flex items-center justify-center rounded-md h-7 w-7 transition-colors ${mediaMenuOpen ? "bg-[#f7f75e] text-primary" : "bg-[#f7f75e]/60 text-primary hover:bg-[#f7f75e]"}`}
                   title="Mídia"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
                 {mediaMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 flex flex-col items-center gap-px rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-[#0A4D5C]/10">
-                    <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                  <div className="absolute right-0 top-full mt-1 z-50 flex flex-col items-center gap-px rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-primary/10">
+                    <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-primary hover:bg-[#f7f75e]/30" : "text-primary/25 cursor-not-allowed"}`}>
                       <Camera className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => { if (canAddPhotos) photoInputRef.current?.click(); }} disabled={!canAddPhotos} title="Galeria" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-[#0A4D5C] hover:bg-[#f7f75e]/30" : "text-[#0A4D5C]/25 cursor-not-allowed"}`}>
+                    <button onClick={() => { if (canAddPhotos) photoInputRef.current?.click(); }} disabled={!canAddPhotos} title="Galeria" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-primary hover:bg-[#f7f75e]/30" : "text-primary/25 cursor-not-allowed"}`}>
                       <ImagePlus className="h-3.5 w-3.5" />
                     </button>
-                    <div className="w-6 h-px bg-[#0A4D5C]/10" />
-                    <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"} className="flex items-center justify-center rounded-full p-1.5 text-[#0A4D5C] transition-colors hover:bg-[#f7f75e]/30">
+                    <div className="w-6 h-px bg-primary/10" />
+                    <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"} className="flex items-center justify-center rounded-full p-1.5 text-primary transition-colors hover:bg-[#f7f75e]/30">
                       {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
                     </button>
                   </div>
@@ -1308,7 +1308,7 @@ export function ProfileView() {
               {/* Visibilidade */}
               <button
                 onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")}
-                className={`flex items-center gap-1 rounded-md h-7 px-2 text-[9px] font-medium transition-colors ${visibility === "followers" ? "bg-[#0A4D5C] text-[#f7f9fa]" : "bg-[#0A4D5C]/[0.06] text-[#0A4D5C] hover:bg-[#0A4D5C]/10"}`}
+                className={`flex items-center gap-1 rounded-md h-7 px-2 text-[9px] font-medium transition-colors ${visibility === "followers" ? "bg-primary text-[#f7f9fa]" : "bg-primary/[0.06] text-primary hover:bg-primary/10"}`}
                 title={visibility === "public" ? "Público" : "Seguidores"}
               >
                 {visibility === "public" ? <Globe className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
@@ -1319,7 +1319,7 @@ export function ProfileView() {
 
               {/* Contagem */}
               {textContent.trim().length > 0 && (
-                <span className={`text-[9px] shrink-0 ${textContent.length > 900 ? "text-red-500" : "text-[#0A4D5C]/30"}`}>
+                <span className={`text-[9px] shrink-0 ${textContent.length > 900 ? "text-red-500" : "text-primary/30"}`}>
                   {textContent.length}/1000
                 </span>
               )}
@@ -1342,7 +1342,7 @@ export function ProfileView() {
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-5 p-6">
-            <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-10 w-10" />
             </div>
             <div className="text-center">
@@ -1380,21 +1380,21 @@ export function ProfileView() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-4">
-                <Edit3 className="h-4 w-4 text-[#0A4D5C]" />
-                <h3 className="text-sm font-semibold text-[#000305]">Editar perfil</h3>
+                <Edit3 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Editar perfil</h3>
               </div>
               <div className="space-y-3">
                 <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} /></div>
-                <div className="space-y-1.5"><Label>Bio</Label><Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={300} /><span className="text-xs text-[#01386A]/40">{bio.length}/300</span></div>
+                <div className="space-y-1.5"><Label>Bio</Label><Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={300} /><span className="text-xs text-primary/40">{bio.length}/300</span></div>
                 <div className="space-y-1.5">
                   <Label>Bairro</Label>
-                  <select value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="flex h-10 w-full rounded-md border border-[#01386A]/10 bg-[#f7f9fa] px-3 py-2 text-sm">
+                  <select value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="flex h-10 w-full rounded-md border border-primary/10 bg-[#f7f9fa] px-3 py-2 text-sm">
                     <option value="">Nenhum</option>
                     {BAIRROS.map((b) => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleSave} size="sm" className="bg-[#01386A] text-[#f7f9fa] hover:bg-[#01386A]/90 border-0">Salvar</Button>
+                  <Button onClick={handleSave} size="sm" className="bg-primary text-[#f7f9fa] hover:bg-primary/90 border-0">Salvar</Button>
                 </div>
               </div>
             </CardContent>
@@ -1413,7 +1413,7 @@ export function ProfileView() {
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-4 w-4 text-[#0A4D5C]" /> Seguindo ({followingCount})
+              <UsersIcon className="h-4 w-4 text-primary" /> Seguindo ({followingCount})
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -1421,15 +1421,15 @@ export function ProfileView() {
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-2.5 animate-pulse">
-                    <div className="h-9 w-9 rounded-full bg-[#0A4D5C]/10" />
-                    <div className="flex-1"><div className="h-3 w-24 rounded bg-[#0A4D5C]/10" /><div className="h-2 w-16 rounded bg-[#0A4D5C]/10 mt-1" /></div>
+                    <div className="h-9 w-9 rounded-full bg-primary/10" />
+                    <div className="flex-1"><div className="h-3 w-24 rounded bg-primary/10" /><div className="h-2 w-16 rounded bg-primary/10 mt-1" /></div>
                   </div>
                 ))}
               </div>
             ) : followList.length === 0 ? (
               <div className="py-8 text-center">
-                <UsersIcon className="h-8 w-8 text-[#0A4D5C]/20 mx-auto mb-2" />
-                <p className="text-xs text-[#0A4D5C]/40">Não segue ninguém ainda</p>
+                <UsersIcon className="h-8 w-8 text-primary/20 mx-auto mb-2" />
+                <p className="text-xs text-primary/40">Não segue ninguém ainda</p>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1440,12 +1440,12 @@ export function ProfileView() {
                       setShowFollowingDialog(false);
                       window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: u.id } }));
                     }}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-[#0A4D5C]/[0.04] transition-colors"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-primary/[0.04] transition-colors"
                   >
                     <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-9 w-9" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate text-[#000305]">{u.display_name}</div>
-                      <div className="text-[11px] text-[#0A4D5C]/40 truncate">@{u.username}</div>
+                      <div className="text-sm font-medium truncate text-foreground">{u.display_name}</div>
+                      <div className="text-[11px] text-primary/40 truncate">@{u.username}</div>
                     </div>
                   </button>
                 ))}
@@ -1460,7 +1460,7 @@ export function ProfileView() {
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-4 w-4 text-[#0A4D5C]" /> Seguidores ({followersCount})
+              <UsersIcon className="h-4 w-4 text-primary" /> Seguidores ({followersCount})
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -1468,15 +1468,15 @@ export function ProfileView() {
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-2.5 animate-pulse">
-                    <div className="h-9 w-9 rounded-full bg-[#0A4D5C]/10" />
-                    <div className="flex-1"><div className="h-3 w-24 rounded bg-[#0A4D5C]/10" /><div className="h-2 w-16 rounded bg-[#0A4D5C]/10 mt-1" /></div>
+                    <div className="h-9 w-9 rounded-full bg-primary/10" />
+                    <div className="flex-1"><div className="h-3 w-24 rounded bg-primary/10" /><div className="h-2 w-16 rounded bg-primary/10 mt-1" /></div>
                   </div>
                 ))}
               </div>
             ) : followList.length === 0 ? (
               <div className="py-8 text-center">
-                <UsersIcon className="h-8 w-8 text-[#0A4D5C]/20 mx-auto mb-2" />
-                <p className="text-xs text-[#0A4D5C]/40">Nenhum seguidor ainda</p>
+                <UsersIcon className="h-8 w-8 text-primary/20 mx-auto mb-2" />
+                <p className="text-xs text-primary/40">Nenhum seguidor ainda</p>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1487,12 +1487,12 @@ export function ProfileView() {
                       setShowFollowersDialog(false);
                       window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: u.id } }));
                     }}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-[#0A4D5C]/[0.04] transition-colors"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-primary/[0.04] transition-colors"
                   >
                     <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-9 w-9" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate text-[#000305]">{u.display_name}</div>
-                      <div className="text-[11px] text-[#0A4D5C]/40 truncate">@{u.username}</div>
+                      <div className="text-sm font-medium truncate text-foreground">{u.display_name}</div>
+                      <div className="text-[11px] text-primary/40 truncate">@{u.username}</div>
                     </div>
                   </button>
                 ))}

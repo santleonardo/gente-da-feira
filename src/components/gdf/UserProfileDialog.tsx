@@ -152,23 +152,23 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="mt-2 rounded-xl bg-[#0A4D5C]/[0.06] p-2.5 shadow-sm border border-[#0A4D5C]/10">
+    <div className="mt-2 rounded-xl bg-primary/[0.06] p-2.5 shadow-sm border border-primary/10">
       <div className="flex items-center gap-3">
-        <button onClick={toggle} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0A4D5C] text-white shadow-md hover:bg-[#0A4D5C]/90 transition-all">
+        <button onClick={toggle} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-md hover:bg-primary/90 transition-all">
           {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Mic className="h-3 w-3 text-[#0A4D5C]" />
-            <span className="text-[10px] font-semibold text-[#0A4D5C]">Áudio</span>
-            <span className="text-[9px] text-[#0A4D5C]/40 tabular-nums">{formatDuration(currentTime)} / {formatDuration(duration)}</span>
+            <Mic className="h-3 w-3 text-primary" />
+            <span className="text-[10px] font-semibold text-primary">Áudio</span>
+            <span className="text-[9px] text-primary/40 tabular-nums">{formatDuration(currentTime)} / {formatDuration(duration)}</span>
           </div>
-          <div className="h-1.5 bg-[#0A4D5C]/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
+          <div className="h-1.5 bg-primary/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
             if (audioRef.current && duration) audioRef.current.currentTime = pct * duration;
           }}>
-            <div className="h-full bg-[#0A4D5C] rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
           </div>
         </div>
       </div>
@@ -714,7 +714,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         return (
                           <div
                             key={post.id}
-                            className={`rounded-2xl ${cardBg} text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-[#0A4D5C]/10`}
+                            className={`rounded-2xl ${cardBg} text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-primary/10`}
                             onClick={(e) => {
                               const target = e.target as HTMLElement;
                               if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('audio') || target.closest('video')) return;
@@ -770,10 +770,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                               {/* Post compartilhado/repostado */}
                               {post.shared_post && !Array.isArray(post.shared_post) && (
-                                <div className="mt-2 rounded-xl bg-[#0A4D5C]/[0.04] p-2.5 border border-[#0A4D5C]/8">
+                                <div className="mt-2 rounded-xl bg-primary/[0.04] p-2.5 border border-primary/8">
                                   <div className="flex items-center gap-1.5 mb-1">
-                                    <Repeat2 className="h-3 w-3 text-[#0A4D5C]/40" />
-                                    <span className="text-[10px] text-[#0A4D5C]/40">Compartilhado de</span>
+                                    <Repeat2 className="h-3 w-3 text-primary/40" />
+                                    <span className="text-[10px] text-primary/40">Compartilhado de</span>
                                   </div>
                                   <div className="flex items-center gap-1.5 mb-1">
                                     {post.shared_post.author?.avatar_url && (
@@ -781,14 +781,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                     )}
                                     <span className="text-xs font-semibold">{post.shared_post.author?.display_name || "Usuário"}</span>
                                   </div>
-                                  <FormattedText className="text-xs text-[#0A4D5C]/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
+                                  <FormattedText className="text-xs text-primary/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
                                   {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
                                     <div className="mt-1.5 flex gap-1 overflow-x-auto">
                                       {post.shared_post.image_urls.slice(0, 2).map((url: string, i: number) => (
                                         <img key={i} src={url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
                                       ))}
                                       {post.shared_post.image_urls.length > 2 && (
-                                        <div className="h-12 w-12 rounded-lg bg-[#0A4D5C]/[0.04] flex items-center justify-center text-[10px] text-[#0A4D5C]/40 shrink-0">
+                                        <div className="h-12 w-12 rounded-lg bg-primary/[0.04] flex items-center justify-center text-[10px] text-primary/40 shrink-0">
                                           +{post.shared_post.image_urls.length - 2}
                                         </div>
                                       )}

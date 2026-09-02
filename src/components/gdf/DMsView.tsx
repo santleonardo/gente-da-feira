@@ -104,7 +104,7 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
           {/* Linha superior: label + equalizer + duração total */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold tracking-tight text-[#0A4D5C] dark:text-white/90">Áudio</span>
+              <span className="text-xs font-bold tracking-tight text-primary dark:text-white/90">Áudio</span>
               {playing && (
                 <div className="flex items-end gap-[2px] h-3.5">
                   <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "5px", animation: "eqBar 0.35s ease-in-out infinite alternate" }} />
@@ -114,7 +114,7 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
                 </div>
               )}
             </div>
-            <span className="text-xs tabular-nums font-semibold text-[#0A4D5C]/80 dark:text-white/70">
+            <span className="text-xs tabular-nums font-semibold text-primary/80 dark:text-white/70">
               {formatDuration(safeDuration)}
             </span>
           </div>
@@ -139,11 +139,11 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
 
           {/* Linha inferior: tempo atual */}
           <div className="flex justify-between items-center">
-            <span className="text-[11px] tabular-nums font-medium text-[#0A4D5C]/60 dark:text-white/60">
+            <span className="text-[11px] tabular-nums font-medium text-primary/60 dark:text-white/60">
               {formatDuration(safeCurrentTime)}
             </span>
             {playing && (
-              <span className="text-[10px] tabular-nums text-[#0A4D5C]/40 dark:text-white/40">
+              <span className="text-[10px] tabular-nums text-primary/40 dark:text-white/40">
                 {safeDuration > 0 ? `${Math.round(progress)}%` : ""}
               </span>
             )}
@@ -1149,7 +1149,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-[#f7f9fa] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">

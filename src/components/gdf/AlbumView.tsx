@@ -311,26 +311,26 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       </div>
 
       {/* Sub-abas */}
-      <div className="flex rounded-xl bg-[#0A4D5C]/[0.06] p-1">
+      <div className="flex rounded-xl bg-primary/[0.06] p-1">
         <button
           onClick={() => setSubTab("fotos")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "fotos" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "fotos" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           <Camera className="h-3.5 w-3.5" />
           Fotos
-          <span className="text-[10px] text-[#0A4D5C]/40">({photos.length}/{MAX_PHOTOS})</span>
+          <span className="text-[10px] text-primary/40">({photos.length}/{MAX_PHOTOS})</span>
         </button>
         <button
           onClick={() => setSubTab("videos")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "videos" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "videos" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           <Film className="h-3.5 w-3.5" />
           Vídeos
-          <span className="text-[10px] text-[#0A4D5C]/40">({videos.length}/{MAX_VIDEOS})</span>
+          <span className="text-[10px] text-primary/40">({videos.length}/{MAX_VIDEOS})</span>
         </button>
         <button
           onClick={() => setSubTab("audios")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "audios" ? "bg-[#f7f9fa] text-[#0A4D5C] shadow-sm" : "text-[#0A4D5C]/50 hover:text-[#0A4D5C]/70"}`}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "audios" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
         >
           <Music className="h-3.5 w-3.5" />
           Áudios
@@ -347,7 +347,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
             size="sm"
             onClick={() => photoInputRef.current?.click()}
             disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-            className="w-full gap-2 border-dashed border-[#0A4D5C]/20 text-[#0A4D5C] hover:bg-[#f7f75e]/10"
+            className="w-full gap-2 border-dashed border-primary/20 text-primary hover:bg-[#f7f75e]/10"
           >
             {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
             {uploadingPhoto ? "Enviando..." : photos.length >= MAX_PHOTOS ? "Limite atingido" : "Adicionar foto"}
@@ -359,9 +359,9 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
             </div>
           ) : photos.length === 0 ? (
             <div className="py-12 text-center">
-              <Camera className="h-12 w-12 text-[#0A4D5C]/20 mx-auto mb-3" />
-              <p className="text-sm font-medium text-[#0A4D5C]/60">Nenhuma foto ainda</p>
-              <p className="text-xs text-[#0A4D5C]/40 mt-1">Adicione fotos ao seu álbum</p>
+              <Camera className="h-12 w-12 text-primary/20 mx-auto mb-3" />
+              <p className="text-sm font-medium text-primary/60">Nenhuma foto ainda</p>
+              <p className="text-xs text-primary/40 mt-1">Adicione fotos ao seu álbum</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-1.5">
@@ -401,7 +401,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
             size="sm"
             onClick={() => videoInputRef.current?.click()}
             disabled={uploadingVideo || videos.length >= MAX_VIDEOS}
-            className="w-full gap-2 border-dashed border-[#0A4D5C]/20 text-[#0A4D5C] hover:bg-[#f7f75e]/10"
+            className="w-full gap-2 border-dashed border-primary/20 text-primary hover:bg-[#f7f75e]/10"
           >
             {uploadingVideo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
             {uploadingVideo ? "Enviando..." : videos.length >= MAX_VIDEOS ? "Limite atingido" : "Adicionar vídeo"}
@@ -413,9 +413,9 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
             </div>
           ) : videos.length === 0 ? (
             <div className="py-12 text-center">
-              <Film className="h-12 w-12 text-[#0A4D5C]/20 mx-auto mb-3" />
-              <p className="text-sm font-medium text-[#0A4D5C]/60">Nenhum vídeo ainda</p>
-              <p className="text-xs text-[#0A4D5C]/40 mt-1">Máximo {MAX_VIDEO_DURATION}s cada</p>
+              <Film className="h-12 w-12 text-primary/20 mx-auto mb-3" />
+              <p className="text-sm font-medium text-primary/60">Nenhum vídeo ainda</p>
+              <p className="text-xs text-primary/40 mt-1">Máximo {MAX_VIDEO_DURATION}s cada</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -459,7 +459,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       {/* ── ABA: ÁUDIOS ── */}
       {subTab === "audios" && (
         <div className="space-y-3">
-          <div className="rounded-xl border border-dashed border-[#0A4D5C]/20 p-4 text-center">
+          <div className="rounded-xl border border-dashed border-primary/20 p-4 text-center">
             {isRecording ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-center gap-2">
@@ -472,14 +472,14 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
               </div>
             ) : (
               <div className="space-y-2">
-                <Mic className="h-8 w-8 text-[#0A4D5C]/30 mx-auto" />
-                <p className="text-sm text-[#0A4D5C]/60">Grave um áudio para seu perfil</p>
+                <Mic className="h-8 w-8 text-primary/30 mx-auto" />
+                <p className="text-sm text-primary/60">Grave um áudio para seu perfil</p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={startRecording}
                   disabled={uploadingAudio}
-                  className="gap-2 border-[#0A4D5C]/20 text-[#0A4D5C] hover:bg-[#f7f75e]/10"
+                  className="gap-2 border-primary/20 text-primary hover:bg-[#f7f75e]/10"
                 >
                   {uploadingAudio ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                   {uploadingAudio ? "Enviando..." : "Gravar áudio"}
@@ -488,9 +488,9 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
             )}
           </div>
 
-          <div className="rounded-xl bg-[#0A4D5C]/[0.04] p-3 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-[#0A4D5C]/40 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-[#0A4D5C]/50 leading-relaxed">
+          <div className="rounded-xl bg-primary/[0.04] p-3 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-primary/40 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-primary/50 leading-relaxed">
               Os áudios gravados são salvos junto com suas fotos e vídeos do perfil. Funcionalidade de gerenciamento de áudios em breve.
             </p>
           </div>
