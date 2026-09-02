@@ -25,8 +25,10 @@ import {
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
-  Reply,
+  Reply, SmilePlus,
 } from "lucide-react";
+
+const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { useRealtimeMessages } from "@/hooks/use-realtime";
@@ -2014,6 +2016,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const stickToBottomRef = useRef(true);
   const loadingOlderRef = useRef(false);
   const MSG_PAGE_SIZE = 40;
+  /** Picker de reação aberto nesta mensagem */
+  const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
   // isMember e isBanned são derivados exclusivamente do objeto room (vindo da API / Zustand)
   // Nunca usar estado local para participação — a API é a única fonte de verdade
   const isMember = room.isMember === true;
@@ -2777,6 +2781,64 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Apagar mensagem (autor ou mod/creator) ═══════
+  /** Toggle reação com optimistic UI */
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!profile || !isMember) return;
+    setReactionPickerId(null);
+
+    // Snapshot para rollback
+    let snapshot: any[] | null = null;
+    setMessages((prev) => {
+      snapshot = prev;
+      return prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const list: { emoji: string; count: number; me: boolean }[] = [
+          ...(m.reactions || []),
+        ];
+        const idx = list.findIndex((r) => r.emoji === emoji);
+        if (idx >= 0) {
+          const item = list[idx];
+          if (item.me) {
+            // remove minha reação
+            if (item.count <= 1) list.splice(idx, 1);
+            else list[idx] = { ...item, count: item.count - 1, me: false };
+          } else {
+            list[idx] = { ...item, count: item.count + 1, me: true };
+          }
+        } else {
+          list.push({ emoji, count: 1, me: true });
+        }
+        list.sort((a, b) => b.count - a.count || a.emoji.localeCompare(b.emoji));
+        return { ...m, reactions: list };
+      });
+    });
+
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/messages/reaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, emoji }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (snapshot) setMessages(snapshot);
+        toast.error(data.error || "Não foi possível reagir");
+        return;
+      }
+      // Reconcilia com o servidor
+      if (Array.isArray(data.reactions)) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, reactions: data.reactions } : m
+          )
+        );
+      }
+    } catch {
+      if (snapshot) setMessages(snapshot);
+      toast.error("Erro ao reagir");
+    }
+  };
+
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm("Apagar esta mensagem?")) return;
     try {
@@ -3478,6 +3540,36 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     {!isMine && (
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
                     )}
+                    <div className="relative mb-1 shrink-0 flex items-center gap-0.5">
+                      <button
+                        onClick={() =>
+                          setReactionPickerId((id) => (id === msg.id ? null : msg.id))
+                        }
+                        title="Reagir"
+                        className="text-muted-foreground/30 hover:text-primary transition-colors p-0.5"
+                      >
+                        <SmilePlus className="h-3.5 w-3.5" />
+                      </button>
+                      {reactionPickerId === msg.id && (
+                        <div
+                          className={`absolute bottom-full mb-1 z-30 flex gap-0.5 rounded-full border border-border bg-popover p-1 shadow-lg ${
+                            isMine ? "right-0" : "left-0"
+                          }`}
+                        >
+                          {ROOM_REACTION_EMOJIS.map((em) => (
+                            <button
+                              key={em}
+                              type="button"
+                              onClick={() => toggleReaction(msg.id, em)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full text-base hover:bg-accent active:scale-110 transition-transform"
+                              title={em}
+                            >
+                              {em}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => startReply(msg)}
                       title="Responder"
@@ -3504,6 +3596,34 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       </button>
                     )}
                   </div>
+
+                  {/* Chips de reações */}
+                  {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
+                    <div
+                      className={`mt-1 flex flex-wrap gap-1 ${
+                        isMine ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      {msg.reactions.map((r: { emoji: string; count: number; me: boolean }) => (
+                        <button
+                          key={r.emoji}
+                          type="button"
+                          onClick={() => toggleReaction(msg.id, r.emoji)}
+                          className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] leading-none transition-colors ${
+                            r.me
+                              ? "border-primary/40 bg-primary/15 text-foreground"
+                              : "border-border/60 bg-muted/80 text-muted-foreground hover:bg-accent"
+                          }`}
+                          title={r.me ? "Remover reação" : "Reagir"}
+                        >
+                          <span>{r.emoji}</span>
+                          {r.count > 1 && (
+                            <span className="tabular-nums font-medium">{r.count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );

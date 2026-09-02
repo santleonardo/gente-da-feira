@@ -147,6 +147,42 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       });
     }
 
+    // Anexa reações agregadas por mensagem
+    const msgIds = sanitized.map((m: any) => m.id).filter(Boolean);
+    if (msgIds.length > 0) {
+      const { data: rxRows, error: rxErr } = await supabase
+        .from("message_reactions")
+        .select("message_id, emoji, user_id")
+        .in("message_id", msgIds);
+
+      if (!rxErr && rxRows && rxRows.length > 0) {
+        const byMsg = new Map<string, { emoji: string; user_id: string }[]>();
+        for (const r of rxRows as any[]) {
+          const list = byMsg.get(r.message_id) || [];
+          list.push({ emoji: r.emoji, user_id: r.user_id });
+          byMsg.set(r.message_id, list);
+        }
+        sanitized = sanitized.map((m: any) => {
+          const rows = byMsg.get(m.id) || [];
+          if (rows.length === 0) return { ...m, reactions: [] };
+          const map = new Map<string, { count: number; me: boolean }>();
+          for (const r of rows) {
+            const cur = map.get(r.emoji) || { count: 0, me: false };
+            cur.count += 1;
+            if (r.user_id === user.id) cur.me = true;
+            map.set(r.emoji, cur);
+          }
+          const reactions = Array.from(map.entries())
+            .map(([emoji, v]) => ({ emoji, count: v.count, me: v.me }))
+            .sort((a, b) => b.count - a.count || a.emoji.localeCompare(b.emoji));
+          return { ...m, reactions };
+        });
+      } else {
+        // Tabela ausente ou sem linhas — devolve array vazio
+        sanitized = sanitized.map((m: any) => ({ ...m, reactions: m.reactions || [] }));
+      }
+    }
+
     // Mark-as-read só na carga “recente” (sem cursor before).
     // Scroll de histórico antigo não deve alterar last_read_at.
     if (!before) {

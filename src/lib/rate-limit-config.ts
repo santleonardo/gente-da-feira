@@ -43,6 +43,7 @@ const rules: RateLimitRule[] = [
   { key: "reactions:comment",  limit: 30,  windowMs: 60_000, methods: ["POST"], byUser: true  },
   { key: "reactions:photo",    limit: 30,  windowMs: 60_000, methods: ["POST"], byUser: true  },
   { key: "reactions:video",    limit: 30,  windowMs: 60_000, methods: ["POST"], byUser: true  },
+  { key: "reactions:room_msg", limit: 40,  windowMs: 60_000, methods: ["POST"], byUser: true  },
 
   // ── DMs (HIGH) ────────────────────────────────────────────────────
   { key: "dm:list",         limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
