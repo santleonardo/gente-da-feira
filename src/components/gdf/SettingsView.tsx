@@ -282,28 +282,77 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
             <Sun className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold">Aparência</h3>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5">
-                <Moon className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-sm font-medium">Tema escuro</p>
-              </div>
-              <Switch
-                checked={theme === "dark"}
-                onCheckedChange={(v) => setTheme(v ? "dark" : "light")}
-              />
-            </div>
-            <div className="border-t" />
-            <button
-              onClick={() => setTheme("system")}
-              className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Monitor className="h-3.5 w-3.5" />
-              Usar tema do sistema
-              {theme === "system" && (
-                <Badge variant="secondary" className="ml-auto text-[10px] px-1.5">Ativo</Badge>
-              )}
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                {
+                  id: "light",
+                  label: "Claro",
+                  desc: "Dia na feira",
+                  icon: Sun,
+                  swatch: "bg-[#f7f9fa] border-[#c8dde3]",
+                  dot: "bg-[#0A4D5C]",
+                },
+                {
+                  id: "dark",
+                  label: "Escuro",
+                  desc: "Padrão noturno",
+                  icon: Moon,
+                  swatch: "bg-[#0a0f10] border-[#1e3338]",
+                  dot: "bg-[#2EC4B6]",
+                },
+                {
+                  id: "noite",
+                  label: "Noite da Praça",
+                  desc: "Teal neon + poste",
+                  icon: MapPin,
+                  swatch: "bg-[#0c1214] border-[#243338]",
+                  dot: "bg-[#3dd9c6]",
+                },
+                {
+                  id: "system",
+                  label: "Sistema",
+                  desc: "Segue o aparelho",
+                  icon: Monitor,
+                  swatch: "bg-gradient-to-br from-[#f7f9fa] to-[#0a0f10] border-border",
+                  dot: "bg-primary",
+                },
+              ] as const
+            ).map((opt) => {
+              const active = theme === opt.id;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setTheme(opt.id)}
+                  className={`flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-all active:scale-[0.98] ${
+                    active
+                      ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                      : "border-border hover:bg-accent/40"
+                  }`}
+                >
+                  <div
+                    className={`relative h-10 w-full rounded-xl border ${opt.swatch}`}
+                    aria-hidden
+                  >
+                    <span
+                      className={`absolute bottom-1.5 right-1.5 h-3 w-3 rounded-full ${opt.dot} ring-2 ring-black/10`}
+                    />
+                  </div>
+                  <div className="flex w-full items-center gap-1.5 min-w-0">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-semibold truncate">{opt.label}</span>
+                    {active && (
+                      <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 shrink-0">
+                        Ativo
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</p>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

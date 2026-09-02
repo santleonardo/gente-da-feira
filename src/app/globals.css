@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* dark: também ativa no tema "Noite da Praça" (.noite) */
+@custom-variant dark (&:is(.dark *, .noite *));
 
 @theme inline {
   --color-background: var(--background);
@@ -117,6 +118,44 @@
   --sidebar-accent-foreground: #0a0f10;
   --sidebar-border: #1e3338;
   --sidebar-ring: #2EC4B6;
+}
+
+/* ═══════ Tema C: Noite da Praça ═══════
+   Noite urbana de Feira — teal neon, amarelo de poste, fundo praça */
+.noite {
+  --background: #0c1214;
+  --foreground: #e8f0f2;
+  --card: #121a1d;
+  --card-foreground: #e8f0f2;
+  --popover: #121a1d;
+  --popover-foreground: #e8f0f2;
+  --primary: #3dd9c6;
+  --primary-foreground: #041012;
+  --secondary: #152226;
+  --secondary-foreground: #9dcdd6;
+  --muted: #152226;
+  --muted-foreground: #8aadb6;
+  --accent: #f7f75e;
+  --accent-foreground: #0c1214;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #243338;
+  --input: #243338;
+  --ring: #3dd9c6;
+  --chart-1: #3dd9c6;
+  --chart-2: #f7f75e;
+  --chart-3: #2EC4B6;
+  --chart-4: #0A4D5C;
+  --chart-5: #f59e0b;
+  --sidebar: #0e1619;
+  --sidebar-foreground: #e8f0f2;
+  --sidebar-primary: #3dd9c6;
+  --sidebar-primary-foreground: #041012;
+  --sidebar-accent: #f7f75e;
+  --sidebar-accent-foreground: #0c1214;
+  --sidebar-border: #243338;
+  --sidebar-ring: #3dd9c6;
+  color-scheme: dark;
 }
 
 @layer base {

@@ -63,6 +63,7 @@ export default async function RootLayout({
           attribute="class"
           defaultTheme="system"
           enableSystem
+          themes={["light", "dark", "noite", "system"]}
           disableTransitionOnChange
           nonce={nonce}
         >

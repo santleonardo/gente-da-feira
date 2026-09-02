@@ -264,7 +264,7 @@ function ExpirationCounter({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt]);
   if (!label) return null;
   return (
-    <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-[#000305] bg-[#f7f75e] rounded-full px-2 py-0.5 w-fit">
+    <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-card-foreground bg-[#f7f75e] rounded-full px-2 py-0.5 w-fit">
       <Clock className="h-2.5 w-2.5" />
       <span>{label}</span>
     </div>
@@ -709,12 +709,12 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                         // Sem cores de post-it: fundo branco + texto preto
                         const hasPostStyle = post.post_style && typeof post.post_style === "object";
-                        const cardBg = "bg-white";
+                        const cardBg = "bg-card";
 
                         return (
                           <div
                             key={post.id}
-                            className={`rounded-2xl ${cardBg} text-[#000305] shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-[#0A4D5C]/10`}
+                            className={`rounded-2xl ${cardBg} text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-[#0A4D5C]/10`}
                             onClick={(e) => {
                               const target = e.target as HTMLElement;
                               if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('audio') || target.closest('video')) return;
@@ -751,19 +751,19 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                               {/* Texto com FormattedText + post_style */}
                               {isTextOnly ? (
                                 <FormattedText
-                                  className="mt-1 text-sm leading-snug whitespace-pre-wrap text-[#000305]"
+                                  className="mt-1 text-sm leading-snug whitespace-pre-wrap text-card-foreground"
                                   content={post.content}
                                   style={{
                                     fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
                                     fontWeight: hasPostStyle && post.post_style!.bold ? 700 : undefined,
                                     fontStyle: hasPostStyle && post.post_style!.italic ? "italic" : undefined,
                                     textAlign: hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                                    color: "#000305",
+                                    color: "var(--card-foreground)",
                                   }}
                                 />
                               ) : (
                                 <FormattedText
-                                  className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-[#000305]"
+                                  className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
                                   content={post.content}
                                 />
                               )}

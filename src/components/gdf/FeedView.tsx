@@ -374,7 +374,7 @@ const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[11px] font-semibold text-[#000305]/70 tabular-nums">{formatDuration(currentTime)}</span>
+            <span className="text-[11px] font-semibold text-card-foreground/70 tabular-nums">{formatDuration(currentTime)}</span>
             <span className="text-[10px] text-[#0A4D5C]/30">/</span>
             <span className="text-[11px] text-[#0A4D5C]/40 tabular-nums">{formatDuration(duration)}</span>
           </div>
@@ -461,13 +461,13 @@ function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; init
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors">
+      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors">
         <X className="h-5 w-5" />
       </button>
       {photos.length > 1 && (
         <>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors">&#8249;</button>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors">&#8250;</button>
+          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors">&#8249;</button>
+          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors">&#8250;</button>
         </>
       )}
       <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
@@ -501,13 +501,13 @@ function ShareMenu({ post, onClose, onRepost }: { post: PostWithAuthor; onClose:
 
   return (
     <div className="absolute right-0 bottom-full mb-2 w-12 rounded-2xl bg-[#f7f9fa] p-1 shadow-xl border border-[#0A4D5C]/10 z-50 animate-in fade-in-0 zoom-in-95 flex flex-col items-center gap-0.5">
-      <button onClick={() => { onRepost(post); onClose(); }} className="flex items-center justify-center rounded-xl p-2.5 text-[#000305] transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar no feed">
+      <button onClick={() => { onRepost(post); onClose(); }} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar no feed">
         <Repeat2 className="h-4 w-4 text-[#0A4D5C]" />
       </button>
-      <button onClick={handleExternalShare} className="flex items-center justify-center rounded-xl p-2.5 text-[#000305] transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar fora">
+      <button onClick={handleExternalShare} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Compartilhar fora">
         <ExternalLink className="h-4 w-4 text-[#0A4D5C]/50" />
       </button>
-      <button onClick={handleCopyLink} className="flex items-center justify-center rounded-xl p-2.5 text-[#000305] transition-colors hover:bg-[#f7f75e]/20" title="Copiar texto">
+      <button onClick={handleCopyLink} className="flex items-center justify-center rounded-xl p-2.5 text-card-foreground transition-colors hover:bg-[#f7f75e]/20" title="Copiar texto">
         <Copy className="h-4 w-4 text-[#0A4D5C]/50" />
       </button>
     </div>
@@ -1152,7 +1152,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               placeholder={hasMediaInComposer ? "Adicione uma legenda... (opcional)" : "O que está acontecendo no seu bairro?"}
               value={content}
               onChange={(e) => setContent(e.target.value.slice(0, 500))}
-              className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-[#000305] focus:outline-none placeholder:text-[#0A4D5C]/30"
+              className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-card-foreground focus:outline-none placeholder:text-[#0A4D5C]/30"
               rows={2}
             />
 
@@ -1172,7 +1172,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
             {hasVideoInComposer && videoPreview && (
               <div className="relative">
                 <video src={videoPreview} className="w-full max-h-48 rounded-2xl object-cover" playsInline muted />
-                <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-[#000305]">
+                <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-card-foreground">
                   <Video className="h-3 w-3" /> {formatDuration(videoDuration)}
                 </div>
                 <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0A4D5C] text-[#f7f9fa]">
@@ -1188,7 +1188,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                     <Music className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-[#000305]">Áudio</span>
+                    <span className="text-xs font-medium text-card-foreground">Áudio</span>
                     <span className="text-[10px] text-[#0A4D5C]/40 ml-2">{formatDuration(audioDuration)}</span>
                   </div>
                 </div>
@@ -1289,18 +1289,18 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       {repostingPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/50 backdrop-blur-sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }}>
           <div className="w-full max-w-md mx-4 rounded-3xl bg-[#f7f9fa] p-5 shadow-lg border border-[#0A4D5C]/10" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-[#000305] mb-3">Compartilhar no feed</h3>
+            <h3 className="text-base font-bold text-card-foreground mb-3">Compartilhar no feed</h3>
             <div className="rounded-2xl bg-[#0A4D5C]/[0.04] p-3 mb-3 border border-[#0A4D5C]/8">
               <div className="flex items-center gap-2 mb-1">
                 <UserAvatar user={repostingPost.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-6 w-6" />
-                <span className="text-xs font-semibold text-[#000305]">{repostingPost.author?.display_name || "Usuário"}</span>
+                <span className="text-xs font-semibold text-card-foreground">{repostingPost.author?.display_name || "Usuário"}</span>
                 <span className="text-[10px] text-[#0A4D5C]/40">@{repostingPost.author?.username || "usuario"}</span>
               </div>
               <FormattedText className="text-xs text-[#0A4D5C]/60 line-clamp-3" content={repostingPost.content} />
             </div>
             <textarea placeholder="Adicione um comentário (opcional)..." value={repostContent}
               onChange={(e) => setRepostContent(e.target.value.slice(0, 200))}
-              className="w-full min-h-[60px] resize-none border-0 bg-transparent p-3 text-sm text-[#000305] focus:outline-none placeholder:text-[#0A4D5C]/30" rows={2} />
+              className="w-full min-h-[60px] resize-none border-0 bg-transparent p-3 text-sm text-card-foreground focus:outline-none placeholder:text-[#0A4D5C]/30" rows={2} />
             <div className="flex items-center gap-2 mt-3">
               <Button variant="outline" size="sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }} className="rounded-full border-[#0A4D5C]/10 text-[#0A4D5C]">Cancelar</Button>
               <Button size="sm" onClick={() => handleRepost(repostingPost)} className="rounded-full gap-1.5 bg-[#0A4D5C] text-[#f7f9fa] hover:bg-[#0A4D5C]/90 border-0">
@@ -1317,7 +1317,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-3xl bg-[#0A4D5C]/[0.04]">
             <MessageCircle className="h-8 w-8 text-[#0A4D5C]/30" />
           </div>
-          <p className="text-sm font-medium text-[#000305]">Nenhum post por aqui ainda</p>
+          <p className="text-sm font-medium text-card-foreground">Nenhum post por aqui ainda</p>
           <p className="text-xs text-[#0A4D5C]/40 mt-1">Seja o primeiro a publicar no seu bairro!</p>
         </div>
       )}
@@ -1447,7 +1447,7 @@ const PostThread = memo(function PostThread({
     const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
     const hasPostStyle = post.post_style && typeof post.post_style === "object";
     // Todos os posts: fundo branco (sem cores de post-it)
-    const cardBg = "bg-white dark:bg-card";
+    const cardBg = "bg-card";
     const commentsBg = "bg-[#0A4D5C]/[0.04]";
 
     const viewerReactionTypes = new Set(
@@ -1575,7 +1575,7 @@ const PostThread = memo(function PostThread({
 
   return (
     <div
-      className={`rounded-2xl ${cardBg} text-[#000305] shadow-md border border-[#0A4D5C]/10 ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#f7f75e]" : ""}`}
+      className={`rounded-2xl ${cardBg} text-card-foreground shadow-md border border-border ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-accent" : ""}`}
       onClick={handleOpenPostDetail}
     >
       <div className="p-3 sm:p-4">
@@ -1586,24 +1586,24 @@ const PostThread = memo(function PostThread({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <button onClick={() => post.author?.id && openUserProfile?.(post.author.id)}
-                className="text-sm font-semibold text-[#000305] hover:underline underline-offset-2 transition-all">
+                className="text-sm font-semibold text-card-foreground hover:underline underline-offset-2 transition-all">
                 {post.author?.display_name || "Usuário"}
               </button>
               {post.visibility === "followers" && (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-[#000305]">
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-card-foreground">
                   <UsersIcon className="h-2.5 w-2.5" />Seguidores
                 </span>
               )}
               {isOwnPost && (
                 <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-[#0A4D5C]">Seu post</span>
               )}
-              <span className="text-[10px] text-[#000305]/25">·</span>
-              <span className="text-[10px] text-[#000305]/45">{timeAgo(post.created_at)}</span>
+              <span className="text-[10px] text-card-foreground/25">·</span>
+              <span className="text-[10px] text-card-foreground/45">{timeAgo(post.created_at)}</span>
             </div>
 
             {isTextOnly && post.content && !isMediaPlaceholder(post.content) && (
               <FormattedText
-                className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#000305]"
+                className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-card-foreground"
                 content={post.content}
                 openUserProfile={openUserProfile}
                 style={{
@@ -1611,7 +1611,7 @@ const PostThread = memo(function PostThread({
                   fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
                   fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
                   textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                  color: "#000305",
+                  color: "var(--card-foreground)",
                 }}
               />
             )}
@@ -1626,7 +1626,7 @@ const PostThread = memo(function PostThread({
                   <button onClick={() => post.shared_post?.author?.id && openUserProfile?.(post.shared_post.author.id)} className="shrink-0">
                     <UserAvatar user={post.shared_post?.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-6 w-6" />
                   </button>
-                  <button onClick={() => post.shared_post?.author?.id && openUserProfile?.(post.shared_post.author.id)} className="text-xs font-semibold text-[#000305] hover:underline">
+                  <button onClick={() => post.shared_post?.author?.id && openUserProfile?.(post.shared_post.author.id)} className="text-xs font-semibold text-card-foreground hover:underline">
                     {post.shared_post?.author?.display_name || "Usuário"}
                   </button>
                 </div>
@@ -1649,7 +1649,7 @@ const PostThread = memo(function PostThread({
             {!isTextOnly && post.content && post.content.trim() && !isMediaPlaceholder(post.content) && (
               <div className="px-1 sm:px-1.5 mt-2">
                 <FormattedText
-                  className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#000305]"
+                  className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
                   content={post.content}
                   openUserProfile={openUserProfile}
                   style={{
@@ -1657,14 +1657,14 @@ const PostThread = memo(function PostThread({
                     fontWeight:  hasPostStyle && post.post_style!.bold      ? 700                                      : undefined,
                     fontStyle:   hasPostStyle && post.post_style!.italic    ? "italic"                                 : undefined,
                     textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment as any        : undefined,
-                    color: "#000305",
+                    color: "var(--card-foreground)",
                   }}
                 />
               </div>
             )}
 
             {post.expires_at && expirationLabel && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold text-[#000305] bg-[#f7f75e] rounded-full px-2.5 py-1 w-fit">
+              <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold text-card-foreground bg-[#f7f75e] rounded-full px-2.5 py-1 w-fit">
                 <Clock className="h-3 w-3" /><span>{expirationLabel}</span>
               </div>
             )}
@@ -1783,7 +1783,7 @@ const PostThread = memo(function PostThread({
                   <input ref={commentInputRef} placeholder="Comentar..." value={commentInput}
                     onChange={(e) => setCommentInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && submitComment()}
-                    className="flex-1 min-w-0 rounded-full border border-[#0A4D5C]/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-[#000305] focus:outline-none focus:border-[#2EC4B6] placeholder:text-[#0A4D5C]/30" />
+                    className="flex-1 min-w-0 rounded-full border border-[#0A4D5C]/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-card-foreground focus:outline-none focus:border-[#2EC4B6] placeholder:text-[#0A4D5C]/30" />
                   <button onClick={submitComment} disabled={!commentInput.trim() || submitting}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] hover:bg-[#25b0a3] transition-colors disabled:opacity-30">
                     {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="text-xs">💬</span>}
@@ -1821,12 +1821,12 @@ const CommentItem = memo(function CommentItem({
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 flex-wrap">
-            <button onClick={() => comment.author?.id && openUserProfile?.(comment.author.id)} className="text-[10px] sm:text-[11px] font-semibold text-[#000305] hover:underline">
+            <button onClick={() => comment.author?.id && openUserProfile?.(comment.author.id)} className="text-[10px] sm:text-[11px] font-semibold text-card-foreground hover:underline">
               {comment.author?.display_name || "Usuário"}
             </button>
             <span className="text-[9px] sm:text-[10px] text-[#0A4D5C]/30">{timeAgo(comment.created_at)}</span>
           </div>
-          <FormattedText className="text-[11px] sm:text-xs text-[#000305]/80 leading-relaxed" content={comment.content} />
+          <FormattedText className="text-[11px] sm:text-xs text-card-foreground/80 leading-relaxed" content={comment.content} />
           <div className="flex items-center gap-1.5 mt-0.5">
             <div className="relative">
               <button onClick={() => setShowCommentReactions(!showCommentReactions)} className="text-[10px] text-[#0A4D5C]/30 hover:text-[#0A4D5C] transition-colors">
