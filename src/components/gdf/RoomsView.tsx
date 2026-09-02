@@ -31,6 +31,7 @@ import {
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
+import { LazyImage } from "./LazyImage";
 import { useRealtimeMessages } from "@/hooks/use-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -3723,11 +3724,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       )}
                       {hasImage && (
                         <div className="mb-1">
-                          <img
+                          <LazyImage
                             src={msg.media_url}
                             alt="Foto"
-                            className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                            loading="lazy"
+                            className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95"
+                            wrapperClassName="max-w-full"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(msg.media_url, "_blank");

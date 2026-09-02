@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
+import { LazyImage } from "./LazyImage";
 import { useRealtimeMessages } from "@/hooks/use-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -893,10 +894,11 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                 }`}>
                   {hasImage && (
                     <div className="mb-1 relative group">
-                      <img
+                      <LazyImage
                         src={msg.media_url}
                         alt="Foto"
-                        className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                        className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95"
+                        wrapperClassName="max-w-full"
                         onClick={() => window.open(msg.media_url, "_blank")}
                       />
                       {isMine && (

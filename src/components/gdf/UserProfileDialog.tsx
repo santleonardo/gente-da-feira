@@ -187,7 +187,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
   if (count === 1) {
     return (
       <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden rounded-xl shadow-sm">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <img src={photos[0]} alt="Foto do post" className="w-full max-h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
       </button>
     );
   }
@@ -196,7 +196,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
       <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
         {photos.map((url, i) => (
           <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
           </button>
         ))}
       </div>
@@ -206,13 +206,13 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     return (
       <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
         <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
         <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[1]} alt="Foto 2" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
         <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[2]} alt="Foto 3" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
       </div>
     );
@@ -221,7 +221,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
       {photos.slice(0, 4).map((url, i) => (
         <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-white font-bold text-sm">+{count - 4}</div>
           )}
@@ -836,7 +836,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           <div className="grid grid-cols-3 gap-1">
                             {albumPhotos.map((photo: any) => (
                               <button key={photo.id} className="aspect-square rounded-lg overflow-hidden" onClick={() => openPhotoViewer(albumPhotos.map((p: any) => p.url), albumPhotos.findIndex((p: any) => p.id === photo.id))}>
-                                <img src={photo.url} alt="Foto do álbum" className="w-full h-full object-cover hover:opacity-90 transition-opacity" loading="lazy" />
+                                <img src={photo.url} alt="Foto do álbum" className="w-full h-full object-cover hover:opacity-90 transition-opacity" loading="lazy" decoding="async" />
                               </button>
                             ))}
                           </div>

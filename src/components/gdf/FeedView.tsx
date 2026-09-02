@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
+import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
 import {
   compressImageForFeed,
@@ -403,17 +404,22 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
 
   if (count === 1) {
     return (
-      <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-[70vh] sm:max-h-[32rem] object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+      <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden rounded-xl">
+        <LazyImage
+          src={photos[0]}
+          alt="Foto do post"
+          className="w-full max-h-[70vh] sm:max-h-[32rem] object-cover hover:opacity-95"
+          wrapperClassName="w-full"
+        />
       </button>
     );
   }
   if (count === 2) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
+      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
         {photos.map((url, i) => (
           <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+            <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
           </button>
         ))}
       </div>
@@ -421,24 +427,24 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
   }
   if (count === 3) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
+      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
         <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+          <LazyImage src={photos[0]} alt="Foto 1" className="w-full h-full min-h-[14rem] object-cover hover:opacity-95" wrapperClassName="w-full h-full" />
         </button>
         <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+          <LazyImage src={photos[1]} alt="Foto 2" className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
         </button>
         <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+          <LazyImage src={photos[2]} alt="Foto 3" className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
         </button>
       </div>
     );
   }
   return (
-    <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
+    <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
       {photos.slice(0, 4).map((url, i) => (
         <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
+          <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#f7f9fa] font-bold text-lg">+{count - 4}</div>
           )}
@@ -1656,7 +1662,7 @@ const PostThread = memo(function PostThread({
                 {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
                   <div className="mt-1.5 flex gap-1 overflow-x-auto">
                     {post.shared_post.image_urls.slice(0, 2).map((url, i) => (
-                      <img key={i} src={url} alt="" className="h-16 w-16 rounded-xl object-cover shrink-0" />
+                      <LazyImage key={i} src={url} alt="" className="h-16 w-16 rounded-xl object-cover shrink-0" skeleton={false} />
                     ))}
                     {post.shared_post.image_urls.length > 2 && (
                       <div className="h-16 w-16 rounded-xl bg-[#0A4D5C]/[0.04] flex items-center justify-center text-xs text-[#0A4D5C]/40 shrink-0">

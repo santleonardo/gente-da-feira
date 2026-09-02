@@ -21,9 +21,11 @@ Avatar.displayName = "Avatar"
 const AvatarImage = React.forwardRef<
   React.ElementRef<"img">,
   React.ComponentPropsWithoutRef<"img">
->(({ className, ...props }, ref) => (
+>(({ className, loading, decoding, ...props }, ref) => (
   <img
     ref={ref}
+    loading={loading ?? "lazy"}
+    decoding={decoding ?? "async"}
     className={cn("aspect-square h-full w-full", className)}
     {...props}
   />
