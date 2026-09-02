@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     const { data: sources, error: sourcesError } = await admin
       .from("city_sources")
-      .select("id, slug, name, rss_url, category, trust_score, is_active")
+      .select("id, slug, name, rss_url, category, trust_score, is_active, scope")
       .eq("is_active", true)
       .eq("platform", "rss")
       .not("rss_url", "is", null)
@@ -61,11 +61,15 @@ export async function GET(req: NextRequest) {
     for (const source of sources) {
       try {
         const items = await fetchRssFeed(source.rss_url as string);
+        // Fontes "national" (política, esporte, entretenimento etc. de
+        // abrangência nacional) não precisam mencionar Feira de Santana —
+        // o filtro local só se aplica a fontes "local" (padrão).
+        const isNationalSource = source.scope === "national";
 
         for (const item of items) {
           const blob = `${item.title} ${item.summary || ""}`;
 
-          if (!looksLikeFeiraDeSantana(blob)) {
+          if (!isNationalSource && !looksLikeFeiraDeSantana(blob)) {
             totalSkipped++;
             continue;
           }
