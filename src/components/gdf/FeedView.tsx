@@ -35,6 +35,7 @@ import {
   Square,
   Music,
   Flag,
+  RefreshCw,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -403,7 +404,7 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
   if (count === 1) {
     return (
       <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-[32rem] object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <img src={photos[0]} alt="Foto do post" className="w-full max-h-[70vh] sm:max-h-[32rem] object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
       </button>
     );
   }
@@ -412,7 +413,7 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
       <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
         {photos.map((url, i) => (
           <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
           </button>
         ))}
       </div>
@@ -422,13 +423,13 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
     return (
       <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
         <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
         <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[1]} alt="Foto 2" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
         <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={photos[2]} alt="Foto 3" className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
         </button>
       </div>
     );
@@ -437,7 +438,7 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
     <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden">
       {photos.slice(0, 4).map((url, i) => (
         <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#f7f9fa] font-bold text-lg">+{count - 4}</div>
           )}
@@ -552,16 +553,28 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     else window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: uid } }));
   }, [openUserProfile]);
 
-  // Carregar Google Fonts para post_style
+  // Google Fonts só sob demanda (post_style) e de forma não-bloqueante
   useEffect(() => {
     const fontsParam = EDITOR_FONTS.map((f) => `family=${f.replace(/ /g, "+")}:wght@400;700`).join("&");
     const href = `https://fonts.googleapis.com/css2?${fontsParam}&display=swap`;
-    if (!document.querySelector(`link[href="${href}"]`)) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = href;
-      document.head.appendChild(link);
+    if (document.querySelector(`link[data-gdf-fonts="1"]`)) return;
+    // preconnect leve
+    if (!document.querySelector('link[href="https://fonts.gstatic.com"]')) {
+      const pre = document.createElement("link");
+      pre.rel = "preconnect";
+      pre.href = "https://fonts.gstatic.com";
+      pre.crossOrigin = "anonymous";
+      document.head.appendChild(pre);
     }
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-gdf-fonts", "1");
+    link.media = "print";
+    link.onload = () => {
+      link.media = "all";
+    };
+    document.head.appendChild(link);
   }, []);
 
   // ─── State principal ───────────────────────────────────
@@ -636,8 +649,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   }, []);
 
   // Página menor = 1º paint mais rápido; scroll infinito completa o resto
-  const FEED_PAGE_SIZE = 15;
+  const FEED_PAGE_SIZE = 12;
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const loadingMoreRef = useRef(false);
+
+  const mergePostsUnique = useCallback((prev: PostWithAuthor[], incoming: PostWithAuthor[]) => {
+    if (!incoming?.length) return prev;
+    const seen = new Set(prev.map((p) => p.id));
+    const extra = incoming.filter((p) => p?.id && !seen.has(p.id));
+    return extra.length ? [...prev, ...extra] : prev;
+  }, []);
 
   // ─── Fetch inicial ────────────────────────────────────
   useEffect(() => {
@@ -665,9 +687,28 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     return () => ac.abort();
   }, [profile?.neighborhood]);
 
+  // ─── Refresh (puxar novos posts) ──────────────────────
+  const refreshFeed = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const nb = profile?.neighborhood || "all";
+    try {
+      const res = await fetch(`/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}`);
+      const data = await res.json();
+      setPosts(data.posts || []);
+      setNextCursor(data.nextCursor ?? null);
+      setHasMore(data.hasMore ?? false);
+    } catch {
+      toast.error("Não foi possível atualizar o feed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [profile?.neighborhood, refreshing]);
+
   // ─── Load more (cursor pagination) ───────────────────
   const loadMorePosts = useCallback(async () => {
-    if (!hasMore || loadingMore || !nextCursor) return;
+    if (!hasMore || loadingMoreRef.current || !nextCursor) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     const nb = profile?.neighborhood || "all";
     try {
@@ -675,15 +716,16 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         `/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`
       );
       const data = await res.json();
-      setPosts((prev) => [...prev, ...(data.posts || [])]);
+      setPosts((prev) => mergePostsUnique(prev, data.posts || []));
       setNextCursor(data.nextCursor ?? null);
       setHasMore(data.hasMore ?? false);
     } catch {
       /* silent */
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, nextCursor, profile?.neighborhood]);
+  }, [hasMore, nextCursor, profile?.neighborhood, mergePostsUnique]);
 
   // Scroll infinito — carrega próxima página ao aproximar do fim
   useEffect(() => {
@@ -693,7 +735,8 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       (entries) => {
         if (entries[0]?.isIntersecting) loadMorePosts();
       },
-      { rootMargin: "400px 0px" }
+      // Mobile: margem menor = menos requests antecipados (economia de dados)
+      { rootMargin: typeof window !== "undefined" && window.innerWidth < 640 ? "200px 0px" : "400px 0px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -975,13 +1018,54 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 
   const handleReaction = useCallback(async (postId: string, type: string) => {
     if (!profile) return;
+    // Optimistic: aplica na hora e reconcilia com a API
+    let snapshot: PostWithAuthor[] | null = null;
+    setPosts((prev) => {
+      snapshot = prev;
+      return prev.map((p) => {
+        if (p.id !== postId) return p;
+        const reactions = p.reactions || [];
+        const already = reactions.some((r) => r.user_id === profile.id && r.type === type);
+        return {
+          ...p,
+          reactions: already
+            ? reactions.filter((r) => !(r.user_id === profile.id && r.type === type))
+            : [...reactions, { user_id: profile.id, type }],
+        };
+      });
+    });
     try {
-      const res = await fetch("/api/posts/reaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId, type }) });
-      const data = await res.json();
-      if (data.reacted !== undefined) {
-        setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, reactions: data.reacted ? [...p.reactions, { user_id: profile.id, type }] : p.reactions.filter((r) => !(r.user_id === profile.id && r.type === type)) } : p));
+      const res = await fetch("/api/posts/reaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, type }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.reacted === undefined) {
+        if (snapshot) setPosts(snapshot);
+        return;
       }
-    } catch { /* silent */ }
+      // Reconcilia com resultado real
+      setPosts((prev) =>
+        prev.map((p) => {
+          if (p.id !== postId) return p;
+          const reactions = p.reactions || [];
+          const has = reactions.some((r) => r.user_id === profile.id && r.type === type);
+          if (data.reacted && !has) {
+            return { ...p, reactions: [...reactions, { user_id: profile.id, type }] };
+          }
+          if (!data.reacted && has) {
+            return {
+              ...p,
+              reactions: reactions.filter((r) => !(r.user_id === profile.id && r.type === type)),
+            };
+          }
+          return p;
+        })
+      );
+    } catch {
+      if (snapshot) setPosts(snapshot);
+    }
   }, [profile]);
 
   const handleDelete = useCallback(async (postId: string) => {
@@ -1016,7 +1100,20 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   if (loading) return <FeedSkeleton />;
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 w-full min-w-0 max-w-full overflow-x-hidden">
+      {/* Atualizar feed */}
+      <div className="flex items-center justify-end mb-1">
+        <button
+          type="button"
+          onClick={refreshFeed}
+          disabled={refreshing}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium text-[#0A4D5C]/70 hover:bg-[#0A4D5C]/[0.06] active:scale-95 disabled:opacity-50 transition-colors"
+          title="Atualizar feed"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Atualizando…" : "Atualizar"}
+        </button>
+      </div>
       <style>{`
         .post-content h1 { font-size:1.25rem;font-weight:700;line-height:1.3;margin:0.35em 0 0.1em; }
         .post-content h2 { font-size:1.1rem;font-weight:700;line-height:1.3;margin:0.25em 0 0.1em; }
@@ -1216,10 +1313,13 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         </div>
       )}
 
-      {/* Masonry 2-column grid */}
-      <div className="columns-1 sm:columns-2 gap-3.5 mt-4">
+      {/* Masonry 2-column grid (1 col no mobile) */}
+      <div className="columns-1 sm:columns-2 gap-3 sm:gap-3.5 mt-3 sm:mt-4">
         {posts.map((post) => (
-          <div key={post.id} className="break-inside-avoid mb-3.5">
+          <div
+            key={post.id}
+            className="break-inside-avoid mb-3 sm:mb-3.5 [content-visibility:auto] [contain-intrinsic-size:auto_280px]"
+          >
             <PostThread
               post={post}
               profile={profile}

@@ -36,8 +36,8 @@ import { autoReportSpam } from "@/lib/auto-report";
 const MAX_PHOTOS_PER_POST = 1;
 const MAX_ACTIVE_MEDIA_POSTS = 2;
 const MEDIA_EXPIRATION_HOURS = 6;
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 12;
+const MAX_PAGE_SIZE = 30;
 
 export async function GET(req: NextRequest) {
   try {
@@ -152,7 +152,10 @@ export async function GET(req: NextRequest) {
       cleanupExpiredPosts().catch(() => {});
     }
 
-    return NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
+    const res = NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
+    // Cache curto no browser/CDN edge — feed “quase em tempo real”
+    res.headers.set("Cache-Control", "private, max-age=8, stale-while-revalidate=30");
+    return res;
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[posts GET]");
     return NextResponse.json({ error: message }, { status });
