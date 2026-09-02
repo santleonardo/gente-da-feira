@@ -1,8 +1,8 @@
 // ============================================================
 // Compressão e validação de imagens — compatível com mobile
-// Suporta: HEIC/HEIF (iPhone), JPEG, PNG, WebP, GIF
+// Suporta: HEIC/HEIF (iPhone), JPEG, PNG, WebP, AVIF, GIF
 // Usa createObjectURL (menos RAM) em vez de readAsDataURL
-// Detecta suporte a WebP no browser; fallback para JPEG
+// Prioridade de encode: AVIF → WebP → JPEG
 // ============================================================
 
 interface CompressionOptions {
@@ -10,6 +10,8 @@ interface CompressionOptions {
   maxHeight?: number;
   quality?: number;
   maxSizeKB?: number;
+  /** Tentar AVIF no canvas (quando o browser suportar) */
+  preferAvif?: boolean;
 }
 
 const DEFAULT_OPTIONS: CompressionOptions = {
@@ -17,18 +19,22 @@ const DEFAULT_OPTIONS: CompressionOptions = {
   maxHeight: 800,
   quality: 0.55,
   maxSizeKB: 300,
+  preferAvif: true,
 };
 
-/** Preset do feed: bom equilíbrio visual × tamanho (WebP) */
+/** Preset do feed: lado ≤1280, alvo ~150KB (AVIF/WebP) */
 export const FEED_IMAGE_OPTIONS: CompressionOptions = {
   maxWidth: 1280,
   maxHeight: 1280,
-  quality: 0.72,
-  maxSizeKB: 180,
+  quality: 0.7,
+  maxSizeKB: 150,
+  preferAvif: true,
 };
 
-// Detecta se o browser suporta codificação WebP no canvas
+type EncodeMime = "image/avif" | "image/webp" | "image/jpeg";
+
 let _webpSupported: boolean | null = null;
+let _avifSupported: boolean | null = null;
 
 async function detectWebPSupport(): Promise<boolean> {
   if (_webpSupported !== null) return _webpSupported;
@@ -46,18 +52,47 @@ async function detectWebPSupport(): Promise<boolean> {
   return _webpSupported;
 }
 
-// Tipos aceitos na validação — inclui HEIC/HEIF do iPhone
+async function detectAvifSupport(): Promise<boolean> {
+  if (_avifSupported !== null) return _avifSupported;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const blob = await new Promise<Blob | null>((resolve) => {
+      try {
+        canvas.toBlob(resolve, "image/avif", 0.5);
+      } catch {
+        resolve(null);
+      }
+    });
+    // Alguns browsers retornam blob com type vazio ou webp — exige type avif
+    _avifSupported = !!blob && blob.size > 0 && blob.type === "image/avif";
+  } catch {
+    _avifSupported = false;
+  }
+  return _avifSupported;
+}
+
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/avif",
   "image/gif",
   "image/heic",
   "image/heif",
 ]);
 
-// Extensões aceitas (fallback quando file.type está vazio, comum no Android)
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"]);
+const ALLOWED_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "avif",
+  "gif",
+  "heic",
+  "heif",
+]);
 
 function getExtension(filename: string): string {
   const parts = filename.split(".");
@@ -66,20 +101,17 @@ function getExtension(filename: string): string {
 }
 
 export function validateImageFile(file: File): string | null {
-  // 1) Verifica por tipo MIME
   if (file.type) {
     if (!ALLOWED_TYPES.has(file.type)) {
-      return "Tipo não suportado. Use JPG, PNG, WebP ou GIF.";
+      return "Tipo não suportado. Use JPG, PNG, WebP, AVIF ou GIF.";
     }
   } else {
-    // 2) Fallback: verifica por extensão (Android às vezes não seta file.type)
     const ext = getExtension(file.name);
     if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
-      return "Tipo não suportado. Use JPG, PNG, WebP ou GIF.";
+      return "Tipo não suportado. Use JPG, PNG, WebP, AVIF ou GIF.";
     }
   }
 
-  // 3) Tamanho máximo antes da compressão (10MB)
   if (file.size > 10 * 1024 * 1024) {
     return "Imagem muito grande. Máximo 10MB antes da compressão.";
   }
@@ -87,24 +119,36 @@ export function validateImageFile(file: File): string | null {
   return null;
 }
 
+async function pickOutputType(preferAvif: boolean): Promise<EncodeMime> {
+  if (preferAvif && (await detectAvifSupport())) return "image/avif";
+  if (await detectWebPSupport()) return "image/webp";
+  return "image/jpeg";
+}
+
+function qualityForType(type: EncodeMime, base: number): number {
+  // AVIF costuma precisar de quality um pouco mais alta no canvas para visual similar
+  if (type === "image/avif") return Math.min(Math.max(base, 0.45), 0.85);
+  if (type === "image/webp") return base;
+  return Math.min(base + 0.12, 0.88);
+}
+
 /**
  * Comprime uma imagem para upload.
- * Usa URL.createObjectURL (menos RAM que readAsDataURL).
- * Detecta suporte a WebP; faz fallback para JPEG se necessário.
+ * Prioridade: AVIF → WebP → JPEG.
  */
 export async function compressImage(
   file: File,
   options: CompressionOptions = {}
 ): Promise<Blob> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const webpSupported = await detectWebPSupport();
+  const outputType = await pickOutputType(opts.preferAvif !== false);
+  const quality = qualityForType(outputType, opts.quality ?? 0.55);
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
 
     img.onload = () => {
-      // Libera o object URL após carregar
       URL.revokeObjectURL(objectUrl);
 
       const canvas = document.createElement("canvas");
@@ -125,52 +169,46 @@ export async function compressImage(
         return;
       }
 
-      // Tenta WebP primeiro; se não suportado, usa JPEG
-      const outputType = webpSupported ? "image/webp" : "image/jpeg";
-      const quality = webpSupported
-        ? opts.quality!
-        : Math.min((opts.quality ?? 0.55) + 0.12, 0.85);
+      const drawForType = (type: EncodeMime) => {
+        if (type === "image/jpeg") {
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, width, height);
+        } else {
+          ctx.clearRect(0, 0, width, height);
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+      };
 
-      // Fundo branco só no JPEG (transparência PNG/WebP precisa ser preservável no WebP)
-      if (outputType === "image/jpeg") {
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, width, height);
-      } else {
-        ctx.clearRect(0, 0, width, height);
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            // WebP falhou? Tenta JPEG como fallback
-            if (outputType === "image/webp") {
-              // Re-desenha com fundo branco para JPEG
-              ctx.fillStyle = "#FFFFFF";
-              ctx.fillRect(0, 0, width, height);
-              ctx.drawImage(img, 0, 0, width, height);
-              canvas.toBlob(
-                (jpegBlob) => {
-                  if (!jpegBlob) {
-                    reject(new Error("Erro ao comprimir imagem"));
-                    return;
-                  }
-                  handleSizeLimit(canvas, jpegBlob, "image/jpeg", opts.maxSizeKB!, resolve, reject);
-                },
-                "image/jpeg",
-                0.75
-              );
-            } else {
+      const tryEncode = (type: EncodeMime, q: number) => {
+        drawForType(type);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size === 0) {
+              // Cascata de fallback
+              if (type === "image/avif") {
+                tryEncode("image/webp", qualityForType("image/webp", opts.quality ?? 0.55));
+                return;
+              }
+              if (type === "image/webp") {
+                tryEncode("image/jpeg", qualityForType("image/jpeg", opts.quality ?? 0.55));
+                return;
+              }
               reject(new Error("Erro ao comprimir imagem"));
+              return;
             }
-            return;
-          }
+            // Se o browser mentiu o type, ainda aceita se size ok e tenta limit
+            const actualType =
+              blob.type === "image/avif" || blob.type === "image/webp" || blob.type === "image/jpeg"
+                ? (blob.type as EncodeMime)
+                : type;
+            handleSizeLimit(canvas, blob, actualType, opts.maxSizeKB!, resolve, reject);
+          },
+          type,
+          q
+        );
+      };
 
-          handleSizeLimit(canvas, blob, outputType, opts.maxSizeKB!, resolve, reject);
-        },
-        outputType,
-        quality
-      );
+      tryEncode(outputType, quality);
     };
 
     img.onerror = () => {
@@ -178,55 +216,47 @@ export async function compressImage(
       reject(new Error("Erro ao carregar imagem. Tente outra foto."));
     };
 
-    // Usa createObjectURL (muito menos RAM que readAsDataURL)
     img.src = objectUrl;
   });
 }
 
-/**
- * Verifica se o blob está dentro do limite de tamanho.
- * Se estiver acima, comprime iterativamente reduzindo a qualidade.
- */
 function handleSizeLimit(
   canvas: HTMLCanvasElement,
   blob: Blob,
-  outputType: string,
+  outputType: EncodeMime,
   maxSizeKB: number,
   resolve: (blob: Blob) => void,
-  reject: (error: Error) => void,
-  currentQuality: number = 0.4
+  reject: (error: Error) => void
 ) {
   if (blob.size <= maxSizeKB * 1024) {
     resolve(blob);
     return;
   }
-
-  // Se já está na qualidade mínima, aceita o que tiver
-  if (currentQuality < 0.1) {
-    resolve(blob);
-    return;
-  }
-
-  compressIteratively(canvas, outputType, maxSizeKB, resolve, reject, currentQuality);
+  compressIteratively(canvas, outputType, maxSizeKB, resolve, reject, 0.45);
 }
 
 function compressIteratively(
   canvas: HTMLCanvasElement,
-  outputType: string,
+  outputType: EncodeMime,
   maxSizeKB: number,
   resolve: (blob: Blob) => void,
   reject: (error: Error) => void,
   currentQuality: number = 0.4
 ) {
-  if (currentQuality < 0.1) {
-    // Qualidade mínima — aceita o resultado
+  if (currentQuality < 0.12) {
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error("Erro na compressão"));
+        else if (outputType === "image/avif") {
+          compressIteratively(canvas, "image/webp", maxSizeKB, resolve, reject, 0.4);
+        } else if (outputType === "image/webp") {
+          compressIteratively(canvas, "image/jpeg", maxSizeKB, resolve, reject, 0.4);
+        } else {
+          reject(new Error("Erro na compressão"));
+        }
       },
       outputType,
-      0.1
+      0.12
     );
     return;
   }
@@ -234,8 +264,9 @@ function compressIteratively(
   canvas.toBlob(
     (blob) => {
       if (!blob) {
-        // Se WebP falhou nessa iteração, tenta JPEG
-        if (outputType === "image/webp") {
+        if (outputType === "image/avif") {
+          compressIteratively(canvas, "image/webp", maxSizeKB, resolve, reject, currentQuality);
+        } else if (outputType === "image/webp") {
           compressIteratively(canvas, "image/jpeg", maxSizeKB, resolve, reject, currentQuality);
         } else {
           reject(new Error("Erro na compressão"));
@@ -246,7 +277,14 @@ function compressIteratively(
       if (blob.size <= maxSizeKB * 1024) {
         resolve(blob);
       } else {
-        compressIteratively(canvas, outputType, maxSizeKB, resolve, reject, currentQuality - 0.1);
+        compressIteratively(
+          canvas,
+          outputType,
+          maxSizeKB,
+          resolve,
+          reject,
+          currentQuality - 0.08
+        );
       }
     },
     outputType,
@@ -254,25 +292,20 @@ function compressIteratively(
   );
 }
 
-/**
- * Retorna a extensão correta para o blob baseada no tipo MIME.
- */
 export function getExtensionForBlob(blob: Blob): string {
   if (blob.type === "image/jpeg") return "jpg";
   if (blob.type === "image/png") return "png";
   if (blob.type === "image/gif") return "gif";
-  // Default para webp (ou unknown)
+  if (blob.type === "image/avif") return "avif";
   return "webp";
 }
 
 /**
- * Compressão otimizada para o feed: WebP quando possível, alvo ≤180KB, lado ≤1280px.
- * Retorna um File com nome/extensão corretos para o FormData.
+ * Compressão otimizada para o feed: AVIF → WebP → JPEG.
+ * Retorna File com nome/extensão corretos para o FormData.
  */
 export async function compressImageForFeed(file: File): Promise<File> {
-  // GIF animado: não re-encoda no canvas (perde animação) — envia original se ≤ max
-  const isGif =
-    file.type === "image/gif" || getExtension(file.name) === "gif";
+  const isGif = file.type === "image/gif" || getExtension(file.name) === "gif";
   if (isGif) {
     if (file.size > 500 * 1024) {
       throw new Error("GIF muito grande (máx 500KB).");
@@ -282,7 +315,9 @@ export async function compressImageForFeed(file: File): Promise<File> {
 
   const blob = await compressImage(file, FEED_IMAGE_OPTIONS);
   const ext = getExtensionForBlob(blob);
-  const mime = blob.type || (ext === "jpg" ? "image/jpeg" : `image/${ext}`);
+  const mime =
+    blob.type ||
+    (ext === "jpg" ? "image/jpeg" : ext === "avif" ? "image/avif" : `image/${ext}`);
   const base = (file.name.replace(/\.[^.]+$/, "") || "photo")
     .slice(0, 40)
     .replace(/[^\w\-]+/g, "_");

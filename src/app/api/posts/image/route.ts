@@ -6,7 +6,7 @@ import { safeErrorResponse } from "@/lib/safe-error";
 
 const MAX_PHOTOS_PER_USER = 25;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const { buffer: compressedBuffer, contentType, ext } = await sanitizeImage(
       inputBuffer,
       file.type,
-      { maxWidth: 1280, maxHeight: 1280, quality: 78, preferWebP: true }
+      { maxWidth: 1280, maxHeight: 1280, quality: 72, preferAvif: true }
     );
 
     const timestamp = Date.now();

@@ -1,17 +1,10 @@
 // ============================================================
-// Sanitização de imagens no servidor
+// Sanitização de imagens no servidor (sharp)
 //
-// Reprocessa toda imagem recebida via `sharp`, o que:
-//  - Remove metadados EXIF (inclui GPS/geolocalização) — o sharp
-//    só inclui metadados na saída se .withMetadata() for chamado,
-//    o que NÃO fazemos aqui (omissão intencional).
-//  - Corrige a orientação visual usando .rotate() sem argumentos,
-//    que lê o EXIF Orientation, gira a imagem corretamente e
-//    então descarta o metadado — evita fotos "de lado".
-//  - Re-encoda para um formato previsível (preferência WebP no feed).
-//
-// GIFs (potencialmente animados) são tratados separadamente para
-// preservar a animação, usando { animated: true }.
+// - Remove EXIF/GPS (não chama withMetadata)
+// - Corrige orientação via .rotate()
+// - Prioridade de encode no feed: AVIF → WebP → JPEG
+// - GIF animado preservado
 // ============================================================
 
 import sharp from "sharp";
@@ -26,11 +19,13 @@ interface SanitizeOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
-  /**
-   * Força saída WebP (exceto GIF animado).
-   * Ideal para feed/posts — menor storage e egress.
-   */
+  /** Preferir WebP (legado / fallback) */
   preferWebP?: boolean;
+  /**
+   * Preferir AVIF (melhor compressão). Se falhar, cai para WebP.
+   * Recomendado para feed/posts.
+   */
+  preferAvif?: boolean;
 }
 
 export async function sanitizeImage(
@@ -38,10 +33,9 @@ export async function sanitizeImage(
   mimeType: string,
   opts: SanitizeOptions = {}
 ): Promise<SanitizedImage> {
-  const { maxWidth, maxHeight, quality, preferWebP } = opts;
+  const { maxWidth, maxHeight, quality, preferWebP, preferAvif } = opts;
 
-  // GIF: trata como animado para não perder frames; ainda assim
-  // remove EXIF pois não chamamos withMetadata().
+  // GIF animado
   if (mimeType === "image/gif") {
     let img = sharp(input, { animated: true, failOn: "none" });
     if (maxWidth || maxHeight) {
@@ -54,7 +48,7 @@ export async function sanitizeImage(
     return { buffer, contentType: "image/gif", ext: "gif" };
   }
 
-  let img = sharp(input, { failOn: "none" }).rotate(); // aplica EXIF orientation e depois descarta
+  let img = sharp(input, { failOn: "none" }).rotate();
 
   if (maxWidth || maxHeight) {
     img = img.resize(maxWidth, maxHeight, {
@@ -63,16 +57,37 @@ export async function sanitizeImage(
     });
   }
 
-  // Feed / posts: sempre WebP no servidor (cliente pode ter enviado JPEG de fallback)
-  if (preferWebP || mimeType === "image/webp") {
-    const buffer = await img
-      .webp({
-        quality: quality ?? 78,
-        effort: 4,
-        smartSubsample: true,
-      })
-      .toBuffer();
-    return { buffer, contentType: "image/webp", ext: "webp" };
+  const q = quality ?? 78;
+
+  // AVIF primeiro (feed)
+  if (preferAvif || mimeType === "image/avif") {
+    try {
+      const buffer = await img
+        .avif({
+          quality: Math.min(Math.max(q, 40), 85),
+          effort: 4, // 0–9; 4 = bom custo/benefício no serverless
+        })
+        .toBuffer();
+      return { buffer, contentType: "image/avif", ext: "avif" };
+    } catch {
+      // libvips/avif indisponível → WebP
+    }
+  }
+
+  // WebP
+  if (preferAvif || preferWebP || mimeType === "image/webp") {
+    try {
+      const buffer = await img
+        .webp({
+          quality: q,
+          effort: 4,
+          smartSubsample: true,
+        })
+        .toBuffer();
+      return { buffer, contentType: "image/webp", ext: "webp" };
+    } catch {
+      // continua para JPEG
+    }
   }
 
   switch (mimeType) {

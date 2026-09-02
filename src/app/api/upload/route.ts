@@ -16,12 +16,13 @@ const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/avif",
   "image/gif",
 ];
 // Light / Supabase Free: 500 KB máx para economizar storage e egress
 const MAX_IMAGE_SIZE = 500 * 1024; // 500 KB
 const MAX_VIDEO_THUMB_SIZE = 300 * 1024; // 300 KB para thumbnails
-const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
+const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif"];
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,12 +64,19 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Reprocessa a imagem via sharp: remove metadados EXIF/GPS,
-    // corrige orientação e re-encoda (WebP no feed = menos storage/egress).
+    // Reprocessa via sharp: EXIF off, orientação, AVIF → WebP → JPEG
     const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const inputType = (file.type && ALLOWED_IMAGE_TYPES.includes(file.type))
       ? file.type
-      : (fileExt === "png" ? "image/png" : fileExt === "gif" ? "image/gif" : fileExt === "webp" ? "image/webp" : "image/jpeg");
+      : fileExt === "png"
+        ? "image/png"
+        : fileExt === "gif"
+          ? "image/gif"
+          : fileExt === "webp"
+            ? "image/webp"
+            : fileExt === "avif"
+              ? "image/avif"
+              : "image/jpeg";
     const inputBuffer = Buffer.from(await file.arrayBuffer());
 
     const isFeedPhoto = folder === "posts" || folder === "post-photos";
@@ -76,10 +84,10 @@ export async function POST(req: NextRequest) {
       inputBuffer,
       inputType,
       folder === "video-thumbs"
-        ? { maxWidth: 640, maxHeight: 640, preferWebP: true, quality: 72 }
+        ? { maxWidth: 640, maxHeight: 640, preferAvif: true, quality: 65 }
         : isFeedPhoto
-          ? { maxWidth: 1280, maxHeight: 1280, preferWebP: true, quality: 78 }
-          : { preferWebP: true, quality: 80 }
+          ? { maxWidth: 1280, maxHeight: 1280, preferAvif: true, quality: 72 }
+          : { preferAvif: true, quality: 75 }
     );
 
     const timestamp = Date.now();
