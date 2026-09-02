@@ -35,7 +35,7 @@ function buildPayload(
     follow_request:  { title: "Pedido de seguir",      body: `${actorName} quer te seguir`,              tag: "follow_request"  },
     follow_accepted: { title: "Seguindo você",         body: `${actorName} aceitou seu pedido`,          tag: "follow_accepted" },
     follow:          { title: "Novo seguidor",         body: `${actorName} começou a te seguir`,         tag: "follow"          },
-    mention:         { title: "Você foi mencionado",   body: `${actorName} te mencionou em um post`,     tag: "mention"         },
+    mention:         { title: "Você foi mencionado",   body: `${actorName} te mencionou`,               tag: "mention"         },
     moderation_suspend: {
       title: "Conta suspensa",
       body: extra?.suspendUntil

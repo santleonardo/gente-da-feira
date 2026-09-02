@@ -14,8 +14,11 @@ import { safeErrorResponse } from "@/lib/safe-error";
 const MEDIA_MESSAGE_EXPIRATION_MINUTES = 10;
 
 // SEC-009: Explicit columns for messages — no SELECT *
-const MESSAGE_COLS = "id, content, sender_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at";
+const MESSAGE_COLS =
+  "id, content, sender_id, room_id, target_type, media_url, media_type, expires_at, is_deleted, created_at, reply_to_id";
 const SENDER_COLS = "id, display_name, username, avatar_url";
+const REPLY_PARENT_COLS =
+  "id, content, media_type, sender_id, is_deleted, created_at";
 
 // ============================================================
 // SEC-002: GET /api/rooms/[id]/messages
@@ -68,12 +71,65 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Defesa extra: se a limpeza em background ainda não rodou,
     // não retorna mídia já expirada ao cliente.
     const now = new Date().toISOString();
-    const sanitized = (messages || []).map((m: any) => {
+    let sanitized = (messages || []).map((m: any) => {
       if (m.media_url && m.expires_at && m.expires_at < now) {
         return { ...m, media_url: null, media_type: null };
       }
       return m;
     });
+
+    // Anexa mensagem original (reply) quando reply_to_id existe
+    const replyIds = [
+      ...new Set(
+        sanitized
+          .map((m: any) => m.reply_to_id)
+          .filter((rid: string | null | undefined): rid is string => !!rid)
+      ),
+    ];
+    if (replyIds.length > 0) {
+      const { data: parents } = await supabase
+        .from("messages")
+        .select(`${REPLY_PARENT_COLS}, sender:profiles(${SENDER_COLS})`)
+        .in("id", replyIds)
+        .eq("room_id", id);
+      const parentMap = new Map((parents || []).map((p: any) => [p.id, p]));
+      sanitized = sanitized.map((m: any) => {
+        if (!m.reply_to_id) return m;
+        const parent = parentMap.get(m.reply_to_id);
+        if (!parent) {
+          return {
+            ...m,
+            reply_to: {
+              id: m.reply_to_id,
+              content: null,
+              media_type: null,
+              is_deleted: true,
+              sender: null,
+            },
+          };
+        }
+        return {
+          ...m,
+          reply_to: parent.is_deleted
+            ? {
+                id: parent.id,
+                content: null,
+                media_type: null,
+                is_deleted: true,
+                sender: parent.sender || null,
+              }
+            : {
+                id: parent.id,
+                content: parent.content,
+                media_type: parent.media_type,
+                is_deleted: false,
+                sender_id: parent.sender_id,
+                sender: parent.sender || null,
+                created_at: parent.created_at,
+              },
+        };
+      });
+    }
 
     // Mark-as-read: usuário está visualizando a sala → atualiza last_read_at.
     // Fire-and-forget para não atrasar a resposta das mensagens.
@@ -140,7 +196,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const body = await req.json();
-    const { content, media_url, media_type } = body;
+    const { content, media_url, media_type, reply_to_id: rawReplyTo } = body;
 
     // Pelo menos content ou media_url deve ser fornecido
     if ((!content || !content.trim()) && !media_url) {
@@ -182,6 +238,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       insertData.expires_at = getMessageMediaExpirationMinutes(MEDIA_MESSAGE_EXPIRATION_MINUTES);
     }
 
+    // Reply: só aceita se a mensagem original existir, for da mesma sala e não estiver apagada
+    let replyParent: any = null;
+    if (rawReplyTo && typeof rawReplyTo === "string") {
+      const { data: parent } = await supabase
+        .from("messages")
+        .select(`${REPLY_PARENT_COLS}, sender:profiles(${SENDER_COLS})`)
+        .eq("id", rawReplyTo)
+        .eq("room_id", id)
+        .eq("target_type", "room")
+        .eq("is_deleted", false)
+        .maybeSingle();
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Mensagem original não encontrada nesta sala" },
+          { status: 400 }
+        );
+      }
+      insertData.reply_to_id = parent.id;
+      replyParent = parent;
+    }
+
     // O RLS em messages validará o INSERT novamente no banco.
     // Se falhar (ex: usuário foi banido entre a checagem e o INSERT),
     // retornamos erro específico.
@@ -192,6 +269,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (error) {
       console.error("[SEC-002 room-messages POST insert]", error);
+      // Coluna reply_to_id ausente (migration não rodada)
+      if (
+        typeof error.message === "string" &&
+        /reply_to_id|column/i.test(error.message)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Reply ainda não disponível no banco. Rode 20260901_room_reply_mentions.sql no Supabase.",
+          },
+          { status: 500 }
+        );
+      }
       // Se o RLS bloqueou, o erro será de permissão
       if (error.code === "42501" || error.message.includes("row-level security")) {
         return NextResponse.json(
@@ -202,7 +292,93 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       throw error;
     }
 
-    const responseData = { message };
+    // Anexa reply_to no payload de resposta (evita round-trip no client)
+    const messageWithReply = replyParent
+      ? {
+          ...message,
+          reply_to: {
+            id: replyParent.id,
+            content: replyParent.content,
+            media_type: replyParent.media_type,
+            is_deleted: false,
+            sender_id: replyParent.sender_id,
+            sender: replyParent.sender || null,
+            created_at: replyParent.created_at,
+          },
+        }
+      : message;
+
+    // ── Notificações: reply ao autor + @menções ──
+    // Fire-and-forget; não bloqueia o envio da mensagem.
+    void (async () => {
+      try {
+        const { createAdminClient } = await import("@/lib/supabase/server");
+        const { dispatchPushForNotification } = await import("@/lib/push-dispatch");
+        const admin = createAdminClient();
+        const notified = new Set<string>();
+
+        // 1) Quem foi respondido
+        if (replyParent?.sender_id && replyParent.sender_id !== user.id) {
+          notified.add(replyParent.sender_id);
+          const { data: notif } = await admin
+            .from("notifications")
+            .insert({
+              user_id: replyParent.sender_id,
+              type: "reply",
+              actor_id: user.id,
+              is_read: false,
+              message_id: (message as any)?.id ?? null,
+              room_id: id,
+            })
+            .select("id")
+            .single();
+          if (notif?.id) dispatchPushForNotification(notif.id).catch(() => {});
+        }
+
+        // 2) @menções no texto
+        const mentionedUsernames = [
+          ...new Set(
+            [...(insertData.content || "").matchAll(/@(\w+)/g)].map((m) => m[1].toLowerCase())
+          ),
+        ];
+        for (const username of mentionedUsernames) {
+          const { data: mentioned } = await admin
+            .from("profiles")
+            .select("id")
+            .eq("username", username)
+            .maybeSingle();
+          if (!mentioned || mentioned.id === user.id || notified.has(mentioned.id)) continue;
+
+          // Não notificar se houver bloqueio mútuo
+          const { count: blockCount } = await admin
+            .from("blocks")
+            .select("id", { count: "exact", head: true })
+            .or(
+              `and(blocker_id.eq.${user.id},blocked_id.eq.${mentioned.id}),and(blocker_id.eq.${mentioned.id},blocked_id.eq.${user.id})`
+            );
+          if ((blockCount ?? 0) > 0) continue;
+
+          notified.add(mentioned.id);
+          const { data: notif } = await admin
+            .from("notifications")
+            .insert({
+              user_id: mentioned.id,
+              type: "mention",
+              actor_id: user.id,
+              is_read: false,
+              message_id: (message as any)?.id ?? null,
+              room_id: id,
+            })
+            .select("id")
+            .single();
+          if (notif?.id) dispatchPushForNotification(notif.id).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("[rooms/messages notif]", e);
+      }
+    })();
+
+    const responseData = { message: messageWithReply };
     await idempotencyStore(req, responseData);
     return NextResponse.json(responseData);
   } catch (error: any) {

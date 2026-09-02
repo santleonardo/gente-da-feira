@@ -25,6 +25,7 @@ import {
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
+  Reply,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -1997,6 +1998,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const { profile, setSelectedRoom } = useStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  /** Mensagem sendo respondida (quote) */
+  const [replyTo, setReplyTo] = useState<any | null>(null);
+  /** Autocomplete de @menção: query após o @ e índice selecionado */
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   // isMember e isBanned são derivados exclusivamente do objeto room (vindo da API / Zustand)
   // Nunca usar estado local para participação — a API é a única fonte de verdade
@@ -2436,11 +2443,66 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     }
   };
 
+  // ═══════ Reply + menções ═══════
+  const startReply = (msg: any) => {
+    setReplyTo(msg);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const cancelReply = () => setReplyTo(null);
+
+  const mentionCandidates = (() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return members
+      .map((m: any) => m.profile)
+      .filter((p: any) => {
+        if (!p || p.id === profile?.id) return false;
+        const un = (p.username || "").toLowerCase();
+        const dn = (p.display_name || "").toLowerCase();
+        if (!q) return true;
+        return un.includes(q) || dn.includes(q);
+      })
+      .slice(0, 6);
+  })();
+
+  const detectMention = (value: string, cursorPos?: number) => {
+    const pos = cursorPos ?? value.length;
+    const before = value.slice(0, pos);
+    const match = before.match(/@(\w*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMention = (username: string) => {
+    const value = input;
+    const el = inputRef.current;
+    const pos = el?.selectionStart ?? value.length;
+    const before = value.slice(0, pos);
+    const after = value.slice(pos);
+    const replaced = before.replace(/@\w*$/, `@${username} `);
+    const next = (replaced + after).slice(0, 2000);
+    setInput(next);
+    setMentionQuery(null);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      const newPos = replaced.length;
+      inputRef.current?.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
   // ═══════ Enviar mensagem ═══════
   const sendMessage = async (mediaData?: { media_url?: string; media_type?: string }) => {
     if ((!input.trim() && !mediaData) || !profile || !isMember) return;
     const text = input.trim();
+    const replyingTo = replyTo;
     setInput("");
+    setReplyTo(null);
+    setMentionQuery(null);
     setSendingMedia(false);
     try {
       const body: any = { content: text || undefined };
@@ -2450,6 +2512,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           body.media_type = mediaData.media_type;
         }
       }
+      if (replyingTo?.id) {
+        body.reply_to_id = replyingTo.id;
+      }
       if (!body.content && !mediaData) return;
       const res = await fetch(`/api/rooms/${room.id}/messages`, {
         method: "POST",
@@ -2457,14 +2522,24 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (data.error) { toast.error(data.error); return; }
+      if (data.error) {
+        toast.error(data.error);
+        // Restaura input/reply em caso de erro
+        setInput(text);
+        if (replyingTo) setReplyTo(replyingTo);
+        return;
+      }
       if (data.message) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === data.message.id)) return prev;
           return [...prev, data.message];
         });
       }
-    } catch { toast.error("Erro ao enviar mensagem"); }
+    } catch {
+      toast.error("Erro ao enviar mensagem");
+      setInput(text);
+      if (replyingTo) setReplyTo(replyingTo);
+    }
   };
 
   // ═══════ Apagar mensagem (autor ou mod/creator) ═══════
@@ -3123,12 +3198,39 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
                     )}
                     <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block break-words ${
-                      hasMedia && !msg.content?.trim()
+                      hasMedia && !msg.content?.trim() && !msg.reply_to
                         ? "bg-transparent p-0"
                         : isMine
                           ? "bg-primary text-primary-foreground rounded-br-md"
                           : "bg-muted rounded-bl-md"
                     }`}>
+                      {/* Quote da mensagem respondida */}
+                      {msg.reply_to && (
+                        <div
+                          className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px] leading-snug ${
+                            isMine
+                              ? "border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground/85"
+                              : "border-primary/50 bg-background/60 text-muted-foreground"
+                          }`}
+                        >
+                          <p className="font-semibold truncate">
+                            {msg.reply_to.is_deleted
+                              ? "Mensagem apagada"
+                              : msg.reply_to.sender?.display_name || "Usuário"}
+                          </p>
+                          <p className="truncate opacity-90">
+                            {msg.reply_to.is_deleted
+                              ? "—"
+                              : msg.reply_to.media_type === "image"
+                                ? "📷 Foto"
+                                : msg.reply_to.media_type === "video"
+                                  ? "🎬 Vídeo"
+                                  : msg.reply_to.media_type === "audio"
+                                    ? "🎤 Áudio"
+                                    : (msg.reply_to.content || "").slice(0, 80) || "—"}
+                          </p>
+                        </div>
+                      )}
                       {hasImage && (
                         <div className="mb-1">
                           <img
@@ -3158,6 +3260,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     {!isMine && (
                       <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
                     )}
+                    <button
+                      onClick={() => startReply(msg)}
+                      title="Responder"
+                      className="mb-1 shrink-0 text-muted-foreground/30 hover:text-primary transition-colors"
+                    >
+                      <Reply className="h-3 w-3" />
+                    </button>
                     {!isMine && (
                       <button
                         onClick={() => useStore.getState().openReportDialog({ targetType: "room_message", targetId: msg.id })}
@@ -3267,13 +3376,109 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <input ref={audioFileRef} type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioFileSelect} className="hidden" />
                 </div>
 
-                {/* Input de texto */}
-                <div className="flex-1 relative">
+                {/* Coluna input: reply bar + menções + campo */}
+                <div className="flex-1 relative min-w-0">
+                  {/* Barra de resposta (quote) */}
+                  {replyTo && (
+                    <div className="mb-1.5 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5">
+                      <Reply className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold text-primary truncate">
+                          Respondendo a {replyTo.sender?.display_name || "mensagem"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {replyTo.media_type === "image"
+                            ? "📷 Foto"
+                            : replyTo.media_type === "video"
+                              ? "🎬 Vídeo"
+                              : replyTo.media_type === "audio"
+                                ? "🎤 Áudio"
+                                : (replyTo.content || "").slice(0, 80) || "—"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={cancelReply}
+                        className="text-muted-foreground hover:text-foreground shrink-0"
+                        title="Cancelar resposta"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Autocomplete @menção (membros da sala) */}
+                  {mentionQuery !== null && mentionCandidates.length > 0 && (
+                    <div className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+                      {mentionCandidates.map((p: any, idx: number) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            insertMention(p.username || "");
+                          }}
+                          className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                            idx === mentionIndex ? "bg-accent" : "hover:bg-accent/60"
+                          }`}
+                        >
+                          <UserAvatar
+                            user={{
+                              id: p.id,
+                              display_name: p.display_name || "?",
+                              avatar_url: p.avatar_url,
+                            }}
+                            className="h-7 w-7"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium">{p.display_name}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              @{p.username}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <Input
-                    placeholder="Escreva uma mensagem..."
+                    ref={inputRef}
+                    placeholder={replyTo ? "Escreva sua resposta..." : "Escreva uma mensagem... @para mencionar"}
                     value={input}
-                    onChange={(e) => setInput(e.target.value.slice(0, 2000))}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                    onChange={(e) => {
+                      const v = e.target.value.slice(0, 2000);
+                      setInput(v);
+                      detectMention(v, e.target.selectionStart ?? v.length);
+                    }}
+                    onKeyDown={(e) => {
+                      if (mentionQuery !== null && mentionCandidates.length > 0) {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setMentionIndex((i) => (i + 1) % mentionCandidates.length);
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
+                          return;
+                        }
+                        if (e.key === "Enter" || e.key === "Tab") {
+                          e.preventDefault();
+                          const pick = mentionCandidates[mentionIndex];
+                          if (pick?.username) insertMention(pick.username);
+                          return;
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setMentionQuery(null);
+                          return;
+                        }
+                      }
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
                     className="h-11 rounded-full pl-4 pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
                   />
                 </div>
@@ -3282,7 +3487,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 <button
                   onClick={() => sendMessage()}
                   disabled={!input.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 self-end"
                   title="Enviar"
                 >
                   <span className="text-lg leading-none">💬</span>
