@@ -75,6 +75,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return m;
     });
 
+    // Mark-as-read: usuário está visualizando a sala → atualiza last_read_at.
+    // Fire-and-forget para não atrasar a resposta das mensagens.
+    // Se a coluna ainda não existir (migration não rodada), o update falha
+    // silenciosamente e a lista continua funcionando sem unread.
+    void supabase
+      .from("room_members")
+      .update({ last_read_at: now })
+      .eq("room_id", id)
+      .eq("user_id", user.id)
+      .then(({ error: markErr }) => {
+        if (markErr) {
+          console.warn("[rooms/messages mark-read]", markErr.message);
+        }
+      });
+
     // Fire-and-forget: limpa mídia expirada (best effort)
     cleanupExpiredMessageMedia().catch(() => {});
 

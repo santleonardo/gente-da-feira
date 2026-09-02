@@ -8,7 +8,13 @@ import { sanitizeShortText, sanitizePlainText } from "@/lib/sanitize";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import bcrypt from "bcryptjs";
 
+// SEC-009: colunas mínimas para prévia da última mensagem na lista de salas
+const LAST_MSG_COLS =
+  "id, room_id, content, media_type, media_url, sender_id, created_at, is_deleted";
+const LAST_MSG_SENDER_COLS = "id, display_name, username";
+
 // ── GET /api/rooms ──────────────────────────────────────────────
+// Enriquecido com lastMessage + unreadCount para salas em que o usuário é membro.
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -29,11 +35,13 @@ export async function GET(req: NextRequest) {
     let memberRoomIds: Set<string> = new Set();
     let memberRoles: Record<string, string> = {};
     let bannedRoomIds: Set<string> = new Set();
+    /** last_read_at por room_id (só membros ativos) */
+    const lastReadByRoom: Record<string, string | null> = {};
 
     if (user) {
       const { data: myMemberships } = await supabase
         .from("room_members")
-        .select("room_id, role, is_banned")
+        .select("room_id, role, is_banned, last_read_at")
         .eq("user_id", user.id);
 
       if (myMemberships) {
@@ -43,9 +51,76 @@ export async function GET(req: NextRequest) {
           } else {
             memberRoomIds.add(m.room_id);
             memberRoles[m.room_id] = m.role;
+            lastReadByRoom[m.room_id] = m.last_read_at ?? null;
           }
         }
       }
+    }
+
+    // ── Prévia da última mensagem + contagem de não lidas (só salas membro) ──
+    const lastMessageByRoom: Record<
+      string,
+      {
+        id: string;
+        content: string | null;
+        media_type: string | null;
+        sender_id: string;
+        sender_name: string | null;
+        created_at: string;
+      }
+    > = {};
+    const unreadCountByRoom: Record<string, number> = {};
+
+    const memberIds = Array.from(memberRoomIds);
+    if (user && memberIds.length > 0) {
+      // Últimas mensagens: busca as mais recentes e agrupa por room_id em JS.
+      // Limite generoso para cobrir N salas (ex.: 50 salas × ~2 = 100 linhas).
+      const { data: recentMsgs } = await supabase
+        .from("messages")
+        .select(`${LAST_MSG_COLS}, sender:profiles(${LAST_MSG_SENDER_COLS})`)
+        .in("room_id", memberIds)
+        .eq("target_type", "room")
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false })
+        .limit(Math.min(memberIds.length * 3, 150));
+
+      if (recentMsgs) {
+        for (const msg of recentMsgs as any[]) {
+          if (lastMessageByRoom[msg.room_id]) continue; // já pegamos a mais recente
+          lastMessageByRoom[msg.room_id] = {
+            id: msg.id,
+            content: msg.content ?? null,
+            media_type: msg.media_type ?? null,
+            sender_id: msg.sender_id,
+            sender_name: msg.sender?.display_name ?? null,
+            created_at: msg.created_at,
+          };
+        }
+      }
+
+      // Contagem de não lidas: mensagens após last_read_at (ou todas se null).
+      // Faz uma query por sala em paralelo (N pequeno — tipicamente < 20).
+      await Promise.all(
+        memberIds.map(async (roomId) => {
+          const since = lastReadByRoom[roomId];
+          let q = supabase
+            .from("messages")
+            .select("id", { count: "exact", head: true })
+            .eq("room_id", roomId)
+            .eq("target_type", "room")
+            .eq("is_deleted", false)
+            .neq("sender_id", user.id); // não conta as próprias mensagens
+
+          if (since) {
+            q = q.gt("created_at", since);
+          }
+          // se last_read_at é null: conta todas as mensagens de outros
+          // (backfill SQL opcional evita badge gigante em salas antigas)
+
+          const { count } = await q;
+          unreadCountByRoom[roomId] = count ?? 0;
+        })
+      );
     }
 
     const formatted = (rooms || []).map((r: any) => {
@@ -54,6 +129,8 @@ export async function GET(req: NextRequest) {
       const isBanned = bannedRoomIds.has(r.id);
       const isClosed = r.is_open === false;
       const isFull = r.max_members && memberCount >= r.max_members;
+      const lastMessage = isMember ? lastMessageByRoom[r.id] ?? null : null;
+      const unreadCount = isMember ? unreadCountByRoom[r.id] ?? 0 : 0;
 
       return {
         ...r,
@@ -65,8 +142,27 @@ export async function GET(req: NextRequest) {
         isBanned,
         canJoin: !isMember && !isBanned && r.is_active && !isClosed && !isFull,
         isOpen: r.is_open !== false,
+        lastMessage,
+        unreadCount,
+        last_read_at: isMember ? lastReadByRoom[r.id] ?? null : null,
         room_members: undefined,
       };
+    });
+
+    // Ordena "Minhas Salas" implicitamente no cliente; aqui mantém order estável.
+    // Preferência: salas com unread primeiro, depois por última atividade.
+    formatted.sort((a: any, b: any) => {
+      // Só reordena entre membros; oficiais/comunidade ficam como estavam
+      if (a.isMember && b.isMember) {
+        const ua = a.unreadCount || 0;
+        const ub = b.unreadCount || 0;
+        if (ua > 0 && ub === 0) return -1;
+        if (ub > 0 && ua === 0) return 1;
+        const ta = a.lastMessage?.created_at || a.created_at || "";
+        const tb = b.lastMessage?.created_at || b.created_at || "";
+        return tb.localeCompare(ta);
+      }
+      return 0;
     });
 
     return NextResponse.json({ rooms: formatted });
