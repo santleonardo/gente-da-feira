@@ -707,21 +707,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         const hasAudio = !!post.audio_url;
                         const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
 
-                        // Post-it color logic (same as FeedView)
+                        // Sem cores de post-it: fundo branco + texto preto
                         const hasPostStyle = post.post_style && typeof post.post_style === "object";
-                        const styleColorIdx = hasPostStyle && post.post_style!.postItColor != null ? post.post_style!.postItColor : -1;
-                        const postItColor = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length ? POST_IT_COLORS[styleColorIdx] : getPostItColor(post.id)) : null;
-                        const postItColorHex = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length ? POST_IT_COLORS_HEX[styleColorIdx] : null) : null;
-                        const useInlineStyle = isTextOnly && styleColorIdx >= 0;
-                        const cardBg = isTextOnly
-                          ? (useInlineStyle ? "" : (postItColor?.bg || "bg-[#fdf6b2]"))
-                          : "bg-[#eef1f3]";
+                        const cardBg = "bg-white";
 
                         return (
                           <div
                             key={post.id}
-                            className={`rounded-2xl ${cardBg} shadow-sm cursor-pointer hover:shadow-md transition-shadow ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle && !isTextOnly ? "border border-[#0A4D5C]/8" : ""} ${!useInlineStyle && isTextOnly && !postItColor ? "border border-[#0A4D5C]/8" : ""}`}
-                            style={useInlineStyle && postItColorHex ? { backgroundColor: postItColorHex.bg, border: `1px solid ${postItColorHex.border}` } : undefined}
+                            className={`rounded-2xl ${cardBg} text-[#000305] shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-[#0A4D5C]/10`}
                             onClick={(e) => {
                               const target = e.target as HTMLElement;
                               if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('audio') || target.closest('video')) return;
@@ -758,14 +751,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                               {/* Texto com FormattedText + post_style */}
                               {isTextOnly ? (
                                 <FormattedText
-                                  className={`mt-1 text-sm leading-snug whitespace-pre-wrap ${useInlineStyle ? "" : (postItColor?.text || "text-[#000305]")}`}
+                                  className="mt-1 text-sm leading-snug whitespace-pre-wrap text-[#000305]"
                                   content={post.content}
                                   style={{
-                                    fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : "serif",
+                                    fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
                                     fontWeight: hasPostStyle && post.post_style!.bold ? 700 : undefined,
                                     fontStyle: hasPostStyle && post.post_style!.italic ? "italic" : undefined,
                                     textAlign: hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                                    color: useInlineStyle && postItColorHex ? postItColorHex.text : undefined,
+                                    color: "#000305",
                                   }}
                                 />
                               ) : (

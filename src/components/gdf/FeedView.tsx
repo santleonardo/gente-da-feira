@@ -1436,9 +1436,6 @@ const PostThread = memo(function PostThread({
     isOwnPost,
     isTextOnly,
     hasPostStyle,
-    postItColor,
-    postItColorHex,
-    useInlineStyle,
     cardBg,
     commentsBg,
     viewerReactionTypes,
@@ -1448,28 +1445,9 @@ const PostThread = memo(function PostThread({
     const hasAudio = !!post.audio_url;
     const isOwnPost = post.author_id === profile?.id;
     const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
-
     const hasPostStyle = post.post_style && typeof post.post_style === "object";
-    const styleColorIdx =
-      hasPostStyle && post.post_style!.postItColor != null
-        ? post.post_style!.postItColor
-        : -1;
-    const postItColor = isTextOnly
-      ? styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length
-        ? POST_IT_COLORS[styleColorIdx]
-        : getPostItColor(post.id)
-      : null;
-    const postItColorHex = isTextOnly
-      ? styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length
-        ? POST_IT_COLORS_HEX[styleColorIdx]
-        : null
-      : null;
-    const useInlineStyle = isTextOnly && styleColorIdx >= 0;
-    const cardBg = isTextOnly
-      ? useInlineStyle
-        ? ""
-        : postItColor?.bg || "bg-[#fdf6b2]"
-      : "bg-[#eef1f3]";
+    // Todos os posts: fundo branco (sem cores de post-it)
+    const cardBg = "bg-white dark:bg-card";
     const commentsBg = "bg-[#0A4D5C]/[0.04]";
 
     const viewerReactionTypes = new Set(
@@ -1485,9 +1463,6 @@ const PostThread = memo(function PostThread({
       isOwnPost,
       isTextOnly,
       hasPostStyle: !!hasPostStyle,
-      postItColor,
-      postItColorHex,
-      useInlineStyle,
       cardBg,
       commentsBg,
       viewerReactionTypes,
@@ -1498,7 +1473,6 @@ const PostThread = memo(function PostThread({
     post.audio_url,
     post.author_id,
     post.post_style,
-    post.id,
     post.reactions,
     profile?.id,
   ]);
@@ -1601,8 +1575,7 @@ const PostThread = memo(function PostThread({
 
   return (
     <div
-      className={`rounded-2xl ${cardBg} shadow-md ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#f7f75e]" : ""} ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle ? "border border-[#0A4D5C]/8" : ""}`}
-      style={useInlineStyle && postItColorHex ? { backgroundColor: postItColorHex.bg, border: `1px solid ${postItColorHex.border}` } : undefined}
+      className={`rounded-2xl ${cardBg} text-[#000305] shadow-md border border-[#0A4D5C]/10 ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#f7f75e]" : ""}`}
       onClick={handleOpenPostDetail}
     >
       <div className="p-3 sm:p-4">
@@ -1613,8 +1586,7 @@ const PostThread = memo(function PostThread({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <button onClick={() => post.author?.id && openUserProfile?.(post.author.id)}
-                className={`text-sm font-semibold hover:underline underline-offset-2 transition-all ${isTextOnly && !(hasPostStyle && post.post_style!.fontColor) ? postItColor?.text || "text-[#000305]" : "text-[#000305]"}`}
-                style={hasPostStyle && post.post_style!.fontColor ? { color: post.post_style!.fontColor } : undefined}>
+                className="text-sm font-semibold text-[#000305] hover:underline underline-offset-2 transition-all">
                 {post.author?.display_name || "Usuário"}
               </button>
               {post.visibility === "followers" && (
@@ -1625,21 +1597,21 @@ const PostThread = memo(function PostThread({
               {isOwnPost && (
                 <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-[#0A4D5C]">Seu post</span>
               )}
-              <span className={`text-[10px] ${isTextOnly ? "text-[#000305]/20" : "text-[#0A4D5C]/25"}`}>·</span>
-              <span className={`text-[10px] ${isTextOnly ? "text-[#000305]/40" : "text-[#0A4D5C]/40"}`}>{timeAgo(post.created_at)}</span>
+              <span className="text-[10px] text-[#000305]/25">·</span>
+              <span className="text-[10px] text-[#000305]/45">{timeAgo(post.created_at)}</span>
             </div>
 
             {isTextOnly && post.content && !isMediaPlaceholder(post.content) && (
               <FormattedText
-                className={`mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap ${useInlineStyle || (hasPostStyle && post.post_style!.fontColor) ? "" : (postItColor?.text || "text-[#000305]")}`}
+                className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#000305]"
                 content={post.content}
                 openUserProfile={openUserProfile}
                 style={{
-                  fontFamily:  hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : "serif",
+                  fontFamily:  hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
                   fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
                   fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
                   textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                  color:       hasPostStyle && post.post_style!.fontColor ? post.post_style!.fontColor : (useInlineStyle && postItColorHex ? postItColorHex.text : undefined),
+                  color: "#000305",
                 }}
               />
             )}
@@ -1685,7 +1657,7 @@ const PostThread = memo(function PostThread({
                     fontWeight:  hasPostStyle && post.post_style!.bold      ? 700                                      : undefined,
                     fontStyle:   hasPostStyle && post.post_style!.italic    ? "italic"                                 : undefined,
                     textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment as any        : undefined,
-                    color:       hasPostStyle && post.post_style!.fontColor ? post.post_style!.fontColor               : undefined,
+                    color: "#000305",
                   }}
                 />
               </div>

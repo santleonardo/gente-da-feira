@@ -767,13 +767,9 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const isOwnPost = localPost.author_id === profile?.id;
   const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
 
-  const hasPostStyle   = localPost.post_style && typeof localPost.post_style === "object";
-  const styleColorIdx  = hasPostStyle && localPost.post_style!.postItColor != null ? localPost.post_style!.postItColor : -1;
-  const postItColor    = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS.length ? POST_IT_COLORS[styleColorIdx] : getPostItColor(localPost.id)) : null;
-  const postItColorHex = isTextOnly ? (styleColorIdx >= 0 && styleColorIdx < POST_IT_COLORS_HEX.length ? POST_IT_COLORS_HEX[styleColorIdx] : null) : null;
-  const useInlineStyle = isTextOnly && styleColorIdx >= 0;
-
-  const cardBg     = isTextOnly ? (useInlineStyle ? "" : (postItColor?.bg || "bg-[#fdf6b2]")) : "bg-[#eef1f3]";
+  const hasPostStyle = localPost.post_style && typeof localPost.post_style === "object";
+  // Todos os posts: fundo branco + texto preto (sem cores de post-it)
+  const cardBg = "bg-white";
   const commentsBg = "bg-[#0A4D5C]/[0.04]";
 
   // Link class based on post type
@@ -798,10 +794,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
           </div>
 
           {/* Post content */}
-          <div
-            className={`rounded-none ${cardBg} overflow-hidden ${isTextOnly && !useInlineStyle && postItColor ? `border ${postItColor.border}` : ""} ${!useInlineStyle ? "border border-[#0A4D5C]/8" : ""}`}
-            style={useInlineStyle && postItColorHex ? { backgroundColor: postItColorHex.bg, border: `1px solid ${postItColorHex.border}` } : undefined}
-          >
+          <div className={`rounded-none ${cardBg} text-[#000305] overflow-hidden border border-[#0A4D5C]/10`}>
             <div className="p-4 sm:p-5">
               {/* Header */}
               <div className="flex items-start gap-2.5">
@@ -811,8 +804,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)}
-                      className={`text-sm font-semibold hover:underline underline-offset-2 transition-all ${isTextOnly && !(hasPostStyle && localPost.post_style!.fontColor) ? postItColor?.text || "text-[#000305]" : "text-[#000305]"}`}
-                      style={hasPostStyle && localPost.post_style!.fontColor ? { color: localPost.post_style!.fontColor } : undefined}
+                      className="text-sm font-semibold text-[#000305] hover:underline underline-offset-2 transition-all"
                     >
                       {localPost.author?.display_name || "Usuário"}
                     </button>
@@ -855,17 +847,17 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     </div>
                   ) : isTextOnly && localPost.content && !isMediaPlaceholder(localPost.content) ? (
                     <FormattedContent
-                      className={`mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap ${useInlineStyle || (hasPostStyle && localPost.post_style!.fontColor) ? "" : (postItColor?.text || "text-[#000305]")}`}
+                      className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#000305]"
                       content={localPost.content}
                       openUserProfile={navigateToProfile}
                       isMine={isOwnPost}
                       linkClassName={linkClass}
                       style={{
-                        fontFamily:  hasPostStyle && localPost.post_style!.font ? `'${localPost.post_style!.font}', sans-serif` : "serif",
+                        fontFamily:  hasPostStyle && localPost.post_style!.font ? `'${localPost.post_style!.font}', sans-serif` : undefined,
                         fontWeight:  hasPostStyle && localPost.post_style!.bold ? 700 : undefined,
                         fontStyle:   hasPostStyle && localPost.post_style!.italic ? "italic" : undefined,
                         textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment : undefined,
-                        color:       hasPostStyle && localPost.post_style!.fontColor ? localPost.post_style!.fontColor : (useInlineStyle && postItColorHex ? postItColorHex.text : undefined),
+                        color: "#000305",
                       }}
                     />
                   ) : null}
@@ -931,7 +923,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                           fontWeight:  hasPostStyle && localPost.post_style!.bold      ? 700                                      : undefined,
                           fontStyle:   hasPostStyle && localPost.post_style!.italic    ? "italic"                                 : undefined,
                           textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment as any    : undefined,
-                          color:       hasPostStyle && localPost.post_style!.fontColor ? localPost.post_style!.fontColor           : undefined,
+                          color: "#000305",
                         }}
                       />
                     </div>
