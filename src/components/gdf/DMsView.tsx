@@ -854,7 +854,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-muted/15">
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
@@ -872,127 +872,168 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <p className="text-xs text-muted-foreground mt-0.5">Diga olá para {other.display_name}!</p>
           </div>
         )}
-        {groupedMessages.map((msg: any) => {
+        {groupedMessages.map((msg: any, idx: number) => {
           const isMine = msg.sender_id === profile?.id;
           const hasImage = !!msg.media_url && msg.media_type === "image";
           const hasVideo = !!msg.media_url && msg.media_type === "video";
           const hasAudio = !!msg.media_url && msg.media_type === "audio";
           const hasMedia = hasImage || hasVideo || hasAudio;
+          const mediaOnly = hasMedia && !msg.content?.trim();
+          const prevMsg = idx > 0 ? groupedMessages[idx - 1] : null;
+          const nextMsg = idx < groupedMessages.length - 1 ? groupedMessages[idx + 1] : null;
+          const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+          const showDaySep = (() => {
+            if (!prevMsg) return true;
+            const a = new Date(prevMsg.created_at);
+            const b = new Date(msg.created_at);
+            return a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate();
+          })();
+          const dayLabel = (() => {
+            const d = new Date(msg.created_at);
+            const now = new Date();
+            const st = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const sm = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+            const diff = Math.round((st - sm) / 86400000);
+            if (diff === 0) return "Hoje";
+            if (diff === 1) return "Ontem";
+            return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+          })();
 
           return (
-            <div key={msg.id} className={`flex ${msg.isGrouped ? "" : "mt-2"} ${isMine ? "justify-end" : "justify-start"}`}>
-              <div className="flex items-end gap-1.5 max-w-[80%]">
-                {isMine && (
-                  <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
-                )}
-                <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block break-words ${
-                  hasMedia && !msg.content?.trim()
-                    ? "bg-transparent p-0"
-                    : isMine
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted rounded-bl-md"
-                }`}>
-                  {hasImage && (
-                    <div className="mb-1 relative group">
-                      <LazyImage
-                        src={msg.media_url}
-                        alt="Foto"
-                        className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95"
-                        wrapperClassName="max-w-full"
-                        onClick={() => window.open(msg.media_url, "_blank")}
-                      />
-                      {isMine && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                              const data = await res.json();
-                              if (data.success) {
-                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                toast.success("Foto apagada");
-                              } else {
-                                toast.error(data.error || "Erro ao apagar");
-                              }
-                            } catch { toast.error("Erro ao apagar"); }
-                          }}
-                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="Apagar mídia"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {hasVideo && (
-                    <div className="mb-1 relative group">
-                      <video
-                        src={msg.media_url}
-                        className="max-w-full max-h-64 rounded-xl object-cover"
-                        controls
-                        playsInline
-                        preload="metadata"
-                      />
-                      {isMine && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                              const data = await res.json();
-                              if (data.success) {
-                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                toast.success("Vídeo apagado");
-                              } else {
-                                toast.error(data.error || "Erro ao apagar");
-                              }
-                            } catch { toast.error("Erro ao apagar"); }
-                          }}
-                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="Apagar mídia"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {hasAudio && (
-                    <div className="relative group">
-                      <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
-                      {isMine && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
-                              const data = await res.json();
-                              if (data.success) {
-                                setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
-                                toast.success("Áudio apagado");
-                              } else {
-                                toast.error(data.error || "Erro ao apagar");
-                              }
-                            } catch { toast.error("Erro ao apagar"); }
-                          }}
-                          className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="Apagar mídia"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {msg.content?.trim() && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
+            <div key={msg.id} className="w-full" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 48px" }}>
+              {showDaySep && (
+                <div className="flex justify-center py-3">
+                  <span className="rounded-full bg-card/90 border border-border/60 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm">
+                    {dayLabel}
+                  </span>
                 </div>
-                {!isMine && (
-                  <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
-                )}
-                {!isMine && (
-                  <button
-                    onClick={() => useStore.getState().openReportDialog({ targetType: "dm_message", targetId: msg.id })}
-                    title="Denunciar mensagem"
-                    className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors"
+              )}
+              <div className={`flex ${msg.isGrouped ? "mt-0.5" : "mt-2.5"} ${isMine ? "justify-end" : "justify-start"}`}>
+                <div className="group/msg flex items-end gap-1 max-w-[min(88%,20rem)] sm:max-w-[80%]">
+                  <div
+                    className={`relative inline-block max-w-full break-words [overflow-wrap:anywhere] shadow-sm ${
+                      mediaOnly
+                        ? "bg-transparent p-0 shadow-none rounded-2xl overflow-hidden"
+                        : isMine
+                          ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
+                          : "bg-card text-card-foreground border border-border/50 rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
+                    }`}
                   >
-                    <Flag className="h-3 w-3" />
-                  </button>
-                )}
+                    {hasImage && (
+                      <div className={`${msg.content?.trim() ? "mb-1.5" : ""} relative group`}>
+                        <LazyImage
+                          src={msg.media_url}
+                          alt="Foto"
+                          className="max-w-full max-h-72 w-full rounded-xl object-cover cursor-pointer hover:opacity-95"
+                          wrapperClassName="max-w-full block"
+                          onClick={() => window.open(msg.media_url, "_blank")}
+                        />
+                        {isMine && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                  toast.success("Foto apagada");
+                                } else {
+                                  toast.error(data.error || "Erro ao apagar");
+                                }
+                              } catch { toast.error("Erro ao apagar"); }
+                            }}
+                            className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                            title="Apagar mídia"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {hasVideo && (
+                      <div className={`${msg.content?.trim() ? "mb-1.5" : ""} relative group`}>
+                        <video
+                          src={msg.media_url}
+                          className="max-w-full max-h-72 rounded-xl object-cover bg-black/5"
+                          controls
+                          playsInline
+                          preload="metadata"
+                        />
+                        {isMine && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                  toast.success("Vídeo apagado");
+                                } else {
+                                  toast.error(data.error || "Erro ao apagar");
+                                }
+                              } catch { toast.error("Erro ao apagar"); }
+                            }}
+                            className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                            title="Apagar mídia"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {hasAudio && (
+                      <div className="relative group">
+                        <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                        {isMine && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/messages/${msg.id}`, { method: "DELETE" });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, media_url: null, media_type: null } : m));
+                                  toast.success("Áudio apagado");
+                                } else {
+                                  toast.error(data.error || "Erro ao apagar");
+                                }
+                              } catch { toast.error("Erro ao apagar"); }
+                            }}
+                            className="absolute top-1 right-1 h-7 w-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                            title="Apagar mídia"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {msg.content?.trim() && (
+                      <span className="whitespace-pre-wrap">
+                        {parseInlineFormatting(msg.content, openUserProfile, { isMine })}
+                      </span>
+                    )}
+                    {isLastInGroup && !mediaOnly && (
+                      <span
+                        className={`ml-2 float-right mt-1 text-[10px] tabular-nums leading-none ${
+                          isMine ? "text-primary-foreground/55" : "text-muted-foreground/60"
+                        }`}
+                      >
+                        {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {!isMine && (
+                    <button
+                      onClick={() => useStore.getState().openReportDialog({ targetType: "dm_message", targetId: msg.id })}
+                      title="Denunciar mensagem"
+                      className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors opacity-0 group-hover/msg:opacity-100"
+                    >
+                      <Flag className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

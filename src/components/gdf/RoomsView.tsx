@@ -61,6 +61,33 @@ const ROOM_ICONS = [
 const MAX_AUDIO_DURATION = 60;
 const MAX_VIDEO_DURATION = 60;
 
+/** Separador de dia no chat (Hoje / Ontem / data) */
+function formatChatDayLabel(dateInput: string | Date): string {
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startToday - startMsg) / 86400000);
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+function sameCalendarDay(a: string | Date, b: string | Date): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -3584,7 +3611,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         <div
           ref={scrollRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-muted/15"
         >
           {/* Loader no topo: histórico antigo */}
           {loadingOlder && (
@@ -3624,196 +3651,270 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             const hasVideo = !!msg.media_url && msg.media_type === "video";
             const hasAudio = !!msg.media_url && msg.media_type === "audio";
             const hasMedia = !!msg.media_url;
-
-            // Find member role for this message's sender
+            const mediaOnly =
+              hasMedia && !msg.content?.trim() && !msg.reply_to && msg.content !== "📷";
+            const prevMsg = idx > 0 ? groupedMessages[idx - 1] : null;
+            const nextMsg = idx < groupedMessages.length - 1 ? groupedMessages[idx + 1] : null;
+            const showDaySep =
+              !prevMsg || !sameCalendarDay(prevMsg.created_at, msg.created_at);
+            // Timestamp só no fim do grupo (última do mesmo sender)
+            const isLastInGroup =
+              !nextMsg || nextMsg.sender_id !== msg.sender_id;
             const senderMember = members.find((m: any) => m.user_id === msg.sender_id);
             const senderRole = senderMember?.role;
 
             return (
               <div
                 key={msg.id}
-                className={`flex w-full min-w-0 gap-2 ${msg.isGrouped ? (isMine ? "" : "pl-9") : ""} ${isMine ? "justify-end" : "justify-start"}`}
+                className="w-full min-w-0"
+                style={{ contentVisibility: "auto", containIntrinsicSize: "auto 56px" }}
               >
-                {!isMine && showAvatar && (
-                  <button onClick={() => openUserProfile?.(sender.id || msg.sender_id)} className="shrink-0">
-                    <UserAvatar
-                      user={{ id: sender.id || msg.sender_id, display_name: sender.display_name || "Usuário", avatar_url: sender.avatar_url }}
-                      className="h-7 w-7 mt-0.5 hover:opacity-80 transition-opacity"
-                    />
-                  </button>
+                {showDaySep && (
+                  <div className="flex items-center justify-center py-3">
+                    <span className="rounded-full bg-card/90 border border-border/60 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm backdrop-blur-sm">
+                      {formatChatDayLabel(msg.created_at)}
+                    </span>
+                  </div>
                 )}
 
-                <div className={`min-w-0 max-w-[min(85%,calc(100%-2.75rem))] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-                  {showName && (
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <button
-                        onClick={() => openUserProfile?.(sender.id || msg.sender_id)}
-                        className="text-[11px] font-semibold text-muted-foreground hover:underline underline-offset-2 transition-all"
-                      >
-                        {sender.display_name || "Usuário"}
-                      </button>
-                      {senderRole === "creator" && (
-                        <Crown className="h-3 w-3 text-amber-500" />
-                      )}
-                      {senderRole === "moderator" && (
-                        <Shield className="h-3 w-3 text-blue-500" />
-                      )}
-                    </div>
+                <div
+                  className={`group/msg flex w-full min-w-0 gap-1.5 ${
+                    msg.isGrouped ? (isMine ? "mt-0.5" : "mt-0.5 pl-9") : "mt-2.5"
+                  } ${isMine ? "justify-end" : "justify-start"}`}
+                >
+                  {!isMine && showAvatar && (
+                    <button
+                      onClick={() => openUserProfile?.(sender.id || msg.sender_id)}
+                      className="shrink-0 self-end mb-0.5"
+                    >
+                      <UserAvatar
+                        user={{
+                          id: sender.id || msg.sender_id,
+                          display_name: sender.display_name || "Usuário",
+                          avatar_url: sender.avatar_url,
+                        }}
+                        className="h-7 w-7 hover:opacity-80 transition-opacity ring-1 ring-border/40"
+                      />
+                    </button>
                   )}
 
-                  <div className="flex items-end gap-1.5">
-                    {isMine && (
-                      <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
+                  <div
+                    className={`min-w-0 max-w-[min(88%,calc(100%-2.5rem))] flex flex-col ${
+                      isMine ? "items-end" : "items-start"
+                    }`}
+                  >
+                    {showName && (
+                      <div className="flex items-center gap-1 mb-0.5 px-0.5">
+                        <button
+                          onClick={() => openUserProfile?.(sender.id || msg.sender_id)}
+                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                        >
+                          {sender.display_name || "Usuário"}
+                        </button>
+                        {senderRole === "creator" && (
+                          <Crown className="h-3 w-3 text-amber-500" />
+                        )}
+                        {senderRole === "moderator" && (
+                          <Shield className="h-3 w-3 text-blue-500" />
+                        )}
+                      </div>
                     )}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        openMessageActions(msg);
-                      }}
-                      onTouchStart={() => {
-                        clearLongPress();
-                        longPressTimerRef.current = setTimeout(() => {
-                          openMessageActions(msg);
-                        }, 480);
-                      }}
-                      onTouchEnd={clearLongPress}
-                      onTouchMove={clearLongPress}
-                      onTouchCancel={clearLongPress}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
+
+                    <div className="relative flex items-end gap-1 max-w-full">
+                      {/* Desktop: ações no hover (menos ruído visual) */}
+                      <div
+                        className={`hidden sm:flex shrink-0 items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity ${
+                          isMine ? "order-first" : "order-last"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setReactionSheetMsgId(msg.id)}
+                          title="Reagir"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                        >
+                          <SmilePlus className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startReply(msg)}
+                          title="Responder"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                        >
+                          <Reply className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onContextMenu={(e) => {
                           e.preventDefault();
                           openMessageActions(msg);
-                        }
-                      }}
-                      className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block max-w-full break-words [overflow-wrap:anywhere] select-none touch-manipulation ${
-                        hasMedia && !msg.content?.trim() && !msg.reply_to
-                          ? "bg-transparent p-0"
-                          : isMine
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-muted rounded-bl-md"
-                      }`}
-                    >
-                      {/* Quote da mensagem respondida */}
-                      {msg.reply_to && (
-                        <div
-                          className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px] leading-snug ${
-                            isMine
-                              ? "border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground/85"
-                              : "border-primary/50 bg-background/60 text-muted-foreground"
-                          }`}
-                        >
-                          <p className="font-semibold truncate">
-                            {msg.reply_to.is_deleted
-                              ? "Mensagem apagada"
-                              : msg.reply_to.sender?.display_name || "Usuário"}
-                          </p>
-                          <p className="truncate opacity-90">
-                            {msg.reply_to.is_deleted
-                              ? "—"
-                              : msg.reply_to.media_type === "image"
-                                ? "📷 Foto"
-                                : msg.reply_to.media_type === "video"
-                                  ? "🎬 Vídeo"
-                                  : msg.reply_to.media_type === "audio"
-                                    ? "🎤 Áudio"
-                                    : (msg.reply_to.content || "").slice(0, 80) || "—"}
-                          </p>
-                        </div>
-                      )}
-                      {hasImage && (
-                        <div className="mb-1">
-                          <LazyImage
-                            src={msg.media_url}
-                            alt="Foto"
-                            className="max-w-full max-h-64 rounded-xl object-cover cursor-pointer hover:opacity-95"
-                            wrapperClassName="max-w-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(msg.media_url, "_blank");
-                            }}
-                          />
-                        </div>
-                      )}
-                      {hasVideo && (
-                        <div className="mb-1" onClick={(e) => e.stopPropagation()}>
-                          <video
-                            src={msg.media_url}
-                            className="max-w-full max-h-64 rounded-xl object-cover"
-                            controls
-                            playsInline
-                            preload="metadata"
-                          />
-                        </div>
-                      )}
-                      {hasAudio && (
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
-                        </div>
-                      )}
-                      {msg.content?.trim() && msg.content !== "📷" && <span>{parseInlineFormatting(msg.content, openUserProfile, { isMine })}</span>}
-                    </div>
-                    {!isMine && (
-                      <span className="text-[9px] text-muted-foreground/50 mb-1 shrink-0">{timeAgo(msg.created_at)}</span>
-                    )}
-                    {/* Desktop: ações rápidas com área de toque maior */}
-                    <div className="hidden sm:flex mb-1 shrink-0 items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setReactionSheetMsgId(msg.id)}
-                        title="Reagir"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/50 hover:text-primary hover:bg-accent transition-colors"
+                        }}
+                        onTouchStart={() => {
+                          clearLongPress();
+                          longPressTimerRef.current = setTimeout(() => {
+                            openMessageActions(msg);
+                          }, 480);
+                        }}
+                        onTouchEnd={clearLongPress}
+                        onTouchMove={clearLongPress}
+                        onTouchCancel={clearLongPress}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openMessageActions(msg);
+                          }
+                        }}
+                        className={`relative inline-block max-w-full break-words [overflow-wrap:anywhere] select-none touch-manipulation shadow-sm ${
+                          mediaOnly
+                            ? "bg-transparent p-0 shadow-none rounded-2xl overflow-hidden"
+                            : isMine
+                              ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
+                              : "bg-card text-card-foreground border border-border/50 rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
+                        }`}
                       >
-                        <SmilePlus className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => startReply(msg)}
-                        title="Responder"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/50 hover:text-primary hover:bg-accent transition-colors"
-                      >
-                        <Reply className="h-4 w-4" />
-                      </button>
-                    </div>
-                    {/* Mobile: botão único “mais” (além do long-press) */}
-                    <button
-                      type="button"
-                      onClick={() => openMessageActions(msg)}
-                      title="Ações"
-                      className="sm:hidden mb-1 shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/40 hover:bg-accent"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </div>
+                        {msg.reply_to && (
+                          <div
+                            className={`mb-1.5 rounded-lg border-l-[3px] px-2 py-1 text-[11px] leading-snug ${
+                              isMine
+                                ? "border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground/90"
+                                : "border-primary/60 bg-muted/80 text-muted-foreground"
+                            }`}
+                          >
+                            <p className="font-semibold truncate">
+                              {msg.reply_to.is_deleted
+                                ? "Mensagem apagada"
+                                : msg.reply_to.sender?.display_name || "Usuário"}
+                            </p>
+                            <p className="truncate opacity-90">
+                              {msg.reply_to.is_deleted
+                                ? "—"
+                                : msg.reply_to.media_type === "image"
+                                  ? "📷 Foto"
+                                  : msg.reply_to.media_type === "video"
+                                    ? "🎬 Vídeo"
+                                    : msg.reply_to.media_type === "audio"
+                                      ? "🎤 Áudio"
+                                      : (msg.reply_to.content || "").slice(0, 80) || "—"}
+                            </p>
+                          </div>
+                        )}
 
-                  {/* Chips de reações */}
-                  {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
-                    <div
-                      className={`mt-1 flex flex-wrap gap-1 ${
-                        isMine ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      {msg.reactions.map((r: { emoji: string; count: number; me: boolean }) => (
-                        <button
-                          key={r.emoji}
-                          type="button"
-                          onClick={() => toggleReaction(msg.id, r.emoji)}
-                          className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] leading-none transition-colors ${
-                            r.me
-                              ? "border-primary/40 bg-primary/15 text-foreground"
-                              : "border-border/60 bg-muted/80 text-muted-foreground hover:bg-accent"
-                          }`}
-                          title={r.me ? "Remover reação" : "Reagir"}
-                        >
-                          <span>{r.emoji}</span>
-                          {r.count > 1 && (
-                            <span className="tabular-nums font-medium">{r.count}</span>
-                          )}
-                        </button>
-                      ))}
+                        {hasImage && (
+                          <div className={msg.content?.trim() && msg.content !== "📷" ? "mb-1.5" : ""}>
+                            <LazyImage
+                              src={msg.media_url}
+                              alt="Foto"
+                              className="max-w-full max-h-72 w-full rounded-xl object-cover cursor-pointer hover:opacity-95"
+                              wrapperClassName="max-w-full block"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(msg.media_url, "_blank");
+                              }}
+                            />
+                          </div>
+                        )}
+                        {hasVideo && (
+                          <div
+                            className={msg.content?.trim() ? "mb-1.5" : ""}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <video
+                              src={msg.media_url}
+                              className="max-w-full max-h-72 rounded-xl object-cover bg-black/5"
+                              controls
+                              playsInline
+                              preload="metadata"
+                            />
+                          </div>
+                        )}
+                        {hasAudio && (
+                          <div
+                            className={msg.content?.trim() ? "mb-1" : ""}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ChatAudioPlayer src={msg.media_url} isMine={isMine} />
+                          </div>
+                        )}
+
+                        {msg.content?.trim() && msg.content !== "📷" && (
+                          <span className="whitespace-pre-wrap">
+                            {parseInlineFormatting(msg.content, openUserProfile, { isMine })}
+                          </span>
+                        )}
+
+                        {/* Horário discreto no canto da bolha (só última do grupo) */}
+                        {isLastInGroup && (
+                          <span
+                            className={`ml-2 float-right mt-1 text-[10px] tabular-nums leading-none ${
+                              mediaOnly
+                                ? "hidden"
+                                : isMine
+                                  ? "text-primary-foreground/55"
+                                  : "text-muted-foreground/60"
+                            }`}
+                          >
+                            {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Mobile: menu de ações */}
+                      <button
+                        type="button"
+                        onClick={() => openMessageActions(msg)}
+                        title="Ações"
+                        className="sm:hidden shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/35 active:bg-accent"
+                      >
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  )}
+
+                    {/* Reações — “coladas” na bolha */}
+                    {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
+                      <div
+                        className={`-mt-1.5 flex flex-wrap gap-0.5 z-[1] relative ${
+                          isMine ? "justify-end pr-1" : "justify-start pl-1"
+                        }`}
+                      >
+                        {msg.reactions.map(
+                          (r: { emoji: string; count: number; me: boolean }) => (
+                            <button
+                              key={r.emoji}
+                              type="button"
+                              onClick={() => toggleReaction(msg.id, r.emoji)}
+                              className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] leading-none shadow-sm backdrop-blur-sm transition-colors ${
+                                r.me
+                                  ? "border-primary/50 bg-primary/15 text-foreground"
+                                  : "border-border bg-card text-muted-foreground hover:bg-accent"
+                              }`}
+                              title={r.me ? "Remover reação" : "Reagir"}
+                            >
+                              <span>{r.emoji}</span>
+                              {r.count > 1 && (
+                                <span className="tabular-nums font-medium">{r.count}</span>
+                              )}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {/* Horário fora da bolha quando só mídia */}
+                    {mediaOnly && isLastInGroup && (
+                      <span className="mt-0.5 px-1 text-[10px] tabular-nums text-muted-foreground/55">
+                        {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
