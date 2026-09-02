@@ -1832,6 +1832,7 @@ function MemberActionMenu({
   onRefresh,
   openUserProfile,
   onInviteOpen,
+  isOnline = false,
 }: {
   member: any;
   currentMember: any;
@@ -1839,6 +1840,7 @@ function MemberActionMenu({
   onRefresh: () => void;
   openUserProfile?: (userId: string) => void;
   onInviteOpen: () => void;
+  isOnline?: boolean;
 }) {
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -1909,7 +1911,15 @@ function MemberActionMenu({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2 w-full rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors text-left">
-            <UserAvatar user={{ id: mp?.id || member.user_id, display_name: mp?.display_name || "?", avatar_url: mp?.avatar_url }} className="h-8 w-8" />
+            <div className="relative shrink-0">
+              <UserAvatar user={{ id: mp?.id || member.user_id, display_name: mp?.display_name || "?", avatar_url: mp?.avatar_url }} className="h-8 w-8" />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${
+                  isOnline ? "bg-emerald-500" : "bg-muted-foreground/35"
+                }`}
+                title={isOnline ? "Online" : "Offline"}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-medium truncate">{mp?.display_name || "Usuário"}</span>
@@ -1917,7 +1927,7 @@ function MemberActionMenu({
                   <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 shrink-0">Você</Badge>
                 )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {member.role === "creator" && (
                   <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
                     <Crown className="h-2.5 w-2.5" /> Criador
@@ -1931,6 +1941,13 @@ function MemberActionMenu({
                 {member.role === "member" && (
                   <span className="text-[10px] text-muted-foreground">Membro</span>
                 )}
+                <span
+                  className={`text-[10px] ${
+                    isOnline ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground/70"
+                  }`}
+                >
+                  · {isOnline ? "Online" : "Offline"}
+                </span>
               </div>
             </div>
             {!isSelf && (
@@ -2018,6 +2035,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const MSG_PAGE_SIZE = 40;
   /** Picker de reação aberto nesta mensagem */
   const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
+  /** Presença: user_ids online nesta sala */
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  /** Busca na lista de membros */
+  const [memberSearch, setMemberSearch] = useState("");
   // isMember e isBanned são derivados exclusivamente do objeto room (vindo da API / Zustand)
   // Nunca usar estado local para participação — a API é a única fonte de verdade
   const isMember = room.isMember === true;
@@ -2145,6 +2166,70 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       supabase.removeChannel(channel);
     };
   }, [profile, room?.id, setSelectedRoom, onRefreshRooms]);
+
+  // ── Presença online/offline na sala (Supabase Realtime Presence) ──
+  useEffect(() => {
+    if (!profile?.id || !room?.id || !isMember) {
+      setOnlineUserIds(new Set());
+      return;
+    }
+
+    const supabase = createClient();
+    const channel = supabase.channel(`room-presence:${room.id}`, {
+      config: { presence: { key: profile.id } },
+    });
+
+    const syncPresence = () => {
+      const state = channel.presenceState() as Record<
+        string,
+        { user_id?: string }[]
+      >;
+      const ids = new Set<string>();
+      for (const key of Object.keys(state)) {
+        const metas = state[key] || [];
+        for (const meta of metas) {
+          if (meta?.user_id) ids.add(meta.user_id);
+        }
+        // fallback: a key do presence costuma ser o user id
+        if (key) ids.add(key);
+      }
+      // Sempre inclui a si mesmo enquanto a aba estiver ativa
+      ids.add(profile.id);
+      setOnlineUserIds(ids);
+    };
+
+    channel.on("presence", { event: "sync" }, syncPresence);
+    channel.on("presence", { event: "join" }, syncPresence);
+    channel.on("presence", { event: "leave" }, syncPresence);
+
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          user_id: profile.id,
+          display_name: profile.display_name || "",
+          online_at: new Date().toISOString(),
+        });
+        syncPresence();
+      }
+    });
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        channel.track({
+          user_id: profile.id,
+          display_name: profile.display_name || "",
+          online_at: new Date().toISOString(),
+        }).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      void channel.untrack();
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, profile?.display_name, room?.id, isMember]);
 
   // ── Detectar sala inexistente via erro 404 ao carregar mensagens ──
   // Se a sala foi excluída e o broadcast falhou, detectar via API
@@ -3130,11 +3215,29 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     return { ...msg, isGrouped };
   });
 
-  // Sort members by hierarchy: creator > moderator > member
-  const sortedMembers = [...members].sort((a: any, b: any) => {
-    const roleOrder: Record<string, number> = { creator: 0, moderator: 1, member: 2 };
-    return (roleOrder[a.role] ?? 2) - (roleOrder[b.role] ?? 2);
-  });
+  // Sort: online primeiro → hierarchy creator > moderator > member → nome
+  const memberSearchQ = memberSearch.trim().toLowerCase();
+  const sortedMembers = [...members]
+    .filter((m: any) => {
+      if (!memberSearchQ) return true;
+      const p = m.profile;
+      const name = (p?.display_name || "").toLowerCase();
+      const un = (p?.username || "").toLowerCase();
+      return name.includes(memberSearchQ) || un.includes(memberSearchQ);
+    })
+    .sort((a: any, b: any) => {
+      const aOnline = onlineUserIds.has(a.user_id) ? 0 : 1;
+      const bOnline = onlineUserIds.has(b.user_id) ? 0 : 1;
+      if (aOnline !== bOnline) return aOnline - bOnline;
+      const roleOrder: Record<string, number> = { creator: 0, moderator: 1, member: 2 };
+      const roleDiff = (roleOrder[a.role] ?? 2) - (roleOrder[b.role] ?? 2);
+      if (roleDiff !== 0) return roleDiff;
+      const an = (a.profile?.display_name || "").toLowerCase();
+      const bn = (b.profile?.display_name || "").toLowerCase();
+      return an.localeCompare(bn, "pt-BR");
+    });
+
+  const onlineCount = members.filter((m: any) => onlineUserIds.has(m.user_id)).length;
 
   const existingMemberIds = members.map((m: any) => m.user_id);
 
@@ -3157,6 +3260,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </div>
           <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
+            {isMember && onlineCount > 0 ? (
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {" "}
+                · {onlineCount} online
+              </span>
+            ) : null}
             {room.description ? ` · ${room.description}` : ""}
           </p>
         </div>
@@ -3169,6 +3278,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           >
             <Users className="h-4 w-4" />
             <span className="font-medium">{memberCount}</span>
+            {isMember && onlineCount > 0 && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            )}
           </Button>
           {isMember && (
             <DropdownMenu>
@@ -3209,7 +3321,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         <div className="border-b bg-card/50 backdrop-blur-md px-4 py-3 max-h-72 overflow-y-auto custom-scrollbar">
           <div className="flex items-center justify-between mb-2.5">
             <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-              {membersTab === "active" ? `Membros · ${members.length}` : `Banidos · ${bannedMembers.length}`}
+              {membersTab === "active"
+                ? `Membros · ${members.length}${onlineCount > 0 ? ` · ${onlineCount} online` : ""}`
+                : `Banidos · ${bannedMembers.length}`}
             </h4>
             <Button
               variant="ghost"
@@ -3218,6 +3332,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               onClick={() => {
                 setShowMembers(false);
                 setMembersTab("active");
+                setMemberSearch("");
               }}
             >
               <X className="h-3 w-3" />
@@ -3248,6 +3363,28 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             </div>
           )}
 
+          {/* Busca de membros */}
+          {membersTab === "active" && members.length > 3 && (
+            <div className="relative mb-2.5">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Buscar membro..."
+                className="h-8 pl-8 pr-8 text-xs rounded-full bg-muted/50 border-0"
+              />
+              {memberSearch && (
+                <button
+                  type="button"
+                  onClick={() => setMemberSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           {membersTab === "active" && (
             <>
               {membersLoading ? (
@@ -3258,20 +3395,32 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 </div>
               ) : members.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-3">Nenhum membro ainda</p>
+              ) : sortedMembers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">
+                  Nenhum membro encontrado para “{memberSearch}”
+                </p>
               ) : (
                 <div className="space-y-0.5">
                   {sortedMembers.map((m: any) => {
                     const mp = m.profile;
+                    const isOnline = onlineUserIds.has(m.user_id);
                     if (!mp) {
                       return (
                         <div
                           key={m.id || m.user_id}
                           className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors"
                         >
-                          <UserAvatar
-                            user={{ id: m.user_id || "unknown", display_name: "?" }}
-                            className="h-8 w-8"
-                          />
+                          <div className="relative shrink-0">
+                            <UserAvatar
+                              user={{ id: m.user_id || "unknown", display_name: "?" }}
+                              className="h-8 w-8"
+                            />
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${
+                                isOnline ? "bg-emerald-500" : "bg-muted-foreground/35"
+                              }`}
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <span className="text-xs font-medium text-muted-foreground truncate">
                               Usuário
@@ -3289,6 +3438,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         onRefresh={fetchMembers}
                         openUserProfile={openUserProfile}
                         onInviteOpen={() => setShowInvite(true)}
+                        isOnline={isOnline}
                       />
                     );
                   })}
