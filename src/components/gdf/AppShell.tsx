@@ -451,7 +451,7 @@ export function AppShell() {
   return (
     <div
       className={cn(
-        "flex flex-col bg-background",
+        "flex w-full max-w-full flex-col overflow-x-hidden bg-background",
         inChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
       )}
     >

@@ -3260,9 +3260,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const existingMemberIds = members.map((m: any) => m.user_id);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
+    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-x-hidden bg-background">
       {/* Header — fixo no topo do chat */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10 safe-area-pt">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-accent shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -3347,7 +3347,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               setMemberSearch("");
             }}
           />
-          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-border bg-card shadow-2xl max-h-[85dvh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+          <div className="relative z-10 mx-auto w-full max-w-lg overflow-x-hidden rounded-t-3xl sm:rounded-3xl border border-border bg-card shadow-2xl max-h-[85dvh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
             <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden shrink-0" />
             <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
             <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
@@ -3578,11 +3578,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
       {/* ═══════ Messages ═══════ */}
       {isMember && (
-        <div className="relative flex-1 min-h-0 flex flex-col">
+        <div className="relative flex-1 min-h-0 flex flex-col min-w-0 overflow-x-hidden">
         <div
           ref={scrollRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 sm:px-4 py-3 space-y-1 bg-muted/20"
         >
           {/* Loader no topo: histórico antigo */}
           {loadingOlder && (
@@ -3628,7 +3628,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             const senderRole = senderMember?.role;
 
             return (
-              <div key={msg.id} className={`flex gap-2.5 ${msg.isGrouped ? (isMine ? "pl-0 pr-0" : "pl-[38px]") : ""} ${isMine ? "justify-end" : ""}`}>
+              <div
+                key={msg.id}
+                className={`flex w-full min-w-0 gap-2 ${msg.isGrouped ? (isMine ? "" : "pl-9") : ""} ${isMine ? "justify-end" : "justify-start"}`}
+              >
                 {!isMine && showAvatar && (
                   <button onClick={() => openUserProfile?.(sender.id || msg.sender_id)} className="shrink-0">
                     <UserAvatar
@@ -3638,7 +3641,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   </button>
                 )}
 
-                <div className={`max-w-[80%] ${isMine ? "items-end" : "items-start"}`}>
+                <div className={`min-w-0 max-w-[min(85%,calc(100%-2.75rem))] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
                   {showName && (
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <button
@@ -3682,7 +3685,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           openMessageActions(msg);
                         }
                       }}
-                      className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block break-words select-none touch-manipulation ${
+                      className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed inline-block max-w-full break-words [overflow-wrap:anywhere] select-none touch-manipulation ${
                         hasMedia && !msg.content?.trim() && !msg.reply_to
                           ? "bg-transparent p-0"
                           : isMine
@@ -3946,7 +3949,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             )}
 
             {!sendingMedia && (
-              <div className="flex items-center gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full">
+              <div className="flex items-end gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full min-w-0">
                 {/* Anexar — abre action sheet */}
                 <div className="relative self-end" ref={attachMenuRef}>
                   <button
@@ -4130,13 +4133,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setAttachMenuOpen(false)}
-              className="mx-4 mb-2 mt-1 flex h-12 w-[calc(100%-2rem)] items-center justify-center rounded-2xl bg-muted text-sm font-semibold"
-            >
-              Cancelar
-            </button>
+            <div className="px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => setAttachMenuOpen(false)}
+                className="w-full h-12 rounded-2xl bg-muted text-sm font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4227,13 +4232,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 </button>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setMessageActionMsg(null)}
-              className="mx-4 mb-2 flex h-12 w-[calc(100%-2rem)] items-center justify-center rounded-2xl bg-muted text-sm font-semibold"
-            >
-              Cancelar
-            </button>
+            <div className="px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => setMessageActionMsg(null)}
+                className="w-full h-12 rounded-2xl bg-muted text-sm font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
