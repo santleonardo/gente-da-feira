@@ -125,13 +125,36 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
     </div>
   );
 
-  const myRooms = rooms.filter((r) => r.isMember === true);
+  // Minhas salas: não lidas primeiro, depois por última atividade
+  const myRooms = rooms
+    .filter((r) => r.isMember === true)
+    .slice()
+    .sort((a, b) => {
+      const ua = Number(a.unreadCount) || 0;
+      const ub = Number(b.unreadCount) || 0;
+      if (ua > 0 && ub === 0) return -1;
+      if (ub > 0 && ua === 0) return 1;
+      if (ua !== ub) return ub - ua;
+      const ta = a.lastMessage?.created_at || a.created_at || "";
+      const tb = b.lastMessage?.created_at || b.created_at || "";
+      return tb.localeCompare(ta);
+    });
   const official = rooms.filter((r) => r.type === "official" && !r.isMember && !r.isBanned);
   const community = rooms.filter((r) => r.type === "community" && !r.isMember && !r.isBanned);
 
+  const openMemberRoom = (room: any) => {
+    // Optimistic: zera badge ao abrir (API marca last_read_at no GET /messages)
+    if (room.unreadCount) {
+      setRooms((prev) =>
+        prev.map((r) => (r.id === room.id ? { ...r, unreadCount: 0 } : r))
+      );
+    }
+    setSelectedRoom(room);
+  };
+
   const handleRoomClick = (room: any) => {
     if (room.isMember) {
-      setSelectedRoom(room);
+      openMemberRoom(room);
     } else if (room.isBanned) {
       // Usuário banido — mostrar PreEntryScreen com indicador de banimento
       setPreEntryRoom(room);
@@ -158,7 +181,18 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
         <section className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.07] to-primary/[0.02] p-3 sm:p-4">
           <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-primary/80 flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> Minhas Salas
-            <span className="ml-auto normal-case tracking-normal font-semibold text-primary/50">
+            <span className="ml-auto normal-case tracking-normal font-semibold text-primary/50 flex items-center gap-2">
+              {(() => {
+                const totalUnread = myRooms.reduce(
+                  (acc, r) => acc + (Number(r.unreadCount) || 0),
+                  0
+                );
+                return totalUnread > 0 ? (
+                  <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground tabular-nums">
+                    {totalUnread > 99 ? "99+" : totalUnread}
+                  </span>
+                ) : null;
+              })()}
               {myRooms.length}
             </span>
           </h3>
@@ -167,7 +201,7 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
               <RoomCard
                 key={room.id}
                 room={room}
-                onClick={() => setSelectedRoom(room)}
+                onClick={() => openMemberRoom(room)}
               />
             ))}
           </div>
@@ -221,6 +255,25 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
 }
 
 // ═══════════════════════════════════════════════════════════
+// Helpers — prévia de última mensagem
+// ═══════════════════════════════════════════════════════════
+function formatLastMessagePreview(lastMessage: {
+  content?: string | null;
+  media_type?: string | null;
+  sender_name?: string | null;
+} | null | undefined): string | null {
+  if (!lastMessage) return null;
+  const name = lastMessage.sender_name?.trim() || "Alguém";
+  if (lastMessage.media_type === "image") return `${name}: 📷 Foto`;
+  if (lastMessage.media_type === "video") return `${name}: 🎬 Vídeo`;
+  if (lastMessage.media_type === "audio") return `${name}: 🎤 Áudio`;
+  const text = (lastMessage.content || "").replace(/\s+/g, " ").trim();
+  if (!text || text === "📷") return `${name}: 📷 Foto`;
+  const clipped = text.length > 48 ? text.slice(0, 48) + "…" : text;
+  return `${name}: ${clipped}`;
+}
+
+// ═══════════════════════════════════════════════════════════
 // RoomCard — Card de sala com indicadores visuais
 // Regras de renderização:
 //   isMember=true  → NUNCA mostra "Entrar", mostra "Abrir Sala"
@@ -228,6 +281,8 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
 //   isClosed=true  → "Sala Fechada"
 //   isFull=true    → "Sala Lotada"
 //   canJoin=true   → "Entrar"
+//   lastMessage    → prévia da última mensagem (membros)
+//   unreadCount    → badge numérico de não lidas
 // ═══════════════════════════════════════════════════════════
 function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
   const memberCount = room.memberCount || room.member_count || room._count?.members || 0;
@@ -237,6 +292,10 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
   const isFull = room.max_members && memberCount >= room.max_members;
   const isMember = room.isMember === true;
   const isBanned = room.isBanned === true;
+  const unreadCount = isMember ? Math.max(0, Number(room.unreadCount) || 0) : 0;
+  const hasUnread = unreadCount > 0;
+  const lastPreview = isMember ? formatLastMessagePreview(room.lastMessage) : null;
+  const lastAt = room.lastMessage?.created_at ? timeAgo(room.lastMessage.created_at) : null;
 
   // Determinar o badge de ação do lado direito
   const renderActionBadge = () => {
@@ -244,6 +303,13 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
       return <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-4 bg-red-500/10 text-red-600 dark:text-red-400">🚫 Banido</Badge>;
     }
     if (isMember) {
+      if (hasUnread) {
+        return (
+          <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground tabular-nums shadow-sm">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        );
+      }
       return (
         <Badge className="text-[8px] px-2 py-0 h-5 bg-[#2EC4B6]/10 text-[#2EC4B6] hover:bg-[#2EC4B6]/15 border-0 gap-1 font-semibold">
           <DoorOpen className="h-2.5 w-2.5" /> Abrir
@@ -275,25 +341,38 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
       onClick={onClick}
       className={`group flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.98] border shadow-sm hover:shadow-md ${
         isMember
-          ? "bg-primary/[0.04] border-primary/15 hover:bg-primary/[0.07]"
+          ? hasUnread
+            ? "bg-primary/[0.08] border-primary/25 hover:bg-primary/[0.11]"
+            : "bg-primary/[0.04] border-primary/15 hover:bg-primary/[0.07]"
           : "bg-card border-border/50 hover:bg-accent/60 hover:border-border"
       }`}
     >
-      {/* Icon */}
-      <div
-        className={`flex h-13 w-13 min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-2xl text-2xl shrink-0 transition-transform group-hover:scale-105 ${
-          isOfficial
-            ? "bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20"
-            : "bg-secondary ring-1 ring-border/40"
-        }`}
-      >
-        {room.icon}
+      {/* Icon + ponto de não lida */}
+      <div className="relative shrink-0">
+        <div
+          className={`flex h-13 w-13 min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-2xl text-2xl transition-transform group-hover:scale-105 ${
+            isOfficial
+              ? "bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20"
+              : "bg-secondary ring-1 ring-border/40"
+          }`}
+        >
+          {room.icon}
+        </div>
+        {hasUnread && (
+          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-primary ring-2 ring-background" />
+        )}
       </div>
 
-      {/* Name + description */}
+      {/* Name + última mensagem / description */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[15px] font-semibold truncate leading-tight">{room.name}</span>
+          <span
+            className={`text-[15px] truncate leading-tight ${
+              hasUnread ? "font-bold" : "font-semibold"
+            }`}
+          >
+            {room.name}
+          </span>
           {isOfficial && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
           {isMember && room.myRole === "creator" && (
             <span className="text-[9px] font-bold uppercase tracking-wide text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
@@ -306,7 +385,15 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
             </span>
           )}
         </div>
-        {room.description ? (
+        {lastPreview ? (
+          <p
+            className={`text-xs truncate mt-1 leading-snug ${
+              hasUnread ? "text-foreground/80 font-medium" : "text-muted-foreground"
+            }`}
+          >
+            {lastPreview}
+          </p>
+        ) : room.description ? (
           <p className="text-xs text-muted-foreground truncate mt-1 leading-snug">{room.description}</p>
         ) : (
           <p className="text-xs text-muted-foreground/60 mt-1">
@@ -315,17 +402,27 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
         )}
       </div>
 
-      {/* Member count + action badge */}
+      {/* Horário / membros + action badge */}
       <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Users className="h-3.5 w-3.5 opacity-70" />
-          <span className="font-semibold tabular-nums">
-            {memberCount}
-            {room.max_members ? (
-              <span className="font-normal text-muted-foreground/70">/{room.max_members}</span>
-            ) : null}
+        {lastAt ? (
+          <span
+            className={`text-[10px] tabular-nums ${
+              hasUnread ? "text-primary font-semibold" : "text-muted-foreground"
+            }`}
+          >
+            {lastAt}
           </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5 opacity-70" />
+            <span className="font-semibold tabular-nums">
+              {memberCount}
+              {room.max_members ? (
+                <span className="font-normal text-muted-foreground/70">/{room.max_members}</span>
+              ) : null}
+            </span>
+          </div>
+        )}
         {renderActionBadge()}
       </div>
     </button>
@@ -2194,9 +2291,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         if (prev.some((m) => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
+
+      // Se o usuário está com a aba visível dentro do chat, marca como lida
+      // para que a mensagem não volte como "não lida" na lista.
+      if (document.visibilityState === "visible" && profile?.id) {
+        void supabase
+          .from("room_members")
+          .update({ last_read_at: new Date().toISOString() })
+          .eq("room_id", room.id)
+          .eq("user_id", profile.id);
+      }
     };
     fetchSender();
-  }, []);
+  }, [profile?.id, room.id]);
 
   useRealtimeMessages({
     table: "messages",
