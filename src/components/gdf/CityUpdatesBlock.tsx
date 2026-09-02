@@ -37,6 +37,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   politica: "Política",
   saude: "Saúde",
   educacao: "Educação",
+  entretenimento: "Entretenimento",
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
