@@ -31,6 +31,7 @@ const CITY_CATEGORY_LABELS: Record<CityCategory, string> = {
   politica: "Política",
   saude: "Saúde",
   educacao: "Educação",
+  entretenimento: "Entretenimento",
 };
 
 interface AdminCityUpdate {
