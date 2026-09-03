@@ -108,17 +108,31 @@ export function looksLikeFeiraDeSantana(text: string): boolean {
 
 /**
  * Score inicial 0–100 a partir de confiança da fonte, frescor e menção local.
+ *
+ * O bônus de "menção local" (+25) existe pra fontes "local" como proxy de
+ * relevância: o texto precisa citar Feira de Santana pra provar que é sobre
+ * a cidade. Fontes "regional" (Bahia/RMFS) e "national" (política, esporte,
+ * entretenimento) já são relevantes por definição de escopo — foram
+ * cadastradas justamente pra não precisar dessa menção — então recebem o
+ * mesmo bônus incondicionalmente. Sem isso, scope !== "local" nunca atinge
+ * o limiar de auto-publicação (65) e fica pra sempre como rascunho.
  */
 export function computeRelevanceScore(opts: {
   trustScore?: number;
   sourcePublishedAt?: string | Date | null;
   text?: string;
   hasImage?: boolean;
+  scope?: string | null;
 }): number {
   const trust = Math.min(100, Math.max(0, opts.trustScore ?? 50));
   let score = trust * 0.5;
 
-  if (opts.text && looksLikeFeiraDeSantana(opts.text)) {
+  const isLocalScope = !opts.scope || opts.scope === "local";
+  const topicMatch = isLocalScope
+    ? !!opts.text && looksLikeFeiraDeSantana(opts.text)
+    : true; // regional/national: relevância já garantida pelo escopo da fonte
+
+  if (topicMatch) {
     score += 25;
   }
 
