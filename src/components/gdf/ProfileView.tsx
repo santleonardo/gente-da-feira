@@ -443,6 +443,7 @@ function FormattedText({
   );
 }
 
+// --- LOGIC CONTINUES BELOW ---
 export function ProfileView() {
   const { profile, logout, updateProfile, setProfileSubView, unreadNotifications } = useStore();
   const [name, setName] = useState(profile?.display_name || "");
@@ -931,8 +932,8 @@ export function ProfileView() {
           content: postContent,
           neighborhood: profile.neighborhood,
           imageUrls,
-          videoUrl: null,
-          audioUrl: null,
+          videoUrl,
+          audioUrl,
           visibility,
           postStyle: null,
           postType: "simple",
@@ -953,15 +954,46 @@ export function ProfileView() {
     setPublishing(false);
   };
 
-  if (loading) return <div className="space-y-4">{[1,2].map(i=><div key={i} className="h-24 rounded-xl bg-primary/[0.04] animate-pulse"/>)}</div>;
+  if (loading) return <div className="space-y-4">{[1,2].map(i=><div key={i} className="h-24 rounded-xl bg-black/[0.04] animate-pulse"/>)}</div>;
 
   const isPrivate = profile?.is_private || false;
   const selectedColor = POST_IT_COLORS[postStyle.postItColor ?? 0];
 
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS DE CONTEÚDO PARA ESTILO BLOG
+  // ═══════════════════════════════════════════════════════════
+  const getPostTitle = (post: any): string => {
+    if (!post.content) return "Sem título";
+    // Remove HTML tags roughly
+    const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const firstLine = text.split("\n")[0] || text;
+    return firstLine.length > 80 ? firstLine.slice(0, 80) + "…" : firstLine || "Entrada";
+  };
+
+  const getPostExcerpt = (post: any): string => {
+    if (!post.content) return "";
+    const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > 180 ? text.slice(0, 180) + "…" : text;
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Global styles for rendered post content + editor */}
+    <div className="profile-blog space-y-0 min-h-screen bg-[#F9F8F6] -mx-1 px-1 sm:px-0">
+      {/* Global styles for rendered post content + editor + blog typography */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
+        
+        .profile-blog {
+          --paper: #F9F8F6;
+          --ink: #1A1A1A;
+          --ink-light: #4A4A4A;
+          --accent: #D96C4A;
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .profile-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        }
+        
         .editor-content h1, .post-content h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0.35em 0 0.1em; }
         .editor-content h2, .post-content h2 { font-size: 1.1rem; font-weight: 700; line-height: 1.3; margin: 0.25em 0 0.1em; }
         .editor-content h3, .post-content h3 { font-size: 1rem; font-weight: 700; line-height: 1.3; margin: 0.2em 0 0.1em; }
@@ -982,108 +1014,156 @@ export function ProfileView() {
         .post-content div { margin: 0; }
         .post-content hr { border: none; border-top: 1px solid #0A4D5C/15; margin: 0.5em 0; }
       `}</style>
-      {/* ═══════ CARD DO PERFIL ═══════ */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
-              <div className="relative">
-                <UserAvatar
-                  user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                  className="h-16 w-16"
-                />
-                <button onClick={() => avatarInputRef.current?.click()} disabled={uploading} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#f7f9fa] bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
-                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarUpload} className="hidden" />
+
+      {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
+      <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
+        {/* Cover sutil */}
+        <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
+        
+        <div className="px-5 sm:px-8 pb-8 -mt-14 relative">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
+            <div className="relative shrink-0">
+              <UserAvatar
+                user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                className="h-24 w-24 sm:h-28 sm:w-28 ring-[5px] ring-[#F9F8F6] shadow-md"
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+              >
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+            </div>
+
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A] leading-tight">
+                  {profile?.display_name}
+                </h1>
+                {isPrivate && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
               </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h2 className="text-lg font-bold text-foreground">{profile?.display_name}</h2>
-                  {isPrivate && <Lock className="h-4 w-4 text-primary/40" />}
-                </div>
-                <p className="text-sm text-primary/40">@{profile?.username}</p>
+              <p className="text-sm text-[#4A4A4A] mt-1.5">
+                @{profile?.username}
                 {profile?.neighborhood && (
-                  <Badge variant="secondary" className="mt-1.5 gap-1 bg-primary/10 text-primary border-0">
-                    <MapPin className="h-3 w-3" /> {profile.neighborhood}
-                  </Badge>
+                  <span className="inline-flex items-center gap-1 ml-2.5">
+                    <MapPin className="h-3 w-3" />
+                    {profile.neighborhood}
+                  </span>
                 )}
-              </div>
+              </p>
             </div>
           </div>
 
-          <div className="mt-4">
-            {profile?.bio ? <p className="text-sm text-foreground whitespace-pre-wrap">{parseInlineContent(profile.bio, openUserProfileById)}</p> : <p className="text-sm text-primary/40 italic">Sem bio ainda</p>}
+          {/* Bio em destaque – estilo literário */}
+          <div className="mt-6 max-w-2xl">
+            {profile?.bio ? (
+              <p className="font-serif text-lg sm:text-xl leading-relaxed text-[#4A4A4A] italic">
+                {parseInlineContent(profile.bio, openUserProfileById)}
+              </p>
+            ) : (
+              <p className="font-serif text-lg text-[#4A4A4A]/50 italic">
+                Sem bio ainda. Conte um pouco sobre você…
+              </p>
+            )}
           </div>
 
-          <div className="mt-6 flex gap-6">
-            <div className="text-center"><p className="text-lg font-bold text-foreground">{postCount}</p><p className="text-xs text-primary/40">Posts</p></div>
-            <button onClick={() => openFollowDialog("following")} className="text-center hover:opacity-70 transition-opacity">
-              <p className="text-lg font-bold text-foreground">{followingCount}</p><p className="text-xs text-primary/40">Seguindo</p>
+          {/* Contadores discretos */}
+          <div className="mt-6 flex flex-wrap items-center gap-6 text-sm">
+            <div>
+              <span className="font-semibold text-[#1A1A1A]">{postCount}</span>
+              <span className="text-[#4A4A4A] ml-1.5">entradas</span>
+            </div>
+            <button
+              onClick={async () => {
+                setShowFollowingDialog(true);
+                setFollowListLoading(true);
+                try {
+                  const res = await fetch(`/api/users/${profile?.id}/following`);
+                  const data = await res.json();
+                  setFollowList(data.users || []);
+                } catch { setFollowList([]); }
+                setFollowListLoading(false);
+              }}
+              className="hover:text-[#D96C4A] transition-colors"
+            >
+              <span className="font-semibold text-[#1A1A1A]">{followingCount}</span>
+              <span className="text-[#4A4A4A] ml-1.5">seguindo</span>
             </button>
-            <button onClick={() => openFollowDialog("followers")} className="text-center hover:opacity-70 transition-opacity">
-              <p className="text-lg font-bold text-foreground">{followersCount}</p><p className="text-xs text-primary/40">Seguidores</p>
+            <button
+              onClick={async () => {
+                setShowFollowersDialog(true);
+                setFollowListLoading(true);
+                try {
+                  const res = await fetch(`/api/users/${profile?.id}/followers`);
+                  const data = await res.json();
+                  setFollowList(data.users || []);
+                } catch { setFollowList([]); }
+                setFollowListLoading(false);
+              }}
+              className="hover:text-[#D96C4A] transition-colors"
+            >
+              <span className="font-semibold text-[#1A1A1A]">{followersCount}</span>
+              <span className="text-[#4A4A4A] ml-1.5">seguidores</span>
             </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* ═══════ ABAS: Meus Posts / Postar / ⚙️ ═══════ */}
-      <div className="flex rounded-xl bg-primary/[0.06] p-1">
-        <button
-          onClick={() => setActiveTab("posts")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "posts" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          <FileText className="h-3.5 w-3.5" />
-          Meus Posts
-        </button>
-        <button
-          onClick={() => setActiveTab("postar")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${activeTab === "postar" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          <PenSquare className="h-3.5 w-3.5" />
-          Postar
-        </button>
-        {/* Light / Free: aba Álbum desabilitada no beta */}
-        {/*
-        <button
-          onClick={() => setActiveTab("album")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "album" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          📷
-        </button>
-        */}
-        <button
-          onClick={() => setActiveTab("config")}
-          className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${activeTab === "config" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          ⚙️
-        </button>
-      </div>
+      {/* ═══════ NAVEGAÇÃO EDITORIAL ═══════ */}
+      <nav className="sticky top-0 z-20 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] px-2 sm:px-0">
+        <div className="flex gap-0 overflow-x-auto custom-scrollbar">
+          {[
+            { id: "posts" as const, label: "Entradas" },
+            { id: "album" as const, label: "Fotografia" },
+            { id: "postar" as const, label: "Escrever" },
+            { id: "config" as const, label: "Config" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative px-5 py-3.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
+                ${activeTab === tab.id
+                  ? "text-[#1A1A1A]"
+                  : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#D96C4A] rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {/* ═══════ CONTEÚDO DAS ABAS ═══════ */}
-      <div style={{ display: activeTab === "posts" ? "block" : "none" }}>
-          {/* Meus Posts — renderização completa */}
+      <div className="px-4 sm:px-6 py-8 max-w-3xl mx-auto">
+
+        {/* ─── ABA: ENTRADAS (posts estilo artigo) ─── */}
+        <div style={{ display: activeTab === "posts" ? "block" : "none" }}>
           {myPosts.length > 0 ? (
-            <div className="space-y-2">
-              {myPosts.map((post: any) => {
-                const postStyleData: PostStyle | null = post.post_style;
+            <div className="space-y-12">
+              {myPosts.map((post: any, idx: number) => {
                 const hasPhotos = post.image_urls && post.image_urls.length > 0;
                 const hasVideo = !!post.video_url;
                 const hasAudio = !!post.audio_url;
                 const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
-                const colorIdx = postStyleData?.postItColor ?? 0;
-                const postItColor = isTextOnly ? POST_IT_COLORS[colorIdx >= 0 && colorIdx < POST_IT_COLORS.length ? colorIdx : 0] : POST_IT_COLORS[0];
-                const useInlineStyle = isTextOnly && colorIdx >= 0;
+                const postStyleData: PostStyle | null = post.post_style;
 
                 return (
-                  <div
+                  <article
                     key={post.id}
-                    className="rounded-xl p-3 transition-shadow hover:shadow-sm cursor-pointer"
+                    className="group cursor-pointer"
                     onClick={(e) => {
                       const target = e.target as HTMLElement;
-                      if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('audio') || target.closest('video')) return;
-                      // Ensure post has author data for PostDetailDialog
+                      if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("audio") || target.closest("video")) return;
                       const postWithAuthor = {
                         ...post,
                         author: post.author || {
@@ -1095,325 +1175,313 @@ export function ProfileView() {
                       };
                       window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post: postWithAuthor } }));
                     }}
-                    style={{
-                      backgroundColor: isTextOnly ? postItColor.bg : "#f7f9fa",
-                      border: isTextOnly ? `1px solid ${postItColor.border}` : "1px solid rgba(10,77,92,0.08)",
-                      color: isTextOnly ? (postStyleData?.fontColor || postItColor.text) : "#000305",
-                    }}
                   >
-                    {/* Conteúdo textual */}
-                    <FormattedText
-                      className={`whitespace-pre-wrap ${isTextOnly ? "text-sm sm:text-base leading-snug" : "text-[13px] sm:text-sm leading-relaxed text-[#000305]"}`}
-                      content={post.content}
-                      style={{
-                        fontFamily: postStyleData?.font ? `'${postStyleData.font}', sans-serif` : isTextOnly ? "serif" : undefined,
-                        fontWeight: postStyleData?.bold ? 700 : undefined,
-                        fontStyle: postStyleData?.italic ? "italic" : undefined,
-                        textAlign: postStyleData?.alignment || undefined,
-                        color: postStyleData?.fontColor || undefined,
-                      }}
-                    />
-
-                    {/* Shared/reposted post */}
-                    {post.shared_post && !Array.isArray(post.shared_post) && (
-                      <div className="mt-2.5 rounded-xl bg-primary/[0.04] p-2.5 border border-primary/8">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Repeat2 className="h-3 w-3 text-primary/40" />
-                          <span className="text-[10px] text-primary/40">Compartilhado de</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          {post.shared_post.author?.avatar_url && (
-                            <img src={post.shared_post.author.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-                          )}
-                          <span className="text-xs font-semibold text-foreground">{post.shared_post.author?.display_name}</span>
-                        </div>
-                        <FormattedText className="text-xs text-primary/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
-                        {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
-                          <div className="mt-1.5 flex gap-1 overflow-x-auto">
-                            {post.shared_post.image_urls.slice(0, 2).map((url: string, i: number) => (
-                              <img key={i} src={url} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                            ))}
-                            {post.shared_post.image_urls.length > 2 && (
-                              <div className="h-14 w-14 rounded-lg bg-primary/[0.04] flex items-center justify-center text-xs text-primary/40 shrink-0">
-                                +{post.shared_post.image_urls.length - 2}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                    {/* Featured image */}
+                    {hasPhotos && (
+                      <div className="aspect-[16/10] overflow-hidden rounded-sm bg-black/5 mb-5">
+                        <img
+                          src={post.image_urls[0]}
+                          alt=""
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                          loading="lazy"
+                        />
                       </div>
                     )}
 
-                    {/* Fotos */}
-                    {hasPhotos && (
-                      <PhotoGrid
-                        photos={post.image_urls}
-                        onPhotoClick={(index) => {
-                          setViewerPhotos(post.image_urls);
-                          setViewerIndex(index);
-                          setViewerOpen(true);
-                        }}
-                      />
-                    )}
-
-                    {/* Vídeo */}
-                    {hasVideo && <VideoPlayer src={post.video_url} />}
-
-                    {/* Áudio */}
-                    {hasAudio && <AudioPlayer src={post.audio_url} />}
-
-                    {/* Expiration counter */}
-                    {post.expires_at && (
-                      <ExpirationCounter expiresAt={post.expires_at} />
-                    )}
-
-                    <div className="mt-1 flex items-center gap-2" style={{ color: isTextOnly ? `${postItColor.text}80` : "rgba(1,56,106,0.4)" }}>
-                      <span className="text-[10px]">{timeAgo(post.created_at)}</span>
-                      {post.neighborhood && <span className="text-[10px]">· {post.neighborhood}</span>}
+                    {/* Meta */}
+                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-[#4A4A4A]/80 mb-2">
+                      <time>{timeAgo(post.created_at)}</time>
+                      {post.expires_at && (
+                        <span className="inline-flex items-center gap-1 text-[#D96C4A]/80">
+                          <Clock className="h-3 w-3" />
+                          {getExpirationLabel(post.expires_at)}
+                        </span>
+                      )}
                       {post.visibility === "followers" && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-[#f7f75e] px-1.5 py-0.5 text-[9px] font-semibold text-[#000305]">
-                          <UsersIcon className="h-2.5 w-2.5" />Seguidores
+                        <span className="inline-flex items-center gap-1">
+                          <UsersIcon className="h-3 w-3" /> Só seguidores
                         </span>
                       )}
                     </div>
-                  </div>
+
+                    {/* Title */}
+                    <h2 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug">
+                      {getPostTitle(post)}
+                    </h2>
+
+                    {/* Excerpt / content preview */}
+                    {!isTextOnly && (
+                      <p className="mt-3 text-[#4A4A4A] leading-relaxed line-clamp-3">
+                        {getPostExcerpt(post)}
+                      </p>
+                    )}
+
+                    {isTextOnly && (
+                      <div className="mt-4 prose prose-stone max-w-none">
+                        <FormattedText
+                          className="text-[#4A4A4A] leading-relaxed text-[15px]"
+                          content={post.content}
+                          style={{
+                            fontFamily: postStyleData?.font ? `'${postStyleData.font}', sans-serif` : undefined,
+                            fontWeight: postStyleData?.bold ? 700 : undefined,
+                            fontStyle: postStyleData?.italic ? "italic" : undefined,
+                            textAlign: postStyleData?.alignment || undefined,
+                            color: postStyleData?.fontColor || undefined,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Media extras */}
+                    {hasVideo && (
+                      <div className="mt-4 rounded-sm overflow-hidden bg-black/5" onClick={(e) => e.stopPropagation()}>
+                        <VideoPlayer src={post.video_url} />
+                      </div>
+                    )}
+                    {hasAudio && (
+                      <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                        <audio controls src={post.audio_url} className="w-full h-10" />
+                      </div>
+                    )}
+
+                    {/* Shared post */}
+                    {post.shared_post && !Array.isArray(post.shared_post) && (
+                      <div className="mt-5 rounded-lg border border-black/10 bg-white/60 p-4">
+                        <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider text-[#4A4A4A]/70">
+                          <Repeat2 className="h-3 w-3" />
+                          Compartilhado de {post.shared_post.author?.display_name}
+                        </div>
+                        <FormattedText className="text-sm text-[#4A4A4A] line-clamp-3" content={post.shared_post.content} />
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    {idx < myPosts.length - 1 && (
+                      <div className="mt-12 border-t border-black/[0.06]" />
+                    )}
+                  </article>
                 );
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <FileText className="h-10 w-10 text-primary/15 mb-2" />
-              <p className="text-sm text-primary/40">Nenhum post ainda</p>
-              <button onClick={() => setActiveTab("postar")} className="mt-2 text-xs font-semibold text-primary hover:underline">
-                Criar primeiro post
+            <div className="py-20 text-center">
+              <PenSquare className="h-10 w-10 text-[#4A4A4A]/20 mx-auto mb-4" />
+              <p className="font-serif text-xl text-[#4A4A4A]/60">Nenhuma entrada ainda</p>
+              <p className="text-sm text-[#4A4A4A]/50 mt-2">Comece a escrever sua primeira reflexão</p>
+              <button
+                onClick={() => setActiveTab("postar")}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+              >
+                <PenSquare className="h-4 w-4" />
+                Escrever
               </button>
             </div>
           )}
+        </div>
 
-      </div>
+        {/* ─── ABA: FOTOGRAFIA ─── */}
+        <div style={{ display: activeTab === "album" ? "block" : "none" }}>
+          <AlbumView />
+        </div>
 
-      <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
-          {/* ═══════ ABA POSTAR — MINI EDITOR COMPLETO ═══════ */}
-          <div className="rounded-2xl bg-[#eef1f3] p-3 shadow-lg border border-primary/8">
-            {/* ═══════ EDITOR WYSIWYG ═══════ */}
+        {/* ─── ABA: ESCREVER (composer) ─── */}
+        <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
+          <div className="rounded-2xl border border-black/[0.08] bg-white p-5 sm:p-6 shadow-sm">
+            <h3 className="font-serif text-2xl font-medium text-[#1A1A1A] mb-1">Nova entrada</h3>
+            <p className="text-sm text-[#4A4A4A]/70 mb-6">Escreva algo que queira compartilhar</p>
+
+            {/* Editor */}
             <div
-              className="rounded-xl border border-primary/8 overflow-hidden transition-all"
-              style={{ backgroundColor: selectedColor.bg }}
-            >
-              <div className="relative">
-                {!textContent.trim() && (
-                  <div className="absolute top-0 left-0 right-0 px-3 py-2.5 text-sm pointer-events-none select-none" style={{ color: postStyle.fontColor || selectedColor.text, opacity: 0.4 }}>
-                    Escreva algo bonito... Selecione texto e use B/I para formatar
-                  </div>
-                )}
-                <div
-                  ref={editorRef}
-                  contentEditable
-                  role="textbox"
-                  aria-multiline="true"
-                  onInput={handleEditorInput}
-                  className={`editor-content w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none transition-all overflow-y-auto ${editorExpanded ? "min-h-[220px] max-h-[60vh]" : "min-h-[100px]"}`}
-                  style={{
-                    color: postStyle.fontColor || selectedColor.text,
-                    fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
-                    textAlign: postStyle.alignment || "left",
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              className={`editor-content min-h-[140px] max-h-[400px] overflow-y-auto rounded-xl border border-black/10 bg-[#F9F8F6] px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all ${editorExpanded ? "min-h-[280px]" : ""}`}
+              style={{
+                fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
+                fontWeight: postStyle.bold ? 700 : undefined,
+                fontStyle: postStyle.italic ? "italic" : undefined,
+                textAlign: postStyle.alignment || "left",
+                color: postStyle.fontColor || undefined,
+              }}
+              onInput={() => {
+                if (editorRef.current) setTextContent(editorRef.current.innerText);
+              }}
+              data-placeholder="Comece a escrever…"
+            />
+
+            {/* Toolbar simplificada */}
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  document.execCommand("bold");
+                  setActiveFormats((f) => ({ ...f, bold: !f.bold }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${activeFormats.bold ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
+              >
+                <Bold className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  document.execCommand("italic");
+                  setActiveFormats((f) => ({ ...f, italic: !f.italic }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${activeFormats.italic ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
+              >
+                <Italic className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-black/10 mx-1" />
+
+              {/* Media buttons */}
+              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors">
+                <ImagePlus className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []).slice(0, MAX_PHOTOS_PER_POST);
+                    if (files.length) {
+                      setSelectedFiles(files);
+                      setPreviewUrls(files.map((f) => createPreviewUrl(f)));
+                      setSelectedVideo(null);
+                      if (videoPreview) URL.revokeObjectURL(videoPreview);
+                      setVideoPreview(null);
+                    }
                   }}
-                  suppressContentEditableWarning
                 />
-                <button
-                  onClick={() => setEditorExpanded(!editorExpanded)}
-                  className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-primary/[0.08] text-primary/50 hover:bg-primary/15 hover:text-primary transition-colors"
-                  title={editorExpanded ? "Reduzir" : "Expandir"}
-                >
-                  {editorExpanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-                </button>
-              </div>
+              </label>
+              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors">
+                <Video className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const url = URL.createObjectURL(file);
+                    const video = document.createElement("video");
+                    video.preload = "metadata";
+                    video.onloadedmetadata = () => {
+                      if (video.duration > MAX_VIDEO_DURATION) {
+                        toast.error(`Vídeo muito longo (máx ${MAX_VIDEO_DURATION}s)`);
+                        URL.revokeObjectURL(url);
+                        return;
+                      }
+                      setSelectedVideo(file);
+                      setVideoPreview(url);
+                      setVideoDuration(video.duration);
+                      setSelectedFiles([]);
+                      previewUrls.forEach(revokePreviewUrl);
+                      setPreviewUrls([]);
+                    };
+                    video.src = url;
+                  }}
+                />
+              </label>
+
+              <div className="flex-1" />
+
+              {/* Visibility */}
+              <button
+                type="button"
+                onClick={() => setVisibility((v) => (v === "public" ? "followers" : "public"))}
+                className="flex items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-xs text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
+                {visibility === "public" ? "Público" : "Seguidores"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEditorExpanded((e) => !e)}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                {editorExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
             </div>
 
-            {/* Media previews */}
-            {hasPhotosInComposer && previewUrls.length > 0 && (
-              <div className="flex gap-1.5 flex-wrap mt-2">
+            {/* Previews */}
+            {previewUrls.length > 0 && (
+              <div className="mt-4 flex gap-2 overflow-x-auto">
                 {previewUrls.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <img src={url} alt={`Preview ${i + 1}`} className="h-12 w-12 rounded-lg object-cover shadow-sm border border-[#f7f9fa]" />
-                    <button onClick={() => removePhoto(i)} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="h-2.5 w-2.5" />
+                  <div key={i} className="relative shrink-0">
+                    <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover border border-black/10" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newFiles = selectedFiles.filter((_, idx) => idx !== i);
+                        const newUrls = previewUrls.filter((_, idx) => idx !== i);
+                        revokePreviewUrl(url);
+                        setSelectedFiles(newFiles);
+                        setPreviewUrls(newUrls);
+                      }}
+                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
-
-            {hasVideoInComposer && videoPreview && (
-              <div className="relative rounded-lg overflow-hidden mt-2">
-                <video src={videoPreview} className="w-full max-h-24 object-cover" playsInline muted />
-                <div className="absolute top-1 left-1 flex items-center gap-1 rounded-full bg-[#f7f75e] px-1.5 py-0.5 text-[9px] font-semibold text-[#000305]">
-                  <Video className="h-2.5 w-2.5" /> {formatDuration(videoDuration)}
-                </div>
-                <button onClick={() => { setSelectedVideo(null); if (videoPreview) URL.revokeObjectURL(videoPreview); setVideoPreview(null); setVideoDuration(0); }} className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </div>
-            )}
-
-            {hasAudioInComposer && audioPreview && (
-              <div className="relative rounded-lg bg-primary/[0.06] p-1.5 border border-primary/10 mt-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Music className="h-3 w-3" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-medium text-foreground">Áudio</span>
-                    <span className="text-[9px] text-primary/40 ml-1">{formatDuration(audioDuration)}</span>
-                  </div>
-                  <button onClick={() => { setSelectedAudio(null); if (audioPreview) URL.revokeObjectURL(audioPreview); setAudioPreview(null); setAudioDuration(0); }} className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <X className="h-2 w-2" />
-                  </button>
-                </div>
-                <audio src={audioPreview} controls className="mt-1 w-full h-6" />
-              </div>
-            )}
-
-            {/* Light: formatação / post-it / cores desabilitados — só mídia + publicar */}
-            <div className="flex items-center gap-1 mt-2 flex-wrap">
-              <div className="flex-1" />
-              <div className="relative" ref={mediaMenuRef}>
+            {videoPreview && (
+              <div className="mt-4 relative">
+                <video src={videoPreview} className="w-full max-h-48 rounded-lg object-cover" controls />
                 <button
-                  onClick={() => setMediaMenuOpen(!mediaMenuOpen)}
-                  className={`flex items-center justify-center rounded-md h-7 w-7 transition-colors ${mediaMenuOpen ? "bg-[#f7f75e] text-primary" : "bg-[#f7f75e]/60 text-primary hover:bg-[#f7f75e]"}`}
-                  title="Mídia"
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(videoPreview);
+                    setVideoPreview(null);
+                    setSelectedVideo(null);
+                    setVideoDuration(0);
+                  }}
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white flex items-center justify-center"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
-                {mediaMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 flex flex-col items-center gap-px rounded-2xl bg-[#f7f9fa] p-1 shadow-lg border border-primary/10">
-                    <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-primary hover:bg-[#f7f75e]/30" : "text-primary/25 cursor-not-allowed"}`}>
-                      <Camera className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => { if (canAddPhotos) photoInputRef.current?.click(); }} disabled={!canAddPhotos} title="Galeria" className={`flex items-center justify-center rounded-full p-1.5 transition-colors ${canAddPhotos ? "text-primary hover:bg-[#f7f75e]/30" : "text-primary/25 cursor-not-allowed"}`}>
-                      <ImagePlus className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="w-6 h-px bg-primary/10" />
-                    <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"} className="flex items-center justify-center rounded-full p-1.5 text-primary transition-colors hover:bg-[#f7f75e]/30">
-                      {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                )}
-                <input ref={cameraPhotoRef} type="file" accept="image/*" capture="environment" onChange={handleCameraPhoto} className="hidden" />
-                <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handlePhotoSelect} className="hidden" />
               </div>
-            </div>
+            )}
 
-            {/* ═══════ AÇÃO: VISIBILIDADE + CONTAGEM + PUBLICAR ═══════ */}
-            <div className="flex items-center gap-2 mt-2">
-              {/* Visibilidade */}
+            {/* Publish */}
+            <div className="mt-6 flex justify-end">
               <button
-                onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")}
-                className={`flex items-center gap-1 rounded-md h-7 px-2 text-[9px] font-medium transition-colors ${visibility === "followers" ? "bg-primary text-primary-foreground" : "bg-primary/[0.06] text-primary hover:bg-primary/10"}`}
-                title={visibility === "public" ? "Público" : "Seguidores"}
-              >
-                {visibility === "public" ? <Globe className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
-                {visibility === "public" ? "Público" : "Seguidores"}
-              </button>
-
-              <div className="flex-1" />
-
-              {/* Contagem */}
-              {textContent.trim().length > 0 && (
-                <span className={`text-[9px] shrink-0 ${textContent.length > 900 ? "text-red-500" : "text-primary/30"}`}>
-                  {textContent.length}/1000
-                </span>
-              )}
-
-              {/* Publicar */}
-              <button
-                disabled={!canPost || publishing}
+                type="button"
+                disabled={publishing || (!textContent.trim() && selectedFiles.length === 0 && !selectedVideo && !selectedAudio)}
                 onClick={handlePublish}
-                className="flex h-8 items-center gap-1.5 rounded-full bg-[#2EC4B6] text-[#f7f9fa] px-4 shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 shrink-0 text-xs font-semibold"
-                title="Publicar"
+                className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] text-white px-6 py-2.5 text-sm font-medium hover:bg-[#1A1A1A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
-                Publicar
-              </button>
-            </div>
-          </div>
-      </div>
-
-      {/* Recording overlay */}
-      {isRecordingAudio && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-5 p-6">
-            <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
-              <Mic className="h-10 w-10" />
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-[#f7f9fa] tabular-nums">{formatDuration(recordingSeconds)}</p>
-              <p className="text-[10px] text-[#f7f9fa]/50 mt-0.5">{isPausedRecording ? "Pausado" : "Gravando..."}</p>
-            </div>
-            <div className="w-36 h-1.5 bg-[#f7f9fa]/20 rounded-full overflow-hidden">
-              <div className="h-full bg-[#f7f75e] rounded-full transition-all" style={{ width: `${(recordingSeconds / MAX_AUDIO_DURATION) * 100}%` }} />
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => { if (!mediaRecorderRef.current) return; if (isPausedRecording) { mediaRecorderRef.current.resume(); setIsPausedRecording(false); recordingTimerRef.current = setInterval(() => { setRecordingSeconds((prev) => { if (prev + 1 >= MAX_AUDIO_DURATION) { stopAudioRecording(); return MAX_AUDIO_DURATION; } return prev + 1; }); }, 1000); } else { mediaRecorderRef.current.pause(); setIsPausedRecording(true); if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; } } }} className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f9fa]/20 transition-colors" title={isPausedRecording ? "Continuar" : "Pausar"}>
-                {isPausedRecording ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-              </button>
-              <button onClick={stopAudioRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-lg hover:bg-[#25b0a3] transition-colors" title="Enviar">
-                <Send className="h-5 w-5" />
-              </button>
-              <button onClick={cancelAudioRecording} className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-red-500/80 transition-colors" title="Cancelar">
-                <X className="h-4 w-4" />
+                {publishing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Publicando…
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Publicar
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Light / Free: aba Álbum desabilitada no beta */}
-      {/*
-      <div style={{ display: activeTab === "album" ? "block" : "none" }}>
-          <AlbumView embedded />
-      </div>
-      */}
-
-      {/* ═══════ ABA CONFIG — EDITAR PERFIL E CONFIGURAÇÕES ═══════ */}
-      <div style={{ display: activeTab === "config" ? "block" : "none" }}>
-          {/* Editar perfil */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Edit3 className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Editar perfil</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} /></div>
-                <div className="space-y-1.5"><Label>Bio</Label><Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={300} /><span className="text-xs text-primary/40">{bio.length}/300</span></div>
-                <div className="space-y-1.5">
-                  <Label>Bairro</Label>
-                  <select value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="flex h-10 w-full rounded-md border border-primary/10 bg-[#f7f9fa] px-3 py-2 text-sm">
-                    <option value="">Nenhum</option>
-                    {BAIRROS.map((b) => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSave} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 border-0">Salvar</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Configurações */}
-          <SettingsView embedded />
-
-          <Button variant="destructive" onClick={handleLogout} className="w-full gap-2">
-            <LogOut className="h-4 w-4" /> Sair da conta
-          </Button>
+        {/* ─── ABA: CONFIG ─── */}
+        <div style={{ display: activeTab === "config" ? "block" : "none" }}>
+          <SettingsView />
+        </div>
       </div>
 
       {/* ═══════ DIALOG: SEGUINDO ═══════ */}
       <Dialog open={showFollowingDialog} onOpenChange={setShowFollowingDialog}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-4 w-4 text-primary" /> Seguindo ({followingCount})
+            <DialogTitle className="flex items-center gap-2 font-serif text-xl">
+              <UsersIcon className="h-4 w-4 text-[#D96C4A]" /> Seguindo ({followingCount})
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -1421,15 +1489,18 @@ export function ProfileView() {
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-2.5 animate-pulse">
-                    <div className="h-9 w-9 rounded-full bg-primary/10" />
-                    <div className="flex-1"><div className="h-3 w-24 rounded bg-primary/10" /><div className="h-2 w-16 rounded bg-primary/10 mt-1" /></div>
+                    <div className="h-9 w-9 rounded-full bg-black/5" />
+                    <div className="flex-1">
+                      <div className="h-3 w-24 rounded bg-black/5" />
+                      <div className="h-2 w-16 rounded bg-black/5 mt-1" />
+                    </div>
                   </div>
                 ))}
               </div>
             ) : followList.length === 0 ? (
               <div className="py-8 text-center">
-                <UsersIcon className="h-8 w-8 text-primary/20 mx-auto mb-2" />
-                <p className="text-xs text-primary/40">Não segue ninguém ainda</p>
+                <UsersIcon className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                <p className="text-xs text-[#4A4A4A]/60">Não está seguindo ninguém ainda</p>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1440,12 +1511,12 @@ export function ProfileView() {
                       setShowFollowingDialog(false);
                       window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: u.id } }));
                     }}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-primary/[0.04] transition-colors"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-black/[0.03] transition-colors"
                   >
                     <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-9 w-9" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate text-foreground">{u.display_name}</div>
-                      <div className="text-[11px] text-primary/40 truncate">@{u.username}</div>
+                      <div className="text-sm font-medium truncate text-[#1A1A1A]">{u.display_name}</div>
+                      <div className="text-[11px] text-[#4A4A4A]/60 truncate">@{u.username}</div>
                     </div>
                   </button>
                 ))}
@@ -1459,8 +1530,8 @@ export function ProfileView() {
       <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-4 w-4 text-primary" /> Seguidores ({followersCount})
+            <DialogTitle className="flex items-center gap-2 font-serif text-xl">
+              <UsersIcon className="h-4 w-4 text-[#D96C4A]" /> Seguidores ({followersCount})
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -1468,15 +1539,18 @@ export function ProfileView() {
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-2.5 animate-pulse">
-                    <div className="h-9 w-9 rounded-full bg-primary/10" />
-                    <div className="flex-1"><div className="h-3 w-24 rounded bg-primary/10" /><div className="h-2 w-16 rounded bg-primary/10 mt-1" /></div>
+                    <div className="h-9 w-9 rounded-full bg-black/5" />
+                    <div className="flex-1">
+                      <div className="h-3 w-24 rounded bg-black/5" />
+                      <div className="h-2 w-16 rounded bg-black/5 mt-1" />
+                    </div>
                   </div>
                 ))}
               </div>
             ) : followList.length === 0 ? (
               <div className="py-8 text-center">
-                <UsersIcon className="h-8 w-8 text-primary/20 mx-auto mb-2" />
-                <p className="text-xs text-primary/40">Nenhum seguidor ainda</p>
+                <UsersIcon className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                <p className="text-xs text-[#4A4A4A]/60">Nenhum seguidor ainda</p>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1487,12 +1561,12 @@ export function ProfileView() {
                       setShowFollowersDialog(false);
                       window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: u.id } }));
                     }}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-primary/[0.04] transition-colors"
+                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 w-full text-left hover:bg-black/[0.03] transition-colors"
                   >
                     <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-9 w-9" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate text-foreground">{u.display_name}</div>
-                      <div className="text-[11px] text-primary/40 truncate">@{u.username}</div>
+                      <div className="text-sm font-medium truncate text-[#1A1A1A]">{u.display_name}</div>
+                      <div className="text-[11px] text-[#4A4A4A]/60 truncate">@{u.username}</div>
                     </div>
                   </button>
                 ))}
@@ -1501,9 +1575,6 @@ export function ProfileView() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Photo viewer (Meus Posts) */}
-      {viewerOpen && <PhotoViewer photos={viewerPhotos} initialIndex={viewerIndex} onClose={() => setViewerOpen(false)} />}
     </div>
   );
 }
