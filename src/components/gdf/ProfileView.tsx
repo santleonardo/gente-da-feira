@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Fragment } from "react";
+import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,8 +60,15 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
-import { SettingsView } from "./SettingsView";
-import { AlbumView } from "./AlbumView";
+// Code-split: só carrega quando a aba correspondente é aberta
+const SettingsView = dynamic(
+  () => import("./SettingsView").then((m) => ({ default: m.SettingsView })),
+  { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
+);
+const AlbumView = dynamic(
+  () => import("./AlbumView").then((m) => ({ default: m.AlbumView })),
+  { ssr: false, loading: () => <div className="h-40 rounded-xl bg-black/[0.04] animate-pulse" /> }
+);
 import { createClient } from "@/lib/supabase/client";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
