@@ -239,13 +239,13 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
   if (selectedDM) return <DMChat conversation={selectedDM} onBack={() => { setSelectedDM(null); fetchDMs(); }} openUserProfile={navigateToProfile} />;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-serif text-xl font-medium tracking-tight text-[#1A1A1A]">Mensagens</h2>
-          <p className="text-xs text-[#4A4A4A] mt-0.5">{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}</p>
+    <div className="space-y-5 w-full min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A]">Mensagens</h2>
+          <p className="text-xs text-[#4A4A4A]/80 mt-0.5">{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}</p>
         </div>
-        <Button size="sm" onClick={() => setShowNew(true)} className="gap-1.5 rounded-full px-4 shadow-sm bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90">
+        <Button size="sm" onClick={() => setShowNew(true)} className="gap-1.5 rounded-full px-4 shadow-sm bg-[#1A1A1A] text-[#F9F8F6] hover:bg-[#1A1A1A]/90">
           <UserPlus className="h-4 w-4" /> Nova
         </Button>
       </div>
@@ -261,10 +261,10 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
       {!loading && conversations.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
-            <MessageSquare className="h-6 w-6 text-[#4A4A4A]" />
+            <MessageSquare className="h-6 w-6 text-[#4A4A4A]/70" />
           </div>
-          <p className="text-sm font-medium">Nenhuma conversa ainda</p>
-          <p className="text-xs text-[#4A4A4A] mt-0.5">Comece uma conversa clicando em &quot;Nova&quot;</p>
+          <p className="font-serif text-lg text-[#1A1A1A]/50">Nenhuma conversa ainda</p>
+          <p className="text-xs text-[#4A4A4A]/70 mt-1">Comece uma conversa em &quot;Nova&quot;</p>
         </div>
       )}
 
@@ -841,20 +841,20 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#F9F8F6]">
-      <div className="flex shrink-0 items-center gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md z-10">
+      <div className="flex shrink-0 items-center gap-3 border-b border-black/[0.06] px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F9F8F6]/95 backdrop-blur-md z-10">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="relative" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
-          <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-10 w-10 hover:opacity-80 transition-opacity" />
+          <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-10 w-10 hover:opacity-80 transition-opacity ring-2 ring-white/80" />
         </div>
         <div className="flex-1 min-w-0" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
-          <h3 className="text-sm sm:text-base font-bold truncate">{other.display_name}</h3>
-          <p className="text-[11px] sm:text-xs text-[#4A4A4A]">@{other.username}</p>
+          <h3 className="font-serif text-sm sm:text-base font-medium tracking-tight text-[#1A1A1A] truncate">{other.display_name}</h3>
+          <p className="text-[11px] sm:text-xs text-[#4A4A4A]/75">@{other.username}</p>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-[#EFEDE8]/15">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-[#F9F8F6]">
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
@@ -868,8 +868,8 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
               <MessageSquare className="h-6 w-6 text-[#4A4A4A]" />
             </div>
-            <p className="text-sm font-medium">Inicie a conversa</p>
-            <p className="text-xs text-[#4A4A4A] mt-0.5">Diga olá para {other.display_name}!</p>
+            <p className="font-serif text-lg text-[#1A1A1A]/50">Inicie a conversa</p>
+            <p className="text-xs text-[#4A4A4A]/70 mt-1">Diga olá para {other.display_name}</p>
           </div>
         )}
         {groupedMessages.map((msg: any, idx: number) => {
@@ -915,7 +915,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                       mediaOnly
                         ? "bg-transparent p-0 shadow-none rounded-2xl overflow-hidden"
                         : isMine
-                          ? "bg-[#1A1A1A] text-white rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
+                          ? "bg-[#1A1A1A] text-[#F9F8F6] rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
                           : "bg-white text-[#1A1A1A] border border-black/[0.08] rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
                     }`}
                   >
@@ -1041,7 +1041,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       </div>
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="shrink-0 border-t border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-black/[0.06] px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F9F8F6]/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {sendingMedia ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="h-4 w-4 animate-spin text-[#1A1A1A]" />
@@ -1053,7 +1053,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <div className="relative" ref={attachMenuRef}>
               <button
                 onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A]"}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-[#1A1A1A] text-[#F9F8F6]" : "text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A]"}`}
                 title="Anexar mídia"
               >
                 <ChevronUp className={`h-5 w-5 transition-transform ${attachMenuOpen ? "rotate-180" : ""}`} />
@@ -1149,7 +1149,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#1A1A1A] text-[#F9F8F6] shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">

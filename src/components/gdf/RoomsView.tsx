@@ -199,8 +199,8 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
         <div className="min-w-0">
           <h2 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] truncate">Salas</h2>
-          <p className="text-[11px] sm:text-xs text-[#4A4A4A] mt-0.5 truncate">
-            {rooms.length} sala{rooms.length !== 1 ? "s" : ""} ativa{rooms.length !== 1 ? "s" : ""} · Feira de Santana
+          <p className="text-[11px] sm:text-xs text-[#4A4A4A]/80 mt-0.5 truncate">
+            {rooms.length} sala{rooms.length !== 1 ? "s" : ""} · Feira de Santana
           </p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-3 sm:px-4 h-10 min-h-10 shadow-sm shrink-0 bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90">
@@ -210,9 +210,9 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       </div>
 
       {myRooms.length > 0 && (
-        <section className="rounded-2xl border border-[#1A1A1A]/15 bg-gradient-to-b from-[#1A1A1A]/[0.07] to-[#1A1A1A]/[0.02] p-3 sm:p-4">
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#1A1A1A]/80 flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" /> Minhas Salas
+        <section className="rounded-2xl border border-black/[0.08] bg-white/70 p-3 sm:p-4 shadow-sm">
+          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-[#D96C4A]" /> Minhas Salas
             <span className="ml-auto normal-case tracking-normal font-semibold text-[#1A1A1A]/50 flex items-center gap-2">
               {(() => {
                 const totalUnread = myRooms.reduce(
@@ -241,8 +241,8 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       )}
       {official.length > 0 && (
         <section>
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
-            <Crown className="h-3.5 w-3.5 text-[#1A1A1A]/60" /> Oficiais
+          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
+            <Crown className="h-3.5 w-3.5 text-[#D96C4A]" /> Oficiais
           </h3>
           <div className="space-y-2">
             {official.map((room) => (
@@ -253,8 +253,8 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       )}
       {community.length > 0 && (
         <section>
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
-            <Hash className="h-3.5 w-3.5" /> Comunidades
+          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
+            <Hash className="h-3.5 w-3.5 text-[#D96C4A]" /> Comunidades
           </h3>
           <div className="space-y-2">
             {community.map((room) => (
@@ -271,10 +271,10 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       {rooms.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
-            <Hash className="h-5 w-5 text-[#4A4A4A]" />
+            <Hash className="h-5 w-5 text-[#4A4A4A]/70" />
           </div>
-          <p className="text-sm text-[#4A4A4A]">Nenhuma sala ainda</p>
-          <p className="text-xs text-[#4A4A4A]/60 mt-0.5">Crie a primeira!</p>
+          <p className="font-serif text-lg text-[#1A1A1A]/50">Nenhuma sala ainda</p>
+          <p className="text-xs text-[#4A4A4A]/60 mt-1">Crie a primeira</p>
         </div>
       )}
 
@@ -768,7 +768,7 @@ function PreEntryScreen({
         <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-full hover:bg-[#1A1A1A]/[0.05]">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="font-serif text-lg font-medium text-[#1A1A1A]">Informações da sala</h2>
+        <h2 className="font-serif text-lg font-medium tracking-tight text-[#1A1A1A]">Informações da sala</h2>
       </div>
 
       {/* Room Card */}
@@ -3291,7 +3291,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   return (
     <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-x-hidden bg-[#F9F8F6]">
       {/* Header — fixo no topo do chat */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F9F8F6]/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -3936,7 +3936,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       )}
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="shrink-0 border-t border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F9F8F6]/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {isMember ? (
           <>
             {/* Preview de mídia antes de enviar */}
