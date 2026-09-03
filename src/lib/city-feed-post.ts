@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Máximo de posts da conta "Cidade" por dia (UTC) — evita poluir o feed */
-export const MAX_CITY_POSTS_PER_DAY = 20;
+export const MAX_CITY_POSTS_PER_DAY = 100;
 
 /** Score mínimo para virar post na timeline (antes ia para o bloco de cards em ≥65) */
 export const MIN_SCORE_FOR_FEED_POST = 65;
