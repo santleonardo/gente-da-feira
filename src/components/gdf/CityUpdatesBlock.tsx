@@ -115,7 +115,7 @@ export function CityUpdatesBlock() {
   if (!loading && updates.length === 0) return null;
 
   return (
-    <section className="mt-4 mb-1 rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.06] to-background overflow-hidden">
+    <section className="rounded-2xl border border-black/[0.08] bg-white/70 overflow-hidden mb-4 shadow-sm">
       {/* Header */}
       <button
         type="button"
@@ -127,12 +127,12 @@ export function CityUpdatesBlock() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold tracking-tight text-foreground">
+            <h3 className="font-serif text-base font-medium tracking-tight text-[#1A1A1A]">
               Na cidade
             </h3>
             <Badge
               variant="secondary"
-              className="text-[9px] px-1.5 py-0 h-4 font-semibold bg-primary/10 text-primary border-0"
+              className="text-[9px] px-1.5 py-0 h-4 font-semibold bg-[#D96C4A]/10 text-[#D96C4A] border-0"
             >
               Feira de Santana
             </Badge>
@@ -197,11 +197,11 @@ export function CityUpdatesBlock() {
                         </span>
                       )}
                     </div>
-                    <h4 className="text-[11px] font-bold leading-snug text-foreground line-clamp-2 mb-1">
+                    <h4 className="font-serif text-[13px] font-medium leading-snug text-[#1A1A1A] line-clamp-2 mb-1.5">
                       {u.title}
                     </h4>
                     {summaryText && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-1 whitespace-pre-line">
+                      <p className="text-[12px] text-[#4A4A4A]/75 leading-relaxed mb-1.5 whitespace-pre-line line-clamp-3">
                         {displaySummary}
                       </p>
                     )}
@@ -209,14 +209,14 @@ export function CityUpdatesBlock() {
                       <button
                         type="button"
                         onClick={(e) => toggleSummary(u.id, e)}
-                        className="self-start text-[10px] font-semibold text-primary hover:underline mb-1"
+                        className="self-start text-[10px] font-semibold text-[#D96C4A] hover:underline mb-1"
                       >
                         {isExpanded ? "Ler menos" : "Ler mais"}
                       </button>
                     )}
                     <div className="mt-auto flex items-center justify-between gap-2 pt-1">
                       <div className="flex items-center gap-1.5 min-w-0 text-[10px] text-muted-foreground">
-                        <span className="font-semibold text-primary/80 shrink-0">
+                        <span className="font-semibold text-[#0A4D5C]/80 shrink-0">
                           {fonte}
                         </span>
                         {u.neighborhood && (
@@ -228,7 +228,7 @@ export function CityUpdatesBlock() {
                         )}
                       </div>
                       {href && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary shrink-0">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#D96C4A] shrink-0">
                           Abrir
                           <ExternalLink className="h-3 w-3" />
                         </span>
@@ -238,7 +238,7 @@ export function CityUpdatesBlock() {
                 );
 
                 const cardClass =
-                  "snap-start shrink-0 w-[min(100%,320px)] sm:w-[300px] flex flex-col rounded-xl border border-border/60 bg-card p-3 shadow-sm hover:shadow-md hover:border-primary/25 transition-all text-left";
+                  "snap-start shrink-0 w-[min(100%,320px)] sm:w-[300px] flex flex-col rounded-xl border border-black/[0.08] bg-white/80 p-3.5 shadow-sm hover:shadow-md hover:border-[#D96C4A]/30 transition-all text-left";
 
                 if (href) {
                   return (

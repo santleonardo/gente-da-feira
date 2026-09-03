@@ -263,25 +263,34 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
   if (!profile) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="settings-blog space-y-7 w-full max-w-full min-w-0">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap');
+        .settings-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .settings-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, serif;
+        }
+      `}</style>
       {!embedded && (
         <div className="flex items-center gap-3">
           <button
             onClick={() => setProfileSubView("profile")}
-            className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-accent transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h2 className="text-lg font-bold">Configurações</h2>
+          <h2 className="font-serif text-2xl font-medium tracking-tight text-[#1A1A1A]">Configurações</h2>
         </div>
       )}
 
       {/* APARÊNCIA */}
-      <Card>
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <Sun className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Aparência</h3>
+            <Sun className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Aparência</h3>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {(
@@ -375,11 +384,11 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
       </Card>
 
       {/* PRIVACIDADE */}
-      <Card>
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <Shield className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Privacidade</h3>
+            <Shield className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Privacidade</h3>
           </div>
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
@@ -445,7 +454,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-3">
-              <UserCheck className="h-4 w-4 text-primary" />
+              <UserCheck className="h-4 w-4 text-[#D96C4A]" />
               <h3 className="text-sm font-semibold">Solicitações para seguir</h3>
               <Badge variant="secondary" className="text-[10px] px-1.5">{pendingRequests.length}</Badge>
             </div>
@@ -476,10 +485,10 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
       )}
 
       {/* GERENCIAR */}
-      <Card>
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <Users className="h-4 w-4 text-primary" />
+            <Users className="h-4 w-4 text-[#D96C4A]" />
             <h3 className="text-sm font-semibold">Gerenciar</h3>
           </div>
           <div className="space-y-2">
@@ -498,8 +507,8 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-3">
-              <Bell className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">Notificações recentes</h3>
+              <Bell className="h-4 w-4 text-[#D96C4A]" />
+              <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Notificações recentes</h3>
             </div>
             <div className="space-y-2">
               {notifications.slice(0, 5).map((notif: any) => {
@@ -540,10 +549,10 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
       )}
 
       {/* PERMISSÕES DO DISPOSITIVO */}
-      <Card>
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-3">
-            <Bell className="h-4 w-4 text-primary" />
+            <Bell className="h-4 w-4 text-[#D96C4A]" />
             <h3 className="text-sm font-semibold">Permissões do dispositivo</h3>
           </div>
           <div className="space-y-2">
@@ -584,10 +593,10 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
       <AccountSection />
 
       {/* TERMOS DE USO */}
-      <Card>
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-3">
-            <FileText className="h-4 w-4 text-primary" />
+            <FileText className="h-4 w-4 text-[#D96C4A]" />
             <h3 className="text-sm font-semibold">Legal</h3>
           </div>
           <button
