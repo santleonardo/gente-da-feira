@@ -56,5 +56,13 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
-  }
+  },
+  "sideEffects": [
+    "**/*.css",
+    "**/*.scss",
+    "**/*.sass",
+    "./src/app/globals.css",
+    "./src/app/**/layout.tsx",
+    "./src/app/**/page.tsx"
+  ]
 }
