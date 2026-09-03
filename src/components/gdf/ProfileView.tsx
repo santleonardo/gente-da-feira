@@ -464,7 +464,7 @@ export function ProfileView() {
   const [followListLoading, setFollowListLoading] = useState(false);
 
   // ═══════ Tab state ═══════
-  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "album">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "album" | "sobre">("posts");
 
   // ═══════ Composer state ═══════
   const [postStyle, setPostStyle] = useState<PostStyle>({
@@ -1123,6 +1123,7 @@ export function ProfileView() {
           {[
             { id: "posts" as const, label: "Entradas" },
             { id: "album" as const, label: "Fotografia" },
+            { id: "sobre" as const, label: "Sobre" },
             { id: "postar" as const, label: "Escrever" },
             { id: "config" as const, label: "Config" },
           ].map((tab) => (
@@ -1468,6 +1469,113 @@ export function ProfileView() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* ─── ABA: SOBRE ─── */}
+        <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
+          <article className="max-w-3xl">
+            <div className="flex flex-col md:flex-row gap-10 md:gap-14 items-start">
+              {/* Foto grande */}
+              <div className="w-full md:w-[42%] shrink-0">
+                <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5 sticky top-24">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.display_name || "Foto de perfil"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10">
+                      <UserAvatar
+                        user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                        className="h-28 w-28"
+                      />
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploading}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-full border border-black/10 py-2 text-xs font-medium text-[#4A4A4A] hover:bg-black/5 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                  Alterar foto
+                </button>
+              </div>
+
+              {/* Texto longo */}
+              <div className="w-full md:w-[58%] flex flex-col pt-2 md:pt-0">
+                <h2 className="font-serif text-4xl sm:text-5xl font-medium tracking-tight text-[#1A1A1A] mb-2">
+                  Sobre {profile?.display_name?.split(" ")[0] || "mim"}
+                </h2>
+                {profile?.neighborhood && (
+                  <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-6">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {profile.neighborhood}
+                  </p>
+                )}
+
+                {/* Bio em destaque */}
+                {profile?.bio ? (
+                  <div className="space-y-5">
+                    <p className="font-serif text-xl sm:text-2xl italic text-[#1A1A1A] leading-snug">
+                      {parseInlineContent(profile.bio, openUserProfileById)}
+                    </p>
+                    <div className="prose prose-stone max-w-none">
+                      <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
+                        Este é o espaço pessoal de {profile.display_name} no Gente da Feira —
+                        um canto para compartilhar reflexões, fotos e momentos do dia a dia
+                        {profile.neighborhood ? ` em ${profile.neighborhood}` : ""}.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="font-serif text-xl italic text-[#4A4A4A]/50 leading-snug">
+                      Ainda não há uma apresentação escrita.
+                    </p>
+                    <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
+                      Use a bio do perfil para contar um pouco sobre você — o que te move,
+                      o que você observa na cidade, ou simplesmente uma nota sobre o seu dia.
+                    </p>
+                  </div>
+                )}
+
+                {/* Editor de bio inline */}
+                <div className="mt-8 pt-6 border-t border-black/[0.06]">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-2">
+                    Editar apresentação
+                  </label>
+                  <Textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                    placeholder="Escreva uma apresentação pessoal…"
+                    rows={4}
+                    className="rounded-xl border-black/10 bg-white/70 text-[15px] leading-relaxed resize-none focus-visible:ring-[#D96C4A]/30"
+                  />
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/300</span>
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Meta */}
+                <p className="mt-10 text-[11px] text-[#4A4A4A]/40">
+                  @{profile?.username}
+                  {profile?.created_at && (
+                    <> · No Gente da Feira desde {new Date(profile.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
+                  )}
+                </p>
+              </div>
+            </div>
+          </article>
         </div>
 
         {/* ─── ABA: CONFIG ─── */}

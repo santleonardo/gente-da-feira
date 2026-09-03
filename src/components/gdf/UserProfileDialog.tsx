@@ -366,7 +366,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [postsLoading, setPostsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "album">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "album" | "sobre">("posts");
   const [followList, setFollowList] = useState<any[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
@@ -559,13 +559,16 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const canSeeFollowers = isOwnProfile || !privacyInfo.hide_followers;
   const canSeeNeighborhood = isOwnProfile || !privacyInfo.hide_neighborhood;
 
-  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "album"; label: string }> = [{ id: "posts", label: "Posts" }];
+  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "album" | "sobre"; label: string }> = [
+    { id: "posts", label: "Posts" },
+    { id: "sobre", label: "Sobre" },
+  ];
   if (canSeeFollowers) visibleTabs.push({ id: "followers", label: "Seguidores" });
   if (canSeeFollowing) visibleTabs.push({ id: "following", label: "Seguindo" });
   visibleTabs.push({ id: "album", label: "Álbum" });
 
   useEffect(() => {
-    if (activeTab !== "posts" && activeTab !== "album" && !visibleTabs.find(t => t.id === activeTab)) setActiveTab("posts");
+    if (activeTab !== "posts" && activeTab !== "album" && activeTab !== "sobre" && !visibleTabs.find(t => t.id === activeTab)) setActiveTab("posts");
   }, [canSeeFollowers, canSeeFollowing]);
 
   const renderFollowButton = () => {
@@ -769,7 +772,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             ? "text-[#1A1A1A]"
                             : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
                       >
-                        {tab.id === "posts" ? "Entradas" : tab.id === "album" ? "Fotografia" : tab.label}
+                        {tab.id === "posts" ? "Entradas" : tab.id === "album" ? "Fotografia" : tab.id === "sobre" ? "Sobre" : tab.label}
                         {activeTab === tab.id && (
                           <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D96C4A] rounded-full" />
                         )}
@@ -924,6 +927,64 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         })}
                       </div>
                     )
+                  )}
+
+                  {/* Sobre */}
+                  {activeTab === "sobre" && (
+                    <article className="pb-4">
+                      <div className="flex flex-col sm:flex-row gap-8 items-start">
+                        <div className="w-full sm:w-[40%] shrink-0">
+                          <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5">
+                            {userData.avatar_url ? (
+                              <img
+                                src={userData.avatar_url}
+                                alt={userData.display_name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10">
+                                <UserAvatar
+                                  user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                                  className="h-24 w-24"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="w-full sm:w-[60%] flex flex-col">
+                          <h3 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A] mb-2">
+                            Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
+                          </h3>
+                          {canSeeNeighborhood && userData.neighborhood && (
+                            <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {userData.neighborhood}
+                            </p>
+                          )}
+                          {userData.bio ? (
+                            <div className="space-y-4">
+                              <p className="font-serif text-lg sm:text-xl italic text-[#1A1A1A] leading-snug">
+                                {parseInlineContent(userData.bio, openUserProfileById)}
+                              </p>
+                              <p className="text-[#4A4A4A] leading-relaxed text-[14px]">
+                                Espaço pessoal de {userData.display_name} no Gente da Feira
+                                {userData.neighborhood ? ` · ${userData.neighborhood}` : ""}.
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-serif text-lg italic text-[#4A4A4A]/50 leading-snug">
+                              Este perfil ainda não escreveu uma apresentação.
+                            </p>
+                          )}
+                          <p className="mt-8 text-[11px] text-[#4A4A4A]/40">
+                            @{userData.username}
+                            {userData.created_at && (
+                              <> · Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
                   )}
 
                   {/* Seguidores */}
