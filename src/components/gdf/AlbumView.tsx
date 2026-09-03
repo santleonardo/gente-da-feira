@@ -293,222 +293,385 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
   if (!profile) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="album-blog space-y-6">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+        .album-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+          --paper: #F9F8F6;
+          --ink: #1A1A1A;
+          --ink-light: #4A4A4A;
+          --accent: #D96C4A;
+        }
+        .album-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, Cambria, serif;
+        }
+        /* Masonry via CSS columns */
+        .album-masonry {
+          column-count: 2;
+          column-gap: 0.75rem;
+        }
+        @media (min-width: 640px) {
+          .album-masonry {
+            column-count: 3;
+            column-gap: 1rem;
+          }
+        }
+        .album-masonry-item {
+          break-inside: avoid;
+          margin-bottom: 0.75rem;
+        }
+        @media (min-width: 640px) {
+          .album-masonry-item {
+            margin-bottom: 1rem;
+          }
+        }
+      `}</style>
+
       {/* Header */}
       <div className="flex items-center gap-3">
         {!embedded && (
           <button
             onClick={() => setProfileSubView("profile")}
-            className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-accent transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#4A4A4A] hover:bg-black/5 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <h2 className="text-lg font-bold">Álbum</h2>
-        <Badge variant="secondary" className="text-[10px]">
-          {photos.length} foto{photos.length !== 1 ? "s" : ""} · {videos.length} vídeo{videos.length !== 1 ? "s" : ""}
-        </Badge>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A]">
+            Fotografia
+          </h2>
+          <p className="text-xs text-[#4A4A4A]/70 mt-0.5">
+            {photos.length} foto{photos.length !== 1 ? "s" : ""} · {videos.length} vídeo{videos.length !== 1 ? "s" : ""}
+          </p>
+        </div>
       </div>
 
-      {/* Sub-abas */}
-      <div className="flex rounded-xl bg-primary/[0.06] p-1">
-        <button
-          onClick={() => setSubTab("fotos")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "fotos" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          <Camera className="h-3.5 w-3.5" />
-          Fotos
-          <span className="text-[10px] text-primary/40">({photos.length}/{MAX_PHOTOS})</span>
-        </button>
-        <button
-          onClick={() => setSubTab("videos")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "videos" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          <Film className="h-3.5 w-3.5" />
-          Vídeos
-          <span className="text-[10px] text-primary/40">({videos.length}/{MAX_VIDEOS})</span>
-        </button>
-        <button
-          onClick={() => setSubTab("audios")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${subTab === "audios" ? "bg-[#f7f9fa] text-primary shadow-sm" : "text-primary/50 hover:text-primary/70"}`}
-        >
-          <Music className="h-3.5 w-3.5" />
-          Áudios
-        </button>
-      </div>
+      {/* Sub-abas editoriais */}
+      <nav className="flex gap-0 border-b border-black/[0.06]">
+        {(
+          [
+            { id: "fotos" as const, label: "Fotos", icon: Camera },
+            { id: "videos" as const, label: "Vídeos", icon: Film },
+            { id: "audios" as const, label: "Áudios", icon: Music },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setSubTab(tab.id)}
+            className={`relative flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors
+              ${subTab === tab.id ? "text-[#1A1A1A]" : "text-[#4A4A4A]/60 hover:text-[#1A1A1A]"}`}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+            {subTab === tab.id && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D96C4A] rounded-full" />
+            )}
+          </button>
+        ))}
+      </nav>
 
-      {/* ── ABA: FOTOS ── */}
+      {/* ═══════ FOTOS – MASONRY ═══════ */}
       {subTab === "fotos" && (
-        <>
-          {/* Upload button */}
-          <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handlePhotoUpload} className="hidden" />
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="space-y-4">
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+
+          <button
             onClick={() => photoInputRef.current?.click()}
             disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-            className="w-full gap-2 border-dashed border-primary/20 text-primary hover:bg-[#f7f75e]/10"
+            className="w-full flex items-center justify-center gap-2 rounded-sm border border-dashed border-black/15 bg-white/40 py-3.5 text-sm text-[#4A4A4A] hover:border-[#D96C4A]/40 hover:text-[#1A1A1A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-            {uploadingPhoto ? "Enviando..." : photos.length >= MAX_PHOTOS ? "Limite atingido" : "Adicionar foto"}
-          </Button>
+            {uploadingPhoto ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando…
+              </>
+            ) : photos.length >= MAX_PHOTOS ? (
+              <>Limite de {MAX_PHOTOS} fotos atingido</>
+            ) : (
+              <>
+                <ImagePlus className="h-4 w-4" />
+                Adicionar foto
+              </>
+            )}
+          </button>
 
           {loading ? (
-            <div className="grid grid-cols-3 gap-1.5">
-              {[1,2,3,4,5,6].map(i => <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />)}
-            </div>
-          ) : photos.length === 0 ? (
-            <div className="py-12 text-center">
-              <Camera className="h-12 w-12 text-primary/20 mx-auto mb-3" />
-              <p className="text-sm font-medium text-primary/60">Nenhuma foto ainda</p>
-              <p className="text-xs text-primary/40 mt-1">Adicione fotos ao seu álbum</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-1.5">
-              {photos.map((photo) => (
-                <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden group">
-                  <img
-                    src={photo.url}
-                    alt="Foto do álbum"
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    loading="lazy"
-                    onClick={() => {
-                      setViewerPhotos(photos.map((p: any) => p.url));
-                      setViewerIndex(photos.findIndex((p: any) => p.id === photo.id));
-                      setViewerOpen(true);
-                    }}
-                  />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(photo.id, "photo"); }}
-                    disabled={deletingId === photo.id && deletingType === "photo"}
-                    className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#000305]/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                  >
-                    {deletingId === photo.id && deletingType === "photo" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                  </button>
-                </div>
+            <div className="album-masonry">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="album-masonry-item rounded-sm bg-black/5 animate-pulse"
+                  style={{ height: `${120 + (i % 3) * 40}px` }}
+                />
               ))}
             </div>
-          )}
-        </>
-      )}
-
-      {/* ── ABA: VÍDEOS ── */}
-      {subTab === "videos" && (
-        <>
-          <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => videoInputRef.current?.click()}
-            disabled={uploadingVideo || videos.length >= MAX_VIDEOS}
-            className="w-full gap-2 border-dashed border-primary/20 text-primary hover:bg-[#f7f75e]/10"
-          >
-            {uploadingVideo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-            {uploadingVideo ? "Enviando..." : videos.length >= MAX_VIDEOS ? "Limite atingido" : "Adicionar vídeo"}
-          </Button>
-
-          {loading ? (
-            <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-40 rounded-lg bg-muted animate-pulse" />)}
-            </div>
-          ) : videos.length === 0 ? (
-            <div className="py-12 text-center">
-              <Film className="h-12 w-12 text-primary/20 mx-auto mb-3" />
-              <p className="text-sm font-medium text-primary/60">Nenhum vídeo ainda</p>
-              <p className="text-xs text-primary/40 mt-1">Máximo {MAX_VIDEO_DURATION}s cada</p>
+          ) : photos.length === 0 ? (
+            <div className="py-16 text-center">
+              <Camera className="h-10 w-10 text-black/10 mx-auto mb-3" />
+              <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhuma foto ainda</p>
+              <p className="text-sm text-[#4A4A4A]/40 mt-1">Adicione fotos ao seu álbum</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {videos.map((video) => (
-                <div key={video.id} className="relative rounded-xl overflow-hidden bg-[#000305] group">
+            <div className="album-masonry">
+              {photos.map((photo: any, idx: number) => {
+                // Alternate aspect hints for visual rhythm (actual image dictates height)
+                const aspectHints = ["aspect-[3/4]", "aspect-[4/5]", "aspect-[1/1]", "aspect-[5/6]", "aspect-[3/4]"];
+                const aspect = aspectHints[idx % aspectHints.length];
+                return (
+                  <div key={photo.id} className="album-masonry-item group relative overflow-hidden rounded-sm bg-black/5">
+                    <button
+                      type="button"
+                      className={`block w-full ${aspect} overflow-hidden cursor-zoom-in`}
+                      onClick={() => {
+                        setViewerPhotos(photos.map((p: any) => p.url));
+                        setViewerIndex(photos.findIndex((p: any) => p.id === photo.id));
+                        setViewerOpen(true);
+                      }}
+                    >
+                      <img
+                        src={photo.url}
+                        alt={photo.caption || "Foto do álbum"}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                      {photo.caption && (
+                        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none">
+                          <p className="text-white font-serif text-sm tracking-wide drop-shadow-md line-clamp-2">
+                            {photo.caption}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(photo.id, "photo");
+                      }}
+                      disabled={deletingId === photo.id && deletingType === "photo"}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
+                    >
+                      {deletingId === photo.id && deletingType === "photo" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ VÍDEOS ═══════ */}
+      {subTab === "videos" && (
+        <div className="space-y-4">
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            onChange={handleVideoUpload}
+            className="hidden"
+          />
+
+          <button
+            onClick={() => videoInputRef.current?.click()}
+            disabled={uploadingVideo || videos.length >= MAX_VIDEOS}
+            className="w-full flex items-center justify-center gap-2 rounded-sm border border-dashed border-black/15 bg-white/40 py-3.5 text-sm text-[#4A4A4A] hover:border-[#D96C4A]/40 hover:text-[#1A1A1A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {uploadingVideo ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando…
+              </>
+            ) : videos.length >= MAX_VIDEOS ? (
+              <>Limite de {MAX_VIDEOS} vídeos atingido</>
+            ) : (
+              <>
+                <Video className="h-4 w-4" />
+                Adicionar vídeo (máx. {MAX_VIDEO_DURATION}s)
+              </>
+            )}
+          </button>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="aspect-video rounded-sm bg-black/5 animate-pulse" />
+              ))}
+            </div>
+          ) : videos.length === 0 ? (
+            <div className="py-16 text-center">
+              <Film className="h-10 w-10 text-black/10 mx-auto mb-3" />
+              <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhum vídeo ainda</p>
+              <p className="text-sm text-[#4A4A4A]/40 mt-1">Máximo {MAX_VIDEO_DURATION}s cada</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {videos.map((video: any) => (
+                <div key={video.id} className="group relative overflow-hidden rounded-sm bg-black">
                   <video
-                    ref={(el) => { videoRefs.current[video.id] = el; }}
+                    ref={(el) => {
+                      videoRefs.current[video.id] = el;
+                    }}
                     src={video.url}
-                    className="w-full max-h-48 object-contain"
+                    className="w-full max-h-64 object-contain"
                     playsInline
                     preload="metadata"
-                    onEnded={() => setPlayingVideoId(null)}
                     onClick={() => toggleVideo(video.id)}
                   />
                   {playingVideoId !== video.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/30 cursor-pointer" onClick={() => toggleVideo(video.id)}>
+                    <button
+                      type="button"
+                      onClick={() => toggleVideo(video.id)}
+                      className="absolute inset-0 flex items-center justify-center bg-black/30"
+                    >
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
                         <Play className="h-6 w-6 text-white fill-white ml-0.5" />
                       </div>
-                    </div>
-                  )}
-                  {video.duration > 0 && (
-                    <div className="absolute bottom-2 left-2 rounded-full bg-[#000305]/60 px-2 py-0.5 text-[9px] font-medium text-white">
-                      {formatDuration(video.duration)}
-                    </div>
+                    </button>
                   )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(video.id, "video"); }}
+                    type="button"
+                    onClick={() => handleDelete(video.id, "video")}
                     disabled={deletingId === video.id && deletingType === "video"}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#000305]/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
                   >
-                    {deletingId === video.id && deletingType === "video" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {deletingId === video.id && deletingType === "video" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
                   </button>
+                  {video.duration && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white tabular-nums">
+                      {formatDuration(video.duration)}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* ── ABA: ÁUDIOS ── */}
+      {/* ═══════ ÁUDIOS ═══════ */}
       {subTab === "audios" && (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-dashed border-primary/20 p-4 text-center">
-            {isRecording ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-sm font-semibold text-red-600">Gravando... {formatDuration(recordingTimer)}</span>
-                </div>
-                <Button variant="destructive" size="sm" onClick={stopRecording} className="gap-2">
-                  <Mic className="h-4 w-4" /> Parar gravação
-                </Button>
+        <div className="space-y-4">
+          {isRecording ? (
+            <div className="rounded-xl border border-black/10 bg-white/60 p-5 text-center space-y-4">
+              <div className="flex items-center justify-center gap-2 text-red-600">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm font-medium tabular-nums">
+                  {formatDuration(recordingTimer)}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Mic className="h-8 w-8 text-primary/30 mx-auto" />
-                <p className="text-sm text-primary/60">Grave um áudio para seu perfil</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={startRecording}
-                  disabled={uploadingAudio}
-                  className="gap-2 border-primary/20 text-primary hover:bg-[#f7f75e]/10"
-                >
-                  {uploadingAudio ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-                  {uploadingAudio ? "Enviando..." : "Gravar áudio"}
-                </Button>
-              </div>
-            )}
-          </div>
+              <p className="text-sm text-[#4A4A4A]">Gravando…</p>
+              <button
+                onClick={stopRecording}
+                className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] text-white px-5 py-2.5 text-sm font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+              >
+                <Pause className="h-4 w-4" />
+                Parar e enviar
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-black/15 bg-white/40 py-10 text-center space-y-3">
+              <Mic className="h-8 w-8 text-black/15 mx-auto" />
+              <p className="text-sm text-[#4A4A4A]/70">Grave um áudio para o perfil</p>
+              <button
+                onClick={startRecording}
+                disabled={uploadingAudio}
+                className="inline-flex items-center gap-2 rounded-full border border-black/15 px-5 py-2.5 text-sm text-[#1A1A1A] hover:bg-black/5 transition-colors disabled:opacity-40"
+              >
+                {uploadingAudio ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando…
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-4 w-4" />
+                    Gravar áudio
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
-          <div className="rounded-xl bg-primary/[0.04] p-3 flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-primary/40 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-primary/50 leading-relaxed">
-              Os áudios gravados são salvos junto com suas fotos e vídeos do perfil. Funcionalidade de gerenciamento de áudios em breve.
+          <div className="rounded-xl bg-black/[0.03] p-3.5 flex items-start gap-2.5">
+            <AlertCircle className="h-4 w-4 text-[#4A4A4A]/40 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-[#4A4A4A]/55 leading-relaxed">
+              Os áudios gravados são salvos junto com suas fotos e vídeos do perfil. Gerenciamento dedicado em breve.
             </p>
           </div>
         </div>
       )}
 
-      {/* Photo viewer fullscreen */}
+      {/* ═══════ LIGHTBOX ═══════ */}
       {viewerOpen && viewerPhotos.length > 0 && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={() => setViewerOpen(false)}>
-          <button onClick={() => setViewerOpen(false)} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><X className="h-5 w-5" /></button>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1A1A1A]/95 backdrop-blur-md p-4 sm:p-8"
+          onClick={() => setViewerOpen(false)}
+        >
+          <button
+            onClick={() => setViewerOpen(false)}
+            className="absolute top-5 right-5 z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/50 hover:text-white transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="h-7 w-7" />
+          </button>
+
           {viewerPhotos.length > 1 && (
             <>
-              <button onClick={(e) => { e.stopPropagation(); setViewerIndex((i) => (i > 0 ? i - 1 : viewerPhotos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">&#8249;</button>
-              <button onClick={(e) => { e.stopPropagation(); setViewerIndex((i) => (i < viewerPhotos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">&#8250;</button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewerIndex((i) => (i > 0 ? i - 1 : viewerPhotos.length - 1));
+                }}
+                className="absolute left-3 sm:left-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-2xl"
+              >
+                ‹
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewerIndex((i) => (i < viewerPhotos.length - 1 ? i + 1 : 0));
+                }}
+                className="absolute right-3 sm:right-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-2xl"
+              >
+                ›
+              </button>
             </>
           )}
-          <img src={viewerPhotos[viewerIndex]} alt={`Foto ${viewerIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
-          {viewerPhotos.length > 1 && <div className="absolute bottom-4 text-white/70 text-sm">{viewerIndex + 1} / {viewerPhotos.length}</div>}
+
+          <img
+            src={viewerPhotos[viewerIndex]}
+            alt={`Foto ${viewerIndex + 1}`}
+            className="max-h-[80vh] max-w-[95vw] object-contain rounded-sm shadow-2xl shadow-black/50"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {viewerPhotos.length > 1 && (
+            <div className="absolute bottom-6 text-white/60 text-sm font-medium tabular-nums tracking-wide">
+              {viewerIndex + 1} / {viewerPhotos.length}
+            </div>
+          )}
         </div>
       )}
     </div>
