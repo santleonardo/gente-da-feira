@@ -588,277 +588,508 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl p-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg rounded-2xl p-0 max-h-[92vh] overflow-hidden bg-[#F9F8F6] border-black/10">
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
         <DialogDescription className="sr-only">Informações e ações do perfil selecionado.</DialogDescription>
+
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
+          .upd-blog {
+            font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+            --paper: #F9F8F6;
+            --ink: #1A1A1A;
+            --ink-light: #4A4A4A;
+            --accent: #D96C4A;
+          }
+          .upd-blog .font-serif {
+            font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+          }
+          .upd-blog .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
+          .upd-blog .post-content a:hover { color: #2EC4B6; }
+        `}</style>
+
         {loading ? (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
-              <div className="space-y-2 flex-1"><div className="h-5 w-32 rounded bg-muted animate-pulse" /><div className="h-3 w-24 rounded bg-muted animate-pulse" /></div>
+          <div className="upd-blog p-8 space-y-5">
+            <div className="flex items-end gap-4">
+              <div className="h-20 w-20 rounded-full bg-black/5 animate-pulse" />
+              <div className="space-y-2 flex-1 pb-1">
+                <div className="h-7 w-40 rounded bg-black/5 animate-pulse" />
+                <div className="h-3 w-28 rounded bg-black/5 animate-pulse" />
+              </div>
             </div>
+            <div className="h-4 w-3/4 rounded bg-black/5 animate-pulse" />
+            <div className="h-4 w-1/2 rounded bg-black/5 animate-pulse" />
           </div>
         ) : userData ? (
-          <>
-            <div className="px-5 pb-5 pt-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-3">
+          <div className="upd-blog flex flex-col max-h-[92vh]">
+            {/* ═══════ HERO ═══════ */}
+            <div className="relative shrink-0">
+              <div className="h-28 sm:h-32 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
+              <div className="px-5 sm:px-6 pb-5 -mt-12 relative">
+                <div className="flex items-end justify-between gap-3">
                   <div className="relative">
-                    <UserAvatar user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }} className="h-14 w-14 shadow-lg" />
+                    <UserAvatar
+                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                      className="h-20 w-20 sm:h-24 sm:w-24 ring-[5px] ring-[#F9F8F6] shadow-md"
+                    />
                     {(isRestricted || isBlocked) && (
-                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted text-muted-foreground">
-                        <Lock className="h-3 w-3" />
+                      <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                        <Lock className="h-3.5 w-3.5" />
                       </div>
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-lg font-bold leading-tight">{userData.display_name}</h2>
-                      {privacyInfo.is_private && <Lock className="h-4 w-4 text-muted-foreground" />}
-                    </div>
-                    <p className="text-sm text-muted-foreground">@{userData.username}</p>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pb-1">
+                    {renderFollowButton()}
+                    {!isOwnProfile && !isBlocked && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleStartDM}
+                        className="rounded-full gap-1.5 border-black/15 text-[#1A1A1A] hover:bg-black/5"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Mensagem</span>
+                      </Button>
+                    )}
+                    {!isOwnProfile && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 rounded-full p-0 text-[#4A4A4A]">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          {privacyInfo.isBlockedByViewer ? (
+                            <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading} className="gap-2">
+                              <ShieldBan className="h-4 w-4" /> Desbloquear
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading} className="gap-2 text-red-600">
+                              <Ban className="h-4 w-4" /> Bloquear
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent("openReport", {
+                                detail: { type: "user", id: userId, name: userData.display_name },
+                              }));
+                            }}
+                            className="gap-2"
+                          >
+                            <Flag className="h-4 w-4" /> Denunciar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
-                {!isOwnProfile && (
-                  <div className="flex items-center gap-1.5 mt-8">
-                    {renderFollowButton()}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full"><MoreVertical className="h-4 w-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {!isBlocked && (
-                          <DropdownMenuItem onClick={handleStartDM}>
-                            <MessageCircle className="h-4 w-4 mr-2" />Enviar mensagem
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading}>
-                          {privacyInfo.isBlockedByViewer ? <><ShieldBan className="h-4 w-4 mr-2" />Desbloquear</> : <><Ban className="h-4 w-4 mr-2" />Bloquear</>}
-                        </DropdownMenuItem>
-                        {/* UX-024: Denunciar perfil */}
-                        <DropdownMenuItem
-                          onClick={() => useStore.getState().openReportDialog({
-                            targetType: "profile",
-                            targetId: userId!,
-                            label: `perfil de @${userData.username}`,
-                          })}
-                          className="text-red-500 focus:text-red-600"
-                        >
-                          <Flag className="h-4 w-4 mr-2" />Denunciar perfil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A] leading-tight">
+                      {userData.display_name}
+                    </h2>
+                    {privacyInfo.is_private && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
+                  </div>
+                  <p className="text-sm text-[#4A4A4A] mt-1">
+                    @{userData.username}
+                    {canSeeNeighborhood && userData.neighborhood && (
+                      <span className="inline-flex items-center gap-1 ml-2.5">
+                        <MapPin className="h-3 w-3" />
+                        {userData.neighborhood}
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Bio */}
+                {userData.bio && !isRestricted && (
+                  <p className="mt-4 font-serif text-base sm:text-lg leading-relaxed text-[#4A4A4A] italic max-w-xl">
+                    {parseInlineContent(userData.bio, openUserProfileById)}
+                  </p>
+                )}
+
+                {/* Contadores */}
+                {!isRestricted && (
+                  <div className="mt-5 flex flex-wrap items-center gap-5 text-sm">
+                    <div>
+                      <span className="font-semibold text-[#1A1A1A]">{postCount}</span>
+                      <span className="text-[#4A4A4A] ml-1.5">entradas</span>
+                    </div>
+                    {canSeeFollowing && (
+                      <button
+                        onClick={() => setActiveTab("following")}
+                        className="hover:text-[#D96C4A] transition-colors"
+                      >
+                        <span className="font-semibold text-[#1A1A1A]">{followData.followingCount}</span>
+                        <span className="text-[#4A4A4A] ml-1.5">seguindo</span>
+                      </button>
+                    )}
+                    {canSeeFollowers && (
+                      <button
+                        onClick={() => setActiveTab("followers")}
+                        className="hover:text-[#D96C4A] transition-colors"
+                      >
+                        <span className="font-semibold text-[#1A1A1A]">{followData.followersCount}</span>
+                        <span className="text-[#4A4A4A] ml-1.5">seguidores</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {isRestricted && (
+                  <div className="mt-6 rounded-xl border border-black/10 bg-white/60 px-4 py-5 text-center">
+                    <Lock className="h-8 w-8 text-[#4A4A4A]/30 mx-auto mb-2" />
+                    <p className="text-sm text-[#4A4A4A]">
+                      {isBlocked
+                        ? "Você não pode ver este perfil"
+                        : "Este perfil é privado"}
+                    </p>
+                    {!isBlocked && !followData.isFollowing && !followData.isPending && (
+                      <div className="mt-3">{renderFollowButton()}</div>
+                    )}
                   </div>
                 )}
               </div>
+            </div>
 
-              {isBlocked && privacyInfo.isBlockedByViewer ? (
-                <div className="mt-4 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-                  <Ban className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">Você bloqueou este usuário</p>
-                  <Button variant="outline" size="sm" onClick={handleBlockToggle} disabled={blockLoading} className="mt-2">Desbloquear</Button>
-                </div>
-              ) : isBlocked && privacyInfo.isBlockedByTarget ? (
-                <div className="mt-4 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-                  <Lock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">Este perfil não está disponível</p>
-                </div>
-              ) : isRestricted ? (
-                <div className="mt-4 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-                  <Lock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">Este perfil é privado</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Siga este perfil para ver suas publicações e informações</p>
-                </div>
-              ) : (
-                <>
-                  {userData.neighborhood && canSeeNeighborhood && <Badge variant="secondary" className="mt-2 gap-1"><MapPin className="h-3 w-3" /> {userData.neighborhood}</Badge>}
-                  {userData.bio ? <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{parseInlineContent(userData.bio, openUserProfileById)}</p> : <p className="mt-3 text-sm text-muted-foreground italic">Sem bio ainda</p>}
-                </>
-              )}
+            {/* ═══════ TABS ═══════ */}
+            {!isRestricted && (
+              <>
+                <nav className="sticky top-0 z-10 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] px-2 shrink-0">
+                  <div className="flex gap-0 overflow-x-auto">
+                    {visibleTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`relative px-4 py-3 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
+                          ${activeTab === tab.id
+                            ? "text-[#1A1A1A]"
+                            : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
+                      >
+                        {tab.id === "posts" ? "Entradas" : tab.id === "album" ? "Fotografia" : tab.label}
+                        {activeTab === tab.id && (
+                          <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D96C4A] rounded-full" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </nav>
 
-              <div className="mt-3 flex gap-5">
-                <button onClick={() => setActiveTab("posts")} className="text-center hover:opacity-80 transition-opacity"><p className="text-base font-bold">{postCount}</p><p className="text-[11px] text-muted-foreground">Posts</p></button>
-                {canSeeFollowing && <button onClick={() => setActiveTab("following")} className="text-center hover:opacity-80 transition-opacity"><p className="text-base font-bold">{followData.followingCount}</p><p className="text-[11px] text-muted-foreground">Seguindo</p></button>}
-                {canSeeFollowers && <button onClick={() => setActiveTab("followers")} className="text-center hover:opacity-80 transition-opacity"><p className="text-base font-bold">{followData.followersCount}</p><p className="text-[11px] text-muted-foreground">Seguidores</p></button>}
-              </div>
+                {/* ═══════ CONTEÚDO ═══════ */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-6 py-6">
+                  {/* Posts / Entradas */}
+                  {activeTab === "posts" && (
+                    postsLoading ? (
+                      <div className="space-y-6">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="space-y-3 animate-pulse">
+                            <div className="aspect-[16/10] rounded-sm bg-black/5" />
+                            <div className="h-5 w-2/3 rounded bg-black/5" />
+                            <div className="h-3 w-full rounded bg-black/5" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : userPosts.length === 0 ? (
+                      <div className="py-16 text-center">
+                        <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhuma entrada ainda</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-10">
+                        {userPosts.map((post: any, idx: number) => {
+                          const postPhotos: string[] = post.image_urls?.length > 0
+                            ? post.image_urls
+                            : post.image_url
+                              ? [post.image_url]
+                              : [];
+                          const hasPhotos = postPhotos.length > 0;
+                          const hasVideo = !!post.video_url;
+                          const hasAudio = !!post.audio_url;
+                          const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
+                          const hasPostStyle = post.post_style && typeof post.post_style === "object";
 
-              {!isRestricted && visibleTabs.length > 1 && (
-                <div className="mt-4 flex border-b">
-                  {visibleTabs.map((tab) => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 pb-2 text-xs font-semibold text-center transition-colors ${activeTab === tab.id ? "text-foreground border-b-2 border-primary" : "text-muted-foreground"}`}>{tab.label}</button>
-                  ))}
-                </div>
-              )}
+                          const getTitle = () => {
+                            if (!post.content) return "Entrada";
+                            const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                            const first = text.split("\n")[0] || text;
+                            return first.length > 70 ? first.slice(0, 70) + "…" : first || "Entrada";
+                          };
 
-              {!isRestricted && (
-                <div className="overflow-y-auto mt-2 custom-scrollbar">
-                  {activeTab === "posts" && (postsLoading ? <div className="space-y-2 py-2">{[1,2,3].map(i=><div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div> : userPosts.length === 0 ? <div className="py-8 text-center"><p className="text-xs text-muted-foreground">Nenhum post ainda</p></div> : (
-                    <div className="space-y-2">
-                      {userPosts.map((post: any) => {
-                        // Coletar todas as fotos do post (image_urls ou image_url legado)
-                        const postPhotos: string[] = post.image_urls?.length > 0
-                          ? post.image_urls
-                          : post.image_url
-                            ? [post.image_url]
-                            : [];
+                          const getExcerpt = () => {
+                            if (!post.content) return "";
+                            const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                            return text.length > 160 ? text.slice(0, 160) + "…" : text;
+                          };
 
-                        const hasPhotos = postPhotos.length > 0;
-                        const hasVideo = !!post.video_url;
-                        const hasAudio = !!post.audio_url;
-                        const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
-
-                        // Sem cores de post-it: fundo branco + texto preto
-                        const hasPostStyle = post.post_style && typeof post.post_style === "object";
-                        const cardBg = "bg-card";
-
-                        return (
-                          <div
-                            key={post.id}
-                            className={`rounded-2xl ${cardBg} text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-primary/10`}
-                            onClick={(e) => {
-                              const target = e.target as HTMLElement;
-                              if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('audio') || target.closest('video')) return;
-                              onOpenChange(false);
-                              setTimeout(() => {
-                                const postWithAuthor = {
-                                  ...post,
-                                  author: post.author || {
-                                    id: userId,
-                                    display_name: userData?.display_name || "",
-                                    username: userData?.username || "",
-                                    avatar_url: userData?.avatar_url || null,
-                                  },
-                                };
-                                window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post: postWithAuthor } }));
-                              }, 200);
-                            }}
-                          >
-                            <div className="p-3">
-                              {/* Fotos */}
-                              {postPhotos.length > 0 && (
-                                <PhotoGrid
-                                  photos={postPhotos}
-                                  onPhotoClick={(index) => openPhotoViewer(postPhotos, index)}
-                                />
-                              )}
-
-                              {/* Vídeo */}
-                              {post.video_url && <VideoPlayer src={post.video_url} />}
-
-                              {/* Áudio */}
-                              {post.audio_url && <AudioPlayer src={post.audio_url} />}
-
-                              {/* Texto com FormattedText + post_style */}
-                              {isTextOnly ? (
-                                <FormattedText
-                                  className="mt-1 text-sm leading-snug whitespace-pre-wrap text-card-foreground"
-                                  content={post.content}
-                                  style={{
-                                    fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
-                                    fontWeight: hasPostStyle && post.post_style!.bold ? 700 : undefined,
-                                    fontStyle: hasPostStyle && post.post_style!.italic ? "italic" : undefined,
-                                    textAlign: hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                                    color: "var(--card-foreground)",
-                                  }}
-                                />
-                              ) : (
-                                <FormattedText
-                                  className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
-                                  content={post.content}
-                                />
-                              )}
-
-                              {/* Post compartilhado/repostado */}
-                              {post.shared_post && !Array.isArray(post.shared_post) && (
-                                <div className="mt-2 rounded-xl bg-primary/[0.04] p-2.5 border border-primary/8">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Repeat2 className="h-3 w-3 text-primary/40" />
-                                    <span className="text-[10px] text-primary/40">Compartilhado de</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    {post.shared_post.author?.avatar_url && (
-                                      <img src={post.shared_post.author.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
-                                    )}
-                                    <span className="text-xs font-semibold">{post.shared_post.author?.display_name || "Usuário"}</span>
-                                  </div>
-                                  <FormattedText className="text-xs text-primary/60 leading-relaxed line-clamp-3" content={post.shared_post.content} />
-                                  {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
-                                    <div className="mt-1.5 flex gap-1 overflow-x-auto">
-                                      {post.shared_post.image_urls.slice(0, 2).map((url: string, i: number) => (
-                                        <img key={i} src={url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
-                                      ))}
-                                      {post.shared_post.image_urls.length > 2 && (
-                                        <div className="h-12 w-12 rounded-lg bg-primary/[0.04] flex items-center justify-center text-[10px] text-primary/40 shrink-0">
-                                          +{post.shared_post.image_urls.length - 2}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                          return (
+                            <article
+                              key={post.id}
+                              className="group cursor-pointer"
+                              onClick={(e) => {
+                                const target = e.target as HTMLElement;
+                                if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("audio") || target.closest("video")) return;
+                                onOpenChange(false);
+                                setTimeout(() => {
+                                  const postWithAuthor = {
+                                    ...post,
+                                    author: post.author || {
+                                      id: userId,
+                                      display_name: userData?.display_name || "",
+                                      username: userData?.username || "",
+                                      avatar_url: userData?.avatar_url || null,
+                                    },
+                                  };
+                                  window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post: postWithAuthor } }));
+                                }, 200);
+                              }}
+                            >
+                              {hasPhotos && (
+                                <div className="aspect-[16/10] overflow-hidden rounded-sm bg-black/5 mb-4">
+                                  <img
+                                    src={postPhotos[0]}
+                                    alt=""
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                                    loading="lazy"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPhotoViewer(postPhotos, 0);
+                                    }}
+                                  />
                                 </div>
                               )}
 
-                              {/* Expiração */}
-                              {post.expires_at && <ExpirationCounter expiresAt={post.expires_at} />}
-
-                              {/* Data e bairro */}
-                              <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                                <span>{timeAgo(post.created_at)}</span>
-                                {post.neighborhood && <><span>·</span><span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{post.neighborhood}</span></>}
+                              <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-[#4A4A4A]/80 mb-1.5">
+                                <time>{timeAgo(post.created_at)}</time>
+                                {post.expires_at && (
+                                  <span className="inline-flex items-center gap-1 text-[#D96C4A]/80">
+                                    <Clock className="h-3 w-3" />
+                                    Expira
+                                  </span>
+                                )}
                               </div>
+
+                              <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug">
+                                {getTitle()}
+                              </h3>
+
+                              {!isTextOnly && (
+                                <p className="mt-2 text-[#4A4A4A] leading-relaxed line-clamp-3 text-[14px]">
+                                  {getExcerpt()}
+                                </p>
+                              )}
+
+                              {isTextOnly && (
+                                <div className="mt-3">
+                                  <FormattedText
+                                    className="text-[#4A4A4A] leading-relaxed text-[14px]"
+                                    content={post.content}
+                                    style={{
+                                      fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
+                                      fontWeight: hasPostStyle && post.post_style!.bold ? 700 : undefined,
+                                      fontStyle: hasPostStyle && post.post_style!.italic ? "italic" : undefined,
+                                      textAlign: hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
+                                    }}
+                                  />
+                                </div>
+                              )}
+
+                              {hasVideo && (
+                                <div className="mt-3 rounded-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                  <VideoPlayer src={post.video_url} />
+                                </div>
+                              )}
+                              {hasAudio && (
+                                <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                                  <AudioPlayer src={post.audio_url} />
+                                </div>
+                              )}
+
+                              {post.shared_post && !Array.isArray(post.shared_post) && (
+                                <div className="mt-4 rounded-lg border border-black/10 bg-white/60 p-3">
+                                  <div className="flex items-center gap-1.5 mb-1.5 text-[11px] uppercase tracking-wider text-[#4A4A4A]/70">
+                                    <Repeat2 className="h-3 w-3" />
+                                    Compartilhado de {post.shared_post.author?.display_name}
+                                  </div>
+                                  <FormattedText className="text-sm text-[#4A4A4A] line-clamp-3" content={post.shared_post.content} />
+                                </div>
+                              )}
+
+                              {idx < userPosts.length - 1 && (
+                                <div className="mt-10 border-t border-black/[0.06]" />
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )
+                  )}
+
+                  {/* Seguidores */}
+                  {activeTab === "followers" && (
+                    listLoading ? (
+                      <div className="space-y-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="flex items-center gap-3 animate-pulse py-1">
+                            <div className="h-10 w-10 rounded-full bg-black/5" />
+                            <div className="flex-1 space-y-1.5">
+                              <div className="h-3 w-28 rounded bg-black/5" />
+                              <div className="h-2.5 w-20 rounded bg-black/5" />
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                  {(activeTab === "followers" || activeTab === "following") && (listLoading ? <div className="space-y-2 py-2">{[1,2,3].map(i=><div key={i} className="flex items-center gap-2.5 animate-pulse"><div className="h-8 w-8 rounded-full bg-muted" /><div className="h-3 w-24 rounded bg-muted" /></div>)}</div> : followList.length === 0 ? <div className="py-8 text-center"><Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" /><p className="text-xs text-muted-foreground">{activeTab === "followers" ? "Nenhum seguidor ainda" : "Não segue ninguém ainda"}</p></div> : (
-                    <div className="space-y-0.5">
-                      {followList.map((u: any) => (
-                        <button key={u.id} onClick={() => { onOpenChange(false); setTimeout(() => { window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId: u.id } })); }, 200); }} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent">
-                          <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-8 w-8" />
-                          <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{u.display_name}</div><div className="text-[11px] text-muted-foreground truncate">@{u.username}</div></div>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                  {activeTab === "album" && (albumLoading ? <div className="grid grid-cols-3 gap-1.5 py-2">{[1,2,3,4,5,6].map(i=><div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />)}</div> : (albumPhotos.length === 0 && albumVideos.length === 0) ? <div className="py-8 text-center"><Camera className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" /><p className="text-xs text-muted-foreground">Nenhuma foto ou vídeo no álbum</p></div> : (
-                    <div className="space-y-3 py-1">
-                      {albumPhotos.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">Fotos ({albumPhotos.length})</p>
-                          <div className="grid grid-cols-3 gap-1">
-                            {albumPhotos.map((photo: any) => (
-                              <button key={photo.id} className="aspect-square rounded-lg overflow-hidden" onClick={() => openPhotoViewer(albumPhotos.map((p: any) => p.url), albumPhotos.findIndex((p: any) => p.id === photo.id))}>
-                                <img src={photo.url} alt="Foto do álbum" className="w-full h-full object-cover hover:opacity-90 transition-opacity" loading="lazy" decoding="async" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {albumVideos.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider">Vídeos ({albumVideos.length})</p>
-                          <div className="space-y-1.5">
-                            {albumVideos.map((video: any) => (
-                              <div key={video.id} className="relative rounded-xl overflow-hidden bg-[#000305]">
-                                <video src={video.url} className="w-full max-h-40 object-contain" playsInline preload="metadata" controls />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                        ))}
+                      </div>
+                    ) : followList.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <Users className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                        <p className="text-sm text-[#4A4A4A]/60">Nenhum seguidor</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {followList.map((u: any) => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              onOpenChange(false);
+                              setTimeout(() => openUserProfileById(u.id), 150);
+                            }}
+                            className="flex items-center gap-3 rounded-xl px-2 py-2 w-full text-left hover:bg-black/[0.03] transition-colors"
+                          >
+                            <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-10 w-10" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate text-[#1A1A1A]">{u.display_name}</div>
+                              <div className="text-[11px] text-[#4A4A4A]/60 truncate">@{u.username}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  )}
 
-              <p className="mt-4 text-[11px] text-muted-foreground/60">Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
-            </div>
-          </>
+                  {/* Seguindo */}
+                  {activeTab === "following" && (
+                    listLoading ? (
+                      <div className="space-y-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="flex items-center gap-3 animate-pulse py-1">
+                            <div className="h-10 w-10 rounded-full bg-black/5" />
+                            <div className="flex-1 space-y-1.5">
+                              <div className="h-3 w-28 rounded bg-black/5" />
+                              <div className="h-2.5 w-20 rounded bg-black/5" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : followList.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <Users className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                        <p className="text-sm text-[#4A4A4A]/60">Não segue ninguém</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {followList.map((u: any) => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              onOpenChange(false);
+                              setTimeout(() => openUserProfileById(u.id), 150);
+                            }}
+                            className="flex items-center gap-3 rounded-xl px-2 py-2 w-full text-left hover:bg-black/[0.03] transition-colors"
+                          >
+                            <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-10 w-10" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate text-[#1A1A1A]">{u.display_name}</div>
+                              <div className="text-[11px] text-[#4A4A4A]/60 truncate">@{u.username}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  )}
+
+                  {/* Álbum / Fotografia */}
+                  {activeTab === "album" && (
+                    albumLoading ? (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div key={i} className="aspect-square rounded-sm bg-black/5 animate-pulse" />
+                        ))}
+                      </div>
+                    ) : albumPhotos.length === 0 && albumVideos.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <Camera className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                        <p className="text-sm text-[#4A4A4A]/60">Nenhuma foto ou vídeo no álbum</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {albumPhotos.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
+                              Fotos ({albumPhotos.length})
+                            </p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {albumPhotos.map((photo: any) => (
+                                <button
+                                  key={photo.id}
+                                  className="aspect-square overflow-hidden rounded-sm bg-black/5 group"
+                                  onClick={() =>
+                                    openPhotoViewer(
+                                      albumPhotos.map((p: any) => p.url),
+                                      albumPhotos.findIndex((p: any) => p.id === photo.id)
+                                    )
+                                  }
+                                >
+                                  <img
+                                    src={photo.url}
+                                    alt=""
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    loading="lazy"
+                                    decoding="async"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {albumVideos.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
+                              Vídeos ({albumVideos.length})
+                            </p>
+                            <div className="space-y-2">
+                              {albumVideos.map((video: any) => (
+                                <div key={video.id} className="relative rounded-sm overflow-hidden bg-black">
+                                  <video
+                                    src={video.url}
+                                    className="w-full max-h-48 object-contain"
+                                    playsInline
+                                    preload="metadata"
+                                    controls
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+
+                  <p className="mt-8 text-[11px] text-[#4A4A4A]/40 text-center">
+                    Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         ) : (
-          <div className="p-6 text-center"><p className="text-sm text-muted-foreground">Usuário não encontrado</p></div>
+          <div className="upd-blog p-8 text-center">
+            <p className="text-sm text-[#4A4A4A]/60">Usuário não encontrado</p>
+          </div>
         )}
       </DialogContent>
+
       {viewerOpen && viewerPhotos.length > 0 && (
         <PhotoViewer photos={viewerPhotos} initialIndex={viewerIndex} onClose={() => setViewerOpen(false)} />
       )}
