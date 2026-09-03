@@ -510,48 +510,65 @@ export function AppShell() {
         </div>
       )}
 
-      {/* ── Header desktop (oculto durante chat em tela cheia) — masthead editorial ── */}
+      {/* ── Header desktop — masthead editorial com trilho alinhado ao conteúdo ── */}
       <header
         className={cn(
-          "sticky z-40 items-center justify-between border-b border-black/[0.06] px-6 py-3 bg-[#F9F8F6]/95 backdrop-blur-xl",
-          inChat ? "hidden" : "hidden md:flex",
+          "sticky z-40 border-b border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl",
+          inChat ? "hidden" : "hidden md:block",
           topOffsetClass
         )}
       >
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="font-serif text-xl font-medium leading-tight tracking-tight text-[#1A1A1A]">Gente da Feira</h1>
-          <p className="text-[10px] uppercase tracking-wider text-[#4A4A4A]/50 leading-none">Feira de Santana · BA</p>
-        </div>
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 lg:px-8 py-3.5">
+          <button
+            type="button"
+            onClick={() => handleTabClick("feed")}
+            className="flex min-w-0 items-baseline gap-2.5 text-left hover:opacity-90 transition-opacity"
+          >
+            <h1 className="font-serif text-xl lg:text-[1.35rem] font-medium leading-tight tracking-tight text-[#1A1A1A]">
+              Gente da Feira
+            </h1>
+            <p className="hidden lg:block text-[10px] uppercase tracking-[0.14em] text-[#4A4A4A]/50 leading-none">
+              Feira de Santana · BA
+            </p>
+          </button>
 
-        <nav className="flex items-center gap-5">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => handleTabClick(t.id)}
-              className={cn(
-                "relative flex items-center gap-1.5 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
-                tab === t.id
-                  ? "text-[#1A1A1A]"
-                  : "text-[#4A4A4A]/60 hover:text-[#1A1A1A]"
-              )}
-              title={t.label}
-            >
-              <t.icon className="h-3.5 w-3.5" />
-              <span className="leading-none">{t.label}</span>
-              {tab === t.id && (
-                <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-[#D96C4A] rounded-full" />
-              )}
-            </button>
-          ))}
-        </nav>
+          <nav className="flex items-center gap-1 lg:gap-2">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleTabClick(t.id)}
+                className={cn(
+                  "relative flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                  tab === t.id
+                    ? "text-[#1A1A1A]"
+                    : "text-[#4A4A4A]/55 hover:text-[#1A1A1A] hover:bg-black/[0.03]"
+                )}
+                title={t.label}
+              >
+                <t.icon className="h-3.5 w-3.5 opacity-80" />
+                <span className="leading-none">{t.label}</span>
+                {tab === t.id && (
+                  <span className="absolute -bottom-[15px] left-3 right-3 h-0.5 bg-[#D96C4A] rounded-full" />
+                )}
+              </button>
+            ))}
+          </nav>
 
-        <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-full bg-[#D96C4A]/15 flex items-center justify-center">
-            <span className="font-serif text-[11px] font-semibold text-[#D96C4A]">
-              {profile?.display_name?.charAt(0)?.toUpperCase()}
+          <button
+            type="button"
+            onClick={() => handleTabClick("profile")}
+            className="flex shrink-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-2.5 hover:bg-black/[0.03] transition-colors"
+            title="Meu perfil"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D96C4A]/15 ring-1 ring-[#D96C4A]/20">
+              <span className="font-serif text-xs font-semibold text-[#D96C4A]">
+                {profile?.display_name?.charAt(0)?.toUpperCase()}
+              </span>
+            </div>
+            <span className="hidden lg:inline text-sm font-medium text-[#1A1A1A] max-w-[9rem] truncate">
+              {profile?.display_name || ""}
             </span>
-          </div>
-          <span className="text-sm font-medium text-[#1A1A1A]">{profile?.display_name || ""}</span>
+          </button>
         </div>
       </header>
 
@@ -569,7 +586,7 @@ export function AppShell() {
           className={cn(
             inChat
               ? "flex flex-1 flex-col min-h-0 w-full max-w-full h-[100dvh] overflow-x-hidden"
-              : "mx-auto w-full max-w-lg px-2.5 sm:px-4 py-3 sm:py-4 md:py-6 min-w-0 overflow-x-hidden"
+              : "mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 md:py-8 min-w-0 overflow-x-hidden"
           )}
         >
           <div
@@ -601,7 +618,7 @@ export function AppShell() {
       {/* ── Nav mobile (oculto durante chat em tela cheia) ── */}
       {!inChat && (
         <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
-          <div className="nav-pill pointer-events-auto mx-1.5 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-[calc(100%-0.75rem)] sm:max-w-full overflow-hidden">
+          <div className="nav-pill pointer-events-auto mx-auto mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] flex w-[calc(100%-0.75rem)] max-w-lg items-center justify-around rounded-2xl border border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl shadow-lg px-0.5 py-1 overflow-hidden">
             {tabs.map((t) => (
               <button
                 key={t.id}
