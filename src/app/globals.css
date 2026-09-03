@@ -1,34 +1,10 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
-
-/* Tipografia blog */
-.font-serif {
-  font-family: var(--font-serif, "Playfair Display", ui-serif, Georgia, serif);
-}
-.font-sans {
-  font-family: var(--font-sans, "DM Sans", ui-sans-serif, system-ui, sans-serif);
-}
-
-body {
-  font-family: var(--font-sans, "DM Sans", ui-sans-serif, system-ui, sans-serif);
-  background: var(--background);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
-}
-
-::selection {
-  background: color-mix(in oklab, var(--brand, #D96C4A) 28%, transparent);
-  color: var(--ink, #1A1A1A);
-}
-
 
 /* dark: também ativa no tema "Noite da Praça" (.noite) */
 /* dark: também em Noite e Alto contraste escuro */
 @custom-variant dark (&:is(.dark *, .noite *, .a11y-dark *));
 
 @theme inline {
-  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-playfair), "Playfair Display", ui-serif, Georgia, Cambria, serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -48,10 +24,6 @@ body {
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-paper: var(--paper);
-  --color-ink: var(--ink);
-  --color-ink-muted: var(--ink-muted);
-  --color-brand: var(--brand);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -72,51 +44,45 @@ body {
 }
 
 :root {
-  --radius: 0.75rem;
-
-  /* ═══════ Blog pessoal — tokens ═══════
-     Papel #F9F8F6 · Tinta #1A1A1A · Coral #D96C4A · Teal #0A4D5C
-  */
-  --paper: #F9F8F6;
-  --ink: #1A1A1A;
-  --ink-muted: #4A4A4A;
-  --brand: #D96C4A;
-  --brand-teal: #0A4D5C;
-
-  --background: #F9F8F6;
-  --foreground: #1A1A1A;
+  --radius: 0.625rem;
+  /* ═══════ Gente da Feira — Paleta de cores ═══════ */
+  /* #0A4D5C (Teal profundo) → Primary              */
+  /* #f7f9fa (Branco suave)  → Background            */
+  /* #000305 (Quase preto)   → Foreground/Text       */
+  /* #f7f75e (Amarelo)       → Accent                */
+  /* #2EC4B6 (Teal vivo)     → Botão/Vivo            */
+  --background: #f7f9fa;
+  --foreground: #000305;
   --card: #ffffff;
-  --card-foreground: #1A1A1A;
+  --card-foreground: #000305;
   --popover: #ffffff;
-  --popover-foreground: #1A1A1A;
-  /* Primary = tinta editorial (botões escuros do blog) */
-  --primary: #1A1A1A;
-  --primary-foreground: #F9F8F6;
-  --secondary: #F0EEEA;
-  --secondary-foreground: #1A1A1A;
-  --muted: #F0EEEA;
-  --muted-foreground: #4A4A4A;
-  /* Accent = coral do blog */
-  --accent: #D96C4A;
-  --accent-foreground: #ffffff;
-  --destructive: #dc2626;
+  --popover-foreground: #000305;
+  --primary: #0A4D5C;
+  --primary-foreground: #f7f9fa;
+  --secondary: #e0eef2;
+  --secondary-foreground: #0A4D5C;
+  --muted: #e0eef2;
+  --muted-foreground: #4a6370;
+  --accent: #f7f75e;
+  --accent-foreground: #000305;
+  --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(26, 26, 26, 0.10);
-  --input: rgba(26, 26, 26, 0.12);
-  --ring: #D96C4A;
-  --chart-1: #D96C4A;
-  --chart-2: #0A4D5C;
-  --chart-3: #1A1A1A;
-  --chart-4: #c4a574;
-  --chart-5: #f7f75e;
-  --sidebar: #F9F8F6;
-  --sidebar-foreground: #1A1A1A;
-  --sidebar-primary: #1A1A1A;
-  --sidebar-primary-foreground: #F9F8F6;
-  --sidebar-accent: #D96C4A;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(26, 26, 26, 0.10);
-  --sidebar-ring: #D96C4A;
+  --border: #c8dde3;
+  --input: #c8dde3;
+  --ring: #0A4D5C;
+  --chart-1: #0A4D5C;
+  --chart-2: #f7f75e;
+  --chart-3: #2EC4B6;
+  --chart-4: #3dd9c6;
+  --chart-5: #f59e0b;
+  --sidebar: #eaf3f5;
+  --sidebar-foreground: #000305;
+  --sidebar-primary: #0A4D5C;
+  --sidebar-primary-foreground: #f7f9fa;
+  --sidebar-accent: #f7f75e;
+  --sidebar-accent-foreground: #000305;
+  --sidebar-border: #c8dde3;
+  --sidebar-ring: #0A4D5C;
 }
 
 /* ═══════ Dark mode ═══════ */
@@ -506,6 +472,75 @@ body {
   }
   .mobile-main-pad {
     padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+
+/* ═══════ Responsividade mobile — reforço blog ═══════ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (max-width: 767px) {
+  .gdf-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .mobile-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  /* Imagens e mídia nunca estouram a tela */
+  .mobile-shell img,
+  .mobile-shell video,
+  .feed-blog img,
+  .feed-blog video,
+  .pdd-blog img,
+  .pdd-blog video,
+  .upd-blog img,
+  .upd-blog video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Tabelas / pre / código em posts */
+  .post-content pre,
+  .post-content table {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Evita zoom indesejado em inputs iOS (fonte >= 16px) */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* Dialogs e sheets cabem na viewport */
+  [data-slot="dialog-content"],
+  [role="dialog"] {
+    max-width: min(100vw - 1rem, 28rem) !important;
+    max-height: min(92dvh, 100%) !important;
+  }
+
+  /* Fullscreen profile dialog */
+  .upd-blog {
+    max-width: 100vw;
+  }
+}
+
+/* Landscape baixo: prioriza conteúdo */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gdf-shell header.sticky {
+    display: none !important;
   }
 }
 
