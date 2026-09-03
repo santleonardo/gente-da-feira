@@ -7,6 +7,7 @@ import {
   isCityCategory,
   isCityPlatform,
   looksLikeFeiraDeSantana,
+  isScopedFilterExempt,
 } from "@/lib/city-monitoring";
 import { publishCityFeedPost } from "@/lib/city-feed-post";
 
@@ -58,14 +59,21 @@ export async function POST(req: NextRequest) {
       ),
     ] as string[];
 
-    const sourceMap = new Map<string, { id: string; trust_score: number }>();
+    const sourceMap = new Map<
+      string,
+      { id: string; trust_score: number; scope: string | null }
+    >();
     if (slugs.length > 0) {
       const { data: sources } = await admin
         .from("city_sources")
-        .select("id, slug, trust_score")
+        .select("id, slug, trust_score, scope")
         .in("slug", slugs);
       for (const s of sources || []) {
-        sourceMap.set(s.slug, { id: s.id, trust_score: s.trust_score });
+        sourceMap.set(s.slug, {
+          id: s.id,
+          trust_score: s.trust_score,
+          scope: s.scope ?? "local",
+        });
       }
     }
 
@@ -92,15 +100,16 @@ export async function POST(req: NextRequest) {
           : null;
       const blob = `${title} ${summary || ""} ${raw_excerpt || ""}`;
 
-      // Filtro local obrigatório na ingestão automática
-      if (!looksLikeFeiraDeSantana(blob)) {
-        skipped++;
-        continue;
-      }
-
       const sourceSlug =
         typeof raw.source_slug === "string" ? raw.source_slug : null;
       const source = sourceSlug ? sourceMap.get(sourceSlug) : null;
+
+      // Filtro local obrigatório, exceto para fontes "regional"/"national"
+      // (Bahia, cidades vizinhas, política/esporte/entretenimento nacional).
+      if (!isScopedFilterExempt(source?.scope) && !looksLikeFeiraDeSantana(blob)) {
+        skipped++;
+        continue;
+      }
 
       const category =
         typeof raw.category === "string" && isCityCategory(raw.category)
