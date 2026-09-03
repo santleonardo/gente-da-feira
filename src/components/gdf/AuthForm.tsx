@@ -153,7 +153,7 @@ export function AuthForm() {
   };
 
   return (
-    <div className="auth-blog flex min-h-[100dvh] flex-col items-center justify-center px-4 py-10 bg-[#F9F8F6]">
+    <div className="auth-blog flex min-h-[100dvh] w-full max-w-full flex-col items-center justify-center px-3 sm:px-4 py-8 sm:py-10 bg-[#F9F8F6] overflow-x-hidden">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
         .auth-blog {
@@ -166,7 +166,7 @@ export function AuthForm() {
 
       {/* Brand */}
       <div className="mb-8 text-center">
-        <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A]">
+        <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight text-[#1A1A1A]">
           Gente da Feira
         </h1>
         <p className="mt-2 text-sm text-[#4A4A4A]/70 max-w-xs mx-auto leading-relaxed">
@@ -174,8 +174,8 @@ export function AuthForm() {
         </p>
       </div>
 
-      <Card className="w-full max-w-md border-black/[0.08] bg-white shadow-sm rounded-2xl overflow-hidden">
-        <CardHeader className="pb-2 pt-6 px-6">
+      <Card className="w-full max-w-md min-w-0 border-black/[0.08] bg-white shadow-sm rounded-2xl overflow-hidden">
+        <CardHeader className="pb-2 pt-5 sm:pt-6 px-4 sm:px-6">
           <CardTitle className="font-serif text-2xl font-medium text-[#1A1A1A] text-center">
             {mode === "login" && "Entrar"}
             {mode === "register" && "Criar conta"}
@@ -206,7 +206,7 @@ export function AuthForm() {
           )}
         </CardHeader>
 
-        <CardContent className="px-6 pb-7 pt-4">
+        <CardContent className="px-4 sm:px-6 pb-6 sm:pb-7 pt-3 sm:pt-4">
           {mode === "forgot" ? (
             <div className="space-y-4">
               <button

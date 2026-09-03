@@ -569,7 +569,7 @@ export function AppShell() {
           className={cn(
             inChat
               ? "flex flex-1 flex-col min-h-0 w-full max-w-full h-[100dvh] overflow-x-hidden"
-              : "mx-auto w-full max-w-lg px-3 sm:px-4 py-3 sm:py-4 md:py-6 min-w-0"
+              : "mx-auto w-full max-w-lg px-2.5 sm:px-4 py-3 sm:py-4 md:py-6 min-w-0 overflow-x-hidden"
           )}
         >
           <div
@@ -601,7 +601,7 @@ export function AppShell() {
       {/* ── Nav mobile (oculto durante chat em tela cheia) ── */}
       {!inChat && (
         <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
-          <div className="nav-pill pointer-events-auto mx-2 mb-2 sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-full">
+          <div className="nav-pill pointer-events-auto mx-1.5 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-[calc(100%-0.75rem)] sm:max-w-full overflow-hidden">
             {tabs.map((t) => (
               <button
                 key={t.id}

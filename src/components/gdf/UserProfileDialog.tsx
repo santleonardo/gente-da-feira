@@ -591,7 +591,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl p-0 max-h-[92vh] overflow-hidden bg-[#F9F8F6] border-black/10">
+      <DialogContent className="w-[calc(100vw-1.25rem)] sm:w-full max-w-lg rounded-2xl p-0 max-h-[min(92vh,100dvh)] overflow-hidden bg-[#F9F8F6] border-black/10">
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
         <DialogDescription className="sr-only">Informações e ações do perfil selecionado.</DialogDescription>
 
@@ -624,11 +624,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             <div className="h-4 w-1/2 rounded bg-black/5 animate-pulse" />
           </div>
         ) : userData ? (
-          <div className="upd-blog flex flex-col max-h-[92vh]">
+          <div className="upd-blog flex flex-col max-h-[min(92vh,100dvh)] w-full max-w-full min-w-0 overflow-x-hidden">
             {/* ═══════ HERO ═══════ */}
             <div className="relative shrink-0">
               <div className="h-28 sm:h-32 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
-              <div className="px-5 sm:px-6 pb-5 -mt-12 relative">
+              <div className="px-3.5 sm:px-6 pb-5 -mt-12 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
                   <div className="relative">
                     <UserAvatar
@@ -643,7 +643,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 pb-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2 pb-1 flex-wrap justify-end max-w-[55%]">
                     {renderFollowButton()}
                     {!isOwnProfile && !isBlocked && (
                       <Button
@@ -691,7 +691,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                 <div className="mt-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A] leading-tight">
+                    <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                       {userData.display_name}
                     </h2>
                     {privacyInfo.is_private && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
@@ -761,13 +761,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             {/* ═══════ TABS ═══════ */}
             {!isRestricted && (
               <>
-                <nav className="sticky top-0 z-10 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] px-2 shrink-0">
-                  <div className="flex gap-0 overflow-x-auto">
+                <nav className="sticky top-0 z-10 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] shrink-0 w-full max-w-full overflow-x-hidden">
+                  <div className="flex gap-0 overflow-x-auto overscroll-x-contain px-1" style={{WebkitOverflowScrolling: "touch"}}>
                     {visibleTabs.map((tab) => (
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`relative px-4 py-3 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
+                        className={`relative shrink-0 px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
                           ${activeTab === tab.id
                             ? "text-[#1A1A1A]"
                             : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
@@ -782,7 +782,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </nav>
 
                 {/* ═══════ CONTEÚDO ═══════ */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-6 py-6">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3.5 sm:px-6 py-5 sm:py-6 min-w-0">
                   {/* Posts / Entradas */}
                   {activeTab === "posts" && (
                     postsLoading ? (
@@ -873,7 +873,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 )}
                               </div>
 
-                              <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug">
+                              <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
                                 {getTitle()}
                               </h3>
 
@@ -932,7 +932,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   {/* Sobre */}
                   {activeTab === "sobre" && (
                     <article className="pb-4">
-                      <div className="flex flex-col sm:flex-row gap-8 items-start">
+                      <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start min-w-0 w-full">
                         <div className="w-full sm:w-[40%] shrink-0">
                           <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5">
                             {userData.avatar_url ? (

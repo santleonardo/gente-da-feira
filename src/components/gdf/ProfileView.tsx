@@ -991,7 +991,7 @@ export function ProfileView() {
   };
 
   return (
-    <div className="profile-blog space-y-0 min-h-screen bg-[#F9F8F6] -mx-1 px-1 sm:px-0">
+    <div className="profile-blog w-full max-w-full min-w-0 overflow-x-hidden space-y-0 bg-[#F9F8F6]">
       {/* Global styles for rendered post content + editor + blog typography */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
@@ -1035,6 +1035,8 @@ export function ProfileView() {
         .editor-content hr, .post-content hr { border: none; border-top: 1px solid rgba(26,26,26,0.12); margin: 0.85em 0; }
         .editor-content div, .post-content div { margin: 0; }
         .editor-content p, .post-content p { margin: 0.35em 0; }
+        .profile-blog img, .profile-blog video { max-width: 100%; }
+        .profile-blog pre, .profile-blog code { max-width: 100%; overflow-x: auto; }
       `}</style>
 
       {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
@@ -1042,7 +1044,7 @@ export function ProfileView() {
         {/* Cover sutil */}
         <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
         
-        <div className="px-5 sm:px-8 pb-8 -mt-14 relative">
+        <div className="px-3 sm:px-6 md:px-8 pb-6 sm:pb-8 -mt-12 sm:-mt-14 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
               <UserAvatar
@@ -1067,7 +1069,7 @@ export function ProfileView() {
 
             <div className="flex-1 min-w-0 pb-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A] leading-tight">
+                <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                   {profile?.display_name}
                 </h1>
                 {isPrivate && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
@@ -1085,7 +1087,7 @@ export function ProfileView() {
           </div>
 
           {/* Bio em destaque – estilo literário */}
-          <div className="mt-6 max-w-2xl">
+          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 break-words">
             {profile?.bio ? (
               <p className="font-serif text-lg sm:text-xl leading-relaxed text-[#4A4A4A] italic">
                 {parseInlineContent(profile.bio, openUserProfileById)}
@@ -1140,8 +1142,8 @@ export function ProfileView() {
       </section>
 
       {/* ═══════ NAVEGAÇÃO EDITORIAL ═══════ */}
-      <nav className="sticky top-0 z-20 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] px-2 sm:px-0">
-        <div className="flex gap-0 overflow-x-auto custom-scrollbar">
+      <nav className="sticky top-0 z-20 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] w-full max-w-full overflow-x-hidden">
+        <div className="flex gap-0 overflow-x-auto overscroll-x-contain custom-scrollbar -mx-0 px-1 sm:px-0 scrollbar-none" style={{WebkitOverflowScrolling: "touch"}}>
           {[
             { id: "posts" as const, label: "Entradas" },
             { id: "album" as const, label: "Fotografia" },
@@ -1152,7 +1154,7 @@ export function ProfileView() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative px-5 py-3.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
+              className={`relative shrink-0 px-3.5 sm:px-5 py-3 text-[11px] sm:text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
                 ${activeTab === tab.id
                   ? "text-[#1A1A1A]"
                   : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
@@ -1167,7 +1169,7 @@ export function ProfileView() {
       </nav>
 
       {/* ═══════ CONTEÚDO DAS ABAS ═══════ */}
-      <div className="px-4 sm:px-6 py-8 max-w-3xl mx-auto">
+      <div className="w-full max-w-full min-w-0 px-1 sm:px-2 py-6 sm:py-8 mx-auto">
 
         {/* ─── ABA: ENTRADAS (posts estilo artigo) ─── */}
         <div style={{ display: activeTab === "posts" ? "block" : "none" }}>
@@ -1205,7 +1207,7 @@ export function ProfileView() {
                         <img
                           src={post.image_urls[0]}
                           alt=""
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                          className="w-full h-full max-w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
                           loading="lazy"
                         />
                       </div>
@@ -1228,7 +1230,7 @@ export function ProfileView() {
                     </div>
 
                     {/* Title */}
-                    <h2 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug">
+                    <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
                       {getPostTitle(post)}
                     </h2>
 
@@ -1309,7 +1311,7 @@ export function ProfileView() {
 
                 {/* ─── ABA: ESCREVER (composer) ─── */}
         <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
-          <div className="rounded-2xl border border-black/[0.08] bg-white p-5 sm:p-6 shadow-sm">
+          <div className="rounded-2xl border border-black/[0.08] bg-white p-3.5 sm:p-6 shadow-sm w-full max-w-full min-w-0 overflow-hidden">
             <div className="flex items-start justify-between gap-3 mb-5">
               <div>
                 <h3 className="font-serif text-2xl font-medium text-[#1A1A1A]">Nova entrada</h3>
@@ -1326,7 +1328,7 @@ export function ProfileView() {
             </div>
 
             {/* Toolbar editorial */}
-            <div className="mb-2 flex flex-wrap items-center gap-0.5 rounded-xl border border-black/8 bg-[#F9F8F6] p-1.5">
+            <div className="mb-2 flex items-center gap-0.5 rounded-xl border border-black/8 bg-[#F9F8F6] p-1 sm:p-1.5 overflow-x-auto overscroll-x-contain max-w-full" style={{WebkitOverflowScrolling: "touch"}}>
               {/* Headings */}
               <button
                 type="button"
@@ -1560,7 +1562,7 @@ export function ProfileView() {
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              className={`editor-content min-h-[160px] max-h-[480px] overflow-y-auto rounded-xl border border-black/10 bg-[#F9F8F6] px-4 py-3.5 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "min-h-[320px]" : ""}`}
+              className={`editor-content min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px] overflow-y-auto overflow-x-hidden break-words rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "min-h-[260px] sm:min-h-[320px]" : ""}`}
               style={{
                 fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
                 textAlign: postStyle.alignment || "left",
@@ -1720,8 +1722,8 @@ export function ProfileView() {
 
 {/* ─── ABA: SOBRE ─── */}
         <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
-          <article className="max-w-3xl">
-            <div className="flex flex-col md:flex-row gap-10 md:gap-14 items-start">
+          <article className="w-full max-w-full min-w-0">
+            <div className="flex flex-col md:flex-row gap-6 sm:gap-10 md:gap-14 items-start min-w-0">
               {/* Foto grande */}
               <div className="w-full md:w-[42%] shrink-0">
                 <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5 sticky top-24">
@@ -1753,7 +1755,7 @@ export function ProfileView() {
 
               {/* Texto longo */}
               <div className="w-full md:w-[58%] flex flex-col pt-2 md:pt-0">
-                <h2 className="font-serif text-4xl sm:text-5xl font-medium tracking-tight text-[#1A1A1A] mb-2">
+                <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
                   Sobre {profile?.display_name?.split(" ")[0] || "mim"}
                 </h2>
                 {profile?.neighborhood && (

@@ -293,7 +293,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
   if (!profile) return null;
 
   return (
-    <div className="album-blog space-y-6">
+    <div className="album-blog w-full max-w-full min-w-0 overflow-x-hidden space-y-5 sm:space-y-6">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
         .album-blog {
@@ -309,13 +309,20 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
         /* Masonry via CSS columns */
         .album-masonry {
           column-count: 2;
-          column-gap: 0.75rem;
+          column-gap: 0.5rem;
+          width: 100%;
+          max-width: 100%;
         }
         @media (min-width: 640px) {
           .album-masonry {
             column-count: 3;
-            column-gap: 1rem;
+            column-gap: 0.75rem;
           }
+        }
+        .album-masonry img {
+          max-width: 100%;
+          height: auto;
+          display: block;
         }
         .album-masonry-item {
           break-inside: avoid;
@@ -349,7 +356,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       </div>
 
       {/* Sub-abas editoriais */}
-      <nav className="flex gap-0 border-b border-black/[0.06]">
+      <nav className="flex gap-0 border-b border-black/[0.06] overflow-x-auto overscroll-x-contain w-full max-w-full">
         {(
           [
             { id: "fotos" as const, label: "Fotos", icon: Camera },
@@ -360,7 +367,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
           <button
             key={tab.id}
             onClick={() => setSubTab(tab.id)}
-            className={`relative flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors
+            className={`relative shrink-0 flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
               ${subTab === tab.id ? "text-[#1A1A1A]" : "text-[#4A4A4A]/60 hover:text-[#1A1A1A]"}`}
           >
             <tab.icon className="h-3.5 w-3.5" />
@@ -626,7 +633,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       {/* ═══════ LIGHTBOX ═══════ */}
       {viewerOpen && viewerPhotos.length > 0 && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1A1A1A]/95 backdrop-blur-md p-4 sm:p-8"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1A1A1A]/95 backdrop-blur-md p-3 sm:p-8 overflow-hidden"
           onClick={() => setViewerOpen(false)}
         >
           <button
@@ -663,7 +670,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
           <img
             src={viewerPhotos[viewerIndex]}
             alt={`Foto ${viewerIndex + 1}`}
-            className="max-h-[80vh] max-w-[95vw] object-contain rounded-sm shadow-2xl shadow-black/50"
+            className="max-h-[75dvh] max-w-[min(95vw,100%)] object-contain rounded-sm shadow-2xl shadow-black/50"
             onClick={(e) => e.stopPropagation()}
           />
 

@@ -101,7 +101,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   };
 
   return (
-    <div className="discover-blog space-y-7">
+    <div className="discover-blog w-full max-w-full min-w-0 overflow-x-hidden space-y-6 sm:space-y-7">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
         .discover-blog {
@@ -123,21 +123,21 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       </div>
 
       {/* Busca */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]/50" />
+      <div className="flex gap-2 w-full min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]/50 pointer-events-none" />
           <Input
             placeholder="Buscar pessoas ou salas..."
             value={query}
             onChange={(e) => { setQuery(e.target.value); if (!e.target.value.trim()) setSearched(false); }}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-10 h-11 rounded-full border-black/10 bg-white/80 text-[15px] placeholder:text-[#4A4A4A]/45 focus-visible:ring-[#D96C4A]/25"
+            className="pl-10 h-11 w-full min-w-0 rounded-full border-black/10 bg-white/80 text-[15px] placeholder:text-[#4A4A4A]/45 focus-visible:ring-[#D96C4A]/25"
           />
         </div>
         <Button
           onClick={handleSearch}
           disabled={!query.trim()}
-          className="rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 px-5 h-11 disabled:opacity-40"
+          className="rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 px-4 sm:px-5 h-11 shrink-0 disabled:opacity-40"
         >
           Buscar
         </Button>
@@ -155,7 +155,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
               {users.map((u) => (
                 <div
                   key={u.id}
-                  className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 hover:border-black/10 transition-colors"
+                  className="flex items-center gap-2.5 sm:gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3 sm:p-3.5 hover:border-black/10 transition-colors min-w-0 w-full"
                 >
                   <button onClick={() => navigateToProfile(u.id)} className="shrink-0">
                     <UserAvatar
@@ -163,17 +163,17 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                       className="h-11 w-11 hover:opacity-80 transition-opacity"
                     />
                   </button>
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigateToProfile(u.id)}>
-                    <span className="text-sm font-semibold text-[#1A1A1A]">{u.display_name}</span>
+                  <div className="flex-1 min-w-0 cursor-pointer overflow-hidden" onClick={() => navigateToProfile(u.id)}>
+                    <span className="text-sm font-semibold text-[#1A1A1A] truncate block">{u.display_name}</span>
                     <p className="text-xs text-[#4A4A4A]/60">@{u.username}</p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => startDM(u)}
-                    className="gap-1.5 shrink-0 rounded-full border-black/10 text-[#1A1A1A] hover:bg-black/5"
+                    className="gap-1.5 shrink-0 rounded-full border-black/10 text-[#1A1A1A] hover:bg-black/5 px-2.5 sm:px-3"
                   >
-                    <MessageCircle className="h-3.5 w-3.5" /> Conversar
+                    <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden xs:inline sm:inline">Conversar</span>
                   </Button>
                 </div>
               ))}
