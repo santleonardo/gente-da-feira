@@ -18,3 +18,23 @@ export function createClient() {
   }
   return createBrowserClient<any>(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+
+/**
+ * Limpa sessão local quando o refresh token está inválido.
+ * Útil após logout em outro dispositivo ou cookie antigo.
+ */
+export async function clearStaleBrowserSession() {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.auth.getSession();
+    if (
+      error &&
+      (error.message?.includes("Refresh Token") ||
+        (error as { code?: string }).code === "refresh_token_not_found")
+    ) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
