@@ -153,135 +153,130 @@ export function AuthForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-2 border-primary/20">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-md">
-            <span className="text-2xl font-bold leading-none text-primary-foreground">GF</span>
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Gente da Feira</CardTitle>
-          <p className="text-sm text-muted-foreground">A rede social do seu bairro em Feira de Santana</p>
+    <div className="auth-blog flex min-h-[100dvh] flex-col items-center justify-center px-4 py-10 bg-[#F9F8F6]">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+        .auth-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .auth-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, Cambria, serif;
+        }
+      `}</style>
+
+      {/* Brand */}
+      <div className="mb-8 text-center">
+        <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A]">
+          Gente da Feira
+        </h1>
+        <p className="mt-2 text-sm text-[#4A4A4A]/70 max-w-xs mx-auto leading-relaxed">
+          A rede local de Feira de Santana
+        </p>
+      </div>
+
+      <Card className="w-full max-w-md border-black/[0.08] bg-white shadow-sm rounded-2xl overflow-hidden">
+        <CardHeader className="pb-2 pt-6 px-6">
+          <CardTitle className="font-serif text-2xl font-medium text-[#1A1A1A] text-center">
+            {mode === "login" && "Entrar"}
+            {mode === "register" && "Criar conta"}
+            {mode === "forgot" && "Recuperar senha"}
+          </CardTitle>
+          {mode !== "forgot" && (
+            <div className="mt-4 flex rounded-full bg-[#F9F8F6] p-1 border border-black/[0.05]">
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className={`flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  mode === "login" ? "bg-[#1A1A1A] text-white shadow-sm" : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"
+                }`}
+              >
+                Entrar
+              </button>
+              <button
+                type="button"
+                onClick={() => !SIGNUP_DISABLED && setMode("register")}
+                disabled={SIGNUP_DISABLED}
+                className={`flex-1 rounded-full py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  mode === "register" ? "bg-[#1A1A1A] text-white shadow-sm" : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"
+                } disabled:opacity-40`}
+              >
+                Cadastrar
+              </button>
+            </div>
+          )}
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* ── Modo: Esqueci minha senha ─────────────────────── */}
+
+        <CardContent className="px-6 pb-7 pt-4">
           {mode === "forgot" ? (
-            <>
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => { setMode("login"); setForgotSent(false); }}
+                className="inline-flex items-center gap-1.5 text-sm text-[#4A4A4A] hover:text-[#1A1A1A] transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Voltar ao login
+              </button>
               {forgotSent ? (
-                /* Estado: e-mail enviado */
-                <div className="space-y-4">
-                  <div className="flex flex-col items-center gap-3 py-2">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                    </div>
-                    <p className="text-sm text-muted-foreground text-center leading-relaxed">
-                      Se este e-mail estiver cadastrado, você receberá um link de recuperação em instantes. Verifique sua caixa de entrada e spam.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => {
-                      setMode("login");
-                      setForgotSent(false);
-                      setForgotEmail("");
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Voltar para o login
-                  </Button>
+                <div className="rounded-xl border border-black/8 bg-[#F9F8F6] p-5 text-center space-y-2">
+                  <CheckCircle2 className="h-8 w-8 text-[#0A4D5C] mx-auto" />
+                  <p className="font-serif text-lg text-[#1A1A1A]">E-mail enviado</p>
+                  <p className="text-sm text-[#4A4A4A]/70 leading-relaxed">
+                    Se existir uma conta com esse e-mail, você receberá o link de recuperação.
+                  </p>
                 </div>
               ) : (
-                /* Estado: formulário de e-mail */
                 <div className="space-y-3">
+                  <p className="text-sm text-[#4A4A4A]/70 leading-relaxed">
+                    Informe seu e-mail e enviaremos um link para redefinir a senha.
+                  </p>
                   <div className="space-y-1.5">
-                    <Label htmlFor="forgot-email">E-mail</Label>
+                    <Label htmlFor="forgot-email" className="text-[#4A4A4A]">Email</Label>
                     <Input
                       id="forgot-email"
                       type="email"
                       placeholder="seu@email.com"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleForgotPassword()}
-                      autoFocus
-                      disabled={loading}
+                      className="h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Informe o e-mail associado à sua conta. Enviaremos um link para redefinir sua senha.
-                  </p>
                   <Button
                     onClick={handleForgotPassword}
-                    disabled={loading}
-                    className="w-full"
+                    disabled={loading || !forgotEmail.trim()}
+                    className="w-full h-11 rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90"
                   >
                     {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Enviando...
-                      </>
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Enviando…</>
                     ) : (
-                      <>
-                        <Mail className="h-4 w-4 mr-2" />
-                        Enviar link de recuperação
-                      </>
+                      <><Mail className="h-4 w-4" /> Enviar link</>
                     )}
                   </Button>
-                  <button
-                    type="button"
-                    onClick={() => setMode("login")}
-                    className="flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    Voltar para o login
-                  </button>
                 </div>
               )}
-            </>
+            </div>
           ) : (
             <>
-              {/* ── Tabs: Entrar / Criar conta ───────────────── */}
-              <div className="flex rounded-lg bg-muted p-1">
-                <button
-                  onClick={() => setMode("login")}
-                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "login" || SIGNUP_DISABLED ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-                >
-                  Entrar
-                </button>
-                {!SIGNUP_DISABLED && (
-                  <button
-                    onClick={() => setMode("register")}
-                    className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-                  >
-                    Criar conta
-                  </button>
-                )}
-              </div>
-              {SIGNUP_DISABLED && (
-                <p className="text-xs text-muted-foreground text-center">
-                  Cadastros temporariamente desabilitados.
-                </p>
-              )}
-
               {mode === "login" ? (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email" className="text-[#4A4A4A]">Email</Label>
                     <Input
                       id="login-email"
                       type="email"
                       placeholder="seu@email.com"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      className="h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="login-pass">Senha</Label>
+                    <Label htmlFor="login-pass" className="text-[#4A4A4A]">Senha</Label>
                     <div className="relative">
                       <Input
                         id="login-pass"
                         type={showLoginPass ? "text" : "password"}
-                        placeholder="\u2022\u2022\u2022\u2022\u2022\u2022"
-                        className="pr-10"
+                        placeholder="••••••"
+                        className="pr-10 h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
                         value={loginData.password}
                         onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && handleLogin()}
@@ -289,141 +284,158 @@ export function AuthForm() {
                       <button
                         type="button"
                         onClick={() => setShowLoginPass((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A]/50 hover:text-[#1A1A1A] transition-colors"
                         aria-label={showLoginPass ? "Ocultar senha" : "Mostrar senha"}
                       >
                         {showLoginPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
-
-                  {/* UX-001: Link "Esqueci minha senha" */}
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => setMode("forgot")}
-                      className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                      className="text-sm font-medium text-[#D96C4A] hover:text-[#D96C4A]/80 transition-colors"
                     >
                       Esqueci minha senha
                     </button>
                   </div>
-
-                  <Button onClick={handleLogin} disabled={loading} className="w-full">
-                    {loading ? "Entrando..." : "Entrar"}
+                  <Button
+                    onClick={handleLogin}
+                    disabled={loading}
+                    className="w-full h-11 rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90"
+                  >
+                    {loading ? "Entrando…" : "Entrar"}
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-name">Nome</Label>
-                    <Input
-                      id="reg-name"
-                      placeholder="Seu nome completo"
-                      value={regData.name}
-                      onChange={(e) => setRegData({ ...regData, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-username">Usuário</Label>
-                    <Input
-                      id="reg-username"
-                      placeholder="seu_usuario"
-                      value={regData.username}
-                      onChange={(e) => setRegData({ ...regData, username: e.target.value.toLowerCase().replace(/\s/g, "") })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-email">Email</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={regData.email}
-                      onChange={(e) => setRegData({ ...regData, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-pass">Senha</Label>
-                    <div className="relative">
-                      <Input
-                        id="reg-pass"
-                        type={showRegPass ? "text" : "password"}
-                        placeholder="Mínimo 8 caracteres, com letra e número"
-                        className="pr-10"
-                        value={regData.password}
-                        onChange={(e) => setRegData({ ...regData, password: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegPass((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={showRegPass ? "Ocultar senha" : "Mostrar senha"}
+                  {SIGNUP_DISABLED ? (
+                    <p className="text-sm text-center text-[#4A4A4A]/70 py-6">
+                      Cadastros temporariamente desabilitados.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="reg-name" className="text-[#4A4A4A]">Nome</Label>
+                        <Input
+                          id="reg-name"
+                          placeholder="Seu nome"
+                          value={regData.name}
+                          onChange={(e) => setRegData({ ...regData, name: e.target.value })}
+                          className="h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="reg-user" className="text-[#4A4A4A]">Usuário</Label>
+                        <Input
+                          id="reg-user"
+                          placeholder="seu_usuario"
+                          value={regData.username}
+                          onChange={(e) => setRegData({ ...regData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
+                          className="h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="reg-email" className="text-[#4A4A4A]">Email</Label>
+                        <Input
+                          id="reg-email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          value={regData.email}
+                          onChange={(e) => setRegData({ ...regData, email: e.target.value })}
+                          className="h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="reg-pass" className="text-[#4A4A4A]">Senha</Label>
+                        <div className="relative">
+                          <Input
+                            id="reg-pass"
+                            type={showRegPass ? "text" : "password"}
+                            placeholder="Mín. 8 caracteres"
+                            className="pr-10 h-11 rounded-xl border-black/10 bg-[#F9F8F6] focus-visible:ring-[#D96C4A]/25"
+                            value={regData.password}
+                            onChange={(e) => setRegData({ ...regData, password: e.target.value })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegPass((v) => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A]/50 hover:text-[#1A1A1A]"
+                            aria-label={showRegPass ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showRegPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="reg-bairro" className="text-[#4A4A4A]">Bairro (opcional)</Label>
+                        <select
+                          id="reg-bairro"
+                          value={regData.neighborhood}
+                          onChange={(e) => setRegData({ ...regData, neighborhood: e.target.value })}
+                          className="flex h-11 w-full rounded-xl border border-black/10 bg-[#F9F8F6] px-3 text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#D96C4A]/25"
+                        >
+                          <option value="">Selecione…</option>
+                          {BAIRROS.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2.5 rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-3.5">
+                        <label htmlFor="decl-adult" className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug">
+                          <Checkbox
+                            id="decl-adult"
+                            checked={declaredAdult}
+                            onCheckedChange={(v) => setDeclaredAdult(v === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-[#1A1A1A]/90">
+                            Declaro que tenho <strong className="font-semibold">18 anos ou mais</strong> e plena capacidade civil.
+                          </span>
+                        </label>
+                        <label htmlFor="agree-terms" className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug">
+                          <Checkbox
+                            id="agree-terms"
+                            checked={agreedTerms}
+                            onCheckedChange={(v) => setAgreedTerms(v === true)}
+                            className="mt-0.5"
+                          />
+                          <span className="text-[#1A1A1A]/90">
+                            Li e aceito os <strong className="font-semibold">Termos de Uso</strong> e a Política de Privacidade.
+                          </span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setTermsOpen(true)}
+                          className="flex items-center gap-1.5 pl-6 text-xs font-medium text-[#D96C4A] underline-offset-2 hover:underline"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Ler Termos de Uso completos (v{TERMS_VERSION})
+                        </button>
+                      </div>
+
+                      <Button
+                        onClick={handleRegister}
+                        disabled={loading || !agreedTerms || !declaredAdult}
+                        className="w-full h-11 rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 disabled:opacity-40"
                       >
-                        {showRegPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-neighborhood">Bairro</Label>
-                    <select
-                      id="reg-neighborhood"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={regData.neighborhood}
-                      onChange={(e) => setRegData({ ...regData, neighborhood: e.target.value })}
-                    >
-                      <option value="">Selecione seu bairro</option>
-                      {BAIRROS.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2.5 rounded-lg border border-border/70 bg-muted/40 p-3.5">
-                    <label htmlFor="decl-adult" className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug">
-                      <Checkbox
-                        id="decl-adult"
-                        checked={declaredAdult}
-                        onCheckedChange={(v) => setDeclaredAdult(v === true)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-foreground/90">
-                        Declaro que tenho <strong className="font-semibold">18 anos ou mais</strong> e plena capacidade civil.
-                      </span>
-                    </label>
-                    <label htmlFor="agree-terms" className="flex cursor-pointer items-start gap-2.5 text-sm leading-snug">
-                      <Checkbox
-                        id="agree-terms"
-                        checked={agreedTerms}
-                        onCheckedChange={(v) => setAgreedTerms(v === true)}
-                        className="mt-0.5"
-                      />
-                      <span className="text-foreground/90">
-                        Li e aceito os <strong className="font-semibold">Termos de Uso</strong> e a Política de Privacidade.
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setTermsOpen(true)}
-                      className="flex items-center gap-1.5 pl-6 text-xs font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      <FileText className="h-3.5 w-3.5" /> Ler Termos de Uso completos (v{TERMS_VERSION})
-                    </button>
-                  </div>
-                  <Button
-                    onClick={handleRegister}
-                    disabled={loading || !agreedTerms || !declaredAdult}
-                    className="w-full"
-                  >
-                    <ShieldCheck className="h-4 w-4" />
-                    {loading ? "Criando conta..." : "Criar conta"}
-                  </Button>
+                        <ShieldCheck className="h-4 w-4" />
+                        {loading ? "Criando conta…" : "Criar conta"}
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </>
           )}
         </CardContent>
       </Card>
+
+      <p className="mt-8 text-[11px] text-[#4A4A4A]/40 text-center max-w-xs">
+        Feito para a comunidade de Feira de Santana
+      </p>
+
       <TermsDialog
         open={termsOpen}
         onOpenChange={setTermsOpen}

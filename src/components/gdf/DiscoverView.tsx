@@ -101,44 +101,78 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   };
 
   return (
-    <div className="space-y-6">
-      {/* Barra de busca */}
+    <div className="discover-blog space-y-7">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+        .discover-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .discover-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, serif;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div>
+        <h1 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A]">
+          Descobrir
+        </h1>
+        <p className="text-sm text-[#4A4A4A]/70 mt-1">
+          Encontre pessoas e salas em Feira de Santana
+        </p>
+      </div>
+
+      {/* Busca */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]/50" />
           <Input
             placeholder="Buscar pessoas ou salas..."
             value={query}
             onChange={(e) => { setQuery(e.target.value); if (!e.target.value.trim()) setSearched(false); }}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-9"
+            className="pl-10 h-11 rounded-full border-black/10 bg-white/80 text-[15px] placeholder:text-[#4A4A4A]/45 focus-visible:ring-[#D96C4A]/25"
           />
         </div>
-        <Button onClick={handleSearch} disabled={!query.trim()}>
+        <Button
+          onClick={handleSearch}
+          disabled={!query.trim()}
+          className="rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 px-5 h-11 disabled:opacity-40"
+        >
           Buscar
         </Button>
       </div>
 
-      {/* Resultados da busca */}
+      {/* Resultados */}
       {searched && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground">
+        <div className="space-y-5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60">
             Resultados para &quot;{query}&quot;
           </h3>
 
-          {/* Usuários encontrados */}
           {users.length > 0 && (
             <div className="space-y-2">
               {users.map((u) => (
-                <div key={u.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+                <div
+                  key={u.id}
+                  className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 hover:border-black/10 transition-colors"
+                >
                   <button onClick={() => navigateToProfile(u.id)} className="shrink-0">
-                    <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-10 w-10 hover:opacity-80 transition-opacity" />
+                    <UserAvatar
+                      user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }}
+                      className="h-11 w-11 hover:opacity-80 transition-opacity"
+                    />
                   </button>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigateToProfile(u.id)}>
-                    <span className="text-sm font-semibold">{u.display_name}</span>
-                    <p className="text-xs text-muted-foreground">@{u.username}</p>
+                    <span className="text-sm font-semibold text-[#1A1A1A]">{u.display_name}</span>
+                    <p className="text-xs text-[#4A4A4A]/60">@{u.username}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => startDM(u)} className="gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startDM(u)}
+                    className="gap-1.5 shrink-0 rounded-full border-black/10 text-[#1A1A1A] hover:bg-black/5"
+                  >
                     <MessageCircle className="h-3.5 w-3.5" /> Conversar
                   </Button>
                 </div>
@@ -146,21 +180,23 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
             </div>
           )}
 
-          {/* Salas encontradas */}
           {rooms.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Salas</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60">Salas</p>
               {rooms.map((room) => (
                 <button
                   key={room.id}
                   onClick={() => useStore.getState().setSelectedRoom(room)}
-                  className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent"
+                  className="flex w-full items-center gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 text-left hover:border-black/10 transition-colors"
                 >
-                  <span className="text-xl">{room.icon}</span>
+                  <span className="text-xl w-11 text-center shrink-0">{room.icon || "💬"}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium">{room.name}</span>
+                    <span className="text-sm font-semibold text-[#1A1A1A]">{room.name}</span>
+                    {room.description && (
+                      <p className="text-xs text-[#4A4A4A]/60 line-clamp-1">{room.description}</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                  <div className="flex items-center gap-1 text-xs text-[#4A4A4A]/55 shrink-0">
                     <Users className="h-3.5 w-3.5" />
                     {room.memberCount || 0}
                   </div>
@@ -170,81 +206,111 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
           )}
 
           {users.length === 0 && rooms.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nenhum resultado encontrado</p>
+            <div className="py-12 text-center">
+              <Search className="h-8 w-8 text-black/10 mx-auto mb-2" />
+              <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhum resultado</p>
+              <p className="text-sm text-[#4A4A4A]/40 mt-1">Tente outro termo de busca</p>
+            </div>
           )}
         </div>
       )}
 
-      {/* Estado inicial — sugestões */}
+      {/* Sugestões (quando não buscou) */}
       {!searched && (
-        <div className="space-y-6">
-          {/* Pessoas sugeridas */}
-          <div>
-            <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-              Pessoas que você pode conhecer
-            </h3>
+        <div className="space-y-8">
+          {/* Pessoas */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <UserRound className="h-4 w-4 text-[#D96C4A]" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+                Pessoas para conhecer
+              </h2>
+            </div>
             {loadingSuggested ? (
-              <div className="grid grid-cols-2 gap-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-24 rounded-2xl bg-muted/50 animate-pulse" />
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse p-2">
+                    <div className="h-11 w-11 rounded-full bg-black/5" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-28 rounded bg-black/5" />
+                      <div className="h-2.5 w-20 rounded bg-black/5" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : suggestedUsers.length === 0 ? (
-              <div className="rounded-xl border bg-card p-6 text-center">
-                <UserRound className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Nenhuma sugestão por enquanto</p>
-              </div>
+              <p className="text-sm text-[#4A4A4A]/50 py-4">Nenhuma sugestão no momento</p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
                 {suggestedUsers.map((u) => (
-                  <button
+                  <div
                     key={u.id}
-                    onClick={() => navigateToProfile(u.id)}
-                    className="flex flex-col items-center gap-2 rounded-2xl border bg-card p-3 text-center transition-colors hover:bg-accent/50 active:scale-[0.97]"
+                    className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-black/[0.03] transition-colors"
                   >
-                    <UserAvatar
-                      user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }}
-                      className="h-11 w-11"
-                    />
-                    <div className="min-w-0 w-full">
-                      <p className="truncate text-sm font-medium">{u.display_name}</p>
-                      <p className="truncate text-xs text-muted-foreground">@{u.username}</p>
-                      {u.neighborhood && (
-                        <p className="mt-0.5 truncate text-[10px] text-muted-foreground/60">{u.neighborhood}</p>
-                      )}
+                    <button onClick={() => navigateToProfile(u.id)} className="shrink-0">
+                      <UserAvatar
+                        user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }}
+                        className="h-11 w-11"
+                      />
+                    </button>
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigateToProfile(u.id)}>
+                      <span className="text-sm font-medium text-[#1A1A1A]">{u.display_name}</span>
+                      <p className="text-xs text-[#4A4A4A]/55">@{u.username}</p>
                     </div>
-                  </button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startDM(u)}
+                      className="rounded-full border-black/10 text-xs text-[#1A1A1A] hover:bg-black/5 h-8 px-3"
+                    >
+                      Conversar
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Salas populares */}
-          {popularRoomsLoaded.length > 0 && (
-            <div>
-              <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-                Salas populares
-              </h3>
+          {/* Salas oficiais */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4 text-[#D96C4A]" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+                Salas em destaque
+              </h2>
+            </div>
+            {loadingSuggested ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-16 rounded-xl bg-black/5 animate-pulse" />
+                ))}
+              </div>
+            ) : popularRoomsLoaded.length === 0 ? (
+              <p className="text-sm text-[#4A4A4A]/50 py-4">Nenhuma sala disponível</p>
+            ) : (
               <div className="space-y-2">
                 {popularRoomsLoaded.map((room) => (
                   <button
                     key={room.id}
                     onClick={() => useStore.getState().setSelectedRoom(room)}
-                    className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent"
+                    className="flex w-full items-center gap-3 rounded-xl border border-black/[0.06] bg-white/60 p-3.5 text-left hover:border-[#D96C4A]/25 hover:bg-white transition-colors"
                   >
-                    <span className="text-xl">{room.icon}</span>
+                    <span className="text-xl w-10 text-center shrink-0">{room.icon || "💬"}</span>
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium">{room.name}</span>
+                      <span className="text-sm font-semibold text-[#1A1A1A]">{room.name}</span>
+                      {room.description && (
+                        <p className="text-xs text-[#4A4A4A]/55 line-clamp-1 mt-0.5">{room.description}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                    <div className="flex items-center gap-1 text-xs text-[#4A4A4A]/55 shrink-0">
                       <Users className="h-3.5 w-3.5" />
                       {room.memberCount || 0}
                     </div>
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </section>
         </div>
       )}
     </div>
