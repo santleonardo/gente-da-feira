@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
             sourcePublishedAt: item.pubDate,
             text: blob,
             hasImage: !!item.imageUrl,
+            scope: source.scope as string | null,
           });
 
           const autoPublish = relevance_score >= 65;
