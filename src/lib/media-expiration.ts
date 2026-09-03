@@ -1,8 +1,9 @@
 // ============================================================
 // Limpeza de mídia expirada em mensagens (DMs e salas)
 //
-// Mensagens com mídia (imagem/vídeo/áudio) recebem um `expires_at`
-// no momento da criação. Quando expiram:
+// Mensagens com imagem/vídeo recebem um `expires_at` no momento da
+// criação. Áudio NÃO recebe expires_at (permanece disponível).
+// Quando a mídia expira:
 //   - Se a mensagem tinha apenas mídia (sem texto), ela é marcada
 //     como `is_deleted = true` (mesmo tratamento dado a posts).
 //   - Se a mensagem tinha texto + mídia, o texto é preservado e
@@ -61,7 +62,7 @@ export async function cleanupExpiredMessageMedia() {
 
     const { data: expired } = await admin
       .from("messages")
-      .select("id, content, media_url")
+      .select("id, content, media_url, media_type")
       .lt("expires_at", now)
       .not("media_url", "is", null)
       .eq("is_deleted", false)
@@ -73,6 +74,9 @@ export async function cleanupExpiredMessageMedia() {
     const toStripMedia: string[] = [];
 
     for (const msg of expired as any[]) {
+      // Defesa em profundidade: áudio nunca deve ser limpo por expiração
+      if (msg.media_type === "audio") continue;
+
       if (msg.content && msg.content.trim()) {
         toStripMedia.push(msg.id);
       } else {
