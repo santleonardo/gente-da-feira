@@ -98,6 +98,26 @@ const ReportDialog = dynamic(
 // Skeleton loader — exibido brevemente enquanto o chunk da view carrega
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// GdfEditorialStyles — identidade visual "blog editorial" (Playfair Display +
+// DM Sans, paleta papel/tinta/terracota) compartilhada por AppShell, FeedView,
+// ProfileView, AlbumView e UserProfileDialog. É apenas <style>, então as regras
+// (ex.: .font-serif) valem em toda a árvore do documento, inclusive em dialogs
+// renderizados via portal.
+// ═══════════════════════════════════════════════════════════════════════════════
+function GdfEditorialStyles() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
+      body { background: #F9F8F6; }
+      .font-serif {
+        font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+      }
+      .gdf-shell { font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; }
+    `}</style>
+  );
+}
+
 function TabSkeleton() {
   return (
     <div className="space-y-4 p-1">
@@ -335,14 +355,15 @@ export function AppShell() {
   // ── Loading ──────────────────────────────────────────────
   if (!checkedAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-[#F9F8F6]">
+        <GdfEditorialStyles />
         <div className="flex flex-col items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary animate-pulse shadow-md">
-            <span className="text-xl font-bold text-primary-foreground">GF</span>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1A1A1A] animate-pulse shadow-md">
+            <span className="font-serif text-xl font-medium text-white">GF</span>
           </div>
           <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary/40" />
-            <p className="text-sm text-primary/40">Carregando...</p>
+            <Loader2 className="h-4 w-4 animate-spin text-[#4A4A4A]/50" />
+            <p className="text-sm text-[#4A4A4A]/50">Carregando...</p>
           </div>
         </div>
       </div>
@@ -362,7 +383,8 @@ export function AppShell() {
         })
       : null;
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#F9F8F6] px-6">
+        <GdfEditorialStyles />
         <div className="w-full max-w-sm text-center space-y-4">
           <div
             className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${
@@ -371,31 +393,31 @@ export function AppShell() {
           >
             <span className="text-3xl">{isBan ? "🚫" : "⏸️"}</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">
+          <h1 className="font-serif text-2xl font-medium tracking-tight text-[#1A1A1A]">
             {isBan ? "Conta banida" : "Conta suspensa"}
           </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-sm text-[#4A4A4A] leading-relaxed">
             {isBan
               ? "Sua conta foi banida pela moderação do Gente da Feira e não pode mais ser usada."
               : "Sua conta está temporariamente suspensa e não pode acessar o app neste momento."}
           </p>
           {untilLabel && (
-            <p className="text-sm font-medium">
-              Até: <span className="text-foreground">{untilLabel}</span>
+            <p className="text-sm font-medium text-[#1A1A1A]">
+              Até: <span className="text-[#1A1A1A]">{untilLabel}</span>
             </p>
           )}
           {moderationBlock.reason && (
-            <div className="rounded-xl border bg-muted/40 px-4 py-3 text-left">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+            <div className="rounded-xl border border-black/10 bg-black/[0.03] px-4 py-3 text-left">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[#4A4A4A]/70 mb-1">
                 Motivo
               </p>
-              <p className="text-sm whitespace-pre-wrap">{moderationBlock.reason}</p>
+              <p className="text-sm whitespace-pre-wrap text-[#1A1A1A]">{moderationBlock.reason}</p>
             </div>
           )}
           <button
             type="button"
             onClick={() => setModerationBlock(null)}
-            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm"
+            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#1A1A1A] text-sm font-semibold text-white shadow-sm hover:bg-[#1A1A1A]/90 transition-colors"
           >
             Entendi
           </button>
@@ -451,10 +473,11 @@ export function AppShell() {
   return (
     <div
       className={cn(
-        "flex w-full max-w-full flex-col overflow-x-hidden bg-background",
+        "gdf-shell flex w-full max-w-full flex-col overflow-x-hidden bg-[#F9F8F6]",
         inChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
       )}
     >
+      <GdfEditorialStyles />
 
       {/* ── Banner offline ─────────────────────────────────── */}
       {!isOnline && (
@@ -468,7 +491,7 @@ export function AppShell() {
       {showAdminBanner && (
         <div
           className={cn(
-            "fixed left-0 right-0 z-50 flex items-start gap-2 bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-sm",
+            "fixed left-0 right-0 z-50 flex items-start gap-2 bg-[#1A1A1A] px-3 py-2 text-xs font-medium text-white shadow-sm",
             !isOnline ? "top-7" : "top-0"
           )}
         >
@@ -478,7 +501,7 @@ export function AppShell() {
           <button
             type="button"
             onClick={handleHideBanner}
-            className="shrink-0 rounded-md p-1 hover:bg-primary-foreground/15 active:scale-95"
+            className="shrink-0 rounded-md p-1 hover:bg-white/15 active:scale-95"
             title="Esconder"
             aria-label="Esconder banner"
           >
@@ -487,50 +510,48 @@ export function AppShell() {
         </div>
       )}
 
-      {/* ── Header desktop (oculto durante chat em tela cheia) ── */}
+      {/* ── Header desktop (oculto durante chat em tela cheia) — masthead editorial ── */}
       <header
         className={cn(
-          "sticky z-40 items-center justify-between border-b border-primary/10 px-6 py-2.5 bg-background/90 backdrop-blur-xl",
+          "sticky z-40 items-center justify-between border-b border-black/[0.06] px-6 py-3 bg-[#F9F8F6]/95 backdrop-blur-xl",
           inChat ? "hidden" : "hidden md:flex",
           topOffsetClass
         )}
       >
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm">
-            <span className="text-sm font-bold text-primary-foreground">GF</span>
-          </div>
-          <div>
-            <h1 className="text-base font-bold leading-tight tracking-tight text-foreground">Gente da Feira</h1>
-            <p className="text-[10px] text-primary/40 leading-none">Feira de Santana · BA</p>
-          </div>
+        <div className="flex items-baseline gap-2.5">
+          <h1 className="font-serif text-xl font-medium leading-tight tracking-tight text-[#1A1A1A]">Gente da Feira</h1>
+          <p className="text-[10px] uppercase tracking-wider text-[#4A4A4A]/50 leading-none">Feira de Santana · BA</p>
         </div>
 
-        <nav className="flex items-center gap-1 bg-primary/[0.04] rounded-full p-1">
+        <nav className="flex items-center gap-5">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => handleTabClick(t.id)}
               className={cn(
-                "flex flex-col items-center gap-0.5 rounded-full px-3 py-2 transition-all duration-200",
+                "relative flex items-center gap-1.5 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
                 tab === t.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-primary/50 hover:text-foreground"
+                  ? "text-[#1A1A1A]"
+                  : "text-[#4A4A4A]/60 hover:text-[#1A1A1A]"
               )}
               title={t.label}
             >
-              <t.icon className="h-4 w-4" />
-              <span className="text-[10px] font-medium leading-none">{t.label}</span>
+              <t.icon className="h-3.5 w-3.5" />
+              <span className="leading-none">{t.label}</span>
+              {tab === t.id && (
+                <span className="absolute -bottom-[13px] left-0 right-0 h-0.5 bg-[#D96C4A] rounded-full" />
+              )}
             </button>
           ))}
         </nav>
 
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-full bg-[#2EC4B6]/30 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-primary">
+          <div className="h-7 w-7 rounded-full bg-[#D96C4A]/15 flex items-center justify-center">
+            <span className="font-serif text-[11px] font-semibold text-[#D96C4A]">
               {profile?.display_name?.charAt(0)?.toUpperCase()}
             </span>
           </div>
-          <span className="text-sm font-medium text-foreground">{profile?.display_name || ""}</span>
+          <span className="text-sm font-medium text-[#1A1A1A]">{profile?.display_name || ""}</span>
         </div>
       </header>
 
@@ -580,7 +601,7 @@ export function AppShell() {
       {/* ── Nav mobile (oculto durante chat em tela cheia) ── */}
       {!inChat && (
         <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
-          <div className="nav-pill pointer-events-auto mx-2 mb-2 sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-primary/10 bg-background/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-full">
+          <div className="nav-pill pointer-events-auto mx-2 mb-2 sm:mx-3 sm:mb-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl shadow-lg px-0.5 py-1 max-w-full">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -588,8 +609,8 @@ export function AppShell() {
                 className={cn(
                   "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-all duration-200",
                   tab === t.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-primary/40 active:scale-95"
+                    ? "bg-[#1A1A1A] text-white"
+                    : "text-[#4A4A4A]/50 active:scale-95"
                 )}
               >
                 <t.icon className={cn("h-5 w-5 shrink-0", tab === t.id && "stroke-[2.5px]")} />

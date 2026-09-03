@@ -152,23 +152,23 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="mt-2 rounded-xl bg-primary/[0.06] p-2.5 shadow-sm border border-primary/10">
+    <div className="mt-2 rounded-xl bg-[#D96C4A]/[0.06] p-2.5 shadow-sm border border-black/[0.06]">
       <div className="flex items-center gap-3">
-        <button onClick={toggle} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-md hover:bg-primary/90 transition-all">
+        <button onClick={toggle} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-md hover:bg-[#1A1A1A]/90 transition-all">
           {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Mic className="h-3 w-3 text-primary" />
-            <span className="text-[10px] font-semibold text-primary">Áudio</span>
-            <span className="text-[9px] text-primary/40 tabular-nums">{formatDuration(currentTime)} / {formatDuration(duration)}</span>
+            <Mic className="h-3 w-3 text-[#D96C4A]" />
+            <span className="text-[10px] font-semibold text-[#1A1A1A]">Áudio</span>
+            <span className="text-[9px] text-[#4A4A4A]/50 tabular-nums">{formatDuration(currentTime)} / {formatDuration(duration)}</span>
           </div>
-          <div className="h-1.5 bg-primary/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
+          <div className="h-1.5 bg-[#D96C4A]/20 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
             if (audioRef.current && duration) audioRef.current.currentTime = pct * duration;
           }}>
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
+            <div className="h-full bg-[#D96C4A] rounded-full transition-all" style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }} />
           </div>
         </div>
       </div>
@@ -264,7 +264,7 @@ function ExpirationCounter({ expiresAt }: { expiresAt: string }) {
   }, [expiresAt]);
   if (!label) return null;
   return (
-    <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-card-foreground bg-[#f7f75e] rounded-full px-2 py-0.5 w-fit">
+    <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-[#1A1A1A] bg-[#f7f75e] rounded-full px-2 py-0.5 w-fit">
       <Clock className="h-2.5 w-2.5" />
       <span>{label}</span>
     </div>
@@ -608,7 +608,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
           }
           .upd-blog .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
-          .upd-blog .post-content a:hover { color: #2EC4B6; }
+          .upd-blog .post-content a:hover { color: #D96C4A; }
         `}</style>
 
         {loading ? (
