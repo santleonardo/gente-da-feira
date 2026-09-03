@@ -1109,7 +1109,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   if (loading) return <FeedSkeleton />;
 
   return (
-    <div className="space-y-0 w-full min-w-0 max-w-full overflow-x-hidden">
+    <div className="feed-blog space-y-0 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* Atualizar feed */}
       <div className="flex items-center justify-end mb-1">
         <button
@@ -1124,6 +1124,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         </button>
       </div>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap');
         .post-content h1 { font-size:1.25rem;font-weight:700;line-height:1.3;margin:0.35em 0 0.1em; }
         .post-content h2 { font-size:1.1rem;font-weight:700;line-height:1.3;margin:0.25em 0 0.1em; }
         .post-content h3 { font-size:1rem;font-weight:700;line-height:1.3;margin:0.2em 0 0.1em; }
@@ -1141,11 +1142,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         .post-content code { background:#f3f4f6;border-radius:4px;padding:0.1em 0.3em;font-size:0.9em; }
         .post-content div { margin:0; }
         .post-content hr { border:none;border-top:1px solid rgba(10,77,92,.15);margin:0.5em 0; }
+        .feed-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .feed-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, Cambria, serif;
+        }
       `}</style>
 
       {/* ═══════ COMPOSER ═══════ */}
       <div className="relative z-10 rounded-2xl bg-white p-5 shadow-sm border border-black/[0.08]">
-        <p className="mb-3 font-serif text-lg font-medium text-[#1A1A1A]">Nova publicação</p>
+        <p className="mb-3 font-serif text-xl font-medium text-[#1A1A1A]">Nova entrada</p>
         <div className="flex items-start gap-3.5">
           <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-12 w-12 shrink-0" />
           <div className="flex-1 space-y-2">
@@ -1318,17 +1325,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-3xl bg-[#1A1A1A]/[0.04]">
             <MessageCircle className="h-8 w-8 text-[#1A1A1A]/30" />
           </div>
-          <p className="text-sm font-medium text-[#1A1A1A]">Nenhum post por aqui ainda</p>
-          <p className="text-xs text-[#1A1A1A]/40 mt-1">Seja o primeiro a publicar no seu bairro!</p>
+          <p className="font-serif text-xl text-[#1A1A1A]/50">Nenhuma entrada ainda</p>
+          <p className="text-sm text-[#1A1A1A]/40 mt-2">Publique a primeira no seu bairro</p>
         </div>
       )}
 
-      {/* Masonry 2-column grid (1 col no mobile) */}
-      <div className="columns-1 sm:columns-2 gap-3 sm:gap-3.5 mt-3 sm:mt-4">
+      {/* Lista editorial de artigos */}
+      <div className="mt-6 sm:mt-8 space-y-10 sm:space-y-14">
         {posts.map((post) => (
           <div
             key={post.id}
-            className="break-inside-avoid mb-3 sm:mb-3.5 [content-visibility:auto] [contain-intrinsic-size:auto_280px]"
+            className="[content-visibility:auto] [contain-intrinsic-size:auto_320px]"
           >
             <PostThread
               post={post}
@@ -1357,7 +1364,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
             {loadingMore ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</>
             ) : (
-              "Carregar mais posts"
+              "Mais entradas"
             )}
           </button>
         </div>
@@ -1395,6 +1402,29 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       {viewerOpen && <PhotoViewer photos={viewerPhotos} initialIndex={viewerIndex} onClose={() => setViewerOpen(false)} />}
     </div>
   );
+}
+
+
+// ── helpers editoriais do feed ─────────────────────────────
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+function getArticleTitle(content: string | null | undefined): string {
+  if (!content) return "Entrada";
+  const text = stripHtml(content);
+  if (!text) return "Entrada";
+  const first = text.split("\n")[0].trim();
+  return first.length > 90 ? first.slice(0, 90) + "…" : first;
+}
+function getArticleExcerpt(content: string | null | undefined): string {
+  if (!content) return "";
+  const text = stripHtml(content);
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 1) {
+    return text.length > 180 ? text.slice(0, 180) + "…" : "";
+  }
+  const rest = lines.slice(1).join(" ");
+  return rest.length > 200 ? rest.slice(0, 200) + "…" : rest;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1574,120 +1604,171 @@ const PostThread = memo(function PostThread({
     window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post } }));
   };
 
+  const articleTitle = getArticleTitle(post.content);
+  const articleExcerpt = getArticleExcerpt(post.content);
+  const showBody = !!(post.content && !isMediaPlaceholder(post.content));
+
   return (
-    <div
-      className={`rounded-2xl ${cardBg} text-[#1A1A1A] shadow-md border border-black/[0.08] ${isShareOpen ? "overflow-visible" : "overflow-hidden"} transition-shadow hover:shadow-lg cursor-pointer ${isOwnPost ? "border-l-3 border-l-[#D96C4A]" : ""}`}
+    <article
+      className={`group relative bg-transparent text-[#1A1A1A] cursor-pointer ${isShareOpen ? "z-20" : ""}`}
       onClick={handleOpenPostDetail}
     >
-      <div className="p-3 sm:p-4">
-        <div className="flex items-start gap-2.5">
-          <button onClick={() => post.author?.id && openUserProfile?.(post.author.id)} className="shrink-0 group">
-            <UserAvatar user={post.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-9 w-9 sm:h-11 sm:w-11 hover:opacity-80 transition-opacity ring-2 ring-[#F9F8F6] shadow-sm" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button onClick={() => post.author?.id && openUserProfile?.(post.author.id)}
-                className="text-sm font-semibold text-[#1A1A1A] hover:underline underline-offset-2 transition-all">
-                {post.author?.display_name || "Usuário"}
-              </button>
-              {post.visibility === "followers" && (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#f7f75e] px-2 py-0.5 text-[10px] font-semibold text-[#1A1A1A]">
-                  <UsersIcon className="h-2.5 w-2.5" />Seguidores
-                </span>
-              )}
-              {isOwnPost && (
-                <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-[#1A1A1A]">Seu post</span>
-              )}
-              <span className="text-[10px] text-[#1A1A1A]/25">·</span>
-              <span className="text-[10px] text-[#1A1A1A]/45">{timeAgo(post.created_at)}</span>
-            </div>
-
-            {isTextOnly && post.content && !isMediaPlaceholder(post.content) && (
-              <FormattedText
-                className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#1A1A1A]"
-                content={post.content}
-                openUserProfile={openUserProfile}
-                style={{
-                  fontFamily:  hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
-                  fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
-                  fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
-                  textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                  color: "#1A1A1A",
-                }}
+      {/* Mídia em destaque */}
+      {(hasPhotos || hasVideo) && (
+        <div className="mb-5 overflow-hidden rounded-sm bg-black/[0.04]">
+          {hasPhotos && (
+            <div
+              className="aspect-[16/10] w-full overflow-hidden"
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onPhotoClick?.(post.image_urls || [], 0);
+              }}
+            >
+              <img
+                src={post.image_urls![0]}
+                alt=""
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                loading="lazy"
+                decoding="async"
               />
-            )}
+            </div>
+          )}
+          {hasVideo && (
+            <div className="w-full" onClick={(ev) => ev.stopPropagation()}>
+              <VideoPlayer src={post.video_url!} />
+            </div>
+          )}
+        </div>
+      )}
 
-            {post.shared_post && !Array.isArray(post.shared_post) && (
-              <div className="mt-2.5 rounded-2xl bg-[#1A1A1A]/[0.04] p-3 border border-[#1A1A1A]/8">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Repeat2 className="h-3 w-3 text-[#1A1A1A]/40" />
-                  <span className="text-[10px] text-[#1A1A1A]/40">Compartilhado de</span>
-                </div>
-                <div className="flex items-center gap-2 mb-1">
-                  <button onClick={() => post.shared_post?.author?.id && openUserProfile?.(post.shared_post.author.id)} className="shrink-0">
-                    <UserAvatar user={post.shared_post?.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-6 w-6" />
-                  </button>
-                  <button onClick={() => post.shared_post?.author?.id && openUserProfile?.(post.shared_post.author.id)} className="text-xs font-semibold text-[#1A1A1A] hover:underline">
-                    {post.shared_post?.author?.display_name || "Usuário"}
-                  </button>
-                </div>
-                <FormattedText className="text-xs text-[#1A1A1A]/60 leading-relaxed line-clamp-4" content={post.shared_post.content} openUserProfile={openUserProfile} />
-                {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
-                  <div className="mt-1.5 flex gap-1 overflow-x-auto">
-                    {post.shared_post.image_urls.slice(0, 2).map((url, i) => (
-                      <LazyImage key={i} src={url} alt="" className="h-16 w-16 rounded-xl object-cover shrink-0" skeleton={false} />
-                    ))}
-                    {post.shared_post.image_urls.length > 2 && (
-                      <div className="h-16 w-16 rounded-xl bg-[#1A1A1A]/[0.04] flex items-center justify-center text-xs text-[#1A1A1A]/40 shrink-0">
-                        +{post.shared_post.image_urls.length - 2}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+      {/* Meta */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] uppercase tracking-[0.14em] text-[#4A4A4A]/70 mb-3">
+        <time dateTime={post.created_at}>{timeAgo(post.created_at)}</time>
+        <span className="text-[#4A4A4A]/30">·</span>
+        <button
+          type="button"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            post.author?.id && openUserProfile?.(post.author.id);
+          }}
+          className="hover:text-[#D96C4A] transition-colors"
+        >
+          {post.author?.display_name || "Usuário"}
+        </button>
+        {post.neighborhood && (
+          <>
+            <span className="text-[#4A4A4A]/30">·</span>
+            <span>{post.neighborhood}</span>
+          </>
+        )}
+        {post.visibility === "followers" && (
+          <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[10px] text-[#D96C4A]">
+            <UsersIcon className="h-3 w-3" /> Seguidores
+          </span>
+        )}
+        {post.expires_at && expirationLabel && (
+          <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[10px] font-semibold text-[#1A1A1A] bg-[#f7f75e] rounded-full px-2 py-0.5">
+            <Clock className="h-3 w-3" />{expirationLabel}
+          </span>
+        )}
+      </div>
 
-            {!isTextOnly && post.content && post.content.trim() && !isMediaPlaceholder(post.content) && (
-              <div className="px-1 sm:px-1.5 mt-2">
-                <FormattedText
-                  className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#1A1A1A]"
-                  content={post.content}
-                  openUserProfile={openUserProfile}
-                  style={{
-                    fontFamily:  hasPostStyle && post.post_style!.font      ? `'${post.post_style!.font}', sans-serif` : undefined,
-                    fontWeight:  hasPostStyle && post.post_style!.bold      ? 700                                      : undefined,
-                    fontStyle:   hasPostStyle && post.post_style!.italic    ? "italic"                                 : undefined,
-                    textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment as any        : undefined,
-                    color: "#1A1A1A",
-                  }}
-                />
-              </div>
-            )}
+      {/* Título editorial */}
+      <h2 className="font-serif text-2xl sm:text-[1.75rem] font-medium tracking-tight text-[#1A1A1A] leading-[1.25] group-hover:text-[#D96C4A] transition-colors">
+        {articleTitle}
+      </h2>
 
-            {post.expires_at && expirationLabel && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold text-[#1A1A1A] bg-[#f7f75e] rounded-full px-2.5 py-1 w-fit">
-                <Clock className="h-3 w-3" /><span>{expirationLabel}</span>
-              </div>
-            )}
+      {/* Excerpt / corpo */}
+      {showBody && (
+        <div className="mt-3">
+          {articleExcerpt ? (
+            <p className="text-[15px] sm:text-base leading-relaxed text-[#4A4A4A] line-clamp-3">
+              {articleExcerpt}
+            </p>
+          ) : (
+            <FormattedText
+              className="text-[15px] sm:text-base leading-relaxed text-[#4A4A4A] line-clamp-4"
+              content={post.content}
+              openUserProfile={openUserProfile}
+              style={{
+                fontFamily: hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
+                fontWeight: hasPostStyle && post.post_style!.bold ? 700 : undefined,
+                fontStyle: hasPostStyle && post.post_style!.italic ? "italic" : undefined,
+                textAlign: hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment as any : undefined,
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Áudio (sem expiração visual pesada) */}
+      {hasAudio && (
+        <div className="mt-4" onClick={(ev) => ev.stopPropagation()}>
+          <AudioPlayer src={post.audio_url!} />
+        </div>
+      )}
+
+      {/* Shared post */}
+      {post.shared_post && (
+        <div
+          className="mt-5 rounded-sm border border-black/[0.08] bg-white/60 p-4"
+          onClick={(ev) => ev.stopPropagation()}
+        >
+          <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider text-[#4A4A4A]/60">
+            <Repeat2 className="h-3 w-3" />
+            <span>De {post.shared_post?.author?.display_name || "Usuário"}</span>
           </div>
+          {post.shared_post.content && (
+            <FormattedText
+              className="text-sm text-[#4A4A4A] leading-relaxed line-clamp-4"
+              content={post.shared_post.content}
+              openUserProfile={openUserProfile}
+            />
+          )}
+          {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
+            <img
+              src={post.shared_post.image_urls[0]}
+              alt=""
+              className="mt-3 max-h-48 w-full rounded-sm object-cover"
+              loading="lazy"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Autor + ações */}
+      <div className="mt-5 pt-4 border-t border-black/[0.06] flex items-center gap-3">
+        <button
+          type="button"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            post.author?.id && openUserProfile?.(post.author.id);
+          }}
+          className="shrink-0"
+        >
+          <UserAvatar
+            user={post.author || { id: "", display_name: "Usuário", username: "usuario" }}
+            className="h-8 w-8 ring-2 ring-[#F9F8F6]"
+          />
+        </button>
+        <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              post.author?.id && openUserProfile?.(post.author.id);
+            }}
+            className="text-sm font-medium text-[#1A1A1A] hover:text-[#D96C4A] transition-colors truncate block"
+          >
+            {post.author?.display_name || "Usuário"}
+          </button>
+          {post.author?.username && (
+            <p className="text-[11px] text-[#4A4A4A]/55 truncate">@{post.author.username}</p>
+          )}
         </div>
 
-        {/* FULL-BLEED MEDIA — outside the avatar flex row */}
-        {(hasPhotos || hasVideo || hasAudio) && (
-          <div className="-mx-3 sm:-mx-4">
-            {hasPhotos && (
-              <PhotoGrid
-                photos={post.image_urls!}
-                onPhotoClick={(index) => onPhotoClick?.(post.image_urls || [], index)}
-              />
-            )}
-            {hasVideo  && <VideoPlayer src={post.video_url!} />}
-            {hasAudio  && <AudioPlayer src={post.audio_url!} />}
-          </div>
-        )}
-
-        {/* ACTION BAR */}
-        <div className="mt-2 flex items-center gap-0.5">
+        {/* ACTION BAR — discreta */}
+        <div className="flex items-center gap-0.5" onClick={(ev) => ev.stopPropagation()}>
           <div className="relative">
             <button
               onClick={() => setShowReactions(!showReactions)}
@@ -1748,10 +1829,14 @@ const PostThread = memo(function PostThread({
             </button>
           )}
         </div>
+      </div>
 
         {/* COMMENTS */}
         {showComments && (
-          <div className={`mt-2 rounded-xl ${commentsBg} p-2.5 space-y-1.5`}>
+          <div
+            className="mt-4 rounded-xl border border-black/[0.06] bg-white/70 p-3 space-y-1.5"
+            onClick={(ev) => ev.stopPropagation()}
+          >
             {commentsLoading ? (
               <div className="space-y-2 py-2">
                 {[1, 2].map((i) => (
@@ -1794,8 +1879,7 @@ const PostThread = memo(function PostThread({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </article>
   );
 });
 
