@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Users as UsersIcon, Camera, Flag } from "lucide-react";
+import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Camera, Flag } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
@@ -19,46 +18,7 @@ function openUserProfileById(userId: string) {
   window.dispatchEvent(new CustomEvent("openUserProfile", { detail: { userId } }));
 }
 
-// ═══════════════════════════════════════════════════════════
-// Post-it colors (Tailwind classes)
-// ═══════════════════════════════════════════════════════════
-const POST_IT_COLORS = [
-  { bg: "bg-[#fef9c3]", text: "text-[#854d0e]", border: "border-[#fde68a]" },       // Amarelo
-  { bg: "bg-[#fce7f3]", text: "text-[#9d174d]", border: "border-[#fbcfe8]" },        // Rosa
-  { bg: "bg-[#dbeafe]", text: "text-[#1e40af]", border: "border-[#bfdbfe]" },        // Azul
-  { bg: "bg-[#dcfce7]", text: "text-[#166534]", border: "border-[#bbf7d0]" },        // Verde
-  { bg: "bg-[#ffedd5]", text: "text-[#9a3412]", border: "border-[#fed7aa]" },        // Laranja
-  { bg: "bg-[#ede9fe]", text: "text-[#5b21b6]", border: "border-[#ddd6fe]" },        // Roxo
-  { bg: "bg-[#fee2e2]", text: "text-[#991b1b]", border: "border-[#fecaca]" },        // Coral
-  { bg: "bg-[#d1fae5]", text: "text-[#065f46]", border: "border-[#a7f3d0]" },        // Menta
-  { bg: "bg-[#e0e7ff]", text: "text-[#3730a3]", border: "border-[#c7d2fe]" },        // Lavanda
-  { bg: "bg-[#fef3c7]", text: "text-[#92400e]", border: "border-[#fde68a]" },        // Pêssego
-  { bg: "bg-white", text: "text-[#374151]", border: "border-[#d1d5db]" },              // Branco
-  { bg: "bg-[#f3f4f6]", text: "text-[#4b5563]", border: "border-[#d1d5db]" },        // Cinza
-] as const;
-
-// Cores em hex para uso com inline styles (post_style)
-const POST_IT_COLORS_HEX = [
-  { bg: "#fef9c3", text: "#854d0e", border: "#fde68a" },       // Amarelo
-  { bg: "#fce7f3", text: "#9d174d", border: "#fbcfe8" },        // Rosa
-  { bg: "#dbeafe", text: "#1e40af", border: "#bfdbfe" },        // Azul
-  { bg: "#dcfce7", text: "#166534", border: "#bbf7d0" },        // Verde
-  { bg: "#ffedd5", text: "#9a3412", border: "#fed7aa" },        // Laranja
-  { bg: "#ede9fe", text: "#5b21b6", border: "#ddd6fe" },        // Roxo
-  { bg: "#fee2e2", text: "#991b1b", border: "#fecaca" },        // Coral
-  { bg: "#d1fae5", text: "#065f46", border: "#a7f3d0" },        // Menta
-  { bg: "#e0e7ff", text: "#3730a3", border: "#c7d2fe" },        // Lavanda
-  { bg: "#fef3c7", text: "#92400e", border: "#fde68a" },        // Pêssego
-  { bg: "#ffffff", text: "#374151", border: "#d1d5db" },        // Branco
-  { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db" },        // Cinza
-] as const;
-
-const EDITOR_FONTS = ["Nunito", "Quicksand", "Poppins", "Inter", "Comfortaa", "Montserrat", "Lato", "Raleway", "DM Sans", "Work Sans"] as const;
-
-// ═══════════════════════════════════════════════════════════
-// Helpers para renderização de mídia nos posts
-// ═══════════════════════════════════════════════════════════
-
+// ── helpers ───────────────────────────────────────────────
 function formatDuration(seconds: number): string {
   if (!seconds || !isFinite(seconds) || isNaN(seconds)) return "0:00";
   const m = Math.floor(seconds / 60);
@@ -66,16 +26,6 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function getExpirationLabel(expiresAt: string): string {
-  const now = Date.now();
-  const expires = new Date(expiresAt).getTime();
-  const diff = expires - now;
-  if (diff <= 0) return "Expirado";
-  const hours = Math.floor(diff / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  if (hours > 0) return `Expira em ${hours}h${mins > 0 ? ` ${mins}min` : ""}`;
-  return `Expira em ${mins}min`;
-}
 
 // ═══════════════════════════════════════════════════════════
 // VideoPlayer (para posts do perfil público)
@@ -178,60 +128,6 @@ function AudioPlayer({ src }: { src: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PhotoGrid (para posts do perfil público)
-// ═══════════════════════════════════════════════════════════
-function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: (index: number) => void }) {
-  const count = photos.length;
-  if (count === 0) return null;
-
-  if (count === 1) {
-    return (
-      <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden rounded-xl shadow-sm">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-56 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-      </button>
-    );
-  }
-  if (count === 2) {
-    return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
-        {photos.map((url, i) => (
-          <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-          </button>
-        ))}
-      </div>
-    );
-  }
-  if (count === 3) {
-    return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
-        <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-        </button>
-        <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-        </button>
-        <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl shadow-sm">
-      {photos.slice(0, 4).map((url, i) => (
-        <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-32 object-cover hover:opacity-95 transition-opacity" loading="lazy" decoding="async" />
-          {i === 3 && count > 4 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-white font-bold text-sm">+{count - 4}</div>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
 // PhotoViewer — fullscreen overlay
 // ═══════════════════════════════════════════════════════════
 function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
@@ -247,26 +143,6 @@ function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; init
       )}
       <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
       {photos.length > 1 && <div className="absolute bottom-4 text-white/70 text-sm">{currentIndex + 1} / {photos.length}</div>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// ExpirationCounter
-// ═══════════════════════════════════════════════════════════
-function ExpirationCounter({ expiresAt }: { expiresAt: string }) {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    const update = () => setLabel(getExpirationLabel(expiresAt));
-    update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
-  }, [expiresAt]);
-  if (!label) return null;
-  return (
-    <div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-[#1A1A1A] bg-[#f7f75e] rounded-full px-2 py-0.5 w-fit">
-      <Clock className="h-2.5 w-2.5" />
-      <span>{label}</span>
     </div>
   );
 }
@@ -338,13 +214,6 @@ function FormattedText({
   );
 }
 
-function getPostItColor(postId: string) {
-  let hash = 0;
-  for (let i = 0; i < postId.length; i++) {
-    hash = postId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return POST_IT_COLORS[Math.abs(hash) % POST_IT_COLORS.length];
-}
 
 interface UserProfileDialogProps {
   userId: string | null;
