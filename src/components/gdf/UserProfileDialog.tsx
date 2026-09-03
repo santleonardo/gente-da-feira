@@ -713,9 +713,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             <div className="h-4 w-1/2 rounded bg-black/5 animate-pulse" />
           </div>
         ) : userData ? (
-          <div className="upd-blog flex flex-col h-[100dvh] w-full max-w-full min-w-0 overflow-x-hidden">
+          <div className="upd-blog h-[100dvh] w-full max-w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain" style={{WebkitOverflowScrolling: "touch"}}>
             {/* ═══════ HERO ═══════ */}
-            <div className="relative shrink-0">
+            <div className="relative">
               <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
               <div className="px-3.5 sm:px-6 pb-5 -mt-12 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
@@ -850,7 +850,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             {/* ═══════ TABS ═══════ */}
             {!isRestricted && (
               <>
-                <nav className="sticky top-0 z-10 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] shrink-0 w-full max-w-full overflow-x-hidden">
+                <nav className="bg-[#F9F8F6] border-b border-black/[0.06] w-full max-w-full overflow-x-hidden">
                   <div className="flex gap-0 overflow-x-auto overscroll-x-contain px-1" style={{WebkitOverflowScrolling: "touch"}}>
                     {visibleTabs.map((tab) => (
                       <button
@@ -871,7 +871,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </nav>
 
                 {/* ═══════ CONTEÚDO ═══════ */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3.5 sm:px-6 py-5 sm:py-6 min-w-0 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                <div className="px-3.5 sm:px-6 py-5 sm:py-6 min-w-0 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
                   {/* Posts / Entradas */}
                   {activeTab === "posts" && (
                     postsLoading ? (
