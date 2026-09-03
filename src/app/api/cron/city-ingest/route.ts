@@ -6,6 +6,7 @@ import { fetchRssFeed } from "@/lib/rss-fetch";
 import {
   computeRelevanceScore,
   looksLikeFeiraDeSantana,
+  isScopedFilterExempt,
 } from "@/lib/city-monitoring";
 import { publishCityFeedPost } from "@/lib/city-feed-post";
 
@@ -61,15 +62,16 @@ export async function GET(req: NextRequest) {
     for (const source of sources) {
       try {
         const items = await fetchRssFeed(source.rss_url as string);
-        // Fontes "national" (política, esporte, entretenimento etc. de
-        // abrangência nacional) não precisam mencionar Feira de Santana —
-        // o filtro local só se aplica a fontes "local" (padrão).
-        const isNationalSource = source.scope === "national";
+        // Fontes "regional" (Bahia / cidades vizinhas) e "national" (política,
+        // esporte, entretenimento etc. de abrangência nacional) não precisam
+        // mencionar Feira de Santana — o filtro local só se aplica a fontes
+        // "local" (padrão).
+        const filterExempt = isScopedFilterExempt(source.scope as string | null);
 
         for (const item of items) {
           const blob = `${item.title} ${item.summary || ""}`;
 
-          if (!isNationalSource && !looksLikeFeiraDeSantana(blob)) {
+          if (!filterExempt && !looksLikeFeiraDeSantana(blob)) {
             totalSkipped++;
             continue;
           }
