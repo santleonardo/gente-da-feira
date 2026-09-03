@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, Trash2, Loader2 } from "lucide-react";
+import { Download, Trash2, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
@@ -84,17 +84,57 @@ export function AccountSection() {
 
   const isConfirmationValid = confirmationText.trim().toUpperCase() === "EXCLUIR";
 
+  const [loggingOut, setLoggingOut] = useState(false);
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const supabase = createClient();
+      try { await supabase.removeAllChannels(); } catch { /* ok */ }
+      await supabase.auth.signOut();
+      useStore.getState().logout();
+    } catch {
+      toast.error("Erro ao sair da conta");
+      setLoggingOut(false);
+    }
+  };
+
+
   return (
     <>
       {/* CONTA */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-4">
-            <Download className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Minha conta</h3>
+            <Download className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Minha conta</h3>
           </div>
 
           <div className="space-y-4">
+            {/* Sair da conta */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-black/[0.06]">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-[#1A1A1A]">Sessão</p>
+                <p className="text-xs text-muted-foreground">
+                  Encerra o acesso neste dispositivo
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="shrink-0 gap-1.5 rounded-full border-black/15 text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white"
+              >
+                {loggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                Sair da conta
+              </Button>
+            </div>
+
             {/* Exportar dados */}
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-0.5">

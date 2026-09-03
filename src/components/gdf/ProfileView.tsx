@@ -1055,7 +1055,7 @@ export function ProfileView() {
       {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         {/* Cover sutil */}
-        <div className="h-32 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
+        <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
         
         <div className="px-3 sm:px-6 md:px-8 pb-6 sm:pb-8 -mt-12 sm:-mt-14 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
@@ -1151,6 +1151,26 @@ export function ProfileView() {
               <span className="text-[#4A4A4A] ml-1.5">seguidores</span>
             </button>
           </div>
+
+          {/* Ações rápidas */}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("config")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
+            >
+              Configurações
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sair da conta
+            </button>
+          </div>
+
         </div>
       </section>
 
