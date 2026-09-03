@@ -1229,7 +1229,11 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
               {pendingMedia?.type === "image" ? "Enviar esta foto?" : pendingMedia?.type === "video" ? "Enviar este vídeo?" : "Enviar este áudio?"}
             </p>
             <p className="text-xs text-[#4A4A4A]/70">
-              {pendingMedia?.type === "image" ? "A foto expirará em 1h" : pendingMedia?.type === "video" ? "O vídeo expirará em 1h" : "O áudio expirará em 1h"}
+              {pendingMedia?.type === "image"
+                ? "A foto expirará em 1h"
+                : pendingMedia?.type === "video"
+                  ? "O vídeo expirará em 1h"
+                  : "Áudio não expira"}
             </p>
           </div>
           <DialogFooter className="flex-row gap-2 sm:justify-center">
