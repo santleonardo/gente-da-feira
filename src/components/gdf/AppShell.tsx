@@ -473,7 +473,7 @@ export function AppShell() {
   return (
     <div
       className={cn(
-        "gdf-shell flex w-full max-w-full flex-col overflow-x-hidden bg-[#F9F8F6]",
+        "gdf-shell flex w-full max-w-[100vw] flex-col overflow-x-hidden bg-[#F9F8F6]",
         inChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
       )}
     >
@@ -575,7 +575,7 @@ export function AppShell() {
       {/* ── Main content com transição CSS (sem framer-motion) ── */}
       <main
         className={cn(
-          "flex-1 min-h-0 mobile-shell",
+          "flex-1 min-h-0 min-w-0 mobile-shell w-full max-w-full overflow-x-hidden",
           inChat
             ? "flex flex-col pb-0 overflow-hidden"
             : "mobile-main-pad",
@@ -585,7 +585,7 @@ export function AppShell() {
         <div
           className={cn(
             inChat
-              ? "flex flex-1 flex-col min-h-0 w-full max-w-full h-[100dvh] overflow-x-hidden"
+              ? "flex flex-1 flex-col min-h-0 w-full max-w-full h-[100dvh] max-h-[100dvh] overflow-x-hidden overflow-y-hidden"
               : "mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 md:py-8 min-w-0 overflow-x-hidden"
           )}
         >
@@ -624,7 +624,7 @@ export function AppShell() {
                 key={t.id}
                 onClick={() => handleTabClick(t.id)}
                 className={cn(
-                  "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-all duration-200",
+                  "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 sm:px-1 py-1.5 transition-all duration-200",
                   tab === t.id
                     ? "bg-[#1A1A1A] text-white"
                     : "text-[#4A4A4A]/50 active:scale-95"

@@ -1055,7 +1055,7 @@ export function ProfileView() {
       {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         {/* Cover sutil */}
-        <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
+        <div className="h-32 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
         
         <div className="px-3 sm:px-6 md:px-8 pb-6 sm:pb-8 -mt-12 sm:-mt-14 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">

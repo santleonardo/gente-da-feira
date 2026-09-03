@@ -522,18 +522,6 @@ interface PostDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function stripHtmlDetail(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-}
-function getDetailTitle(content: string | null | undefined): string {
-  if (!content) return "Entrada";
-  const text = stripHtmlDetail(content);
-  if (!text) return "Entrada";
-  const first = text.split("\n")[0].trim();
-  return first.length > 120 ? first.slice(0, 120) + "…" : first;
-}
-
-  
 export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogProps) {
   const { profile } = useStore();
   const [localPost, setLocalPost] = useState<PostWithAuthor | null>(null);
@@ -768,8 +756,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     return { roots, map };
   };
 
-
-if (!localPost || !open) return null;
+  if (!localPost || !open) return null;
 
   const { roots: commentRoots, map: commentMap } = buildCommentTree(comments);
   const reactionGroups = buildReactionGroups(localPost.reactions || []);
@@ -793,42 +780,31 @@ if (!localPost || !open) return null;
   return (
     <>
       {/* Full-screen dialog overlay */}
-      <div className="fixed inset-0 z-50 flex items-stretch sm:items-start justify-center bg-[#1A1A1A]/55 overflow-y-auto" onClick={() => onOpenChange(false)}>
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#000305]/50 backdrop-blur-sm overflow-y-auto" onClick={() => onOpenChange(false)}>
         <div
-          className="w-full sm:max-w-2xl sm:mx-4 sm:my-6 min-h-[100dvh] sm:min-h-0 sm:rounded-2xl bg-[#F9F8F6] shadow-2xl border-0 sm:border border-black/[0.08] overflow-x-hidden"
+          className="w-full max-w-lg mx-4 my-8 rounded-3xl bg-[#f7f9fa] shadow-2xl border border-primary/10 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header bar */}
-          <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-md">
-            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Entrada</h3>
-            <button onClick={() => onOpenChange(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1A1A1A]/80 text-white hover:bg-[#1A1A1A] transition-colors" aria-label="Fechar">
-              <X className="h-4 w-4" />
+          <div className="flex items-center justify-between px-4 py-3 border-b border-primary/8">
+            <h3 className="text-sm font-semibold text-card-foreground">Post</h3>
+            <button onClick={() => onOpenChange(false)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+              <X className="h-4 w-4 text-primary/60" />
             </button>
           </div>
 
-          {/* Post content — artigo */}
-          <div className="text-[#1A1A1A]">
-            <div className="px-4 sm:px-8 py-6 sm:py-8">
-              <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap');
-                .pdd-blog { font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; }
-                .pdd-blog .font-serif { font-family: "Playfair Display", ui-serif, Georgia, serif; }
-                .pdd-blog .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
-                .pdd-blog .post-content a:hover { color: #D96C4A; }
-                .pdd-blog .post-content h1 { font-family: "Playfair Display", serif; font-size: 1.5rem; font-weight: 500; margin: 0.5em 0 0.25em; }
-                .pdd-blog .post-content h2 { font-family: "Playfair Display", serif; font-size: 1.25rem; font-weight: 500; margin: 0.4em 0 0.2em; }
-                .pdd-blog .post-content blockquote { border-left: 3px solid #D96C4A; padding-left: 0.85em; margin: 0.5em 0; font-style: italic; color: #4A4A4A; }
-              `}</style>
-              <div className="pdd-blog">
+          {/* Post content */}
+          <div className={`rounded-none ${cardBg} text-card-foreground overflow-hidden border border-primary/10`}>
+            <div className="p-4 sm:p-5">
               {/* Header */}
               <div className="flex items-start gap-2.5">
                 <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)} className="shrink-0 group">
-                  <UserAvatar user={localPost.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-11 w-11 hover:opacity-80 transition-opacity ring-[3px] ring-[#F9F8F6] shadow-sm" />
+                  <UserAvatar user={localPost.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-10 w-10 sm:h-12 sm:w-12 hover:opacity-80 transition-opacity ring-2 ring-[#f7f9fa] shadow-sm" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap text-[11px] uppercase tracking-[0.12em] text-[#4A4A4A]/70">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)}
-                      className="text-[13px] normal-case tracking-normal font-medium text-[#1A1A1A] hover:text-[#D96C4A] transition-colors"
+                      className="text-sm font-semibold text-card-foreground hover:underline underline-offset-2 transition-all"
                     >
                       {localPost.author?.display_name || "Usuário"}
                     </button>
@@ -847,16 +823,9 @@ if (!localPost || !open) return null;
                         Editado
                       </span>
                     )}
-                    <span className="text-[#4A4A4A]/30">·</span>
-                    <span className="normal-case tracking-normal text-[11px] text-[#4A4A4A]/70">{timeAgo(localPost.created_at)}</span>
+                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/20" : "text-primary/25"}`}>·</span>
+                    <span className={`text-[10px] ${isTextOnly ? "text-card-foreground/40" : "text-primary/40"}`}>{timeAgo(localPost.created_at)}</span>
                   </div>
-
-                  {/* Título editorial */}
-                  {!isEditing && localPost.content && !isMediaPlaceholder(localPost.content) && (
-                    <h1 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-[#1A1A1A] leading-snug mt-4 mb-3">
-                      {getDetailTitle(localPost.content)}
-                    </h1>
-                  )}
 
                   {/* Content with clickable links and mentions */}
                   {isEditing ? (
@@ -924,38 +893,37 @@ if (!localPost || !open) return null;
                     </div>
                   )}
 
-                  {/* Media em destaque */}
-                  {(hasPhotos || hasVideo || hasAudio) && (
-                    <div className="mt-4 mb-2 overflow-hidden rounded-sm bg-black/[0.04]">
-                      {hasPhotos && (
-                        <div className="w-full">
-                          <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />
-                        </div>
-                      )}
+                  {/* Media */}
+                  {/* Media — full width for non-text-only */}
+                  {!isTextOnly && (hasPhotos || hasVideo || hasAudio) ? (
+                    <div className="-mx-3 sm:-mx-4 mt-1.5">
+                      {hasPhotos && <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />}
                       {hasVideo && <VideoPlayer src={localPost.video_url!} />}
-                      {hasAudio && (
-                        <div className="p-3">
-                          <AudioPlayer src={localPost.audio_url!} />
-                        </div>
-                      )}
+                      {hasAudio && <AudioPlayer src={localPost.audio_url!} />}
                     </div>
+                  ) : (
+                    <>
+                      {hasPhotos && <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />}
+                      {hasVideo && <VideoPlayer src={localPost.video_url!} />}
+                      {hasAudio && <AudioPlayer src={localPost.audio_url!} />}
+                    </>
                   )}
 
                   {/* Caption — text below media for media posts */}
                   {!isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
-                    <div className="mt-4">
+                    <div className="px-1 sm:px-1.5 mt-2">
                       <FormattedContent
-                        className="text-[16px] sm:text-[17px] leading-[1.7] whitespace-pre-wrap text-[#4A4A4A]"
+                        className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
                         content={localPost.content}
                         openUserProfile={navigateToProfile}
                         isMine={isOwnPost}
                         linkClassName={linkClass}
                         style={{
-                          fontFamily:  hasPostStyle && localPost.post_style!.font      ? `'${localPost.post_style!.font}', Georgia, serif` : undefined,
+                          fontFamily:  hasPostStyle && localPost.post_style!.font      ? `'${localPost.post_style!.font}', sans-serif` : undefined,
                           fontWeight:  hasPostStyle && localPost.post_style!.bold      ? 700                                      : undefined,
                           fontStyle:   hasPostStyle && localPost.post_style!.italic    ? "italic"                                 : undefined,
                           textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment as any    : undefined,
-                          color: "#4A4A4A",
+                          color: "var(--card-foreground)",
                         }}
                       />
                     </div>
@@ -970,12 +938,12 @@ if (!localPost || !open) return null;
                   )}
 
                   {/* Action bar */}
-                  <div className="mt-6 pt-4 border-t border-black/[0.06] flex items-center gap-0.5 flex-wrap">
+                  <div className="mt-2 flex items-center gap-0.5">
                     {/* Reactions */}
                     <div className="relative">
                       <button
                         onClick={() => setShowReactions(!showReactions)}
-                        className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-[#1A1A1A] bg-[#1A1A1A]/10 font-medium" : "text-[#4A4A4A]/50 hover:bg-black/[0.04] hover:text-[#1A1A1A]"}`}
+                        className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-primary bg-primary/10 font-medium" : "text-primary/40 hover:bg-primary/[0.04] hover:text-primary"}`}
                       >
                         <Heart className="h-4 w-4" />
                         {localPost.reactions?.length > 0 && <span>{localPost.reactions.length}</span>}
@@ -1066,12 +1034,8 @@ if (!localPost || !open) return null;
                 </div>
               </div>
 
-              {/* Comentários */}
-              <div className="mt-8 pt-6 border-t border-black/[0.06]">
-                <h4 className="font-serif text-lg font-medium text-[#1A1A1A] mb-4">
-                  Comentários{commentCount > 0 ? ` · ${commentCount}` : ""}
-                </h4>
-              <div className="rounded-xl border border-black/[0.06] bg-white/60 p-3 space-y-1.5">
+              {/* Comments section - always expanded in detail view */}
+              <div className={`mt-3 rounded-xl ${commentsBg} p-2.5 space-y-1.5`}>
                 {commentsLoading ? (
                   <div className="space-y-2 py-2">
                     {[1, 2].map((i) => (
@@ -1096,7 +1060,7 @@ if (!localPost || !open) return null;
                       />
                     ))}
                     {comments.length === 0 && (
-                      <p className="text-sm text-[#4A4A4A]/45 text-center py-3 font-serif">Nenhum comentário ainda</p>
+                      <p className="text-xs text-primary/30 text-center py-2">Nenhum comentário ainda</p>
                     )}
                   </>
                 )}
@@ -1119,20 +1083,18 @@ if (!localPost || !open) return null;
                         value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && submitComment()}
-                        className="flex-1 min-w-0 rounded-full border border-black/10 bg-[#F9F8F6] px-3 py-1.5 text-xs text-[#1A1A1A] focus:outline-none focus:border-[#D96C4A]/50 placeholder:text-[#4A4A4A]/40"
+                        className="flex-1 min-w-0 rounded-full border border-primary/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-card-foreground focus:outline-none focus:border-[#2EC4B6] placeholder:text-primary/30"
                       />
                       <button
                         onClick={submitComment}
                         disabled={!commentInput.trim() || submitting}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 transition-colors disabled:opacity-30"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] hover:bg-[#25b0a3] transition-colors disabled:opacity-30"
                       >
                         {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="text-xs">💬</span>}
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
-              </div>
               </div>
             </div>
           </div>
@@ -1142,8 +1104,8 @@ if (!localPost || !open) return null;
       {/* Repost dialog */}
       {repostingPost && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-[#000305]/50 backdrop-blur-sm" onClick={() => { setRepostingPost(null); setRepostContent(""); }}>
-          <div className="w-full max-w-md mx-4 rounded-2xl bg-[#F9F8F6] p-5 shadow-lg border border-black/10" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-serif text-lg font-medium text-[#1A1A1A] mb-3">Compartilhar no feed</h3>
+          <div className="w-full max-w-md mx-4 rounded-3xl bg-[#f7f9fa] p-5 shadow-lg border border-primary/10" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-card-foreground mb-3">Compartilhar no feed</h3>
             <div className="rounded-2xl bg-primary/[0.04] p-3 mb-3 border border-primary/8">
               <div className="flex items-center gap-2 mb-1">
                 <UserAvatar user={repostingPost.author || { id: "", display_name: "Usuário", username: "usuario" }} className="h-6 w-6" />
