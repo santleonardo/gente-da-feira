@@ -34,16 +34,29 @@ export type CityPlatform = (typeof CITY_PLATFORMS)[number];
 
 /**
  * Escopo geográfico de uma fonte:
- * - "local": conteúdo é filtrado por menção a Feira de Santana (looksLikeFeiraDeSantana)
- * - "national": conteúdo nacional/geral (política, esporte, entretenimento etc.)
+ * - "local":    conteúdo é filtrado por menção a Feira de Santana (looksLikeFeiraDeSantana)
+ * - "regional": Bahia / cidades vizinhas à RMFS — entra sem exigir menção
+ *   explícita a Feira de Santana (o filtro local é pulado na ingestão).
+ * - "national": conteúdo nacional (política, esporte, entretenimento etc.)
  *   entra sem exigir menção à cidade — o filtro local é pulado na ingestão.
+ *
+ * Qualquer escopo diferente de "local" pula o filtro looksLikeFeiraDeSantana
+ * na ingestão (ver isScopedFilterExempt abaixo).
  */
-export const CITY_SOURCE_SCOPES = ["local", "national"] as const;
+export const CITY_SOURCE_SCOPES = ["local", "regional", "national"] as const;
 
 export type CitySourceScope = (typeof CITY_SOURCE_SCOPES)[number];
 
 export function isCitySourceScope(v: string): v is CitySourceScope {
   return (CITY_SOURCE_SCOPES as readonly string[]).includes(v);
+}
+
+/**
+ * Fontes "local" exigem menção a Feira de Santana no texto; qualquer outro
+ * escopo ("regional", "national") é exempt do filtro looksLikeFeiraDeSantana.
+ */
+export function isScopedFilterExempt(scope: string | null | undefined): boolean {
+  return scope === "regional" || scope === "national";
 }
 
 /** Palavras que indicam relação com Feira de Santana */
