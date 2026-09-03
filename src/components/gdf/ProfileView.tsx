@@ -486,6 +486,8 @@ export function ProfileView() {
   });
   const [publishing, setPublishing] = useState(false);
   const [fontMenuOpen, setFontMenuOpen] = useState(false);
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false);
+  const styleMenuRef = useRef<HTMLDivElement>(null);
   const fontMenuRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorExpanded, setEditorExpanded] = useState(false);
@@ -586,13 +588,16 @@ export function ProfileView() {
       if (fontMenuOpen && fontMenuRef.current && !fontMenuRef.current.contains(e.target as Node)) {
         setFontMenuOpen(false);
       }
+      if (styleMenuOpen && styleMenuRef.current && !styleMenuRef.current.contains(e.target as Node)) {
+        setStyleMenuOpen(false);
+      }
       if (mediaMenuOpen && mediaMenuRef.current && !mediaMenuRef.current.contains(e.target as Node)) {
         setMediaMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [fontMenuOpen, mediaMenuOpen]);
+  }, [fontMenuOpen, styleMenuOpen, mediaMenuOpen]);
 
   // Track active formatting states
   useEffect(() => {
@@ -1327,233 +1332,213 @@ export function ProfileView() {
               </button>
             </div>
 
-            {/* Toolbar editorial */}
-            <div className="mb-2 flex items-center gap-0.5 rounded-xl border border-black/8 bg-[#F9F8F6] p-1 sm:p-1.5 overflow-x-auto overscroll-x-contain max-w-full" style={{WebkitOverflowScrolling: "touch"}}>
-              {/* Headings */}
-              <button
-                type="button"
-                title="Título"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  const block = document.queryCommandValue("formatBlock");
-                  document.execCommand("formatBlock", false, block?.toLowerCase() === "h1" ? "p" : "h1");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Heading1 className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Subtítulo"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  const block = document.queryCommandValue("formatBlock");
-                  document.execCommand("formatBlock", false, block?.toLowerCase() === "h2" ? "p" : "h2");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Heading2 className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-black/10 mx-1" />
-
-              {/* Inline */}
-              <button
-                type="button"
-                title="Negrito"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("bold");
-                  setActiveFormats((f) => ({ ...f, bold: !f.bold }));
-                }}
-                className={`p-2 rounded-lg transition-colors ${activeFormats.bold ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
-              >
-                <Bold className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Itálico"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("italic");
-                  setActiveFormats((f) => ({ ...f, italic: !f.italic }));
-                }}
-                className={`p-2 rounded-lg transition-colors ${activeFormats.italic ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
-              >
-                <Italic className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Sublinhado"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("underline");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Underline className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Destaque"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("hiliteColor", false, "#fef3c7");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Highlighter className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-black/10 mx-1" />
-
-              {/* Block */}
-              <button
-                type="button"
-                title="Citação"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  const block = document.queryCommandValue("formatBlock");
-                  document.execCommand("formatBlock", false, block?.toLowerCase() === "blockquote" ? "p" : "blockquote");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Quote className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Lista"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("insertUnorderedList");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <List className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Lista numerada"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("insertOrderedList");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <ListOrdered className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Linha horizontal"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("insertHorizontalRule");
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-black/10 mx-1" />
-
-              {/* Align */}
-              <button
-                type="button"
-                title="Alinhar à esquerda"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("justifyLeft");
-                  setPostStyle((s) => ({ ...s, alignment: "left" }));
-                }}
-                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "left" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
-              >
-                <AlignLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Centralizar"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("justifyCenter");
-                  setPostStyle((s) => ({ ...s, alignment: "center" }));
-                }}
-                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "center" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
-              >
-                <AlignCenter className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Alinhar à direita"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  document.execCommand("justifyRight");
-                  setPostStyle((s) => ({ ...s, alignment: "right" }));
-                }}
-                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "right" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
-              >
-                <AlignRight className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-black/10 mx-1" />
-
-              {/* Link */}
-              <button
-                type="button"
-                title="Inserir link"
-                onClick={() => {
-                  editorRef.current?.focus();
-                  const url = window.prompt("URL do link:", "https://");
-                  if (url) document.execCommand("createLink", false, url);
-                }}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                <Link2 className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-black/10 mx-1 hidden sm:block" />
-
-              {/* Font family */}
-              <div className="relative hidden sm:block" ref={fontMenuRef}>
+            {/* Toolbar editorial — mobile-friendly */}
+            <div className="mb-3 space-y-2 w-full min-w-0">
+              {/* Linha 1: estilo de bloco (sempre visível com rótulos) */}
+              <div className="relative" ref={styleMenuRef}>
                 <button
                   type="button"
-                  onClick={() => setFontMenuOpen((o) => !o)}
-                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-[#4A4A4A] hover:bg-black/5 transition-colors"
-                  title="Fonte"
+                  onClick={() => setStyleMenuOpen((o) => !o)}
+                  className="w-full flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-[#F9F8F6] px-3.5 py-2.5 text-sm text-[#1A1A1A] hover:bg-[#F9F8F6]/80 transition-colors"
                 >
-                  <Type className="h-3.5 w-3.5" />
-                  <span className="max-w-[72px] truncate">{postStyle.font || "Fonte"}</span>
-                  <ChevronDown className="h-3 w-3 opacity-50" />
+                  <span className="flex items-center gap-2 min-w-0">
+                    <Type className="h-4 w-4 shrink-0 text-[#D96C4A]" />
+                    <span className="font-medium truncate">Estilo do texto</span>
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-[#4A4A4A]/60 transition-transform ${styleMenuOpen ? "rotate-180" : ""}`} />
                 </button>
-                {fontMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-30 w-40 rounded-xl border border-black/10 bg-white py-1 shadow-lg">
-                    {FONTS.map((f) => (
+
+                {styleMenuOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-40 rounded-xl border border-black/10 bg-white py-1.5 shadow-lg max-h-[50vh] overflow-y-auto">
+                    <p className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]/50">
+                      Título e blocos
+                    </p>
+                    {[
+                      { label: "Título grande", hint: "H1", cmd: () => { document.execCommand("formatBlock", false, "h1"); } },
+                      { label: "Subtítulo", hint: "H2", cmd: () => { document.execCommand("formatBlock", false, "h2"); } },
+                      { label: "Parágrafo normal", hint: "P", cmd: () => { document.execCommand("formatBlock", false, "p"); } },
+                      { label: "Citação", hint: "“ ”", cmd: () => { document.execCommand("formatBlock", false, "blockquote"); } },
+                    ].map((item) => (
                       <button
-                        key={f.value}
+                        key={item.label}
                         type="button"
                         onClick={() => {
-                          setPostStyle((s) => ({ ...s, font: f.value }));
                           editorRef.current?.focus();
-                          document.execCommand("fontName", false, f.value);
-                          setFontMenuOpen(false);
+                          item.cmd();
+                          setStyleMenuOpen(false);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 transition-colors"
-                        style={{ fontFamily: `'${f.value}', sans-serif` }}
+                        className="w-full flex items-center justify-between px-3.5 py-3 text-left text-sm hover:bg-black/[0.04] active:bg-black/[0.06] transition-colors"
                       >
-                        {f.name}
+                        <span className="font-medium text-[#1A1A1A]">{item.label}</span>
+                        <span className="text-[11px] text-[#4A4A4A]/50 tabular-nums">{item.hint}</span>
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPostStyle((s) => ({ ...s, font: null }));
-                        setFontMenuOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-1.5 text-xs text-[#4A4A4A]/70 hover:bg-black/5 border-t border-black/5 mt-1"
-                    >
-                      Padrão
-                    </button>
+
+                    <div className="my-1 border-t border-black/[0.06]" />
+                    <p className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]/50">
+                      Listas e extras
+                    </p>
+                    {[
+                      { label: "Lista com marcadores", cmd: () => document.execCommand("insertUnorderedList") },
+                      { label: "Lista numerada", cmd: () => document.execCommand("insertOrderedList") },
+                      { label: "Linha divisória", cmd: () => document.execCommand("insertHorizontalRule") },
+                      {
+                        label: "Inserir link",
+                        cmd: () => {
+                          const url = window.prompt("URL do link:", "https://");
+                          if (url) document.execCommand("createLink", false, url);
+                        },
+                      },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => {
+                          editorRef.current?.focus();
+                          item.cmd();
+                          setStyleMenuOpen(false);
+                        }}
+                        className="w-full flex items-center px-3.5 py-3 text-left text-sm font-medium text-[#1A1A1A] hover:bg-black/[0.04] active:bg-black/[0.06] transition-colors"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+
+                    <div className="my-1 border-t border-black/[0.06]" />
+                    <p className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]/50">
+                      Alinhamento
+                    </p>
+                    <div className="flex gap-1 px-3 pb-2">
+                      {[
+                        { icon: AlignLeft, align: "left" as const, title: "Esquerda" },
+                        { icon: AlignCenter, align: "center" as const, title: "Centro" },
+                        { icon: AlignRight, align: "right" as const, title: "Direita" },
+                      ].map((a) => (
+                        <button
+                          key={a.align}
+                          type="button"
+                          title={a.title}
+                          onClick={() => {
+                            editorRef.current?.focus();
+                            document.execCommand(
+                              a.align === "left" ? "justifyLeft" : a.align === "center" ? "justifyCenter" : "justifyRight"
+                            );
+                            setPostStyle((s) => ({ ...s, alignment: a.align }));
+                            setStyleMenuOpen(false);
+                          }}
+                          className={`flex-1 flex items-center justify-center py-2.5 rounded-lg transition-colors ${
+                            postStyle.alignment === a.align
+                              ? "bg-[#1A1A1A] text-white"
+                              : "bg-[#F9F8F6] text-[#4A4A4A] hover:bg-black/5"
+                          }`}
+                        >
+                          <a.icon className="h-4 w-4" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Linha 2: formatação inline — grade visível, sem scroll escondido */}
+              <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1 rounded-xl border border-black/10 bg-[#F9F8F6] p-1.5">
+                <button
+                  type="button"
+                  title="Negrito"
+                  onClick={() => {
+                    editorRef.current?.focus();
+                    document.execCommand("bold");
+                    setActiveFormats((f) => ({ ...f, bold: !f.bold }));
+                  }}
+                  className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 min-h-[44px] sm:min-h-0 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors ${
+                    activeFormats.bold ? "bg-[#1A1A1A] text-white" : "text-[#1A1A1A] hover:bg-black/5"
+                  }`}
+                >
+                  <Bold className="h-4 w-4" />
+                  <span>Negrito</span>
+                </button>
+                <button
+                  type="button"
+                  title="Itálico"
+                  onClick={() => {
+                    editorRef.current?.focus();
+                    document.execCommand("italic");
+                    setActiveFormats((f) => ({ ...f, italic: !f.italic }));
+                  }}
+                  className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 min-h-[44px] sm:min-h-0 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-colors ${
+                    activeFormats.italic ? "bg-[#1A1A1A] text-white" : "text-[#1A1A1A] hover:bg-black/5"
+                  }`}
+                >
+                  <Italic className="h-4 w-4" />
+                  <span>Itálico</span>
+                </button>
+                <button
+                  type="button"
+                  title="Sublinhado"
+                  onClick={() => {
+                    editorRef.current?.focus();
+                    document.execCommand("underline");
+                  }}
+                  className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 min-h-[44px] sm:min-h-0 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium text-[#1A1A1A] hover:bg-black/5 transition-colors"
+                >
+                  <Underline className="h-4 w-4" />
+                  <span>Sublinhar</span>
+                </button>
+                <button
+                  type="button"
+                  title="Destaque"
+                  onClick={() => {
+                    editorRef.current?.focus();
+                    document.execCommand("hiliteColor", false, "#fef3c7");
+                  }}
+                  className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 min-h-[44px] sm:min-h-0 sm:px-3 sm:py-2 rounded-lg text-[11px] sm:text-xs font-medium text-[#1A1A1A] hover:bg-black/5 transition-colors"
+                >
+                  <Highlighter className="h-4 w-4" />
+                  <span>Destaque</span>
+                </button>
+
+                {/* Fonte — desktop e mobile via menu */}
+                <div className="relative col-span-4 sm:col-span-1 sm:ml-auto" ref={fontMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setFontMenuOpen((o) => !o)}
+                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-0 px-3 py-2 rounded-lg text-xs font-medium text-[#4A4A4A] hover:bg-black/5 transition-colors"
+                  >
+                    <Type className="h-3.5 w-3.5" />
+                    <span className="truncate max-w-[100px]">{postStyle.font || "Fonte"}</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </button>
+                  {fontMenuOpen && (
+                    <div className="absolute left-0 right-0 sm:left-auto sm:right-0 top-full mt-1 z-40 w-full sm:w-44 rounded-xl border border-black/10 bg-white py-1 shadow-lg max-h-56 overflow-y-auto">
+                      {FONTS.map((f) => (
+                        <button
+                          key={f.value}
+                          type="button"
+                          onClick={() => {
+                            setPostStyle((s) => ({ ...s, font: f.value }));
+                            editorRef.current?.focus();
+                            document.execCommand("fontName", false, f.value);
+                            setFontMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-sm hover:bg-black/5 transition-colors"
+                          style={{ fontFamily: `'${f.value}', sans-serif` }}
+                        >
+                          {f.name}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPostStyle((s) => ({ ...s, font: null }));
+                          setFontMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs text-[#4A4A4A]/70 hover:bg-black/5 border-t border-black/5 mt-1"
+                      >
+                        Padrão
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
