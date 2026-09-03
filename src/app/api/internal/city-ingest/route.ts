@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
         sourcePublishedAt: raw.source_published_at || null,
         text: blob,
         hasImage: !!raw.image_url,
+        scope: source?.scope ?? "local",
       });
 
       // Auto-publica só se score alto; senão fica rascunho para o admin
