@@ -95,7 +95,7 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
         {/* Botão play/pause */}
         <button
           onClick={toggle}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all shadow-md active:scale-95 bg-[#2EC4B6] text-white hover:bg-[#25b0a3]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all shadow-md active:scale-95 bg-[#D96C4A] text-white hover:bg-[#c15a3a]"
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
         </button>
@@ -104,17 +104,17 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
           {/* Linha superior: label + equalizer + duração total */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold tracking-tight text-primary dark:text-white/90">Áudio</span>
+              <span className="text-xs font-bold tracking-tight text-[#1A1A1A] dark:text-white/90">Áudio</span>
               {playing && (
                 <div className="flex items-end gap-[2px] h-3.5">
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "5px", animation: "eqBar 0.35s ease-in-out infinite alternate" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "12px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.12s" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "7px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.24s" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "9px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.36s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "5px", animation: "eqBar 0.35s ease-in-out infinite alternate" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "12px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.12s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "7px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.24s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "9px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.36s" }} />
                 </div>
               )}
             </div>
-            <span className="text-xs tabular-nums font-semibold text-primary/80 dark:text-white/70">
+            <span className="text-xs tabular-nums font-semibold text-[#1A1A1A]/80 dark:text-white/70">
               {formatDuration(safeDuration)}
             </span>
           </div>
@@ -127,23 +127,23 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
           >
             {/* Trilha preenchida */}
             <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 bg-[#2EC4B6]"
+              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 bg-[#D96C4A]"
               style={{ width: `${progress}%` }}
             />
             {/* Thumb — sempre visível */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md border-2 border-white transition-[left] duration-100 bg-[#2EC4B6]"
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md border-2 border-white transition-[left] duration-100 bg-[#D96C4A]"
               style={{ left: `calc(${Math.max(progress, 1)}% - 8px)` }}
             />
           </div>
 
           {/* Linha inferior: tempo atual */}
           <div className="flex justify-between items-center">
-            <span className="text-[11px] tabular-nums font-medium text-primary/60 dark:text-white/60">
+            <span className="text-[11px] tabular-nums font-medium text-[#1A1A1A]/60 dark:text-white/60">
               {formatDuration(safeCurrentTime)}
             </span>
             {playing && (
-              <span className="text-[10px] tabular-nums text-primary/40 dark:text-white/40">
+              <span className="text-[10px] tabular-nums text-[#1A1A1A]/40 dark:text-white/40">
                 {safeDuration > 0 ? `${Math.round(progress)}%` : ""}
               </span>
             )}
@@ -242,10 +242,10 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Mensagens</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}</p>
+          <h2 className="font-serif text-xl font-medium tracking-tight text-[#1A1A1A]">Mensagens</h2>
+          <p className="text-xs text-[#4A4A4A] mt-0.5">{conversations.length} conversa{conversations.length !== 1 ? "s" : ""}</p>
         </div>
-        <Button size="sm" onClick={() => setShowNew(true)} className="gap-1.5 rounded-full px-4 shadow-sm">
+        <Button size="sm" onClick={() => setShowNew(true)} className="gap-1.5 rounded-full px-4 shadow-sm bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90">
           <UserPlus className="h-4 w-4" /> Nova
         </Button>
       </div>
@@ -253,18 +253,18 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
       {loading && (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />
+            <div key={i} className="h-16 rounded-2xl bg-[#EFEDE8]/50 animate-pulse" />
           ))}
         </div>
       )}
 
       {!loading && conversations.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-3">
-            <MessageSquare className="h-6 w-6 text-muted-foreground" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
+            <MessageSquare className="h-6 w-6 text-[#4A4A4A]" />
           </div>
           <p className="text-sm font-medium">Nenhuma conversa ainda</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Comece uma conversa clicando em &quot;Nova&quot;</p>
+          <p className="text-xs text-[#4A4A4A] mt-0.5">Comece uma conversa clicando em &quot;Nova&quot;</p>
         </div>
       )}
 
@@ -275,7 +275,7 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
             <button
               key={conv.id}
               onClick={() => setSelectedDM(conv)}
-              className="group flex w-full items-center gap-3.5 rounded-2xl bg-card px-4 py-3.5 text-left transition-all duration-200 hover:bg-accent hover:shadow-sm active:scale-[0.98] border border-transparent hover:border-border/50"
+              className="group flex w-full items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5 text-left transition-all duration-200 hover:bg-[#1A1A1A]/[0.05] hover:shadow-sm active:scale-[0.98] border border-transparent hover:border-black/[0.08]"
             >
               <div className="relative shrink-0" onClick={(e) => { e.stopPropagation(); navigateToProfile(other.id); }}>
                 <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-12 w-12 hover:opacity-80 transition-opacity" />
@@ -283,9 +283,9 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold truncate">{other.display_name}</span>
-                  <span className="text-[10px] text-muted-foreground/60 shrink-0">{timeAgo(conv.updated_at)}</span>
+                  <span className="text-[10px] text-[#4A4A4A]/60 shrink-0">{timeAgo(conv.updated_at)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">@{other.username}</p>
+                <p className="text-xs text-[#4A4A4A] truncate mt-0.5">@{other.username}</p>
               </div>
             </button>
           );
@@ -295,11 +295,11 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg">Nova conversa</DialogTitle>
+            <DialogTitle className="font-serif text-lg">Nova conversa</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]" />
               <Input
                 placeholder="Buscar por nome ou @usuario..."
                 onChange={(e) => handleSearch(e.target.value)}
@@ -309,20 +309,20 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
             </div>
             <div className="max-h-64 overflow-y-auto space-y-0.5 custom-scrollbar">
               {searchUsers.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">Digite para buscar pessoas</p>
+                <p className="text-xs text-[#4A4A4A] text-center py-6">Digite para buscar pessoas</p>
               )}
               {searchUsers.map((u) => (
                 <button
                   key={u.id}
                   onClick={() => startConversation(u)}
-                  className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-accent active:scale-[0.98]"
+                  className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-[#1A1A1A]/[0.05] active:scale-[0.98]"
                 >
                   <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-10 w-10" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{u.display_name}</div>
-                    <div className="text-xs text-muted-foreground">@{u.username}</div>
+                    <div className="text-xs text-[#4A4A4A]">@{u.username}</div>
                   </div>
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <MessageSquare className="h-4 w-4 text-[#4A4A4A]" />
                 </button>
               ))}
             </div>
@@ -840,9 +840,9 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-accent shrink-0">
+    <div className="flex h-full min-h-0 flex-col bg-[#F9F8F6]">
+      <div className="flex shrink-0 items-center gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md z-10">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="relative" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
@@ -850,26 +850,26 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
         </div>
         <div className="flex-1 min-w-0" onClick={() => openUserProfile?.(other.id)} style={{ cursor: "pointer" }}>
           <h3 className="text-sm sm:text-base font-bold truncate">{other.display_name}</h3>
-          <p className="text-[11px] sm:text-xs text-muted-foreground">@{other.username}</p>
+          <p className="text-[11px] sm:text-xs text-[#4A4A4A]">@{other.username}</p>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-muted/15">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-[#EFEDE8]/15">
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-2">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <span className="text-xs text-muted-foreground">Carregando...</span>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1A1A1A] border-t-transparent" />
+              <span className="text-xs text-[#4A4A4A]">Carregando...</span>
             </div>
           </div>
         )}
         {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-3">
-              <MessageSquare className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
+              <MessageSquare className="h-6 w-6 text-[#4A4A4A]" />
             </div>
             <p className="text-sm font-medium">Inicie a conversa</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Diga olá para {other.display_name}!</p>
+            <p className="text-xs text-[#4A4A4A] mt-0.5">Diga olá para {other.display_name}!</p>
           </div>
         )}
         {groupedMessages.map((msg: any, idx: number) => {
@@ -903,7 +903,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <div key={msg.id} className="w-full" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 48px" }}>
               {showDaySep && (
                 <div className="flex justify-center py-3">
-                  <span className="rounded-full bg-card/90 border border-border/60 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm">
+                  <span className="rounded-full bg-white/90 border border-black/[0.08] px-3 py-0.5 text-[10px] font-semibold text-[#4A4A4A] shadow-sm">
                     {dayLabel}
                   </span>
                 </div>
@@ -915,8 +915,8 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                       mediaOnly
                         ? "bg-transparent p-0 shadow-none rounded-2xl overflow-hidden"
                         : isMine
-                          ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
-                          : "bg-card text-card-foreground border border-border/50 rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
+                          ? "bg-[#1A1A1A] text-white rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
+                          : "bg-white text-[#1A1A1A] border border-black/[0.08] rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
                     }`}
                   >
                     {hasImage && (
@@ -1014,7 +1014,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                     {isLastInGroup && !mediaOnly && (
                       <span
                         className={`ml-2 float-right mt-1 text-[10px] tabular-nums leading-none ${
-                          isMine ? "text-primary-foreground/55" : "text-muted-foreground/60"
+                          isMine ? "text-white/55" : "text-[#4A4A4A]/60"
                         }`}
                       >
                         {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
@@ -1028,7 +1028,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                     <button
                       onClick={() => useStore.getState().openReportDialog({ targetType: "dm_message", targetId: msg.id })}
                       title="Denunciar mensagem"
-                      className="mb-1 shrink-0 text-muted-foreground/30 hover:text-red-500 transition-colors opacity-0 group-hover/msg:opacity-100"
+                      className="mb-1 shrink-0 text-[#4A4A4A]/30 hover:text-red-500 transition-colors opacity-0 group-hover/msg:opacity-100"
                     >
                       <Flag className="h-3 w-3" />
                     </button>
@@ -1041,11 +1041,11 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       </div>
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="shrink-0 border-t border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {sendingMedia ? (
           <div className="flex items-center justify-center gap-2 py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Enviando mídia...</span>
+            <Loader2 className="h-4 w-4 animate-spin text-[#1A1A1A]" />
+            <span className="text-sm text-[#4A4A4A]">Enviando mídia...</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
@@ -1053,7 +1053,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <div className="relative" ref={attachMenuRef}>
               <button
                 onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A]"}`}
                 title="Anexar mídia"
               >
                 <ChevronUp className={`h-5 w-5 transition-transform ${attachMenuOpen ? "rotate-180" : ""}`} />
@@ -1061,54 +1061,54 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
 
               {/* ═══════ Menu de anexos — somente ícones ═══════ */}
               {attachMenuOpen && (
-                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 rounded-full bg-popover p-1.5 shadow-lg border border-border z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
+                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-1 rounded-full bg-popover p-1.5 shadow-lg border border-black/[0.08] z-50 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2">
                   <button
                     onClick={() => cameraPhotoRef.current?.click()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-[#1A1A1A] transition-colors hover:bg-[#1A1A1A]/[0.05]"
                     title="Tirar foto"
                   >
-                    <Camera className="h-5 w-5 text-primary" />
+                    <Camera className="h-5 w-5 text-[#1A1A1A]" />
                   </button>
 
                   <button
                     onClick={() => galleryPhotoRef.current?.click()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-[#1A1A1A] transition-colors hover:bg-[#1A1A1A]/[0.05]"
                     title="Foto da galeria"
                   >
-                    <ImagePlus className="h-5 w-5 text-primary" />
+                    <ImagePlus className="h-5 w-5 text-[#1A1A1A]" />
                   </button>
 
                   <button
                     onClick={() => cameraVideoRef.current?.click()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-[#1A1A1A] transition-colors hover:bg-[#1A1A1A]/[0.05]"
                     title="Filmar com câmera"
                   >
-                    <Video className="h-5 w-5 text-primary" />
+                    <Video className="h-5 w-5 text-[#1A1A1A]" />
                   </button>
 
                   <button
                     onClick={() => videoFileRef.current?.click()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-[#1A1A1A] transition-colors hover:bg-[#1A1A1A]/[0.05]"
                     title="Escolher vídeo"
                   >
-                    <Video className="h-5 w-5 text-primary/40" />
+                    <Video className="h-5 w-5 text-[#1A1A1A]/40" />
                   </button>
 
                   <button
                     onClick={() => { if (!isRecordingAudio) startAudioRecording(); }}
                     disabled={isRecordingAudio}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-accent ${isRecordingAudio ? "text-muted-foreground cursor-not-allowed" : "text-popover-foreground"}`}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-[#1A1A1A]/[0.05] ${isRecordingAudio ? "text-[#4A4A4A] cursor-not-allowed" : "text-popover-[#1A1A1A]"}`}
                     title="Gravar áudio"
                   >
-                    <Mic className={`h-5 w-5 ${isRecordingAudio ? "" : "text-primary"}`} />
+                    <Mic className={`h-5 w-5 ${isRecordingAudio ? "" : "text-[#1A1A1A]"}`} />
                   </button>
 
                   <button
                     onClick={() => audioFileRef.current?.click()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-foreground transition-colors hover:bg-accent"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-popover-[#1A1A1A] transition-colors hover:bg-[#1A1A1A]/[0.05]"
                     title="Escolher áudio"
                   >
-                    <Music className="h-5 w-5 text-primary/40" />
+                    <Music className="h-5 w-5 text-[#1A1A1A]/40" />
                   </button>
                 </div>
               )}
@@ -1128,7 +1128,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
                 value={input}
                 onChange={(e) => setInput(e.target.value.slice(0, 2000))}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                className="h-11 rounded-full pl-4 pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
+                className="h-11 rounded-full pl-4 pr-4 bg-[#EFEDE8]/50 border-0 focus-visible:ring-1 focus-visible:ring-[#1A1A1A]/30"
               />
             </div>
 
@@ -1136,7 +1136,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-md hover:bg-[#c15a3a] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
               title="Enviar"
             >
               <span className="text-lg leading-none">💬</span>
@@ -1149,24 +1149,24 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-[#f7f9fa] tabular-nums">{formatDuration(recordingSeconds)}</p>
-              <p className="text-xs text-[#f7f9fa]/50 mt-1">{isPausedRecording ? "Pausado" : "Gravando áudio..."}</p>
+              <p className="text-2xl font-bold text-[#F9F8F6] tabular-nums">{formatDuration(recordingSeconds)}</p>
+              <p className="text-xs text-[#F9F8F6]/50 mt-1">{isPausedRecording ? "Pausado" : "Gravando áudio..."}</p>
             </div>
-            <div className="w-48 h-2 bg-[#f7f9fa]/20 rounded-full overflow-hidden">
+            <div className="w-48 h-2 bg-[#F9F8F6]/20 rounded-full overflow-hidden">
               <div className="h-full bg-[#f7f75e] rounded-full transition-all" style={{ width: `${(recordingSeconds / MAX_AUDIO_DURATION) * 100}%` }} />
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={togglePauseRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f9fa]/20 transition-colors" title={isPausedRecording ? "Continuar" : "Pausar"}>
+              <button onClick={togglePauseRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-[#F9F8F6]/20 transition-colors" title={isPausedRecording ? "Continuar" : "Pausar"}>
                 {isPausedRecording ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
-              <button onClick={stopAudioRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-lg hover:bg-[#25b0a3] transition-colors" title="Enviar">
+              <button onClick={stopAudioRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-lg hover:bg-[#c15a3a] transition-colors" title="Enviar">
                 <Send className="h-6 w-6" />
               </button>
-              <button onClick={cancelAudioRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-red-500/80 transition-colors" title="Cancelar">
+              <button onClick={cancelAudioRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-red-500/80 transition-colors" title="Cancelar">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1187,18 +1187,18 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             />
             <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[#f7f9fa] font-bold tabular-nums">{formatDuration(videoRecSeconds)}</span>
-              <span className="text-[#f7f9fa]/50 text-xs">/ {MAX_VIDEO_DURATION}s</span>
+              <span className="text-[#F9F8F6] font-bold tabular-nums">{formatDuration(videoRecSeconds)}</span>
+              <span className="text-[#F9F8F6]/50 text-xs">/ {MAX_VIDEO_DURATION}s</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="w-full h-1.5 bg-[#f7f9fa]/20 rounded-full overflow-hidden mb-4">
+              <div className="w-full h-1.5 bg-[#F9F8F6]/20 rounded-full overflow-hidden mb-4">
                 <div className="h-full bg-[#f7f75e] rounded-full transition-all" style={{ width: `${(videoRecSeconds / MAX_VIDEO_DURATION) * 100}%` }} />
               </div>
               <div className="flex items-center justify-center gap-4">
-                <button onClick={cancelVideoRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-red-500/80 transition-colors" title="Cancelar">
+                <button onClick={cancelVideoRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-red-500/80 transition-colors" title="Cancelar">
                   <X className="h-5 w-5" />
                 </button>
-                <button onClick={stopVideoRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-lg hover:bg-[#25b0a3] transition-colors" title="Enviar vídeo">
+                <button onClick={stopVideoRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-lg hover:bg-[#c15a3a] transition-colors" title="Enviar vídeo">
                   <Send className="h-6 w-6" />
                 </button>
               </div>
@@ -1211,7 +1211,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
       <Dialog open={confirmSendOpen} onOpenChange={(open) => { if (!open) cancelSendMedia(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Enviar mídia</DialogTitle>
+            <DialogTitle className="font-serif">Enviar mídia</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-3 py-3">
             {pendingMedia?.type === "image" && pendingMedia.previewUrl && (
@@ -1221,14 +1221,14 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
               <video src={pendingMedia.previewUrl} className="max-w-full max-h-64 rounded-xl object-cover" controls playsInline preload="metadata" />
             )}
             {pendingMedia?.type === "audio" && (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <Music className="h-8 w-8 text-muted-foreground" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#EFEDE8]">
+                <Music className="h-8 w-8 text-[#4A4A4A]" />
               </div>
             )}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[#4A4A4A]">
               {pendingMedia?.type === "image" ? "Enviar esta foto?" : pendingMedia?.type === "video" ? "Enviar este vídeo?" : "Enviar este áudio?"}
             </p>
-            <p className="text-xs text-muted-foreground/70">
+            <p className="text-xs text-[#4A4A4A]/70">
               {pendingMedia?.type === "image" ? "A foto expirará em 1h" : pendingMedia?.type === "video" ? "O vídeo expirará em 1h" : "O áudio expirará em 1h"}
             </p>
           </div>
@@ -1236,7 +1236,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
             <Button variant="outline" onClick={cancelSendMedia} className="flex-1">
               Cancelar
             </Button>
-            <Button onClick={confirmSendMedia} className="flex-1 bg-[#2EC4B6] hover:bg-[#25b0a3] text-white">
+            <Button onClick={confirmSendMedia} className="flex-1 bg-[#D96C4A] hover:bg-[#c15a3a] text-white">
               Enviar
             </Button>
           </DialogFooter>

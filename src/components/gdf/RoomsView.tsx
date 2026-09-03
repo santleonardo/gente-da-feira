@@ -151,7 +151,7 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
   if (loading) return (
     <div className="space-y-3">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="h-20 rounded-2xl bg-muted/50 animate-pulse" />
+        <div key={i} className="h-20 rounded-2xl bg-[#EFEDE8]/50 animate-pulse" />
       ))}
     </div>
   );
@@ -198,29 +198,29 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
     <div className="space-y-5 sm:space-y-6 pb-2 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
         <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Salas</h2>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+          <h2 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] truncate">Salas</h2>
+          <p className="text-[11px] sm:text-xs text-[#4A4A4A] mt-0.5 truncate">
             {rooms.length} sala{rooms.length !== 1 ? "s" : ""} ativa{rooms.length !== 1 ? "s" : ""} · Feira de Santana
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-3 sm:px-4 h-10 min-h-10 shadow-sm shrink-0">
+        <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5 rounded-full px-3 sm:px-4 h-10 min-h-10 shadow-sm shrink-0 bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90">
           <Plus className="h-4 w-4" />
           <span className="text-sm">Nova</span>
         </Button>
       </div>
 
       {myRooms.length > 0 && (
-        <section className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.07] to-primary/[0.02] p-3 sm:p-4">
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-primary/80 flex items-center gap-1.5">
+        <section className="rounded-2xl border border-[#1A1A1A]/15 bg-gradient-to-b from-[#1A1A1A]/[0.07] to-[#1A1A1A]/[0.02] p-3 sm:p-4">
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#1A1A1A]/80 flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> Minhas Salas
-            <span className="ml-auto normal-case tracking-normal font-semibold text-primary/50 flex items-center gap-2">
+            <span className="ml-auto normal-case tracking-normal font-semibold text-[#1A1A1A]/50 flex items-center gap-2">
               {(() => {
                 const totalUnread = myRooms.reduce(
                   (acc, r) => acc + (Number(r.unreadCount) || 0),
                   0
                 );
                 return totalUnread > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground tabular-nums">
+                  <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-[#1A1A1A] px-1.5 text-[10px] font-bold text-white tabular-nums">
                     {totalUnread > 99 ? "99+" : totalUnread}
                   </span>
                 ) : null;
@@ -241,8 +241,8 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       )}
       {official.length > 0 && (
         <section>
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
-            <Crown className="h-3.5 w-3.5 text-primary/60" /> Oficiais
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
+            <Crown className="h-3.5 w-3.5 text-[#1A1A1A]/60" /> Oficiais
           </h3>
           <div className="space-y-2">
             {official.map((room) => (
@@ -253,7 +253,7 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       )}
       {community.length > 0 && (
         <section>
-          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+          <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
             <Hash className="h-3.5 w-3.5" /> Comunidades
           </h3>
           <div className="space-y-2">
@@ -265,16 +265,16 @@ export function RoomsView({ openUserProfile }: { openUserProfile?: (userId: stri
       )}
       {official.length === 0 && community.length === 0 && myRooms.length > 0 && (
         <div className="flex flex-col items-center justify-center py-6 text-center">
-          <p className="text-sm text-muted-foreground">Você já está em todas as salas disponíveis!</p>
+          <p className="text-sm text-[#4A4A4A]">Você já está em todas as salas disponíveis!</p>
         </div>
       )}
       {rooms.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
-            <Hash className="h-5 w-5 text-muted-foreground" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
+            <Hash className="h-5 w-5 text-[#4A4A4A]" />
           </div>
-          <p className="text-sm text-muted-foreground">Nenhuma sala ainda</p>
-          <p className="text-xs text-muted-foreground/60 mt-0.5">Crie a primeira!</p>
+          <p className="text-sm text-[#4A4A4A]">Nenhuma sala ainda</p>
+          <p className="text-xs text-[#4A4A4A]/60 mt-0.5">Crie a primeira!</p>
         </div>
       )}
 
@@ -337,13 +337,13 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
     if (isMember) {
       if (hasUnread) {
         return (
-          <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground tabular-nums shadow-sm">
+          <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full bg-[#1A1A1A] px-1.5 text-[10px] font-bold text-white tabular-nums shadow-sm">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         );
       }
       return (
-        <Badge className="text-[8px] px-2 py-0 h-5 bg-[#2EC4B6]/10 text-[#2EC4B6] hover:bg-[#2EC4B6]/15 border-0 gap-1 font-semibold">
+        <Badge className="text-[8px] px-2 py-0 h-5 bg-[#D96C4A]/10 text-[#D96C4A] hover:bg-[#D96C4A]/15 border-0 gap-1 font-semibold">
           <DoorOpen className="h-2.5 w-2.5" /> Abrir
         </Badge>
       );
@@ -374,9 +374,9 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
       className={`group flex w-full min-w-0 max-w-full items-center gap-2.5 sm:gap-3.5 rounded-2xl px-3 sm:px-4 py-3 sm:py-3.5 text-left transition-all duration-200 active:scale-[0.98] border shadow-sm hover:shadow-md touch-manipulation ${
         isMember
           ? hasUnread
-            ? "bg-primary/[0.08] border-primary/25 hover:bg-primary/[0.11]"
-            : "bg-primary/[0.04] border-primary/15 hover:bg-primary/[0.07]"
-          : "bg-card border-border/50 hover:bg-accent/60 hover:border-border"
+            ? "bg-[#1A1A1A]/[0.08] border-[#1A1A1A]/25 hover:bg-[#1A1A1A]/[0.11]"
+            : "bg-[#1A1A1A]/[0.04] border-[#1A1A1A]/15 hover:bg-[#1A1A1A]/[0.07]"
+          : "bg-white border-black/[0.08] hover:bg-[#1A1A1A]/[0.05] hover:border-black/[0.08]"
       }`}
     >
       {/* Icon + ponto de não lida */}
@@ -384,14 +384,14 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
         <div
           className={`flex h-13 w-13 min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-2xl text-2xl transition-transform group-hover:scale-105 ${
             isOfficial
-              ? "bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20"
-              : "bg-secondary ring-1 ring-border/40"
+              ? "bg-gradient-to-br from-[#1A1A1A]/20 to-[#1A1A1A]/5 ring-1 ring-[#1A1A1A]/20"
+              : "bg-[#F3F1ED] ring-1 ring-black/[0.08]"
           }`}
         >
           {room.icon}
         </div>
         {hasUnread && (
-          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-primary ring-2 ring-background" />
+          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#1A1A1A] ring-2 ring-[#F9F8F6]" />
         )}
       </div>
 
@@ -405,14 +405,14 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
           >
             {room.name}
           </span>
-          {isOfficial && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+          {isOfficial && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
           {isMember && room.myRole === "creator" && (
             <span className="text-[9px] font-bold uppercase tracking-wide text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
               Dono
             </span>
           )}
           {isMember && room.myRole === "moderator" && (
-            <span className="text-[9px] font-bold uppercase tracking-wide text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+            <span className="text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A] bg-[#1A1A1A]/10 px-1.5 py-0.5 rounded-full">
               Mod
             </span>
           )}
@@ -420,15 +420,15 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
         {lastPreview ? (
           <p
             className={`text-xs truncate mt-1 leading-snug ${
-              hasUnread ? "text-foreground/80 font-medium" : "text-muted-foreground"
+              hasUnread ? "text-[#1A1A1A]/80 font-medium" : "text-[#4A4A4A]"
             }`}
           >
             {lastPreview}
           </p>
         ) : room.description ? (
-          <p className="text-xs text-muted-foreground truncate mt-1 leading-snug">{room.description}</p>
+          <p className="text-xs text-[#4A4A4A] truncate mt-1 leading-snug">{room.description}</p>
         ) : (
-          <p className="text-xs text-muted-foreground/60 mt-1">
+          <p className="text-xs text-[#4A4A4A]/60 mt-1">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
           </p>
         )}
@@ -439,18 +439,18 @@ function RoomCard({ room, onClick }: { room: any; onClick: () => void }) {
         {lastAt ? (
           <span
             className={`text-[10px] tabular-nums ${
-              hasUnread ? "text-primary font-semibold" : "text-muted-foreground"
+              hasUnread ? "text-[#1A1A1A] font-semibold" : "text-[#4A4A4A]"
             }`}
           >
             {lastAt}
           </span>
         ) : (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 text-xs text-[#4A4A4A]">
             <Users className="h-3.5 w-3.5 opacity-70" />
             <span className="font-semibold tabular-nums">
               {memberCount}
               {room.max_members ? (
-                <span className="font-normal text-muted-foreground/70">/{room.max_members}</span>
+                <span className="font-normal text-[#4A4A4A]/70">/{room.max_members}</span>
               ) : null}
             </span>
           </div>
@@ -533,15 +533,15 @@ function CreateRoomDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto" aria-describedby="create-room-desc">
         <DialogHeader>
-          <DialogTitle className="text-lg">Criar nova sala</DialogTitle>
-          <DialogDescription id="create-room-desc" className="text-xs text-muted-foreground">
+          <DialogTitle className="font-serif text-lg">Criar nova sala</DialogTitle>
+          <DialogDescription id="create-room-desc" className="text-xs text-[#4A4A4A]">
             Defina nome, regras e limites da sala comunitária.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           {/* Icon picker */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Ícone da sala</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Ícone da sala</Label>
             <div className="flex flex-wrap gap-1.5">
               {ROOM_ICONS.map((emoji) => (
                 <button
@@ -549,8 +549,8 @@ function CreateRoomDialog({
                   onClick={() => setIcon(emoji)}
                   className={`h-10 w-10 rounded-xl text-lg flex items-center justify-center transition-all duration-150 ${
                     icon === emoji
-                      ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 scale-110"
-                      : "bg-muted hover:bg-accent hover:scale-105"
+                      ? "bg-[#1A1A1A] text-white ring-2 ring-[#1A1A1A] ring-offset-2 scale-110"
+                      : "bg-[#EFEDE8] hover:bg-[#1A1A1A]/[0.05] hover:scale-105"
                   }`}
                 >
                   {emoji}
@@ -561,21 +561,21 @@ function CreateRoomDialog({
 
           {/* Name */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Nome da sala *</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Nome da sala *</Label>
             <Input placeholder="Ex: Bate-papo do Centro" value={name} onChange={(e) => setName(e.target.value.slice(0, 50))} maxLength={50} className="h-11 rounded-xl" />
-            <span className="text-[10px] text-muted-foreground">{name.length}/50</span>
+            <span className="text-[10px] text-[#4A4A4A]">{name.length}/50</span>
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Descrição (opcional)</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Descrição (opcional)</Label>
             <Input placeholder="Do que essa sala é sobre?" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 200))} maxLength={200} className="h-11 rounded-xl" />
-            <span className="text-[10px] text-muted-foreground">{description.length}/200</span>
+            <span className="text-[10px] text-[#4A4A4A]">{description.length}/200</span>
           </div>
 
           {/* Rules */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Regras da sala (opcional)</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Regras da sala (opcional)</Label>
             <Textarea
               placeholder="Ex: Respeite todos, sem spam..."
               value={rules}
@@ -584,12 +584,12 @@ function CreateRoomDialog({
               className="rounded-xl min-h-[80px] resize-none"
               rows={3}
             />
-            <span className="text-[10px] text-muted-foreground">{rules.length}/500</span>
+            <span className="text-[10px] text-[#4A4A4A]">{rules.length}/500</span>
           </div>
 
           {/* Max members */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Máximo de membros</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Máximo de membros</Label>
             <Select value={maxMembers} onValueChange={setMaxMembers}>
               <SelectTrigger className="h-11 rounded-xl">
                 <SelectValue />
@@ -604,7 +604,7 @@ function CreateRoomDialog({
 
           {/* Password */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Senha (opcional — sala privada)</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Senha (opcional — sala privada)</Label>
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -617,7 +617,7 @@ function CreateRoomDialog({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] hover:text-[#1A1A1A] transition-colors"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -625,10 +625,10 @@ function CreateRoomDialog({
           </div>
 
           {/* Is open switch */}
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-[#EFEDE8]/50 p-3">
             <div className="space-y-0.5">
               <Label className="text-sm font-medium">Sala aberta</Label>
-              <p className="text-xs text-muted-foreground">Permitir que novos membros entrem</p>
+              <p className="text-xs text-[#4A4A4A]">Permitir que novos membros entrem</p>
             </div>
             <Switch checked={isOpen} onCheckedChange={setIsOpen} />
           </div>
@@ -765,24 +765,24 @@ function PreEntryScreen({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-full hover:bg-accent">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-full hover:bg-[#1A1A1A]/[0.05]">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-lg font-bold">Informações da sala</h2>
+        <h2 className="font-serif text-lg font-medium text-[#1A1A1A]">Informações da sala</h2>
       </div>
 
       {/* Room Card */}
-      <div className="rounded-2xl bg-card border shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-white border shadow-sm overflow-hidden">
         {/* Icon + Name Header */}
-        <div className="p-6 text-center bg-gradient-to-b from-primary/5 to-transparent">
+        <div className="p-6 text-center bg-gradient-to-b from-[#1A1A1A]/5 to-transparent">
           <div className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl ${
-            room.type === "official" ? "bg-primary/10" : "bg-secondary"
+            room.type === "official" ? "bg-[#1A1A1A]/10" : "bg-[#F3F1ED]"
           }`}>
             {room.icon}
           </div>
-          <h3 className="text-xl font-bold">{room.name}</h3>
+          <h3 className="font-serif text-xl font-medium text-[#1A1A1A]">{room.name}</h3>
           {room.description && (
-            <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">{room.description}</p>
+            <p className="text-sm text-[#4A4A4A] mt-1 max-w-xs mx-auto">{room.description}</p>
           )}
         </div>
 
@@ -808,14 +808,14 @@ function PreEntryScreen({
               </Badge>
             )}
             {room.type === "official" && (
-              <Badge className="bg-primary/10 text-primary hover:bg-primary/15 border-0 gap-1">
+              <Badge className="bg-[#1A1A1A]/10 text-[#1A1A1A] hover:bg-[#1A1A1A]/15 border-0 gap-1">
                 <Crown className="h-3 w-3" /> Oficial
               </Badge>
             )}
           </div>
 
           {/* Member count */}
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-sm text-[#4A4A4A]">
             <Users className="h-4 w-4" />
             <span className="font-medium">{memberCount}{room.max_members ? `/${room.max_members}` : ""} membros</span>
             {isFull && (
@@ -825,8 +825,8 @@ function PreEntryScreen({
 
           {/* Rules */}
           {room.rules && (
-            <div className="rounded-xl bg-muted/50 p-3 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <div className="rounded-xl bg-[#EFEDE8]/50 p-3 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#4A4A4A]">
                 <Shield className="h-3 w-3" /> Regras da sala
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{room.rules}</p>
@@ -835,14 +835,14 @@ function PreEntryScreen({
 
           {/* Creator info */}
           {creatorProfile && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-[#4A4A4A]">
               <span>Criada por</span>
               <button
                 onClick={() => openUserProfile?.(creatorProfile.id)}
                 className="flex items-center gap-1.5 hover:underline underline-offset-2 transition-all"
               >
                 <UserAvatar user={{ id: creatorProfile.id, display_name: creatorProfile.display_name, avatar_url: creatorProfile.avatar_url }} className="h-5 w-5" />
-                <span className="font-medium text-foreground">{creatorProfile.display_name}</span>
+                <span className="font-medium text-[#1A1A1A]">{creatorProfile.display_name}</span>
               </button>
             </div>
           )}
@@ -865,23 +865,23 @@ function PreEntryScreen({
           ) : isActuallyMember ? (
             <Button
               onClick={() => onEnter(freshRoom)}
-              className="w-full h-12 rounded-xl text-base gap-2 shadow-sm bg-[#2EC4B6] hover:bg-[#25b0a3] text-white"
+              className="w-full h-12 rounded-xl text-base gap-2 shadow-sm bg-[#D96C4A] hover:bg-[#c15a3a] text-white"
             >
               <UserCheck className="h-5 w-5" /> Voltar à sala
             </Button>
           ) : isClosed ? (
             <div className="text-center space-y-2">
-              <div className="rounded-xl bg-muted/50 p-4 text-center">
-                <DoorClosed className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">Sala fechada</p>
-                <p className="text-xs text-muted-foreground/60 mt-0.5">No momento esta sala não está aceitando novos membros.</p>
+              <div className="rounded-xl bg-[#EFEDE8]/50 p-4 text-center">
+                <DoorClosed className="h-8 w-8 text-[#4A4A4A] mx-auto mb-2" />
+                <p className="text-sm font-medium text-[#4A4A4A]">Sala fechada</p>
+                <p className="text-xs text-[#4A4A4A]/60 mt-0.5">No momento esta sala não está aceitando novos membros.</p>
               </div>
             </div>
           ) : isFull ? (
-            <div className="rounded-xl bg-muted/50 p-4 text-center">
-              <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm font-medium text-muted-foreground">Sala lotada</p>
-              <p className="text-xs text-muted-foreground/60 mt-0.5">Esta sala atingiu o número máximo de membros.</p>
+            <div className="rounded-xl bg-[#EFEDE8]/50 p-4 text-center">
+              <Users className="h-8 w-8 text-[#4A4A4A] mx-auto mb-2" />
+              <p className="text-sm font-medium text-[#4A4A4A]">Sala lotada</p>
+              <p className="text-xs text-[#4A4A4A]/60 mt-0.5">Esta sala atingiu o número máximo de membros.</p>
             </div>
           ) : (
             <Button
@@ -909,7 +909,7 @@ function PreEntryScreen({
       <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="font-serif flex items-center gap-2">
               <KeyRound className="h-5 w-5 text-amber-500" /> Sala privada
             </DialogTitle>
             <DialogDescription>
@@ -930,7 +930,7 @@ function PreEntryScreen({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A] hover:text-[#1A1A1A] transition-colors"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -1004,7 +1004,7 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
       <div className="flex items-center gap-3 px-3.5 py-3">
         <button
           onClick={toggle}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all shadow-md active:scale-95 bg-[#2EC4B6] text-white hover:bg-[#25b0a3]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all shadow-md active:scale-95 bg-[#D96C4A] text-white hover:bg-[#c15a3a]"
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
         </button>
@@ -1012,17 +1012,17 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold tracking-tight text-primary dark:text-white/90">Áudio</span>
+              <span className="text-xs font-bold tracking-tight text-[#1A1A1A] dark:text-white/90">Áudio</span>
               {playing && (
                 <div className="flex items-end gap-[2px] h-3.5">
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "5px", animation: "eqBar 0.35s ease-in-out infinite alternate" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "12px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.12s" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "7px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.24s" }} />
-                  <span className="inline-block w-[3px] rounded-full bg-[#2EC4B6]" style={{ height: "9px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.36s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "5px", animation: "eqBar 0.35s ease-in-out infinite alternate" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "12px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.12s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "7px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.24s" }} />
+                  <span className="inline-block w-[3px] rounded-full bg-[#D96C4A]" style={{ height: "9px", animation: "eqBar 0.35s ease-in-out infinite alternate 0.36s" }} />
                 </div>
               )}
             </div>
-            <span className="text-xs tabular-nums font-semibold text-primary/80 dark:text-white/70">
+            <span className="text-xs tabular-nums font-semibold text-[#1A1A1A]/80 dark:text-white/70">
               {formatDuration(safeDuration)}
             </span>
           </div>
@@ -1033,21 +1033,21 @@ function ChatAudioPlayer({ src, isMine }: { src: string; isMine?: boolean }) {
             onTouchMove={seekTouch}
           >
             <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 bg-[#2EC4B6]"
+              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-100 bg-[#D96C4A]"
               style={{ width: `${progress}%` }}
             />
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md border-2 border-white transition-[left] duration-100 bg-[#2EC4B6]"
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md border-2 border-white transition-[left] duration-100 bg-[#D96C4A]"
               style={{ left: `calc(${Math.max(progress, 1)}% - 8px)` }}
             />
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-[11px] tabular-nums font-medium text-primary/60 dark:text-white/60">
+            <span className="text-[11px] tabular-nums font-medium text-[#1A1A1A]/60 dark:text-white/60">
               {formatDuration(safeCurrentTime)}
             </span>
             {playing && (
-              <span className="text-[10px] tabular-nums text-primary/40 dark:text-white/40">
+              <span className="text-[10px] tabular-nums text-[#1A1A1A]/40 dark:text-white/40">
                 {safeDuration > 0 ? `${Math.round(progress)}%` : ""}
               </span>
             )}
@@ -1145,7 +1145,7 @@ function BanDialog({
     >
       <DialogContent className="max-w-sm rounded-2xl" aria-describedby="ban-dialog-desc">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="font-serif flex items-center gap-2">
             <Ban className="h-5 w-5 text-destructive" /> Banir membro
           </DialogTitle>
           <DialogDescription id="ban-dialog-desc">
@@ -1154,7 +1154,7 @@ function BanDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Duração do ban</Label>
+            <Label className="text-xs font-medium text-[#4A4A4A]">Duração do ban</Label>
             <div className="grid grid-cols-1 gap-2">
               {presets.map((p) => (
                 <button
@@ -1163,14 +1163,14 @@ function BanDialog({
                   onClick={() => setDuration(p.value)}
                   className={`rounded-xl px-3 py-2.5 text-left transition-all border ${
                     duration === p.value
-                      ? "bg-destructive text-destructive-foreground border-destructive shadow-sm"
-                      : "bg-muted/60 hover:bg-accent text-foreground border-transparent"
+                      ? "bg-destructive text-destructive-[#1A1A1A] border-destructive shadow-sm"
+                      : "bg-[#EFEDE8]/60 hover:bg-[#1A1A1A]/[0.05] text-[#1A1A1A] border-transparent"
                   }`}
                 >
                   <span className="block text-sm font-semibold">{p.label}</span>
                   <span
                     className={`block text-[11px] mt-0.5 ${
-                      duration === p.value ? "text-destructive-foreground/80" : "text-muted-foreground"
+                      duration === p.value ? "text-destructive-[#1A1A1A]/80" : "text-[#4A4A4A]"
                     }`}
                   >
                     {p.hint}
@@ -1178,7 +1178,7 @@ function BanDialog({
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground pt-1">
+            <p className="text-[11px] text-[#4A4A4A] pt-1">
               Confirmação: ban <strong>{durationLabel}</strong>
             </p>
           </div>
@@ -1269,7 +1269,7 @@ function InviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="font-serif flex items-center gap-2">
             <UserPlus className="h-5 w-5" /> Convidar para a sala
           </DialogTitle>
           <DialogDescription>
@@ -1283,7 +1283,7 @@ function InviteDialog({
             </div>
           )}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4A4A4A]" />
             <Input
               placeholder="Buscar pessoa..."
               value={search}
@@ -1295,19 +1295,19 @@ function InviteDialog({
           <ScrollArea className="max-h-60">
             {searching && (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#1A1A1A]" />
               </div>
             )}
             {!searching && search.trim().length >= 2 && results.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum resultado encontrado</p>
+              <p className="text-sm text-[#4A4A4A] text-center py-6">Nenhum resultado encontrado</p>
             )}
             <div className="space-y-1">
               {results.map((user) => (
-                <div key={user.id} className="flex items-center gap-3 rounded-xl p-2 hover:bg-accent/50 transition-colors">
+                <div key={user.id} className="flex items-center gap-3 rounded-xl p-2 hover:bg-[#1A1A1A]/[0.05] transition-colors">
                   <UserAvatar user={{ id: user.id, display_name: user.display_name, avatar_url: user.avatar_url }} className="h-9 w-9" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{user.display_name}</p>
-                    <p className="text-xs text-muted-foreground">@{user.username}</p>
+                    <p className="text-xs text-[#4A4A4A]">@{user.username}</p>
                   </div>
                   <Button
                     size="sm"
@@ -1411,11 +1411,11 @@ function DeleteRoomDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
+          <DialogTitle className="font-serif flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
             Excluir sala
           </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground pt-1">
+          <DialogDescription className="text-sm text-[#4A4A4A] pt-1">
             Esta ação é <strong className="text-destructive">irreversível</strong> e não poderá ser desfeita.
           </DialogDescription>
         </DialogHeader>
@@ -1426,7 +1426,7 @@ function DeleteRoomDialog({
             <p className="text-sm font-medium text-destructive">
               Todos os dados da sala serão permanentemente removidos:
             </p>
-            <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-[#4A4A4A] space-y-1 ml-4 list-disc">
               <li>Todas as mensagens da sala</li>
               <li>Todos os membros e moderadores</li>
               <li>Registros de banimento</li>
@@ -1436,13 +1436,13 @@ function DeleteRoomDialog({
           </div>
 
           {/* Identificação da sala */}
-          <div className="rounded-xl bg-muted/50 p-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-lg shrink-0">
+          <div className="rounded-xl bg-[#EFEDE8]/50 p-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3F1ED] text-lg shrink-0">
               {room?.icon || "💬"}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{roomName}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#4A4A4A]">
                 {room?.member_count || room?.memberCount || 0} membro{(room?.member_count || room?.memberCount || 0) !== 1 ? "s" : ""}
               </p>
             </div>
@@ -1450,8 +1450,8 @@ function DeleteRoomDialog({
 
           {/* Campo de confirmação */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">
-              Digite <strong className="text-foreground">{roomName}</strong> para confirmar a exclusão
+            <Label className="text-xs font-medium text-[#4A4A4A]">
+              Digite <strong className="text-[#1A1A1A]">{roomName}</strong> para confirmar a exclusão
             </Label>
             <Input
               value={confirmText}
@@ -1635,7 +1635,7 @@ function AdminPanel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="font-serif flex items-center gap-2">
             <Settings className="h-5 w-5" /> Painel de administração
           </DialogTitle>
           <DialogDescription>
@@ -1644,13 +1644,13 @@ function AdminPanel({
         </DialogHeader>
         <div className="space-y-5">
           {/* Toggle open/closed */}
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 p-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-[#EFEDE8]/50 p-4">
             <div className="space-y-0.5">
               <Label className="text-sm font-medium flex items-center gap-1.5">
                 {isOpen ? <DoorOpen className="h-4 w-4 text-emerald-500" /> : <DoorClosed className="h-4 w-4 text-red-500" />}
                 {isOpen ? "Sala aberta" : "Sala fechada"}
               </Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#4A4A4A]">
                 {isOpen ? "Novos membros podem entrar" : "Ninguém pode entrar na sala"}
               </p>
             </div>
@@ -1661,13 +1661,13 @@ function AdminPanel({
 
           {/* Moderators list */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">Moderadores</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-[#4A4A4A]/70">Moderadores</Label>
             {moderators.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-2">Nenhum moderador</p>
+              <p className="text-xs text-[#4A4A4A] text-center py-2">Nenhum moderador</p>
             ) : (
               <div className="space-y-1">
                 {moderators.map((m: any) => (
-                  <div key={m.id} className="flex items-center gap-2.5 rounded-xl p-2 bg-muted/30">
+                  <div key={m.id} className="flex items-center gap-2.5 rounded-xl p-2 bg-[#EFEDE8]/30">
                     <UserAvatar user={{ id: m.profile?.id || m.user_id, display_name: m.profile?.display_name || "?", avatar_url: m.profile?.avatar_url }} className="h-8 w-8" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{m.profile?.display_name || "Usuário"}</p>
@@ -1685,26 +1685,26 @@ function AdminPanel({
 
           {/* Banned members */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+            <Label className="text-xs font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
               <Ban className="h-3 w-3" /> Membros banidos
             </Label>
             {loadingBanned ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#1A1A1A]" />
               </div>
             ) : bannedMembers.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-2">Nenhum membro banido</p>
+              <p className="text-xs text-[#4A4A4A] text-center py-2">Nenhum membro banido</p>
             ) : (
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {bannedMembers.map((ban: any) => {
                   const prof = ban.profiles;
                   const isPermanent = !ban.banned_until;
                   return (
-                    <div key={ban.id} className="flex items-center gap-2.5 rounded-xl p-2 bg-muted/30">
+                    <div key={ban.id} className="flex items-center gap-2.5 rounded-xl p-2 bg-[#EFEDE8]/30">
                       <UserAvatar user={{ id: prof?.id || ban.user_id, display_name: prof?.display_name || "?", avatar_url: prof?.avatar_url }} className="h-8 w-8" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{prof?.display_name || "Usuário"}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[10px] text-[#4A4A4A]">
                           {isPermanent ? "Banimento permanente" : `Até ${new Date(ban.banned_until).toLocaleDateString("pt-BR")}`}
                         </p>
                       </div>
@@ -1723,16 +1723,16 @@ function AdminPanel({
             <>
               <Separator />
               <div className="space-y-3">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+                <Label className="text-xs font-bold uppercase tracking-widest text-[#4A4A4A]/70 flex items-center gap-1.5">
                   <Settings className="h-3 w-3" /> Configurações da Sala
                 </Label>
 
-                <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">
+                <div className="rounded-xl bg-[#EFEDE8]/50 p-3 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{room.icon || "💬"}</span>
                     <span className="text-sm font-semibold">{room.name}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-3 text-[10px] text-[#4A4A4A]">
                     <span className="flex items-center gap-0.5">
                       <Users className="h-3 w-3" />
                       {room.member_count || room.memberCount || 0} membros
@@ -1748,23 +1748,23 @@ function AdminPanel({
 
                 {/* Regras */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Regras da sala</Label>
+                  <Label className="text-xs font-medium text-[#4A4A4A]">Regras da sala</Label>
                   <textarea
                     value={rulesDraft}
                     onChange={(e) => setRulesDraft(e.target.value.slice(0, 500))}
                     placeholder="Ex.: Respeito mútuo, sem spam..."
                     rows={3}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-xl border border-black/[0.08] bg-[#F9F8F6] px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/30"
                   />
-                  <span className="text-[10px] text-muted-foreground">{rulesDraft.length}/500</span>
+                  <span className="text-[10px] text-[#4A4A4A]">{rulesDraft.length}/500</span>
                 </div>
 
                 {/* Senha (opcional) */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Label className="text-xs font-medium text-[#4A4A4A] flex items-center gap-1">
                     <KeyRound className="h-3 w-3" /> Senha da sala
                   </Label>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-[#4A4A4A]">
                     {room.has_password && !clearPassword
                       ? "Sala protegida. Digite uma nova senha para trocar, ou remova a proteção."
                       : "Opcional. Deixe em branco para manter sem senha."}
@@ -1779,18 +1779,18 @@ function AdminPanel({
                         if (e.target.value) setClearPassword(false);
                       }}
                       placeholder={room.has_password ? "Nova senha" : "Definir senha"}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 pr-10 text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full rounded-xl border border-black/[0.08] bg-[#F9F8F6] px-3 py-2 pr-10 text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/30"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPwd((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A4A4A]"
                     >
                       {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {room.has_password && (
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-[#4A4A4A] cursor-pointer">
                       <input
                         type="checkbox"
                         checked={clearPassword}
@@ -1798,7 +1798,7 @@ function AdminPanel({
                           setClearPassword(e.target.checked);
                           if (e.target.checked) setPasswordDraft("");
                         }}
-                        className="rounded border-border"
+                        className="rounded border-black/[0.08]"
                       />
                       Remover senha (sala pública)
                     </label>
@@ -1826,7 +1826,7 @@ function AdminPanel({
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     <span className="text-xs font-semibold text-destructive">Zona de perigo</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-[#4A4A4A]">
                     A exclusão da sala é permanente e não pode ser desfeita. Todos os dados serão removidos.
                   </p>
                   <Button
@@ -1939,12 +1939,12 @@ function MemberActionMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 w-full rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors text-left">
+          <button className="flex items-center gap-2 w-full rounded-xl px-2 py-1.5 hover:bg-[#1A1A1A]/[0.05] transition-colors text-left">
             <div className="relative shrink-0">
               <UserAvatar user={{ id: mp?.id || member.user_id, display_name: mp?.display_name || "?", avatar_url: mp?.avatar_url }} className="h-8 w-8" />
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${
-                  isOnline ? "bg-emerald-500" : "bg-muted-foreground/35"
+                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#F9F8F6] ${
+                  isOnline ? "bg-emerald-500" : "bg-[#4A4A4A]/35"
                 }`}
                 title={isOnline ? "Online" : "Offline"}
               />
@@ -1968,11 +1968,11 @@ function MemberActionMenu({
                   </span>
                 )}
                 {member.role === "member" && (
-                  <span className="text-[10px] text-muted-foreground">Membro</span>
+                  <span className="text-[10px] text-[#4A4A4A]">Membro</span>
                 )}
                 <span
                   className={`text-[10px] ${
-                    isOnline ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground/70"
+                    isOnline ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-[#4A4A4A]/70"
                   }`}
                 >
                   · {isOnline ? "Online" : "Offline"}
@@ -1980,7 +1980,7 @@ function MemberActionMenu({
               </div>
             </div>
             {!isSelf && (
-              <MoreVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+              <MoreVertical className="h-4 w-4 text-[#4A4A4A] shrink-0" />
             )}
           </button>
         </DropdownMenuTrigger>
@@ -3289,23 +3289,23 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const existingMemberIds = members.map((m: any) => m.user_id);
 
   return (
-    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-x-hidden bg-background">
+    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-x-hidden bg-[#F9F8F6]">
       {/* Header — fixo no topo do chat */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-accent shrink-0">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl shrink-0 ${room.type === "official" ? "bg-primary/10 ring-1 ring-primary/15" : "bg-secondary"}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl shrink-0 ${room.type === "official" ? "bg-[#1A1A1A]/10 ring-1 ring-[#1A1A1A]/15" : "bg-[#F3F1ED]"}`}>
           <span>{room.icon}</span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
-            {room.type === "official" && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+            {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
             {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
             {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
           </div>
-          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
+          <p className="text-[11px] sm:text-xs text-[#4A4A4A] truncate">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
             {isMember && onlineCount > 0 ? (
               <span className="text-emerald-600 dark:text-emerald-400">
@@ -3376,10 +3376,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               setMemberSearch("");
             }}
           />
-          <div className="relative z-10 mx-auto w-full max-w-lg overflow-x-hidden rounded-t-3xl sm:rounded-3xl border border-border bg-card shadow-2xl max-h-[85dvh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
-            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden shrink-0" />
+          <div className="relative z-10 mx-auto w-full max-w-lg overflow-x-hidden rounded-t-3xl sm:rounded-3xl border border-black/[0.08] bg-white shadow-2xl max-h-[85dvh] flex flex-col pb-[max(0.75rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#4A4A4A]/30 sm:hidden shrink-0" />
             <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
-            <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
+            <h4 className="text-[11px] font-bold uppercase tracking-widest text-[#4A4A4A]/70">
               {membersTab === "active"
                 ? `Membros · ${members.length}${onlineCount > 0 ? ` · ${onlineCount} online` : ""}`
                 : `Banidos · ${bannedMembers.length}`}
@@ -3401,12 +3401,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
           {/* Abas — Banidos só para mod/creator */}
           {isAdmin && (
-            <div className="flex rounded-lg bg-muted p-0.5 mb-2.5">
+            <div className="flex rounded-lg bg-[#EFEDE8] p-0.5 mb-2.5">
               <button
                 type="button"
                 onClick={() => setMembersTab("active")}
                 className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors ${
-                  membersTab === "active" ? "bg-background shadow-sm" : "text-muted-foreground"
+                  membersTab === "active" ? "bg-[#F9F8F6] shadow-sm" : "text-[#4A4A4A]"
                 }`}
               >
                 Membros
@@ -3415,7 +3415,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 type="button"
                 onClick={() => setMembersTab("banned")}
                 className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 ${
-                  membersTab === "banned" ? "bg-background shadow-sm" : "text-muted-foreground"
+                  membersTab === "banned" ? "bg-[#F9F8F6] shadow-sm" : "text-[#4A4A4A]"
                 }`}
               >
                 <Ban className="h-3 w-3" /> Banidos
@@ -3426,18 +3426,18 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           {/* Busca de membros */}
           {membersTab === "active" && members.length > 3 && (
             <div className="relative mb-2.5">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#4A4A4A] pointer-events-none" />
               <Input
                 value={memberSearch}
                 onChange={(e) => setMemberSearch(e.target.value)}
                 placeholder="Buscar membro..."
-                className="h-8 pl-8 pr-8 text-xs rounded-full bg-muted/50 border-0"
+                className="h-8 pl-8 pr-8 text-xs rounded-full bg-[#EFEDE8]/50 border-0"
               />
               {memberSearch && (
                 <button
                   type="button"
                   onClick={() => setMemberSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#4A4A4A] hover:text-[#1A1A1A]"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -3450,13 +3450,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               {membersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-9 rounded-lg bg-muted/50 animate-pulse" />
+                    <div key={i} className="h-9 rounded-lg bg-[#EFEDE8]/50 animate-pulse" />
                   ))}
                 </div>
               ) : members.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">Nenhum membro ainda</p>
+                <p className="text-xs text-[#4A4A4A] text-center py-3">Nenhum membro ainda</p>
               ) : sortedMembers.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">
+                <p className="text-xs text-[#4A4A4A] text-center py-3">
                   Nenhum membro encontrado para “{memberSearch}”
                 </p>
               ) : (
@@ -3468,7 +3468,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       return (
                         <div
                           key={m.id || m.user_id}
-                          className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50 transition-colors"
+                          className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-[#1A1A1A]/[0.05] transition-colors"
                         >
                           <div className="relative shrink-0">
                             <UserAvatar
@@ -3476,13 +3476,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                               className="h-8 w-8"
                             />
                             <span
-                              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${
-                                isOnline ? "bg-emerald-500" : "bg-muted-foreground/35"
+                              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#F9F8F6] ${
+                                isOnline ? "bg-emerald-500" : "bg-[#4A4A4A]/35"
                               }`}
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs font-medium text-muted-foreground truncate">
+                            <span className="text-xs font-medium text-[#4A4A4A] truncate">
                               Usuário
                             </span>
                           </div>
@@ -3512,11 +3512,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               {bannedLoading ? (
                 <div className="space-y-2">
                   {[1, 2].map((i) => (
-                    <div key={i} className="h-9 rounded-lg bg-muted/50 animate-pulse" />
+                    <div key={i} className="h-9 rounded-lg bg-[#EFEDE8]/50 animate-pulse" />
                   ))}
                 </div>
               ) : bannedMembers.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3">
+                <p className="text-xs text-[#4A4A4A] text-center py-3">
                   Nenhum membro banido
                 </p>
               ) : (
@@ -3529,7 +3529,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     return (
                       <div
                         key={b.id || b.user_id}
-                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 bg-muted/30"
+                        className="flex items-center gap-2 rounded-xl px-2 py-1.5 bg-[#EFEDE8]/30"
                       >
                         <UserAvatar
                           user={{
@@ -3543,7 +3543,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           <p className="text-xs font-medium truncate">
                             {prof?.display_name || "Usuário"}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-[10px] text-[#4A4A4A]">
                             {until ? `Até ${until}` : "Banimento permanente"}
                           </p>
                         </div>
@@ -3576,8 +3576,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {!isMember && membershipLoading && (
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span className="text-sm text-muted-foreground">Verificando participação...</span>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1A1A1A] border-t-transparent" />
+            <span className="text-sm text-[#4A4A4A]">Verificando participação...</span>
           </div>
         </div>
       )}
@@ -3585,12 +3585,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {!isMember && !membershipLoading && (
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-xs">
-            <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${room.type === "official" ? "bg-primary/10" : "bg-secondary"}`}>
+            <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${room.type === "official" ? "bg-[#1A1A1A]/10" : "bg-[#F3F1ED]"}`}>
               <span className="text-2xl">{room.icon}</span>
             </div>
             <h3 className="text-base font-bold mb-1">{room.name}</h3>
-            {room.description && <p className="text-sm text-muted-foreground mb-1">{room.description}</p>}
-            <p className="text-xs text-muted-foreground/60 mb-5">{memberCount} membro{memberCount !== 1 ? "s" : ""} nesta sala</p>
+            {room.description && <p className="text-sm text-[#4A4A4A] mb-1">{room.description}</p>}
+            <p className="text-xs text-[#4A4A4A]/60 mb-5">{memberCount} membro{memberCount !== 1 ? "s" : ""} nesta sala</p>
             {isBanned ? (
               <div className="rounded-xl bg-red-500/10 p-4 text-center">
                 <Ban className="h-6 w-6 text-red-500 mx-auto mb-2" />
@@ -3611,35 +3611,35 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         <div
           ref={scrollRef}
           onScroll={handleMessagesScroll}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-muted/15"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 sm:px-4 py-3 space-y-0.5 bg-[#EFEDE8]/15"
         >
           {/* Loader no topo: histórico antigo */}
           {loadingOlder && (
             <div className="flex items-center justify-center py-3">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="ml-2 text-[11px] text-muted-foreground">Carregando histórico...</span>
+              <Loader2 className="h-4 w-4 animate-spin text-[#1A1A1A]" />
+              <span className="ml-2 text-[11px] text-[#4A4A4A]">Carregando histórico...</span>
             </div>
           )}
           {!loadingOlder && !hasMoreOlder && messages.length > 0 && (
-            <p className="text-center text-[10px] text-muted-foreground/60 py-2">
+            <p className="text-center text-[10px] text-[#4A4A4A]/60 py-2">
               Início da conversa
             </p>
           )}
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-xs text-muted-foreground">Carregando mensagens...</span>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1A1A1A] border-t-transparent" />
+                <span className="text-xs text-[#4A4A4A]">Carregando mensagens...</span>
               </div>
             </div>
           )}
           {!loading && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-3">
-                <Hash className="h-6 w-6 text-muted-foreground" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EFEDE8] mb-3">
+                <Hash className="h-6 w-6 text-[#4A4A4A]" />
               </div>
               <p className="text-sm font-medium">Nenhuma mensagem ainda</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Seja o primeiro a dizer algo!</p>
+              <p className="text-xs text-[#4A4A4A] mt-0.5">Seja o primeiro a dizer algo!</p>
             </div>
           )}
           {groupedMessages.map((msg, idx) => {
@@ -3671,7 +3671,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               >
                 {showDaySep && (
                   <div className="flex items-center justify-center py-3">
-                    <span className="rounded-full bg-card/90 border border-border/60 px-3 py-0.5 text-[10px] font-semibold text-muted-foreground shadow-sm backdrop-blur-sm">
+                    <span className="rounded-full bg-white/90 border border-black/[0.08] px-3 py-0.5 text-[10px] font-semibold text-[#4A4A4A] shadow-sm backdrop-blur-sm">
                       {formatChatDayLabel(msg.created_at)}
                     </span>
                   </div>
@@ -3693,7 +3693,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           display_name: sender.display_name || "Usuário",
                           avatar_url: sender.avatar_url,
                         }}
-                        className="h-7 w-7 hover:opacity-80 transition-opacity ring-1 ring-border/40"
+                        className="h-7 w-7 hover:opacity-80 transition-opacity ring-1 ring-black/[0.08]"
                       />
                     </button>
                   )}
@@ -3707,7 +3707,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       <div className="flex items-center gap-1 mb-0.5 px-0.5">
                         <button
                           onClick={() => openUserProfile?.(sender.id || msg.sender_id)}
-                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                          className="text-[11px] font-semibold text-[#4A4A4A] hover:text-[#1A1A1A] hover:underline underline-offset-2 transition-colors"
                         >
                           {sender.display_name || "Usuário"}
                         </button>
@@ -3731,7 +3731,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           type="button"
                           onClick={() => setReactionSheetMsgId(msg.id)}
                           title="Reagir"
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-[#4A4A4A] hover:text-[#1A1A1A] hover:bg-[#1A1A1A]/[0.05] transition-colors"
                         >
                           <SmilePlus className="h-3.5 w-3.5" />
                         </button>
@@ -3739,7 +3739,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           type="button"
                           onClick={() => startReply(msg)}
                           title="Responder"
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-[#4A4A4A] hover:text-[#1A1A1A] hover:bg-[#1A1A1A]/[0.05] transition-colors"
                         >
                           <Reply className="h-3.5 w-3.5" />
                         </button>
@@ -3771,16 +3771,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           mediaOnly
                             ? "bg-transparent p-0 shadow-none rounded-2xl overflow-hidden"
                             : isMine
-                              ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
-                              : "bg-card text-card-foreground border border-border/50 rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
+                              ? "bg-[#1A1A1A] text-white rounded-2xl rounded-br-md px-3 py-1.5 text-[15px] leading-snug"
+                              : "bg-white text-[#1A1A1A] border border-black/[0.08] rounded-2xl rounded-bl-md px-3 py-1.5 text-[15px] leading-snug"
                         }`}
                       >
                         {msg.reply_to && (
                           <div
                             className={`mb-1.5 rounded-lg border-l-[3px] px-2 py-1 text-[11px] leading-snug ${
                               isMine
-                                ? "border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground/90"
-                                : "border-primary/60 bg-muted/80 text-muted-foreground"
+                                ? "border-white/50 bg-white/10 text-white/90"
+                                : "border-[#1A1A1A]/60 bg-[#EFEDE8]/80 text-[#4A4A4A]"
                             }`}
                           >
                             <p className="font-semibold truncate">
@@ -3852,8 +3852,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                               mediaOnly
                                 ? "hidden"
                                 : isMine
-                                  ? "text-primary-foreground/55"
-                                  : "text-muted-foreground/60"
+                                  ? "text-white/55"
+                                  : "text-[#4A4A4A]/60"
                             }`}
                           >
                             {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
@@ -3869,7 +3869,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         type="button"
                         onClick={() => openMessageActions(msg)}
                         title="Ações"
-                        className="sm:hidden shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/35 active:bg-accent"
+                        className="sm:hidden shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[#4A4A4A]/35 active:bg-[#1A1A1A]/[0.05]"
                       >
                         <MoreVertical className="h-3.5 w-3.5" />
                       </button>
@@ -3890,8 +3890,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                               onClick={() => toggleReaction(msg.id, r.emoji)}
                               className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] leading-none shadow-sm backdrop-blur-sm transition-colors ${
                                 r.me
-                                  ? "border-primary/50 bg-primary/15 text-foreground"
-                                  : "border-border bg-card text-muted-foreground hover:bg-accent"
+                                  ? "border-[#1A1A1A]/50 bg-[#1A1A1A]/15 text-[#1A1A1A]"
+                                  : "border-black/[0.08] bg-white text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05]"
                               }`}
                               title={r.me ? "Remover reação" : "Reagir"}
                             >
@@ -3907,7 +3907,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
                     {/* Horário fora da bolha quando só mídia */}
                     {mediaOnly && isLastInGroup && (
-                      <span className="mt-0.5 px-1 text-[10px] tabular-nums text-muted-foreground/55">
+                      <span className="mt-0.5 px-1 text-[10px] tabular-nums text-[#4A4A4A]/55">
                         {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -3926,7 +3926,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             <button
               type="button"
               onClick={jumpToBottom}
-              className="absolute bottom-3 right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border shadow-lg text-foreground hover:bg-accent active:scale-95 transition-all"
+              className="absolute bottom-3 right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white border border-black/[0.08] shadow-lg text-[#1A1A1A] hover:bg-[#1A1A1A]/[0.05] active:scale-95 transition-all"
               title="Ir para o final"
             >
               <ChevronDown className="h-5 w-5" />
@@ -3936,14 +3936,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       )}
 
       {/* ═══════ Barra de input do chat ═══════ */}
-      <div className="shrink-0 border-t border-border/60 px-3 sm:px-4 py-2.5 sm:py-3 bg-card/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-white/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {isMember ? (
           <>
             {/* Preview de mídia antes de enviar */}
             {mediaPreview && !sendingMedia && (
-              <div className="mb-2 max-w-3xl mx-auto w-full rounded-2xl border border-border bg-muted/40 overflow-hidden">
+              <div className="mb-2 max-w-3xl mx-auto w-full rounded-2xl border border-black/[0.08] bg-[#EFEDE8]/40 overflow-hidden">
                 <div className="flex items-start gap-3 p-3">
-                  <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+                  <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-[#EFEDE8] flex items-center justify-center">
                     {mediaPreview.type === "image" && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -3963,14 +3963,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     )}
                     {mediaPreview.type === "audio" && (
                       <div className="flex flex-col items-center gap-1 p-2 w-full">
-                        <Mic className="h-6 w-6 text-primary" />
+                        <Mic className="h-6 w-6 text-[#1A1A1A]" />
                         <audio src={mediaPreview.objectUrl} controls className="w-full max-w-[88px] h-8" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-medium text-muted-foreground truncate">
+                      <p className="text-xs font-medium text-[#4A4A4A] truncate">
                         {mediaPreview.type === "image"
                           ? "📷 Foto"
                           : mediaPreview.type === "video"
@@ -3982,13 +3982,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       <button
                         type="button"
                         onClick={cancelMediaPreview}
-                        className="text-muted-foreground hover:text-foreground rounded-full p-1"
+                        className="text-[#4A4A4A] hover:text-[#1A1A1A] rounded-full p-1"
                         title="Cancelar"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-[#4A4A4A]">
                       Escreva uma legenda abaixo (opcional) e toque em enviar.
                     </p>
                     <div className="flex gap-2">
@@ -4017,10 +4017,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
             {/* Progresso de upload */}
             {sendingMedia && (
-              <div className="mb-2 max-w-3xl mx-auto w-full space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+              <div className="mb-2 max-w-3xl mx-auto w-full space-y-2 rounded-2xl border border-[#1A1A1A]/20 bg-[#1A1A1A]/5 px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#1A1A1A]" />
                     <span>
                       {uploadProgress === null || uploadProgress < 100
                         ? "Enviando mídia..."
@@ -4028,21 +4028,21 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold tabular-nums text-primary">
+                    <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">
                       {uploadProgress != null ? `${uploadProgress}%` : "…"}
                     </span>
                     <button
                       type="button"
                       onClick={cancelMediaPreview}
-                      className="text-xs text-muted-foreground hover:text-red-500 underline-offset-2 hover:underline"
+                      className="text-xs text-[#4A4A4A] hover:text-red-500 underline-offset-2 hover:underline"
                     >
                       Cancelar
                     </button>
                   </div>
                 </div>
-                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-2 w-full rounded-full bg-[#EFEDE8] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-150 ease-out"
+                    className="h-full rounded-full bg-[#1A1A1A] transition-all duration-150 ease-out"
                     style={{
                       width: `${uploadProgress != null ? Math.max(uploadProgress, 2) : 5}%`,
                     }}
@@ -4058,7 +4058,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <button
                     type="button"
                     onClick={() => setAttachMenuOpen(true)}
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-primary"}`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A]"}`}
                     title="Anexar mídia"
                   >
                     <Plus className="h-5 w-5" />
@@ -4076,13 +4076,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 <div className="flex-1 relative min-w-0">
                   {/* Barra de resposta (quote) */}
                   {replyTo && (
-                    <div className="mb-1.5 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5">
-                      <Reply className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                    <div className="mb-1.5 flex items-start gap-2 rounded-xl border border-[#1A1A1A]/20 bg-[#1A1A1A]/5 px-3 py-1.5">
+                      <Reply className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold text-primary truncate">
+                        <p className="text-[11px] font-semibold text-[#1A1A1A] truncate">
                           Respondendo a {replyTo.sender?.display_name || "mensagem"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
+                        <p className="text-[11px] text-[#4A4A4A] truncate">
                           {replyTo.media_type === "image"
                             ? "📷 Foto"
                             : replyTo.media_type === "video"
@@ -4095,7 +4095,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       <button
                         type="button"
                         onClick={cancelReply}
-                        className="text-muted-foreground hover:text-foreground shrink-0"
+                        className="text-[#4A4A4A] hover:text-[#1A1A1A] shrink-0"
                         title="Cancelar resposta"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -4105,7 +4105,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
                   {/* Autocomplete @menção (membros da sala) */}
                   {mentionQuery !== null && mentionCandidates.length > 0 && (
-                    <div className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+                    <div className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-48 overflow-y-auto rounded-xl border border-black/[0.08] bg-popover shadow-lg">
                       {mentionCandidates.map((p: any, idx: number) => (
                         <button
                           key={p.id}
@@ -4115,7 +4115,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             insertMention(p.username || "");
                           }}
                           className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                            idx === mentionIndex ? "bg-accent" : "hover:bg-accent/60"
+                            idx === mentionIndex ? "bg-[#1A1A1A]/[0.05]" : "hover:bg-[#1A1A1A]/[0.05]"
                           }`}
                         >
                           <UserAvatar
@@ -4128,7 +4128,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-xs font-medium">{p.display_name}</p>
-                            <p className="truncate text-[10px] text-muted-foreground">
+                            <p className="truncate text-[10px] text-[#4A4A4A]">
                               @{p.username}
                             </p>
                           </div>
@@ -4181,7 +4181,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         else sendMessage();
                       }
                     }}
-                    className="min-h-[44px] max-h-[120px] resize-none rounded-2xl py-2.5 pl-4 pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30 text-[15px] leading-snug shadow-none"
+                    className="min-h-[44px] max-h-[120px] resize-none rounded-2xl py-2.5 pl-4 pr-4 bg-[#EFEDE8]/50 border-0 focus-visible:ring-1 focus-visible:ring-[#1A1A1A]/30 text-[15px] leading-snug shadow-none"
                   />
                 </div>
 
@@ -4195,7 +4195,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     }
                   }}
                   disabled={mediaPreview ? false : !input.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-md hover:bg-[#25b0a3] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 self-end"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-md hover:bg-[#c15a3a] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 self-end"
                   title={mediaPreview ? "Enviar mídia" : "Enviar"}
                 >
                   <span className="text-lg leading-none">💬</span>
@@ -4210,8 +4210,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {attachMenuOpen && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setAttachMenuOpen(false)} />
-          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-border bg-card shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
-            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
+          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-black/[0.08] bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#4A4A4A]/30" />
             <p className="px-4 pt-3 pb-2 text-sm font-semibold">Anexar</p>
             <div className="grid grid-cols-3 gap-2 px-4 pb-2">
               {[
@@ -4229,9 +4229,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     setAttachMenuOpen(false);
                     item.action();
                   }}
-                  className="flex flex-col items-center gap-2 rounded-2xl bg-muted/50 py-4 px-2 active:scale-95 transition-transform hover:bg-accent"
+                  className="flex flex-col items-center gap-2 rounded-2xl bg-[#EFEDE8]/50 py-4 px-2 active:scale-95 transition-transform hover:bg-[#1A1A1A]/[0.05]"
                 >
-                  <item.icon className="h-6 w-6 text-primary" />
+                  <item.icon className="h-6 w-6 text-[#1A1A1A]" />
                   <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
                 </button>
               ))}
@@ -4240,7 +4240,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               <button
                 type="button"
                 onClick={() => setAttachMenuOpen(false)}
-                className="w-full h-12 rounded-2xl bg-muted text-sm font-semibold"
+                className="w-full h-12 rounded-2xl bg-[#EFEDE8] text-sm font-semibold"
               >
                 Cancelar
               </button>
@@ -4253,12 +4253,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {messageActionMsg && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setMessageActionMsg(null)} />
-          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-border bg-card shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
-            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
+          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-black/[0.08] bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#4A4A4A]/30" />
             <p className="px-4 pt-3 pb-1 text-sm font-semibold truncate">
               {messageActionMsg.sender?.display_name || "Mensagem"}
             </p>
-            <p className="px-4 pb-3 text-xs text-muted-foreground truncate">
+            <p className="px-4 pb-3 text-xs text-[#4A4A4A] truncate">
               {messageActionMsg.media_type === "image"
                 ? "📷 Foto"
                 : messageActionMsg.media_type === "video"
@@ -4270,29 +4270,29 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             <div className="flex flex-col px-2 pb-2">
               <button
                 type="button"
-                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent active:bg-accent"
+                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-[#1A1A1A]/[0.05] active:bg-[#1A1A1A]/[0.05]"
                 onClick={() => {
                   const id = messageActionMsg.id;
                   setMessageActionMsg(null);
                   setReactionSheetMsgId(id);
                 }}
               >
-                <SmilePlus className="h-5 w-5 text-primary" /> Reagir
+                <SmilePlus className="h-5 w-5 text-[#1A1A1A]" /> Reagir
               </button>
               <button
                 type="button"
-                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent"
+                className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-[#1A1A1A]/[0.05]"
                 onClick={() => {
                   startReply(messageActionMsg);
                   setMessageActionMsg(null);
                 }}
               >
-                <Reply className="h-5 w-5 text-primary" /> Responder
+                <Reply className="h-5 w-5 text-[#1A1A1A]" /> Responder
               </button>
               {!!messageActionMsg.content?.trim() && (
                 <button
                   type="button"
-                  className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-accent"
+                  className="flex h-12 items-center gap-3 rounded-xl px-4 text-sm font-medium hover:bg-[#1A1A1A]/[0.05]"
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(messageActionMsg.content);
@@ -4303,7 +4303,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     setMessageActionMsg(null);
                   }}
                 >
-                  <Hash className="h-5 w-5 text-muted-foreground" /> Copiar texto
+                  <Hash className="h-5 w-5 text-[#4A4A4A]" /> Copiar texto
                 </button>
               )}
               {messageActionMsg.sender_id !== profile?.id && (
@@ -4339,7 +4339,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               <button
                 type="button"
                 onClick={() => setMessageActionMsg(null)}
-                className="w-full h-12 rounded-2xl bg-muted text-sm font-semibold"
+                className="w-full h-12 rounded-2xl bg-[#EFEDE8] text-sm font-semibold"
               >
                 Cancelar
               </button>
@@ -4352,7 +4352,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {reactionSheetMsgId && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end sm:justify-center sm:items-center">
           <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setReactionSheetMsgId(null)} />
-          <div className="relative z-10 mx-auto w-full max-w-sm rounded-t-3xl sm:rounded-3xl border border-border bg-card p-4 shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in zoom-in-95 duration-150">
+          <div className="relative z-10 mx-auto w-full max-w-sm rounded-t-3xl sm:rounded-3xl border border-black/[0.08] bg-white p-4 shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in zoom-in-95 duration-150">
             <p className="mb-3 text-center text-sm font-semibold">Reagir</p>
             <div className="flex justify-center gap-1.5 flex-wrap">
               {ROOM_REACTION_EMOJIS.map((em) => (
@@ -4360,7 +4360,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   key={em}
                   type="button"
                   onClick={() => toggleReaction(reactionSheetMsgId, em)}
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl hover:bg-accent active:scale-110 transition-transform"
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl hover:bg-[#1A1A1A]/[0.05] active:scale-110 transition-transform"
                 >
                   {em}
                 </button>
@@ -4374,24 +4374,24 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       {isRecordingAudio && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-6 p-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
+            <div className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-2xl ${isPausedRecording ? "" : "animate-pulse"}`}>
               <Mic className="h-12 w-12" />
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-[#f7f9fa] tabular-nums">{formatDuration(recordingSeconds)}</p>
-              <p className="text-xs text-[#f7f9fa]/50 mt-1">{isPausedRecording ? "Pausado" : "Gravando áudio..."}</p>
+              <p className="text-2xl font-bold text-[#F9F8F6] tabular-nums">{formatDuration(recordingSeconds)}</p>
+              <p className="text-xs text-[#F9F8F6]/50 mt-1">{isPausedRecording ? "Pausado" : "Gravando áudio..."}</p>
             </div>
-            <div className="w-48 h-2 bg-[#f7f9fa]/20 rounded-full overflow-hidden">
+            <div className="w-48 h-2 bg-[#F9F8F6]/20 rounded-full overflow-hidden">
               <div className="h-full bg-[#f7f75e] rounded-full transition-all" style={{ width: `${(recordingSeconds / MAX_AUDIO_DURATION) * 100}%` }} />
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={togglePauseRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f9fa]/20 transition-colors" title={isPausedRecording ? "Continuar" : "Pausar"}>
+              <button onClick={togglePauseRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-[#F9F8F6]/20 transition-colors" title={isPausedRecording ? "Continuar" : "Pausar"}>
                 {isPausedRecording ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
-              <button onClick={stopAudioRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-lg hover:bg-[#25b0a3] transition-colors" title="Enviar">
+              <button onClick={stopAudioRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-lg hover:bg-[#c15a3a] transition-colors" title="Enviar">
                 <Send className="h-6 w-6" />
               </button>
-              <button onClick={cancelAudioRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-red-500/80 transition-colors" title="Cancelar">
+              <button onClick={cancelAudioRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-red-500/80 transition-colors" title="Cancelar">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -4412,18 +4412,18 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             />
             <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[#f7f9fa] font-bold tabular-nums">{formatDuration(videoRecSeconds)}</span>
-              <span className="text-[#f7f9fa]/50 text-xs">/ {MAX_VIDEO_DURATION}s</span>
+              <span className="text-[#F9F8F6] font-bold tabular-nums">{formatDuration(videoRecSeconds)}</span>
+              <span className="text-[#F9F8F6]/50 text-xs">/ {MAX_VIDEO_DURATION}s</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="w-full h-1.5 bg-[#f7f9fa]/20 rounded-full overflow-hidden mb-4">
+              <div className="w-full h-1.5 bg-[#F9F8F6]/20 rounded-full overflow-hidden mb-4">
                 <div className="h-full bg-[#f7f75e] rounded-full transition-all" style={{ width: `${(videoRecSeconds / MAX_VIDEO_DURATION) * 100}%` }} />
               </div>
               <div className="flex items-center justify-center gap-4">
-                <button onClick={cancelVideoRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-red-500/80 transition-colors" title="Cancelar">
+                <button onClick={cancelVideoRecording} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-red-500/80 transition-colors" title="Cancelar">
                   <X className="h-5 w-5" />
                 </button>
-                <button onClick={stopVideoRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2EC4B6] text-[#f7f9fa] shadow-lg hover:bg-[#25b0a3] transition-colors" title="Enviar vídeo">
+                <button onClick={stopVideoRecording} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D96C4A] text-[#F9F8F6] shadow-lg hover:bg-[#c15a3a] transition-colors" title="Enviar vídeo">
                   <Send className="h-6 w-6" />
                 </button>
               </div>
