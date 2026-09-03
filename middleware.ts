@@ -11,6 +11,45 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 // CSP violation report endpoint (same origin)
 const CSP_REPORT_URI = "/api/csp-report";
 
+/** Remove cookies de sessão Supabase inválidos (refresh token morto). */
+function clearSupabaseAuthCookies(req: NextRequest, res: NextResponse) {
+  const all = req.cookies.getAll();
+  for (const { name } of all) {
+    // sb-<project-ref>-auth-token, chunks, code-verifier, etc.
+    if (
+      name.startsWith("sb-") ||
+      name.includes("supabase") ||
+      name.startsWith("supabase-")
+    ) {
+      res.cookies.set(name, "", {
+        path: "/",
+        maxAge: 0,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+      try {
+        req.cookies.set(name, "");
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+function isStaleRefreshError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string; status?: number };
+  const code = String(e.code || "");
+  const message = String(e.message || "");
+  return (
+    code === "refresh_token_not_found" ||
+    code === "session_not_found" ||
+    message.includes("Refresh Token Not Found") ||
+    message.includes("Invalid Refresh Token")
+  );
+}
+
 export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
   const nonceHeaderName = getNonceHeaderName();
@@ -61,7 +100,16 @@ export async function middleware(req: NextRequest) {
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
+
+    // Sessão morta no cookie (refresh revogado/expirado) → limpa e segue como visitante
+    if (authError && isStaleRefreshError(authError)) {
+      clearSupabaseAuthCookies(req, res);
+      // não logar como error — é esperado após logout em outro device / token antigo
+    } else if (authError) {
+      console.warn("[middleware] auth.getUser:", authError.message || authError);
+    }
 
     // Protect all /api/* routes — return 401 if not authenticated
     // Exceptions:
@@ -93,7 +141,11 @@ export async function middleware(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("[middleware] Supabase error:", error);
+    if (isStaleRefreshError(error)) {
+      clearSupabaseAuthCookies(req, res);
+    } else {
+      console.error("[middleware] Supabase error:", error);
+    }
   }
 
   return res;
