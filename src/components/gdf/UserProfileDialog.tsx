@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo, Fragment } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -237,7 +237,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
 function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000305]/92" onClick={onClose}>
       <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><X className="h-5 w-5" /></button>
       {photos.length > 1 && (
         <>
@@ -373,6 +373,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [albumPhotos, setAlbumPhotos] = useState<any[]>([]);
   const [albumVideos, setAlbumVideos] = useState<any[]>([]);
   const [albumLoading, setAlbumLoading] = useState(false);
+  const [postsVisibleCount, setPostsVisibleCount] = useState(8);
 
   // Photo viewer state
   const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
@@ -397,27 +398,57 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     isBlockedByTarget: boolean;
   }>({ is_private: false, hide_following: false, hide_followers: false, hide_neighborhood: false, approve_followers: false, isRestricted: false, isPending: false, isBlockedByViewer: false, isBlockedByTarget: false });
 
-  // Carregar Google Fonts para post_style
+  // Tipografia do shell: só Playfair (leve). Fontes de post_style ficam por conta do CSS do app.
   useEffect(() => {
-    const fontsParam = EDITOR_FONTS.map(
-      (f) => `family=${f.replace(/ /g, "+")}:wght@400;700`
-    ).join("&");
-    const href = `https://fonts.googleapis.com/css2?${fontsParam}&display=swap`;
-    if (!document.querySelector(`link[href="${href}"]`)) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = href;
-      document.head.appendChild(link);
-    }
-  }, []);
+    if (!open) return;
+    const href =
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap";
+    if (document.querySelector(`link[data-upd-fonts="1"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-upd-fonts", "1");
+    // Não bloqueia first paint
+    link.media = "print";
+    link.onload = () => {
+      link.media = "all";
+    };
+    document.head.appendChild(link);
+  }, [open]);
 
   useEffect(() => {
     if (!userId || !open) return;
+
+    const ac = new AbortController();
+    const { signal } = ac;
+    let cancelled = false;
+
+    // Reset leve ao abrir outro perfil (evita flash de dados antigos)
+    setActiveTab("posts");
+    setPostsVisibleCount(8);
+    setUserPosts([]);
+    setAlbumPhotos([]);
+    setAlbumVideos([]);
+    setFollowList([]);
+    setViewerOpen(false);
+
     const fetchData = async () => {
       setLoading(true);
+      setPostsLoading(true);
       try {
-        const profileRes = await fetch(`/api/users/${userId}`);
-        const profileData = await profileRes.json();
+        // Perfil + follows em paralelo (caminho crítico)
+        const [profileRes, followRes] = await Promise.all([
+          fetch(`/api/users/${userId}`, { signal }),
+          fetch(`/api/follows?userId=${userId}`, { signal }),
+        ]);
+        if (cancelled) return;
+
+        const [profileData, followDataResult] = await Promise.all([
+          profileRes.json(),
+          followRes.json(),
+        ]);
+        if (cancelled) return;
+
         if (profileData.user) {
           setUserData(profileData.user);
           setPostCount(profileData.user._count?.posts || 0);
@@ -425,8 +456,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             setPrivacyInfo((prev) => ({ ...prev, ...profileData._privacy }));
           }
         }
-        const followRes = await fetch(`/api/follows?userId=${userId}`);
-        const followDataResult = await followRes.json();
+
         if (!followRes.ok && followDataResult.error) {
           setFollowData({ followingCount: 0, followersCount: 0, isFollowing: false, isPending: false });
         } else {
@@ -447,29 +477,65 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             }));
           }
         }
-        setPostsLoading(true);
-        const postsRes = await fetch(`/api/users/${userId}/posts`);
+
+        // Libera o shell do perfil o quanto antes
+        setLoading(false);
+
+        // Posts depois (não bloqueia hero)
+        const postsRes = await fetch(`/api/users/${userId}/posts`, { signal });
+        if (cancelled) return;
         const postsData = await postsRes.json();
-        if (postsData.posts) setUserPosts(postsData.posts);
-        setPostsLoading(false);
-        // Fetch album
-        setAlbumLoading(true);
-        try {
-          const [pRes, vRes] = await Promise.all([
-            fetch(`/api/profile-photos?userId=${userId}`),
-            fetch(`/api/profile-videos?userId=${userId}`),
-          ]);
-          const pData = await pRes.json();
-          const vData = await vRes.json();
-          if (pData.photos) setAlbumPhotos(pData.photos);
-          if (vData.videos) setAlbumVideos(vData.videos);
-        } catch { /* silent */ }
-        setAlbumLoading(false);
-      } catch { /* silent */ }
-      setLoading(false);
+        if (!cancelled && postsData.posts) setUserPosts(postsData.posts);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+      } finally {
+        if (!cancelled) {
+          setPostsLoading(false);
+          setLoading(false);
+        }
+      }
     };
+
     fetchData();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
   }, [userId, open]);
+
+  // Álbum sob demanda — só quando a aba Fotografia é aberta
+  useEffect(() => {
+    if (!userId || !open || activeTab !== "album") return;
+    if (albumPhotos.length > 0 || albumVideos.length > 0) return;
+
+    const ac = new AbortController();
+    let cancelled = false;
+    setAlbumLoading(true);
+
+    (async () => {
+      try {
+        const [pRes, vRes] = await Promise.all([
+          fetch(`/api/profile-photos?userId=${userId}`, { signal: ac.signal }),
+          fetch(`/api/profile-videos?userId=${userId}`, { signal: ac.signal }),
+        ]);
+        if (cancelled) return;
+        const [pData, vData] = await Promise.all([pRes.json(), vRes.json()]);
+        if (cancelled) return;
+        if (pData.photos) setAlbumPhotos(pData.photos);
+        if (vData.videos) setAlbumVideos(vData.videos);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+      } finally {
+        if (!cancelled) setAlbumLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [userId, open, activeTab, albumPhotos.length, albumVideos.length]);
 
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
@@ -615,19 +681,23 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         </button>
 
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
           .upd-blog {
             font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
             --paper: #F9F8F6;
             --ink: #1A1A1A;
             --ink-light: #4A4A4A;
             --accent: #D96C4A;
+            contain: layout style;
           }
           .upd-blog .font-serif {
             font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
           }
           .upd-blog .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
           .upd-blog .post-content a:hover { color: #D96C4A; }
+          .upd-post-card {
+            content-visibility: auto;
+            contain-intrinsic-size: 280px;
+          }
         `}</style>
 
         {loading ? (
@@ -819,8 +889,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhuma entrada ainda</p>
                       </div>
                     ) : (
+                      <>
                       <div className="space-y-10">
-                        {userPosts.map((post: any, idx: number) => {
+                        {userPosts.slice(0, postsVisibleCount).map((post: any, idx: number) => {
                           const postPhotos: string[] = post.image_urls?.length > 0
                             ? post.image_urls
                             : post.image_url
@@ -848,7 +919,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           return (
                             <article
                               key={post.id}
-                              className="group cursor-pointer"
+                              className="upd-post-card group cursor-pointer"
                               onClick={(e) => {
                                 const target = e.target as HTMLElement;
                                 if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("audio") || target.closest("video")) return;
@@ -872,8 +943,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                   <img
                                     src={postPhotos[0]}
                                     alt=""
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                                     loading="lazy"
+                                    decoding="async"
+                                    fetchPriority="low"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       openPhotoViewer(postPhotos, 0);
@@ -938,13 +1011,25 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 </div>
                               )}
 
-                              {idx < userPosts.length - 1 && (
+                              {idx < Math.min(userPosts.length, postsVisibleCount) - 1 && (
                                 <div className="mt-10 border-t border-black/[0.06]" />
                               )}
                             </article>
                           );
                         })}
                       </div>
+                      {userPosts.length > postsVisibleCount && (
+                        <div className="pt-4 pb-2 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setPostsVisibleCount((n) => n + 8)}
+                            className="rounded-full border border-black/10 bg-white px-5 py-2.5 text-sm font-medium text-[#1A1A1A] hover:bg-black/[0.03] transition-colors"
+                          >
+                            Ver mais entradas ({userPosts.length - postsVisibleCount} restantes)
+                          </button>
+                        </div>
+                      )}
+                      </>
                     )
                   )}
 
