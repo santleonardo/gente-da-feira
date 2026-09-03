@@ -22,6 +22,7 @@ import {
   Lock,
   Bold,
   Italic,
+  Underline,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -47,6 +48,14 @@ import {
   Loader2,
   Clock,
   Repeat2,
+  Heading1,
+  Heading2,
+  Quote,
+  List,
+  ListOrdered,
+  Link2,
+  Minus,
+  Highlighter,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -915,15 +924,19 @@ export function ProfileView() {
         if (!audioUrl) { setPublishing(false); return; }
       }
 
-      // Light: só texto simples (sem HTML/rich/post-it)
-      const plainFromEditor = textContent.trim()
-        ? (editorRef.current?.innerText || textContent).trim()
-        : "";
-      const postContent = plainFromEditor || (
-        selectedFiles.length > 0 ? "📷" :
-        selectedVideo ? "🎥" :
-        selectedAudio ? "🎙️" : ""
-      );
+      // Prefer HTML do editor (formatação editorial); fallback para texto/mídia
+      const htmlFromEditor = (editorRef.current?.innerHTML || "").trim();
+      const plainFromEditor = (editorRef.current?.innerText || textContent || "").trim();
+      const looksRich = /<(h[1-6]|b|strong|i|em|u|ul|ol|li|blockquote|p|div|br|a|hr)\b/i.test(htmlFromEditor);
+      let postContent = "";
+      if (plainFromEditor) {
+        postContent = looksRich ? htmlFromEditor : plainFromEditor;
+      } else {
+        postContent =
+          selectedFiles.length > 0 ? "📷" :
+          selectedVideo ? "🎥" :
+          selectedAudio ? "🎙️" : "";
+      }
 
       const res = await fetch("/api/posts", {
         method: "POST",
@@ -994,25 +1007,34 @@ export function ProfileView() {
           font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
         }
         
-        .editor-content h1, .post-content h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0.35em 0 0.1em; }
-        .editor-content h2, .post-content h2 { font-size: 1.1rem; font-weight: 700; line-height: 1.3; margin: 0.25em 0 0.1em; }
-        .editor-content h3, .post-content h3 { font-size: 1rem; font-weight: 700; line-height: 1.3; margin: 0.2em 0 0.1em; }
+        .editor-content h1, .post-content h1 {
+          font-family: "Playfair Display", ui-serif, Georgia, serif;
+          font-size: 1.65rem; font-weight: 500; line-height: 1.25; margin: 0.5em 0 0.25em; letter-spacing: -0.02em;
+        }
+        .editor-content h2, .post-content h2 {
+          font-family: "Playfair Display", ui-serif, Georgia, serif;
+          font-size: 1.3rem; font-weight: 500; line-height: 1.3; margin: 0.4em 0 0.2em;
+        }
+        .editor-content h3, .post-content h3 { font-size: 1.05rem; font-weight: 600; line-height: 1.3; margin: 0.3em 0 0.15em; }
         .editor-content h4, .post-content h4 { font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
-        .post-content b, .post-content strong { font-weight: 700; }
-        .post-content i, .post-content em { font-style: italic; }
-        .post-content u { text-decoration: underline; }
-        .post-content s, .post-content strike { text-decoration: line-through; }
-        .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
-        .post-content a:hover { color: #2EC4B6; }
-        .post-content ul { list-style: disc; padding-left: 1.5em; margin: 0.3em 0; }
-        .post-content ol { list-style: decimal; padding-left: 1.5em; margin: 0.3em 0; }
-        .post-content li { margin: 0.1em 0; }
-        .post-content blockquote { border-left: 3px solid #0A4D5C; padding-left: 0.75em; margin: 0.3em 0; color: #000305/70; font-style: italic; }
-        .post-content pre { background: #f3f4f6; border-radius: 8px; padding: 0.5em 0.75em; margin: 0.3em 0; overflow-x: auto; font-size: 0.85em; }
-        .post-content code { background: #f3f4f6; border-radius: 4px; padding: 0.1em 0.3em; font-size: 0.9em; }
-        .post-content font { /* preserve font face/color/size from WYSIWYG */ }
-        .post-content div { margin: 0; }
-        .post-content hr { border: none; border-top: 1px solid #0A4D5C/15; margin: 0.5em 0; }
+        .editor-content b, .editor-content strong, .post-content b, .post-content strong { font-weight: 700; }
+        .editor-content i, .editor-content em, .post-content i, .post-content em { font-style: italic; }
+        .editor-content u, .post-content u { text-decoration: underline; text-underline-offset: 2px; }
+        .editor-content s, .editor-content strike, .post-content s, .post-content strike { text-decoration: line-through; }
+        .editor-content a, .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
+        .editor-content a:hover, .post-content a:hover { color: #D96C4A; }
+        .editor-content ul, .post-content ul { list-style: disc; padding-left: 1.5em; margin: 0.4em 0; }
+        .editor-content ol, .post-content ol { list-style: decimal; padding-left: 1.5em; margin: 0.4em 0; }
+        .editor-content li, .post-content li { margin: 0.15em 0; }
+        .editor-content blockquote, .post-content blockquote {
+          border-left: 3px solid #D96C4A; padding-left: 0.9em; margin: 0.6em 0;
+          color: #4A4A4A; font-style: italic; font-family: "Playfair Display", ui-serif, Georgia, serif;
+        }
+        .editor-content pre, .post-content pre { background: #f3f4f6; border-radius: 8px; padding: 0.5em 0.75em; margin: 0.3em 0; overflow-x: auto; font-size: 0.85em; }
+        .editor-content code, .post-content code { background: #f3f4f6; border-radius: 4px; padding: 0.1em 0.3em; font-size: 0.9em; }
+        .editor-content hr, .post-content hr { border: none; border-top: 1px solid rgba(26,26,26,0.12); margin: 0.85em 0; }
+        .editor-content div, .post-content div { margin: 0; }
+        .editor-content p, .post-content p { margin: 0.35em 0; }
       `}</style>
 
       {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
@@ -1285,36 +1307,60 @@ export function ProfileView() {
           <AlbumView />
         </div>
 
-        {/* ─── ABA: ESCREVER (composer) ─── */}
+                {/* ─── ABA: ESCREVER (composer) ─── */}
         <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
           <div className="rounded-2xl border border-black/[0.08] bg-white p-5 sm:p-6 shadow-sm">
-            <h3 className="font-serif text-2xl font-medium text-[#1A1A1A] mb-1">Nova entrada</h3>
-            <p className="text-sm text-[#4A4A4A]/70 mb-6">Escreva algo que queira compartilhar</p>
-
-            {/* Editor */}
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              className={`editor-content min-h-[140px] max-h-[400px] overflow-y-auto rounded-xl border border-black/10 bg-[#F9F8F6] px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all ${editorExpanded ? "min-h-[280px]" : ""}`}
-              style={{
-                fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
-                fontWeight: postStyle.bold ? 700 : undefined,
-                fontStyle: postStyle.italic ? "italic" : undefined,
-                textAlign: postStyle.alignment || "left",
-                color: postStyle.fontColor || undefined,
-              }}
-              onInput={() => {
-                if (editorRef.current) setTextContent(editorRef.current.innerText);
-              }}
-              data-placeholder="Comece a escrever…"
-            />
-
-            {/* Toolbar simplificada */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h3 className="font-serif text-2xl font-medium text-[#1A1A1A]">Nova entrada</h3>
+                <p className="text-sm text-[#4A4A4A]/70 mt-0.5">Escreva com formatação editorial</p>
+              </div>
               <button
                 type="button"
+                onClick={() => setEditorExpanded((e) => !e)}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors shrink-0"
+                title={editorExpanded ? "Reduzir" : "Expandir"}
+              >
+                {editorExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {/* Toolbar editorial */}
+            <div className="mb-2 flex flex-wrap items-center gap-0.5 rounded-xl border border-black/8 bg-[#F9F8F6] p-1.5">
+              {/* Headings */}
+              <button
+                type="button"
+                title="Título"
                 onClick={() => {
+                  editorRef.current?.focus();
+                  const block = document.queryCommandValue("formatBlock");
+                  document.execCommand("formatBlock", false, block?.toLowerCase() === "h1" ? "p" : "h1");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Heading1 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Subtítulo"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  const block = document.queryCommandValue("formatBlock");
+                  document.execCommand("formatBlock", false, block?.toLowerCase() === "h2" ? "p" : "h2");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Heading2 className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-black/10 mx-1" />
+
+              {/* Inline */}
+              <button
+                type="button"
+                title="Negrito"
+                onClick={() => {
+                  editorRef.current?.focus();
                   document.execCommand("bold");
                   setActiveFormats((f) => ({ ...f, bold: !f.bold }));
                 }}
@@ -1324,7 +1370,9 @@ export function ProfileView() {
               </button>
               <button
                 type="button"
+                title="Itálico"
                 onClick={() => {
+                  editorRef.current?.focus();
                   document.execCommand("italic");
                   setActiveFormats((f) => ({ ...f, italic: !f.italic }));
                 }}
@@ -1332,11 +1380,219 @@ export function ProfileView() {
               >
                 <Italic className="h-4 w-4" />
               </button>
+              <button
+                type="button"
+                title="Sublinhado"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("underline");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Underline className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Destaque"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("hiliteColor", false, "#fef3c7");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Highlighter className="h-4 w-4" />
+              </button>
 
               <div className="w-px h-5 bg-black/10 mx-1" />
 
-              {/* Media buttons */}
-              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors">
+              {/* Block */}
+              <button
+                type="button"
+                title="Citação"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  const block = document.queryCommandValue("formatBlock");
+                  document.execCommand("formatBlock", false, block?.toLowerCase() === "blockquote" ? "p" : "blockquote");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Quote className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Lista"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("insertUnorderedList");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Lista numerada"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("insertOrderedList");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <ListOrdered className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Linha horizontal"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("insertHorizontalRule");
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-black/10 mx-1" />
+
+              {/* Align */}
+              <button
+                type="button"
+                title="Alinhar à esquerda"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("justifyLeft");
+                  setPostStyle((s) => ({ ...s, alignment: "left" }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "left" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
+              >
+                <AlignLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Centralizar"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("justifyCenter");
+                  setPostStyle((s) => ({ ...s, alignment: "center" }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "center" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
+              >
+                <AlignCenter className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                title="Alinhar à direita"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  document.execCommand("justifyRight");
+                  setPostStyle((s) => ({ ...s, alignment: "right" }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${postStyle.alignment === "right" ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-black/5"}`}
+              >
+                <AlignRight className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-black/10 mx-1" />
+
+              {/* Link */}
+              <button
+                type="button"
+                title="Inserir link"
+                onClick={() => {
+                  editorRef.current?.focus();
+                  const url = window.prompt("URL do link:", "https://");
+                  if (url) document.execCommand("createLink", false, url);
+                }}
+                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
+              >
+                <Link2 className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-black/10 mx-1 hidden sm:block" />
+
+              {/* Font family */}
+              <div className="relative hidden sm:block" ref={fontMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setFontMenuOpen((o) => !o)}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-[#4A4A4A] hover:bg-black/5 transition-colors"
+                  title="Fonte"
+                >
+                  <Type className="h-3.5 w-3.5" />
+                  <span className="max-w-[72px] truncate">{postStyle.font || "Fonte"}</span>
+                  <ChevronDown className="h-3 w-3 opacity-50" />
+                </button>
+                {fontMenuOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-30 w-40 rounded-xl border border-black/10 bg-white py-1 shadow-lg">
+                    {FONTS.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => {
+                          setPostStyle((s) => ({ ...s, font: f.value }));
+                          editorRef.current?.focus();
+                          document.execCommand("fontName", false, f.value);
+                          setFontMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 transition-colors"
+                        style={{ fontFamily: `'${f.value}', sans-serif` }}
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPostStyle((s) => ({ ...s, font: null }));
+                        setFontMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-[#4A4A4A]/70 hover:bg-black/5 border-t border-black/5 mt-1"
+                    >
+                      Padrão
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Editor */}
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              className={`editor-content min-h-[160px] max-h-[480px] overflow-y-auto rounded-xl border border-black/10 bg-[#F9F8F6] px-4 py-3.5 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "min-h-[320px]" : ""}`}
+              style={{
+                fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
+                textAlign: postStyle.alignment || "left",
+              }}
+              onInput={() => {
+                if (editorRef.current) setTextContent(editorRef.current.innerText);
+              }}
+              onKeyUp={() => {
+                setActiveFormats({
+                  bold: document.queryCommandState("bold"),
+                  italic: document.queryCommandState("italic"),
+                });
+              }}
+              onMouseUp={() => {
+                setActiveFormats({
+                  bold: document.queryCommandState("bold"),
+                  italic: document.queryCommandState("italic"),
+                });
+              }}
+              data-placeholder="Comece a escrever sua entrada…"
+            />
+
+            {/* Char count */}
+            <div className="mt-1.5 flex justify-end">
+              <span className={`text-[11px] tabular-nums ${textContent.length > 900 ? "text-[#D96C4A]" : "text-[#4A4A4A]/45"}`}>
+                {textContent.length}/1000
+              </span>
+            </div>
+
+            {/* Media + visibility row */}
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors" title="Fotos">
                 <ImagePlus className="h-4 w-4" />
                 <input
                   type="file"
@@ -1355,7 +1611,7 @@ export function ProfileView() {
                   }}
                 />
               </label>
-              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors">
+              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors" title="Vídeo">
                 <Video className="h-4 w-4" />
                 <input
                   type="file"
@@ -1387,7 +1643,6 @@ export function ProfileView() {
 
               <div className="flex-1" />
 
-              {/* Visibility */}
               <button
                 type="button"
                 onClick={() => setVisibility((v) => (v === "public" ? "followers" : "public"))}
@@ -1395,14 +1650,6 @@ export function ProfileView() {
               >
                 {visibility === "public" ? <Globe className="h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
                 {visibility === "public" ? "Público" : "Seguidores"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEditorExpanded((e) => !e)}
-                className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors"
-              >
-                {editorExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
             </div>
 
@@ -1471,7 +1718,7 @@ export function ProfileView() {
           </div>
         </div>
 
-        {/* ─── ABA: SOBRE ─── */}
+{/* ─── ABA: SOBRE ─── */}
         <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
           <article className="max-w-3xl">
             <div className="flex flex-col md:flex-row gap-10 md:gap-14 items-start">
