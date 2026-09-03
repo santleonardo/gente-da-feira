@@ -591,9 +591,28 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.25rem)] sm:w-full max-w-lg rounded-2xl p-0 max-h-[min(92vh,100dvh)] overflow-hidden bg-[#F9F8F6] border-black/10">
+      <DialogContent
+        className={
+          "p-0 gap-0 overflow-hidden bg-[#F9F8F6] border-0 shadow-2xl " +
+          // fullscreen total — sobrescreve defaults do Dialog (centro/max-w)
+          "!fixed !inset-0 !left-0 !top-0 !z-50 " +
+          "!w-screen !h-[100dvh] !max-w-none !max-h-none " +
+          "!translate-x-0 !translate-y-0 !rounded-none " +
+          "data-[state=open]:!zoom-in-100"
+        }
+      >
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
         <DialogDescription className="sr-only">Informações e ações do perfil selecionado.</DialogDescription>
+
+        {/* Fechar — sempre visível no topo */}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A]/80 text-white backdrop-blur-sm hover:bg-[#1A1A1A] transition-colors shadow-md"
+          aria-label="Fechar perfil"
+        >
+          <X className="h-5 w-5" />
+        </button>
 
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
@@ -612,7 +631,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         `}</style>
 
         {loading ? (
-          <div className="upd-blog p-8 space-y-5">
+          <div className="upd-blog h-[100dvh] p-8 pt-16 space-y-5 overflow-y-auto">
             <div className="flex items-end gap-4">
               <div className="h-20 w-20 rounded-full bg-black/5 animate-pulse" />
               <div className="space-y-2 flex-1 pb-1">
@@ -624,10 +643,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             <div className="h-4 w-1/2 rounded bg-black/5 animate-pulse" />
           </div>
         ) : userData ? (
-          <div className="upd-blog flex flex-col max-h-[min(92vh,100dvh)] w-full max-w-full min-w-0 overflow-x-hidden">
+          <div className="upd-blog flex flex-col h-[100dvh] w-full max-w-full min-w-0 overflow-x-hidden">
             {/* ═══════ HERO ═══════ */}
             <div className="relative shrink-0">
-              <div className="h-28 sm:h-32 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
+              <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
               <div className="px-3.5 sm:px-6 pb-5 -mt-12 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
                   <div className="relative">
@@ -782,7 +801,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </nav>
 
                 {/* ═══════ CONTEÚDO ═══════ */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3.5 sm:px-6 py-5 sm:py-6 min-w-0">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3.5 sm:px-6 py-5 sm:py-6 min-w-0 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
                   {/* Posts / Entradas */}
                   {activeTab === "posts" && (
                     postsLoading ? (
