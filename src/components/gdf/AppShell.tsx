@@ -522,11 +522,13 @@ export function AppShell() {
           <button
             type="button"
             onClick={() => handleTabClick("feed")}
-            className="flex min-w-0 items-baseline gap-2.5 text-left hover:opacity-90 transition-opacity"
+            className="flex min-w-0 items-center gap-2.5 text-left hover:opacity-90 transition-opacity"
           >
-            <h1 className="font-serif text-xl lg:text-[1.35rem] font-medium leading-tight tracking-tight text-[#1A1A1A]">
-              Gente da Feira
-            </h1>
+            <img
+              src="/brand/logo-editorial.svg"
+              alt="Gente da Feira"
+              className="h-6 lg:h-7 w-auto"
+            />
             <p className="hidden lg:block text-[10px] uppercase tracking-[0.14em] text-[#4A4A4A]/50 leading-none">
               Feira de Santana · BA
             </p>

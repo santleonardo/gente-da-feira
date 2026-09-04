@@ -166,9 +166,11 @@ export function AuthForm() {
 
       {/* Brand */}
       <div className="mb-8 text-center">
-        <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight text-[#1A1A1A]">
-          Gente da Feira
-        </h1>
+        <img
+          src="/brand/logo-editorial.svg"
+          alt="Gente da Feira"
+          className="mx-auto h-9 sm:h-11 md:h-14 w-auto"
+        />
         <p className="mt-2 text-sm text-[#4A4A4A]/70 max-w-xs mx-auto leading-relaxed">
           A rede local de Feira de Santana
         </p>
