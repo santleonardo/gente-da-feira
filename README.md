@@ -14,7 +14,6 @@ Pacote pronto para integrar:
 ```
 clima-gdf/
 ├── README.md
-├── vercel.crons.snippet.json      ← mesclar no vercel.json
 ├── sql/
 │   └── 01_weather_runs.sql       ← rodar no Supabase
 └── src/
@@ -98,7 +97,7 @@ Copie:
 
 ### 5. Cron (Vercel)
 
-Mescle o conteúdo de `vercel.crons.snippet.json` no `vercel.json` existente (array `crons`).
+Os crons já estão no `vercel.json` do projeto (array `crons`): previsão diária, checagem horária de alertas e ingestão de notícias da Cidade.
 
 | Schedule | Efeito (BRT) |
 |----------|----------------|
