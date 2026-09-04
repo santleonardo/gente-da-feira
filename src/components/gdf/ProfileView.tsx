@@ -1052,12 +1052,9 @@ export function ProfileView() {
         .profile-blog pre, .profile-blog code { max-width: 100%; overflow-x: auto; }
       `}</style>
 
-      {/* ═══════ HERO DO PERFIL – ESTILO BLOG ═══════ */}
+      {/* ═══════ HERO DO PERFIL ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
-        {/* Cover sutil */}
-        <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.06]" />
-        
-        <div className="px-3 sm:px-6 md:px-8 pb-6 sm:pb-8 -mt-12 sm:-mt-14 relative min-w-0">
+        <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
               <UserAvatar
@@ -1099,14 +1096,20 @@ export function ProfileView() {
             </div>
           </div>
 
-          {/* Bio em destaque – estilo literário */}
+          {/* Bio – serif clássica neutra */}
           <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 break-words">
             {profile?.bio ? (
-              <p className="font-serif text-lg sm:text-xl leading-relaxed text-[#4A4A4A] italic">
+              <p
+                className="text-base sm:text-[17px] leading-relaxed text-[#4A4A4A]"
+                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+              >
                 {parseInlineContent(profile.bio, openUserProfileById)}
               </p>
             ) : (
-              <p className="font-serif text-lg text-[#4A4A4A]/50 italic">
+              <p
+                className="text-base sm:text-[17px] text-[#4A4A4A]/50"
+                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+              >
                 Sem bio ainda. Conte um pouco sobre você…
               </p>
             )}
@@ -1781,7 +1784,10 @@ export function ProfileView() {
                 {/* Bio em destaque */}
                 {profile?.bio ? (
                   <div className="space-y-5">
-                    <p className="font-serif text-xl sm:text-2xl italic text-[#1A1A1A] leading-snug">
+                    <p
+                      className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
+                      style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                    >
                       {parseInlineContent(profile.bio, openUserProfileById)}
                     </p>
                     <div className="prose prose-stone max-w-none">
@@ -1794,7 +1800,10 @@ export function ProfileView() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="font-serif text-xl italic text-[#4A4A4A]/50 leading-snug">
+                    <p
+                      className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed"
+                      style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                    >
                       Ainda não há uma apresentação escrita.
                     </p>
                     <p className="text-[#4A4A4A] leading-relaxed text-[15px]">

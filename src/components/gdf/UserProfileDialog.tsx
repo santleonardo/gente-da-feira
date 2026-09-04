@@ -585,8 +585,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           <div className="upd-blog h-[100dvh] w-full max-w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain" style={{WebkitOverflowScrolling: "touch"}}>
             {/* ═══════ HERO ═══════ */}
             <div className="relative">
-              <div className="h-36 sm:h-44 bg-gradient-to-br from-[#0A4D5C]/[0.08] via-[#F9F8F6] to-[#D96C4A]/[0.07]" />
-              <div className="px-3.5 sm:px-6 pb-5 -mt-12 relative min-w-0">
+              <div className="px-3.5 sm:px-6 pt-5 sm:pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
                   <div className="relative">
                     <UserAvatar
@@ -665,9 +664,12 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </p>
                 </div>
 
-                {/* Bio */}
+                {/* Bio – serif clássica neutra */}
                 {userData.bio && !isRestricted && (
-                  <p className="mt-4 font-serif text-base sm:text-lg leading-relaxed text-[#4A4A4A] italic max-w-xl">
+                  <p
+                    className="mt-4 text-base sm:text-[17px] leading-relaxed text-[#4A4A4A] max-w-xl"
+                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                  >
                     {parseInlineContent(userData.bio, openUserProfileById)}
                   </p>
                 )}
@@ -936,7 +938,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           )}
                           {userData.bio ? (
                             <div className="space-y-4">
-                              <p className="font-serif text-lg sm:text-xl italic text-[#1A1A1A] leading-snug">
+                              <p
+                                className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
+                                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                              >
                                 {parseInlineContent(userData.bio, openUserProfileById)}
                               </p>
                               <p className="text-[#4A4A4A] leading-relaxed text-[14px]">
@@ -945,7 +950,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                               </p>
                             </div>
                           ) : (
-                            <p className="font-serif text-lg italic text-[#4A4A4A]/50 leading-snug">
+                            <p
+                              className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed"
+                              style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                            >
                               Este perfil ainda não escreveu uma apresentação.
                             </p>
                           )}
