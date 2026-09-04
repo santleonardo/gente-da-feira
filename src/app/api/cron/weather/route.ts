@@ -20,7 +20,8 @@ import {
  *
  * Auth: Authorization: Bearer <INTERNAL_API_SECRET>
  *
- * Agendamento sugerido (vercel.json):
+ * Agendamento: pg_cron + pg_net no Supabase (ver
+ * sql/13_cron_supabase_pg_cron.sql), não mais vercel.json.
  *   "0 9 * * *"    → previsão da manhã (~06h BRT)
  *   "15 * * * *"   → checagem de alertas a cada hora
  */

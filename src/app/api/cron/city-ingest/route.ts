@@ -18,7 +18,9 @@ import { publishCityFeedPost } from "@/lib/city-feed-post";
  * 3) Grava em city_updates (bloco / admin)
  * 4) Se score alto → cria POST no feed principal (conta Cidade)
  *
- * Auth: INTERNAL_API_SECRET / CRON_SECRET (Vercel Cron).
+ * Auth: INTERNAL_API_SECRET.
+ * Agendamento: pg_cron + pg_net no Supabase (ver
+ * sql/13_cron_supabase_pg_cron.sql), não mais Vercel Cron.
  */
 
 const MAX_SOURCES_PER_RUN = 30;
