@@ -95,14 +95,27 @@ Copie:
 | `src/app/api/internal/weather-alert/route.ts` | idem |
 | `src/app/api/cron/weather/route.ts` | idem |
 
-### 5. Cron (Vercel)
+### 5. Cron (Supabase pg_cron + pg_net)
 
-Os crons já estão no `vercel.json` do projeto (array `crons`): previsão diária, checagem horária de alertas e ingestão de notícias da Cidade.
+O app continua na Vercel, mas o *agendamento* dos crons roda no Supabase (não usa mais `vercel.json`). No Supabase → SQL Editor:
 
-| Schedule | Efeito (BRT) |
-|----------|----------------|
-| `0 9 * * *` | ~06h — previsão diária |
-| `15 * * * *` | a cada hora — alertas |
+1. Guarde o `INTERNAL_API_SECRET` no Vault (rode isso separadamente, sem versionar o segredo real):
+   ```sql
+   select vault.create_secret('<valor-real-do-INTERNAL_API_SECRET>', 'internal_api_secret');
+   ```
+2. Rode `sql/13_cron_supabase_pg_cron.sql`. A URL já vem preenchida como `https://gente-da-feira-chat.vercel.app` (mesmo domínio já usado em outros pontos do schema consolidado, e consistente com o deploy direto em `*.vercel.app` sem domínio próprio — ver `src/lib/request-identity.ts`) — confira em Vercel → Domains se é isso mesmo antes de rodar.
+
+| Job | Schedule | Efeito (BRT) |
+|-----|----------|----------------|
+| `weather-daily` | `0 9 * * *` | ~06h — previsão diária |
+| `weather-hourly-alerts` | `15 * * * *` | a cada hora — alertas |
+| `city-ingest` | `*/30 * * * *` | a cada 30 min — ingestão de notícias da Cidade |
+
+Conferir jobs agendados e histórico:
+```sql
+select jobid, jobname, schedule, active from cron.job order by jobname;
+select status, return_message, start_time from cron.job_run_details order by start_time desc limit 20;
+```
 
 ---
 
@@ -111,7 +124,7 @@ Os crons já estão no `vercel.json` do projeto (array `crons`): previsão diár
 ### Webhook manual
 
 ```bash
-curl -X POST https://SEU-APP.vercel.app/api/internal/weather-alert \
+curl -X POST https://gente-da-feira-chat.vercel.app/api/internal/weather-alert \
   -H "Authorization: Bearer $INTERNAL_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
@@ -125,9 +138,17 @@ curl -X POST https://SEU-APP.vercel.app/api/internal/weather-alert \
 
 ### Cron
 
+Teste manual direto (simula o que o pg_cron faz):
+
 ```bash
-curl -X GET https://SEU-APP.vercel.app/api/cron/weather \
+curl -X GET https://gente-da-feira-chat.vercel.app/api/cron/weather \
   -H "Authorization: Bearer $INTERNAL_API_SECRET"
+```
+
+Ou disparando pela função do Supabase (sem precisar do curl/secret local):
+
+```sql
+select private.call_internal_cron('/api/cron/weather');
 ```
 
 ### Log
