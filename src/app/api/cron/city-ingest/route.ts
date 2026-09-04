@@ -7,6 +7,7 @@ import {
   computeRelevanceScore,
   looksLikeFeiraDeSantana,
   isScopedFilterExempt,
+  shouldAutoPublish,
 } from "@/lib/city-monitoring";
 import { publishCityFeedPost } from "@/lib/city-feed-post";
 
@@ -14,13 +15,13 @@ import { publishCityFeedPost } from "@/lib/city-feed-post";
  * GET /api/cron/city-ingest
  *
  * 1) Lê RSS das fontes em city_sources
- * 2) Filtra Feira de Santana + score
- * 3) Grava em city_updates (bloco / admin)
- * 4) Se score alto → cria POST no feed principal (conta Cidade)
+ * 2) Filtro local só para scope=local; regional/national passam
+ * 3) Score com prioridade editorial:
+ *    FSA → Bahia → política nacional → esporte de interesse → cultura
+ * 4) Grava em city_updates; se passar do limiar da camada → feed (conta Cidade)
  *
  * Auth: INTERNAL_API_SECRET.
- * Agendamento: pg_cron + pg_net no Supabase (ver
- * sql/13_cron_supabase_pg_cron.sql), não mais Vercel Cron.
+ * Agendamento: pg_cron + pg_net no Supabase.
  */
 
 const MAX_SOURCES_PER_RUN = 30;
@@ -82,15 +83,25 @@ export async function GET(req: NextRequest) {
             continue;
           }
 
+          const category =
+            typeof source.category === "string" ? source.category : "geral";
+
           const relevance_score = computeRelevanceScore({
             trustScore: source.trust_score ?? 50,
             sourcePublishedAt: item.pubDate,
             text: blob,
             hasImage: !!item.imageUrl,
             scope: source.scope as string | null,
+            category,
           });
 
-          const autoPublish = relevance_score >= 65;
+          const decision = shouldAutoPublish({
+            relevanceScore: relevance_score,
+            text: blob,
+            category,
+            scope: source.scope as string | null,
+          });
+          const autoPublish = decision.publish;
           const now = new Date().toISOString();
 
           const { error: insertError } = await admin.from("city_updates").insert({
@@ -100,8 +111,7 @@ export async function GET(req: NextRequest) {
             title: item.title,
             summary: item.summary,
             raw_excerpt: item.summary,
-            category:
-              typeof source.category === "string" ? source.category : "geral",
+            category,
             platform: "rss",
             image_url: item.imageUrl ? item.imageUrl.slice(0, 2000) : null,
             neighborhood: null,
@@ -109,7 +119,13 @@ export async function GET(req: NextRequest) {
             is_published: autoPublish,
             published_at: autoPublish ? now : null,
             source_published_at: item.pubDate || null,
-            meta: { ingested: true, auto_publish: autoPublish, via: "cron-rss" },
+            meta: {
+              ingested: true,
+              auto_publish: autoPublish,
+              via: "cron-rss",
+              tier: decision.tier,
+              threshold: decision.threshold,
+            },
           });
 
           if (insertError) {
