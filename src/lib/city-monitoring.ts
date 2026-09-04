@@ -10,6 +10,7 @@ export const CITY_CATEGORIES = [
   "transito",
   "seguranca",
   "clima",
+  "economia",
   "cultura",
   "esporte",
   "politica",

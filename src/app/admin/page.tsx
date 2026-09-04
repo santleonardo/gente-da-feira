@@ -26,6 +26,7 @@ const CITY_CATEGORY_LABELS: Record<CityCategory, string> = {
   transito: "Trânsito",
   seguranca: "Segurança",
   clima: "Clima",
+  economia: "Economia",
   cultura: "Cultura",
   esporte: "Esporte",
   politica: "Política",

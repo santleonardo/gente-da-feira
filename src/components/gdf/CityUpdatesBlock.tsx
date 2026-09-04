@@ -32,6 +32,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   transito: "Trânsito",
   seguranca: "Segurança",
   clima: "Clima",
+  economia: "Economia",
   cultura: "Cultura",
   esporte: "Esporte",
   politica: "Política",
