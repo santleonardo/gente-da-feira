@@ -14,17 +14,24 @@ import { publishCityFeedPost } from "@/lib/city-feed-post";
 /**
  * GET /api/cron/city-ingest
  *
- * 1) Lê RSS das fontes em city_sources
- * 2) Filtro local só para scope=local; regional/national passam
- * 3) Score com prioridade editorial:
- *    FSA → Bahia → política nacional → esporte de interesse → cultura
- * 4) Grava em city_updates; se passar do limiar da camada → feed (conta Cidade)
+ * Processa um SUBCONJUNTO das fontes por execução (rotação), para caber no
+ * timeout do pg_net (~60–110s) e no maxDuration da Vercel.
+ *
+ * Prioridade editorial no score:
+ *   FSA → Bahia → política nacional → esporte de interesse → cultura
  *
  * Auth: INTERNAL_API_SECRET.
  * Agendamento: pg_cron + pg_net no Supabase.
  */
 
-const MAX_SOURCES_PER_RUN = 30;
+// Vercel Pro permite até 300s; Hobby ~10–60s. 60s é um alvo seguro.
+export const maxDuration = 60;
+export const runtime = "nodejs";
+
+/** Quantas fontes RSS processar por disparo do cron */
+const MAX_SOURCES_PER_RUN = 8;
+/** Itens por feed (mais novos primeiro — o parser já costuma vir ordenado) */
+const MAX_ITEMS_PER_SOURCE = 12;
 
 export async function GET(req: NextRequest) {
   const authError = validateInternalAuth(req);
@@ -33,17 +40,18 @@ export async function GET(req: NextRequest) {
   try {
     const admin = createAdminClient();
 
-    const { data: sources, error: sourcesError } = await admin
+    // Busca todas ativas; a rotação escolhe um fatia por hora
+    const { data: allSources, error: sourcesError } = await admin
       .from("city_sources")
       .select("id, slug, name, rss_url, category, trust_score, is_active, scope")
       .eq("is_active", true)
       .eq("platform", "rss")
       .not("rss_url", "is", null)
-      .limit(MAX_SOURCES_PER_RUN);
+      .order("slug", { ascending: true });
 
     if (sourcesError) throw sourcesError;
 
-    if (!sources || sources.length === 0) {
+    if (!allSources || allSources.length === 0) {
       return NextResponse.json({
         ok: true,
         sources: 0,
@@ -55,23 +63,29 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Rotação estável: a cada hora do dia muda a janela de fontes
+    const hourBucket = new Date().getUTCHours(); // 0–23
+    const start = (hourBucket * MAX_SOURCES_PER_RUN) % allSources.length;
+    const sources: typeof allSources = [];
+    for (let i = 0; i < Math.min(MAX_SOURCES_PER_RUN, allSources.length); i++) {
+      sources.push(allSources[(start + i) % allSources.length]);
+    }
+
     let totalInserted = 0;
     let totalFeedPosts = 0;
     let totalSkipped = 0;
     let totalDuplicates = 0;
     const perSourceErrors: { source: string; error: string }[] = [];
     const feedSkipReasons: string[] = [];
+    const processedSlugs = sources.map((s) => s.slug);
 
     for (const source of sources) {
       try {
         const items = await fetchRssFeed(source.rss_url as string);
-        // Fontes "regional" (Bahia / cidades vizinhas) e "national" (política,
-        // esporte, entretenimento etc. de abrangência nacional) não precisam
-        // mencionar Feira de Santana — o filtro local só se aplica a fontes
-        // "local" (padrão).
         const filterExempt = isScopedFilterExempt(source.scope as string | null);
+        const limitedItems = items.slice(0, MAX_ITEMS_PER_SOURCE);
 
-        for (const item of items) {
+        for (const item of limitedItems) {
           const blob = `${item.title} ${item.summary || ""}`;
 
           if (!filterExempt && !looksLikeFeiraDeSantana(blob)) {
@@ -141,15 +155,13 @@ export async function GET(req: NextRequest) {
           }
           totalInserted++;
 
-          // ── Feed principal: post automático para todos os usuários ──
           if (autoPublish) {
             const feed = await publishCityFeedPost(admin, {
               title: item.title,
               summary: item.summary,
               url: item.link || null,
               sourceName: source.name || source.slug,
-              category:
-                typeof source.category === "string" ? source.category : "geral",
+              category,
               relevanceScore: relevance_score,
             });
             if (feed.ok) {
@@ -159,10 +171,12 @@ export async function GET(req: NextRequest) {
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "erro desconhecido";
         perSourceErrors.push({
           source: source.slug || source.id,
-          error: err?.message || "erro desconhecido",
+          error: message,
         });
       }
     }
@@ -170,6 +184,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       sources: sources.length,
+      sourcesTotal: allSources.length,
+      processedSlugs,
       inserted: totalInserted,
       feedPosts: totalFeedPosts,
       skipped: totalSkipped,
