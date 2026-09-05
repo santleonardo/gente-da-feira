@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,11 @@ import {
   revokePreviewUrl,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
+import {
+  useMentionAutocomplete,
+  MentionSuggestions,
+  type MentionUser,
+} from "@/lib/mention-autocomplete";
 
 // Abre o perfil de um usuário (ex: ao clicar numa @menção) via evento global,
 // mesmo padrão usado em outras telas (FeedView, DMsView, RoomsView).
@@ -518,6 +523,70 @@ export function ProfileView() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [editorExpanded]);
+
+  // Autocomplete de @menção dentro do editor rico (contentEditable)
+  const {
+    mentionQuery,
+    mentionIndex,
+    suggestions: mentionSuggestions,
+    loading: mentionLoading,
+    setMentionIndex,
+    onChangeWithMention,
+    onKeyDownMention,
+    closeMentions,
+  } = useMentionAutocomplete();
+
+  // Lê o texto e a posição do cursor dentro do nó de texto atual do editor
+  // (aproximação suficiente para o caso comum: digitando sem cruzar nós/tags)
+  const checkMentionAtCaret = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editorRef.current) {
+      closeMentions();
+      return;
+    }
+    const anchorNode = sel.anchorNode;
+    if (!anchorNode || !editorRef.current.contains(anchorNode)) {
+      closeMentions();
+      return;
+    }
+    const value = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.textContent || "" : "";
+    const cursorPos = anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorOffset : 0;
+    onChangeWithMention(value, cursorPos);
+  }, [onChangeWithMention, closeMentions]);
+
+  // Substitui o "@query" sob o cursor por "@username " diretamente no DOM do editor
+  const insertMentionInEditor = useCallback((user: MentionUser) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE || !editorRef.current.contains(node)) {
+      closeMentions();
+      return;
+    }
+    const text = node.textContent || "";
+    const offset = range.startOffset;
+    const before = text.slice(0, offset);
+    const match = before.match(/@([a-zA-Z0-9_]*)$/);
+    if (!match) {
+      closeMentions();
+      return;
+    }
+    const start = before.length - match[0].length;
+    const inserted = `@${user.username} `;
+    node.textContent = text.slice(0, start) + inserted + text.slice(offset);
+
+    const newRange = document.createRange();
+    const newCaretPos = start + inserted.length;
+    newRange.setStart(node, Math.min(newCaretPos, node.textContent?.length ?? 0));
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    editorRef.current.focus();
+    setTextContent(editorRef.current.innerText);
+    closeMentions();
+  }, [closeMentions]);
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false });
 
   // Media state
@@ -1580,32 +1649,54 @@ export function ProfileView() {
             </div>
 
             {/* Editor */}
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              className={`editor-content overflow-y-auto overflow-x-hidden break-words rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "flex-1 min-h-0" : "min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px]"}`}
-              style={{
-                fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
-                textAlign: postStyle.alignment || "left",
-              }}
-              onInput={() => {
-                if (editorRef.current) setTextContent(editorRef.current.innerText);
-              }}
-              onKeyUp={() => {
-                setActiveFormats({
-                  bold: document.queryCommandState("bold"),
-                  italic: document.queryCommandState("italic"),
-                });
-              }}
-              onMouseUp={() => {
-                setActiveFormats({
-                  bold: document.queryCommandState("bold"),
-                  italic: document.queryCommandState("italic"),
-                });
-              }}
-              data-placeholder="Comece a escrever sua entrada…"
-            />
+            <div className={editorExpanded ? "relative flex-1 min-h-0 flex flex-col" : "relative"}>
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                className={`editor-content overflow-y-auto overflow-x-hidden break-words rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "flex-1 min-h-0" : "min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px]"}`}
+                style={{
+                  fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
+                  textAlign: postStyle.alignment || "left",
+                }}
+                onInput={() => {
+                  if (editorRef.current) setTextContent(editorRef.current.innerText);
+                  checkMentionAtCaret();
+                }}
+                onKeyDown={(e) => {
+                  onKeyDownMention(e, insertMentionInEditor);
+                }}
+                onKeyUp={(e) => {
+                  setActiveFormats({
+                    bold: document.queryCommandState("bold"),
+                    italic: document.queryCommandState("italic"),
+                  });
+                  if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+                    checkMentionAtCaret();
+                  }
+                }}
+                onMouseUp={() => {
+                  setActiveFormats({
+                    bold: document.queryCommandState("bold"),
+                    italic: document.queryCommandState("italic"),
+                  });
+                  closeMentions();
+                }}
+                onBlur={() => {
+                  // Pequeno atraso para permitir o onMouseDown do dropdown (que previne o blur) completar a seleção
+                  setTimeout(() => closeMentions(), 120);
+                }}
+                data-placeholder="Comece a escrever sua entrada…"
+              />
+              <MentionSuggestions
+                open={mentionQuery !== null}
+                suggestions={mentionSuggestions}
+                activeIndex={mentionIndex}
+                loading={mentionLoading}
+                onSelect={insertMentionInEditor}
+                onHover={setMentionIndex}
+              />
+            </div>
 
             {/* Char count */}
             <div className="mt-1.5 flex justify-end shrink-0">
