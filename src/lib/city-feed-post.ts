@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Máximo de posts da conta "Cidade" por dia (UTC) — evita poluir o feed */
-export const MAX_CITY_POSTS_PER_DAY = 100;
+export const MAX_CITY_POSTS_PER_DAY = 200;
 
 /**
  * Rede de segurança se publishCityFeedPost for chamado direto.
