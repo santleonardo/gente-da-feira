@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,10 +27,6 @@ import {
   Ban,
   Trash2,
   Loader2,
-  Moon,
-  Sun,
-  Monitor,
-  Contrast,
   FileText,
   ChevronRight,
   Flag,
@@ -42,8 +37,6 @@ import { toast } from "sonner";
 
 export function SettingsView({ embedded }: { embedded?: boolean }) {
   const { profile, updateProfile, setProfileSubView } = useStore();
-  const { theme, setTheme } = useTheme();
-
   const [isPrivate, setIsPrivate] = useState(profile?.is_private || false);
   const [hideFollowing, setHideFollowing] = useState(profile?.hide_following || false);
   const [hideFollowers, setHideFollowers] = useState(profile?.hide_followers || false);
@@ -284,104 +277,6 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
           <h2 className="font-serif text-2xl font-medium tracking-tight text-[#1A1A1A]">Configurações</h2>
         </div>
       )}
-
-      {/* APARÊNCIA */}
-      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Sun className="h-4 w-4 text-[#D96C4A]" />
-            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Aparência</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                {
-                  id: "light",
-                  label: "Claro",
-                  desc: "Dia na feira",
-                  icon: Sun,
-                  swatch: "bg-background border-border",
-                  dot: "bg-primary",
-                },
-                {
-                  id: "dark",
-                  label: "Escuro",
-                  desc: "Padrão noturno",
-                  icon: Moon,
-                  swatch: "bg-[#0a0f10] border-[#1e3338]",
-                  dot: "bg-primary",
-                },
-                {
-                  id: "noite",
-                  label: "Noite da Praça",
-                  desc: "Teal neon + poste",
-                  icon: MapPin,
-                  swatch: "bg-[#0c1214] border-[#243338]",
-                  dot: "bg-[#3dd9c6]",
-                },
-                {
-                  id: "a11y",
-                  label: "Alto contraste",
-                  desc: "Preto no branco",
-                  icon: Contrast,
-                  swatch: "bg-white border-black",
-                  dot: "bg-black",
-                },
-                {
-                  id: "a11y-dark",
-                  label: "Contraste escuro",
-                  desc: "Branco no preto",
-                  icon: Contrast,
-                  swatch: "bg-black border-white",
-                  dot: "bg-white",
-                },
-                {
-                  id: "system",
-                  label: "Sistema",
-                  desc: "Segue o aparelho",
-                  icon: Monitor,
-                  swatch: "bg-gradient-to-br from-background to-foreground border-border",
-                  dot: "bg-primary",
-                },
-              ] as const
-            ).map((opt) => {
-              const active = theme === opt.id;
-              const Icon = opt.icon;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setTheme(opt.id)}
-                  className={`flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-all active:scale-[0.98] ${
-                    active
-                      ? "border-primary ring-2 ring-primary/30 bg-primary/5"
-                      : "border-border hover:bg-accent/40"
-                  }`}
-                >
-                  <div
-                    className={`relative h-10 w-full rounded-xl border ${opt.swatch}`}
-                    aria-hidden
-                  >
-                    <span
-                      className={`absolute bottom-1.5 right-1.5 h-3 w-3 rounded-full ${opt.dot} ring-2 ring-black/10`}
-                    />
-                  </div>
-                  <div className="flex w-full items-center gap-1.5 min-w-0">
-                    <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-semibold truncate">{opt.label}</span>
-                    {active && (
-                      <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 shrink-0">
-                        Ativo
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</p>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* PRIVACIDADE */}
       <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
