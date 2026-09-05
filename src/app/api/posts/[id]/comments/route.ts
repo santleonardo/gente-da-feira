@@ -12,6 +12,7 @@ import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempo
 import { safeErrorResponse } from "@/lib/safe-error";
 import { checkSpam } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
+import { validateText } from "@/lib/text-validation";
 
 // SEC-009: Author profile columns for comment authors
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -75,8 +76,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (idemBlock) return idemBlock;
 
     const { content, parentId } = await req.json();
-    if (!content || !content.trim()) return NextResponse.json({ error: "Comentário não pode estar vazio" }, { status: 400 });
-    if (content.trim().length > 300) return NextResponse.json({ error: "Comentário muito longo (máx 300 chars)" }, { status: 400 });
+    const textCheck = validateText(content || "", "comment");
+    if (!textCheck.ok) {
+      return NextResponse.json({ error: textCheck.error }, { status: 400 });
+    }
 
     const { data: post } = await supabase
       .from("posts").select("id").eq("id", postId).eq("is_deleted", false).single();

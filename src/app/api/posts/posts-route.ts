@@ -30,6 +30,7 @@ import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibil
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { checkSpam } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
+import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -285,15 +286,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!hasMedia && (!content || !content.trim())) {
-      return NextResponse.json({ error: "Conteúdo é obrigatório" }, { status: 400 });
-    }
-
-    if (content?.trim()) {
-      const plainText = content.replace(/<[^>]*>/g, "").replace(/&\w+;/g, " ");
-      if (plainText.trim().length > 1000) {
-        return NextResponse.json({ error: "Post muito longo (máx 1000 chars)" }, { status: 400 });
-      }
+    const textCheck = validateText(content || "", "post", { hasMedia });
+    if (!textCheck.ok) {
+      return NextResponse.json({ error: textCheck.error }, { status: 400 });
     }
 
     // Light: posts rich / post-it / estilos desabilitados (post_style sempre null)

@@ -8,6 +8,7 @@ import { validateMediaUrl } from "@/lib/storage-security";
 import { selectCols } from "@/lib/safe-columns";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { validateText } from "@/lib/text-validation";
 
 const MEDIA_MESSAGE_EXPIRATION_HOURS = 1;
 
@@ -113,8 +114,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if ((!content || !content.trim()) && !media_url) {
       return NextResponse.json({ error: "Mensagem vazia" }, { status: 400 });
     }
-    if (content && content.length > 2000) {
-      return NextResponse.json({ error: "Mensagem muito longa (máx 2000 chars)" }, { status: 400 });
+    const textCheck = validateText(content || "", "dmMessage", { hasMedia: !!(media_url || media_type) });
+    if (content && !textCheck.ok) {
+      return NextResponse.json({ error: textCheck.error }, { status: 400 });
     }
 
     if (media_url && !["image", "video", "audio"].includes(media_type)) {

@@ -4,6 +4,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent } from "@/lib/sanitize";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { validateText } from "@/lib/text-validation";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
 
@@ -132,17 +133,9 @@ export async function PATCH(
         (existingPost?.image_urls && existingPost.image_urls.length > 0) ||
         !!existingPost?.video_url ||
         !!existingPost?.audio_url;
-      if (!existingHasMedia && (!content || !content.trim())) {
-        return NextResponse.json(
-          { error: "Conteúdo é obrigatório" },
-          { status: 400 }
-        );
-      }
-      if (content && content.trim().length > 1000) {
-        return NextResponse.json(
-          { error: "Post muito longo (máx 1000 chars)" },
-          { status: 400 }
-        );
+      const textCheck = validateText(content || "", "post", { hasMedia: existingHasMedia });
+      if (!textCheck.ok) {
+        return NextResponse.json({ error: textCheck.error }, { status: 400 });
       }
     }
 
