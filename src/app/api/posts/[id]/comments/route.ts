@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { isBlocked, getPostAuthorId } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
@@ -134,6 +134,51 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (notif?.id) {
       dispatchPushForNotification(notif.id).catch(() => {});
+    }
+
+    // Notifica usuários mencionados no comentário (@usuario)
+    const mentionedUsernames = [
+      ...new Set(
+        [...(sanitizedContent || "").matchAll(/@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase())
+      ),
+    ];
+    if (mentionedUsernames.length > 0) {
+      (async () => {
+        try {
+          const adminClient = createAdminClient();
+          const notified = new Set<string>();
+          for (const username of mentionedUsernames) {
+            const { data: mentioned } = await adminClient
+              .from("profiles")
+              .select("id")
+              .eq("username", username)
+              .maybeSingle();
+            if (!mentioned || mentioned.id === user.id || notified.has(mentioned.id)) continue;
+            const { count: mentionBlockCount } = await adminClient
+              .from("blocks")
+              .select("id", { count: "exact", head: true })
+              .or(
+                `and(blocker_id.eq.${user.id},blocked_id.eq.${mentioned.id}),and(blocker_id.eq.${mentioned.id},blocked_id.eq.${user.id})`
+              );
+            if ((mentionBlockCount ?? 0) > 0) continue;
+            notified.add(mentioned.id);
+            const { data: mentionNotif } = await adminClient
+              .from("notifications")
+              .insert({
+                user_id: mentioned.id,
+                type: "mention",
+                actor_id: user.id,
+                post_id: postId,
+                is_read: false,
+              })
+              .select("id")
+              .single();
+            if (mentionNotif?.id) {
+              dispatchPushForNotification(mentionNotif.id).catch(() => {});
+            }
+          }
+        } catch { /* silent */ }
+      })();
     }
 
     const responseData = { comment: filtered[0] };
