@@ -484,8 +484,8 @@ export function AppShell() {
   return (
     <div
       className={cn(
-        "gdf-shell flex w-full max-w-[100vw] flex-col overflow-x-hidden bg-[#F9F8F6]",
-        inChat ? "h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
+        "gdf-shell flex w-full max-w-[100vw] flex-col overflow-x-hidden bg-[#F9F8F6] min-w-0",
+        inChat ? "h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
       )}
     >
       <GdfEditorialStyles />
@@ -637,7 +637,7 @@ export function AppShell() {
                 key={t.id}
                 onClick={() => handleTabClick(t.id)}
                 className={cn(
-                  "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 sm:px-1 py-1.5 transition-all duration-200",
+                  "touch-target flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 sm:px-1 py-1.5 transition-all duration-200",
                   tab === t.id
                     ? "bg-[#1A1A1A] text-white"
                     : "text-[#4A4A4A]/50 active:scale-95"
