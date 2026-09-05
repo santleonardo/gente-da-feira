@@ -324,8 +324,8 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
 
   if (count === 1) {
     return (
-      <button onClick={() => onPhotoClick?.(0)} className="mt-2.5 w-full overflow-hidden rounded-3xl shadow-lg">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-80 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+      <button onClick={() => onPhotoClick?.(0)} className="mt-2.5 w-full overflow-hidden rounded-3xl bg-black/5 shadow-lg">
+        <img src={photos[0]} alt="Foto do post" className="w-full max-h-80 object-contain hover:opacity-95 transition-opacity" loading="lazy" />
       </button>
     );
   }
@@ -333,8 +333,8 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     return (
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-3xl shadow-lg">
         {photos.map((url, i) => (
-          <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-44 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden bg-black/5">
+            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-44 object-contain hover:opacity-95 transition-opacity" loading="lazy" />
           </button>
         ))}
       </div>
@@ -343,14 +343,14 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
   if (count === 3) {
     return (
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-3xl shadow-lg">
-        <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden bg-black/5">
+          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-contain hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
-        <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-44 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden bg-black/5">
+          <img src={photos[1]} alt="Foto 2" className="w-full h-44 object-contain hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
-        <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-44 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden bg-black/5">
+          <img src={photos[2]} alt="Foto 3" className="w-full h-44 object-contain hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
       </div>
     );
@@ -358,8 +358,8 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
   return (
     <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-3xl shadow-lg">
       {photos.slice(0, 4).map((url, i) => (
-        <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-44 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden bg-black/5">
+          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-44 object-contain hover:opacity-95 transition-opacity" loading="lazy" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#f7f9fa] font-bold text-lg">+{count - 4}</div>
           )}
