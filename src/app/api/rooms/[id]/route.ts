@@ -28,7 +28,7 @@ export async function GET(
     const { data: _room, error } = await supabase
       .from("rooms")
       .select(`
-        id, name, slug, icon, description, type, rules,
+        id, name, slug, icon, description, type, rules, bulletin,
         is_active, is_open, max_members, member_count, has_password,
         created_at, created_by,
         creator:profiles!rooms_created_by_fkey(id, display_name, username, avatar_url)
@@ -155,8 +155,9 @@ export async function DELETE(
   }
 }
 // PATCH /api/rooms/[id]
-// Criador: rules, description, is_open, password (definir/trocar/remover)
+// Criador: rules, bulletin, description, is_open, password (definir/trocar/remover)
 // Moderador: rules, description, is_open (sem senha)
+// bulletin (mural de avisos): somente criador
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -208,6 +209,21 @@ export async function PATCH(
           ? sanitizePlainText(body.rules.trim()).slice(0, 500)
           : "";
       updateData.rules = rules || null;
+    }
+
+    // Mural de avisos — somente o criador pode editar
+    if (body.bulletin !== undefined) {
+      if (!isCreator) {
+        return NextResponse.json(
+          { error: "Apenas o criador da sala pode editar o mural de avisos" },
+          { status: 403 }
+        );
+      }
+      const bulletin =
+        typeof body.bulletin === "string"
+          ? sanitizePlainText(body.bulletin.trim()).slice(0, 2000)
+          : "";
+      updateData.bulletin = bulletin || null;
     }
 
     if (body.description !== undefined) {
@@ -264,7 +280,7 @@ export async function PATCH(
       .from("rooms")
       .update(updateData)
       .eq("id", roomId)
-      .select("id, name, slug, icon, description, type, rules, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
+      .select("id, name, slug, icon, description, type, rules, bulletin, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
       .single();
 
     if (error) {
