@@ -582,13 +582,13 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
 
       {/* DIALOG: REMOVER SEGUIDORES */}
       <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2">
               <UserX className="h-4 w-4" /> Remover seguidores
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto px-2 py-2">
             {followersLoading ? (
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
@@ -625,13 +625,13 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
 
       {/* DIALOG: USUÁRIOS BLOQUEADOS */}
       <Dialog open={showBlockedDialog} onOpenChange={setShowBlockedDialog}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2">
               <Ban className="h-4 w-4" /> Usuários bloqueados
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto px-2 py-2">
             {blockedLoading ? (
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (

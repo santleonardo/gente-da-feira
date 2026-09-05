@@ -1122,32 +1122,14 @@ export function ProfileView() {
               <span className="text-[#4A4A4A] ml-1.5">entradas</span>
             </div>
             <button
-              onClick={async () => {
-                setShowFollowingDialog(true);
-                setFollowListLoading(true);
-                try {
-                  const res = await fetch(`/api/users/${profile?.id}/following`);
-                  const data = await res.json();
-                  setFollowList(data.users || []);
-                } catch { setFollowList([]); }
-                setFollowListLoading(false);
-              }}
+              onClick={() => openFollowDialog("following")}
               className="hover:text-[#D96C4A] transition-colors"
             >
               <span className="font-semibold text-[#1A1A1A]">{followingCount}</span>
               <span className="text-[#4A4A4A] ml-1.5">seguindo</span>
             </button>
             <button
-              onClick={async () => {
-                setShowFollowersDialog(true);
-                setFollowListLoading(true);
-                try {
-                  const res = await fetch(`/api/users/${profile?.id}/followers`);
-                  const data = await res.json();
-                  setFollowList(data.users || []);
-                } catch { setFollowList([]); }
-                setFollowListLoading(false);
-              }}
+              onClick={() => openFollowDialog("followers")}
               className="hover:text-[#D96C4A] transition-colors"
             >
               <span className="font-semibold text-[#1A1A1A]">{followersCount}</span>
@@ -1857,13 +1839,13 @@ export function ProfileView() {
 
       {/* ═══════ DIALOG: SEGUINDO ═══════ */}
       <Dialog open={showFollowingDialog} onOpenChange={setShowFollowingDialog}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
               <UsersIcon className="h-4 w-4 text-[#D96C4A]" /> Seguindo ({followingCount})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto custom-scrollbar">
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto custom-scrollbar px-2 py-2">
             {followListLoading ? (
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
@@ -1907,13 +1889,13 @@ export function ProfileView() {
 
       {/* ═══════ DIALOG: SEGUIDORES ═══════ */}
       <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
-        <DialogContent className="max-w-md rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
               <UsersIcon className="h-4 w-4 text-[#D96C4A]" /> Seguidores ({followersCount})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-80 overflow-y-auto custom-scrollbar">
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto custom-scrollbar px-2 py-2">
             {followListLoading ? (
               <div className="space-y-2 py-4">
                 {[1, 2, 3].map((i) => (
