@@ -668,14 +668,16 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   }, []);
 
   // ─── Fetch inicial ────────────────────────────────────
+  // Feed social: sempre neighborhood=all (seus posts + públicos + quem você segue).
+  // Filtrar pelo bairro do perfil escondia posts de outros bairros / conta Cidade.
   useEffect(() => {
     const ac = new AbortController();
     setLoading(true);
     setNextCursor(null);
     setHasMore(false);
-    const nb = profile?.neighborhood || "all";
-    fetch(`/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}`, {
+    fetch(`/api/posts?neighborhood=all&limit=${FEED_PAGE_SIZE}`, {
       signal: ac.signal,
+      credentials: "same-origin",
     })
       .then((r) => r.json())
       .then((data) => {
@@ -691,15 +693,16 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         if (!ac.signal.aborted) setLoading(false);
       });
     return () => ac.abort();
-  }, [profile?.neighborhood]);
+  }, []);
 
   // ─── Refresh (puxar novos posts) ──────────────────────
   const refreshFeed = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    const nb = profile?.neighborhood || "all";
     try {
-      const res = await fetch(`/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}`);
+      const res = await fetch(`/api/posts?neighborhood=all&limit=${FEED_PAGE_SIZE}`, {
+        credentials: "same-origin",
+      });
       const data = await res.json();
       setPosts(data.posts || []);
       setNextCursor(data.nextCursor ?? null);
@@ -709,17 +712,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
     } finally {
       setRefreshing(false);
     }
-  }, [profile?.neighborhood, refreshing]);
+  }, [refreshing]);
 
   // ─── Load more (cursor pagination) ───────────────────
   const loadMorePosts = useCallback(async () => {
     if (!hasMore || loadingMoreRef.current || !nextCursor) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
-    const nb = profile?.neighborhood || "all";
     try {
       const res = await fetch(
-        `/api/posts?neighborhood=${nb}&limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`
+        `/api/posts?neighborhood=all&limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(nextCursor)}`,
+        { credentials: "same-origin" }
       );
       const data = await res.json();
       setPosts((prev) => mergePostsUnique(prev, data.posts || []));
@@ -731,7 +734,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [hasMore, nextCursor, profile?.neighborhood, mergePostsUnique]);
+  }, [hasMore, nextCursor, mergePostsUnique]);
 
   // Scroll infinito — carrega próxima página ao aproximar do fim
   useEffect(() => {
