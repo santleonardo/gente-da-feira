@@ -1,11 +1,12 @@
 import React, { Fragment } from "react";
 
 const MENTION_REGEX = /@(\w+)/g;
+const HASHTAG_REGEX = /#([\p{L}\p{N}_]{2,40})/gu;
 
-// Regex combinado: URL | @menção | ***negrito itálico*** | **negrito** | _itálico_
+// Regex combinado: URL | @menção | #hashtag | ***negrito itálico*** | **negrito** | _itálico_
 // Usado por parseInlineFormatting — fonte única de verdade para
 // renderização inline em posts (feed/detalhe) e mensagens (DM/salas).
-const INLINE_REGEX = /(https?:\/\/[^\s<>"')\]]+)|@(\w+)|(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|_(.+?)_/g;
+const INLINE_REGEX = /(https?:\/\/[^\s<>"')\]]+)|@(\w+)|#([\p{L}\p{N}_]{2,40})|(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|_(.+?)_/gu;
 
 /** Rótulo curto para não estourar o layout com URLs enormes */
 function formatUrlLabel(raw: string): string {
@@ -58,6 +59,28 @@ export function openProfileFromMention(username: string, openUserProfile?: (user
   resolveUsernameToId(lower).then((userId) => {
     if (userId) openUserProfile(userId);
   });
+}
+
+/** Abre a busca por hashtag (Descobrir). Normaliza sem # e em minúsculas. */
+export function openHashtagSearch(tag: string) {
+  const normalized = tag.replace(/^#/, "").trim();
+  if (!normalized) return;
+  window.dispatchEvent(
+    new CustomEvent("openHashtag", { detail: { tag: normalized } })
+  );
+}
+
+/** Extrai hashtags únicas de um texto (sem #, minúsculas). */
+export function extractHashtags(text: string): string[] {
+  if (!text) return [];
+  const plain = text.replace(/<[^>]*>/g, " ");
+  const tags = new Set<string>();
+  const re = /#([\p{L}\p{N}_]{2,40})/gu;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(plain)) !== null) {
+    tags.add(m[1].toLowerCase());
+  }
+  return Array.from(tags);
 }
 
 /**
@@ -131,15 +154,30 @@ export function parseInlineFormatting(
           @{username}
         </span>
       );
-    } else if (match[4]) {
+    } else if (match[3]) {
+      // #hashtag
+      const tag = match[3];
+      parts.push(
+        <span
+          key={`tag-${key++}`}
+          className="text-[#0A4D5C] font-semibold cursor-pointer hover:underline underline-offset-2 decoration-[#0A4D5C]/40"
+          onClick={(e) => {
+            e.stopPropagation();
+            openHashtagSearch(tag);
+          }}
+        >
+          #{tag}
+        </span>
+      );
+    } else if (match[5]) {
       // ***negrito itálico***
-      parts.push(<strong key={`bi${key++}`}><em>{match[4]}</em></strong>);
-    } else if (match[6]) {
-      // **negrito**
-      parts.push(<strong key={`b${key++}`}>{match[6]}</strong>);
+      parts.push(<strong key={`bi${key++}`}><em>{match[5]}</em></strong>);
     } else if (match[7]) {
+      // **negrito**
+      parts.push(<strong key={`b${key++}`}>{match[7]}</strong>);
+    } else if (match[8]) {
       // _itálico_
-      parts.push(<em key={`i${key++}`}>{match[7]}</em>);
+      parts.push(<em key={`i${key++}`}>{match[8]}</em>);
     }
 
     lastIndex = match.index + match[0].length;

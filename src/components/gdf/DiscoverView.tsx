@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin, ChevronDown, Loader2, X } from "lucide-react";
+import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin, ChevronDown, Loader2, X, Hash } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
@@ -82,6 +82,8 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   const [searched, setSearched] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [hashtagPosts, setHashtagPosts] = useState<any[]>([]);
+  const [activeHashtag, setActiveHashtag] = useState<string | null>(null);
   const searchSeqRef = useRef(0);
 
   // Sugestões e salas pré-carregadas ao montar
@@ -165,6 +167,8 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       setSearched(false);
       setUsers([]);
       setRooms([]);
+      setHashtagPosts([]);
+      setActiveHashtag(null);
       setSearchError(null);
       setSearchLoading(false);
       return;
@@ -173,12 +177,31 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
     setSearchLoading(true);
     setSearchError(null);
     setSearched(true);
+
+    // Detecta hashtag: "#feira" ou "feira" se começar com #
+    const tagMatch = q.match(/^#([\p{L}\p{N}_]{2,40})$/u);
+    const tagFromHash = tagMatch ? tagMatch[1] : null;
+    const maybeTag = q.startsWith("#")
+      ? q.slice(1).replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 40)
+      : null;
+    const hashtag = (tagFromHash || maybeTag || "").toLowerCase() || null;
+
     try {
-      const [userRes, roomRes] = await Promise.all([
-        fetch(`/api/users?q=${encodeURIComponent(q)}`),
+      const userQuery = hashtag && q.startsWith("#") ? hashtag : q.replace(/^#/, "");
+      const fetches: Promise<Response>[] = [
+        fetch(`/api/users?q=${encodeURIComponent(userQuery)}`),
         fetch("/api/rooms"),
-      ]);
-      if (seq !== searchSeqRef.current) return; // resposta antiga
+      ];
+      if (hashtag) {
+        fetches.push(fetch(`/api/posts?hashtag=${encodeURIComponent(hashtag)}&limit=18`));
+      }
+      const results = await Promise.all(fetches);
+      if (seq !== searchSeqRef.current) return;
+
+      const userRes = results[0];
+      const roomRes = results[1];
+      const postsRes = hashtag ? results[2] : null;
+
       const userData = await userRes.json();
       const roomData = await roomRes.json();
       if (!userRes.ok) {
@@ -186,20 +209,32 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         setUsers([]);
       } else {
         // SEC-004: filter out blocked users client-side
+        // Se a busca é só por #tag, não prioriza usuários com o mesmo texto
         setUsers((userData.users || []).filter((u: any) => !blockedUserIds.has(u.id)));
       }
-      const qLower = q.toLowerCase();
+      const qLower = q.toLowerCase().replace(/^#/, "");
       setRooms(
         (roomData.rooms || []).filter((r: any) =>
           String(r.name || "").toLowerCase().includes(qLower) ||
           String(r.description || "").toLowerCase().includes(qLower)
         )
       );
+
+      if (postsRes) {
+        const postsData = await postsRes.json();
+        setHashtagPosts((postsData.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id)));
+        setActiveHashtag(hashtag);
+      } else {
+        setHashtagPosts([]);
+        setActiveHashtag(null);
+      }
     } catch {
       if (seq === searchSeqRef.current) {
         setSearchError("Não foi possível buscar. Tente de novo.");
         setUsers([]);
         setRooms([]);
+        setHashtagPosts([]);
+        setActiveHashtag(null);
       }
     } finally {
       if (seq === searchSeqRef.current) setSearchLoading(false);
@@ -210,6 +245,17 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
     void runSearch(query);
   };
 
+  // Clique em #hashtag em posts → preenche a busca
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tag = (e as CustomEvent).detail?.tag;
+      if (!tag) return;
+      setQuery("#" + String(tag).replace(/^#/, ""));
+    };
+    window.addEventListener("openHashtag", handler);
+    return () => window.removeEventListener("openHashtag", handler);
+  }, []);
+
   // Busca com debounce enquanto digita (300ms)
   useEffect(() => {
     const q = query.trim();
@@ -217,6 +263,8 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       setSearched(false);
       setUsers([]);
       setRooms([]);
+      setHashtagPosts([]);
+      setActiveHashtag(null);
       setSearchError(null);
       setSearchLoading(false);
       return;
@@ -281,7 +329,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]/50 pointer-events-none" />
           <Input
-            placeholder="Buscar pessoas por nome ou @usuario..."
+            placeholder="Buscar pessoas, @usuario ou #hashtag..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -407,11 +455,51 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
             </div>
           )}
 
-          {!searchLoading && !searchError && users.length === 0 && rooms.length === 0 && (
+          {!searchLoading && activeHashtag && hashtagPosts.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60 flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5" /> Posts com #{activeHashtag} ({hashtagPosts.length})
+              </p>
+              {hashtagPosts.map((post: any) => (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post } }))}
+                  className="flex w-full flex-col gap-1.5 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 text-left hover:border-black/10 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserAvatar
+                      user={{
+                        id: post.author?.id || post.author_id,
+                        display_name: post.author?.display_name,
+                        avatar_url: post.author?.avatar_url,
+                      }}
+                      className="h-8 w-8 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-semibold text-[#1A1A1A] truncate block">
+                        {post.author?.display_name || "Usuário"}
+                      </span>
+                      <span className="text-[11px] text-[#4A4A4A]/55 truncate block">
+                        @{post.author?.username || "…"}
+                      </span>
+                    </div>
+                  </div>
+                  {post.content ? (
+                    <p className="text-sm text-[#1A1A1A]/90 line-clamp-3 whitespace-pre-wrap break-words">
+                      {String(post.content).replace(/<[^>]*>/g, "")}
+                    </p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!searchLoading && !searchError && users.length === 0 && rooms.length === 0 && hashtagPosts.length === 0 && (
             <div className="py-12 text-center">
               <Search className="h-8 w-8 text-black/10 mx-auto mb-2" />
               <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhum resultado</p>
-              <p className="text-sm text-[#4A4A4A]/40 mt-1">Tente outro nome, @usuario ou sala</p>
+              <p className="text-sm text-[#4A4A4A]/40 mt-1">Tente outro nome, @usuario, #hashtag ou sala</p>
             </div>
           )}
         </div>

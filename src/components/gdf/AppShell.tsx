@@ -231,6 +231,17 @@ export function AppShell() {
     return () => window.removeEventListener("openPostDetail", handler);
   }, []);
 
+  // Clique em #hashtag → abre a aba Descobrir (a busca escuta o mesmo evento)
+  useEffect(() => {
+    const handler = (e: any) => {
+      const tag = e.detail?.tag;
+      if (!tag) return;
+      setTab("discover");
+    };
+    window.addEventListener("openHashtag", handler);
+    return () => window.removeEventListener("openHashtag", handler);
+  }, [setTab]);
+
   const openUserProfile = useCallback((userId: string) => {
     setProfileDialogUserId(userId);
     setProfileDialogOpen(true);
