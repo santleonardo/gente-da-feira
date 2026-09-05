@@ -366,7 +366,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                             <LazyImage
                               src={post.image_urls[0]}
                               alt=""
-                              className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                              className="h-full w-full object-contain object-center transition-transform duration-300 group-hover:scale-[1.03]"
                             />
                           </div>
                         )}
