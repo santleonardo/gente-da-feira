@@ -151,6 +151,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
 
     if (error) throw error;
+
+    // Mantém a conversa no topo da lista
+    await supabase
+      .from("direct_chats")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", id);
+
     const responseData = { message };
     await idempotencyStore(req, responseData);
     return NextResponse.json(responseData);
