@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 30 30" style="enable-background:new 0 0 30 30;" xml:space="preserve">
+<defs>
+  <style type="text/css">
+    .st0{fill:#0A4D5C;stroke:#2EC4B6;stroke-width:0.6;stroke-miterlimit:10;}
+    .st1{fill:#2EC4B6;}
+
+    .z-breathe {
+      animation: breathe 2.5s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+  </style>
+</defs>
+
+<g>
+  <path class="st0" d="M24.51,28.51H5.49c-2.21,0-4-1.79-4-4V5.49c0-2.21,1.79-4,4-4h19.03c2.21,0,4,1.79,4,4v19.03
+    C28.51,26.72,26.72,28.51,24.51,28.51z"/>
+  <g class="z-breathe">
+    <!-- G letter - top bar -->
+    <path class="st1" d="M15,6.5c-4.7,0-8.5,3.8-8.5,8.5s3.8,8.5,8.5,8.5c3.8,0,7-2.5,8.1-5.9h-3.4c-1,1.8-2.7,3-4.7,3
+      c-3.1,0-5.6-2.5-5.6-5.6s2.5-5.6,5.6-5.6c1.8,0,3.4,0.9,4.4,2.2H15v2.8h8.5V9.3C22.5,7.6,19,6.5,15,6.5z"/>
+  </g>
+</g>
+</svg>
