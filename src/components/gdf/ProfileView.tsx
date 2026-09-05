@@ -1479,27 +1479,47 @@ export function ProfileView() {
           <div
             className={
               editorExpanded
-                ? "fixed inset-0 z-[70] flex flex-col bg-white p-3.5 sm:p-6 w-full h-[100dvh] overflow-y-auto overscroll-contain"
+                ? "fixed inset-0 z-[70] flex flex-col bg-white w-full max-w-[100vw] h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none pt-[max(0.75rem,env(safe-area-inset-top))] px-3 sm:px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
                 : "rounded-2xl border border-black/[0.08] bg-white p-3.5 sm:p-6 shadow-sm w-full max-w-full min-w-0 overflow-hidden"
             }
           >
-            <div className={`flex items-start justify-between gap-3 mb-5 shrink-0 ${editorExpanded ? "sticky top-0 bg-white pb-2 -mt-3.5 sm:-mt-6 -mx-3.5 sm:-mx-6 px-3.5 sm:px-6 pt-3.5 sm:pt-6 border-b border-black/[0.06] z-10" : ""}`}>
-              <div>
-                <h3 className="font-serif text-2xl font-medium text-[#1A1A1A]">Nova entrada</h3>
-                <p className="text-sm text-[#4A4A4A]/70 mt-0.5">Escreva com formatação editorial</p>
+            <div
+              className={
+                editorExpanded
+                  ? "flex items-center justify-between gap-3 shrink-0 pb-3 mb-2 border-b border-black/[0.06]"
+                  : "flex items-start justify-between gap-3 mb-5 shrink-0"
+              }
+            >
+              <div className="min-w-0">
+                <h3 className={`font-serif font-medium text-[#1A1A1A] ${editorExpanded ? "text-lg sm:text-xl" : "text-2xl"}`}>
+                  Nova entrada
+                </h3>
+                {!editorExpanded && (
+                  <p className="text-sm text-[#4A4A4A]/70 mt-0.5">Escreva com formatação editorial</p>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => setEditorExpanded((e) => !e)}
+                onClick={() => {
+                  setEditorExpanded((e) => {
+                    const next = !e;
+                    if (next) {
+                      // Foco no editor após expandir
+                      setTimeout(() => editorRef.current?.focus(), 50);
+                    }
+                    return next;
+                  });
+                }}
                 className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 transition-colors shrink-0"
                 title={editorExpanded ? "Reduzir" : "Expandir"}
+                aria-label={editorExpanded ? "Reduzir editor" : "Expandir editor em tela cheia"}
               >
                 {editorExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
             </div>
 
             {/* Toolbar editorial — mobile-friendly */}
-            <div className="mb-3 space-y-2 w-full min-w-0 shrink-0">
+            <div className={`space-y-2 w-full min-w-0 shrink-0 ${editorExpanded ? "mb-2" : "mb-3"}`}>
               {/* Linha 1: estilo de bloco (sempre visível com rótulos) */}
               <div className="relative" ref={styleMenuRef}>
                 <button
@@ -1708,16 +1728,31 @@ export function ProfileView() {
               </div>
             </div>
 
-            {/* Editor */}
-            <div className={editorExpanded ? "relative flex-1 min-h-0 flex flex-col" : "relative"}>
+            {/* Editor — em tela cheia ocupa o espaço restante (scroll interno) */}
+            <div
+              className={
+                editorExpanded
+                  ? "relative flex-1 min-h-0 flex flex-col w-full max-w-full"
+                  : "relative"
+              }
+            >
               <div
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
-                className={`editor-content overflow-y-auto overflow-x-hidden break-words rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-4 py-3 text-[15px] leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none ${editorExpanded ? "flex-1 min-h-0" : "min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px]"}`}
+                className={
+                  "editor-content overflow-y-auto overflow-x-hidden break-words break-anywhere rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-5 py-3 sm:py-4 text-[15px] sm:text-base leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-[border,box-shadow] empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none " +
+                  (editorExpanded
+                    ? "flex-1 min-h-[min(55dvh,28rem)] h-full max-h-full w-full max-w-full"
+                    : "min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px]")
+                }
                 style={{
                   fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
                   textAlign: postStyle.alignment || "left",
+                  // Garante altura útil no modo expandido mesmo se o flex falhar em browsers antigos
+                  ...(editorExpanded
+                    ? { minHeight: "min(55dvh, 28rem)" }
+                    : {}),
                 }}
                 onInput={() => {
                   if (editorRef.current) setTextContent(editorRef.current.innerText);
@@ -1906,7 +1941,13 @@ export function ProfileView() {
             )}
 
             {/* Publish */}
-            <div className="mt-6 flex justify-end shrink-0">
+            <div
+              className={
+                editorExpanded
+                  ? "mt-3 pt-3 border-t border-black/[0.06] flex justify-end shrink-0"
+                  : "mt-6 flex justify-end shrink-0"
+              }
+            >
               <button
                 type="button"
                 disabled={publishing || (!textContent.trim() && selectedFiles.length === 0 && !selectedVideo && !selectedAudio)}
