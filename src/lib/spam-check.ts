@@ -61,6 +61,12 @@ Responda APENAS com um JSON válido, sem markdown, no formato exato:
 
 /**
  * Classifica um texto como spam ou não usando o Gemini Flash-Lite.
+ *
+ * Política híbrida (aplicada nas rotas de post/comentário):
+ *   - Fail-open na INFRA: timeout, rede, chave ausente, JSON inválido → isSpam: false
+ *     (não derruba a rede inteira se a IA cair).
+ *   - Fail-closed no SINAL: se isSpam === true, a API deve RECUSAR publicar o conteúdo.
+ *
  * Nunca lança exceção — em caso de falha, retorna { isSpam: false }.
  */
 export async function checkSpam(content: string): Promise<SpamCheckResult> {

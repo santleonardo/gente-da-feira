@@ -10,6 +10,8 @@ export type MentionUser = {
   avatar_url?: string | null;
 };
 
+const EMPTY_CANDIDATES: MentionUser[] = [];
+
 /**
  * Detecta se o cursor está em uma menção parcial (@query) e devolve a query.
  * Retorna null se não houver @ ativo.
@@ -50,7 +52,7 @@ export function useMentionAutocomplete(options?: {
 }) {
   const {
     localOnly = false,
-    localCandidates = [],
+    localCandidates = EMPTY_CANDIDATES,
     debounceMs = 200,
     limit = 6,
   } = options || {};
@@ -61,17 +63,21 @@ export function useMentionAutocomplete(options?: {
   const [loading, setLoading] = useState(false);
   const seqRef = useRef(0);
 
+  // Candidatos locais via ref — evita loop (array novo a cada render do pai)
+  const localCandidatesRef = useRef(localCandidates);
+  localCandidatesRef.current = localCandidates;
+
   // Busca remota com debounce
   useEffect(() => {
     if (mentionQuery === null) {
-      setSuggestions([]);
+      setSuggestions((prev) => (prev.length === 0 ? prev : []));
       setLoading(false);
       return;
     }
 
     if (localOnly) {
       const q = mentionQuery.toLowerCase();
-      const filtered = localCandidates
+      const filtered = localCandidatesRef.current
         .filter((p) => {
           if (!p?.username) return false;
           if (!q) return true;
@@ -87,24 +93,19 @@ export function useMentionAutocomplete(options?: {
 
     const seq = ++seqRef.current;
     setLoading(true);
-    const t = setTimeout(async () => {
+    const t = window.setTimeout(async () => {
       try {
-        const q = mentionQuery.trim();
-        const url = q
-          ? `/api/users?q=${encodeURIComponent(q)}`
-          : `/api/users`;
-        const res = await fetch(url);
+        const res = await fetch(
+          `/api/users?q=${encodeURIComponent(mentionQuery)}&limit=${limit}`
+        );
         const data = await res.json();
         if (seq !== seqRef.current) return;
-        const users: MentionUser[] = (data.users || [])
-          .filter((u: any) => u?.username)
-          .slice(0, limit)
-          .map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            display_name: u.display_name,
-            avatar_url: u.avatar_url,
-          }));
+        const users: MentionUser[] = (data.users || []).map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          display_name: u.display_name,
+          avatar_url: u.avatar_url,
+        }));
         setSuggestions(users);
       } catch {
         if (seq === seqRef.current) setSuggestions([]);
@@ -113,8 +114,8 @@ export function useMentionAutocomplete(options?: {
       }
     }, debounceMs);
 
-    return () => clearTimeout(t);
-  }, [mentionQuery, localOnly, localCandidates, debounceMs, limit]);
+    return () => window.clearTimeout(t);
+  }, [mentionQuery, localOnly, debounceMs, limit]);
 
   const onChangeWithMention = useCallback(
     (value: string, cursorPos: number) => {

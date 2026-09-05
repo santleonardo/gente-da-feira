@@ -2504,7 +2504,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           has_password: data.room.has_password,
           bulletin: data.room.bulletin ?? currentRoom.bulletin ?? null,
         };
-        setSelectedRoom(updated);
+        // Evita re-render em loop se nada mudou
+        const same =
+          currentRoom.isMember === updated.isMember &&
+          currentRoom.myRole === updated.myRole &&
+          currentRoom.isBanned === updated.isBanned &&
+          currentRoom.canJoin === updated.canJoin &&
+          currentRoom.memberCount === updated.memberCount &&
+          currentRoom.has_password === updated.has_password &&
+          (currentRoom.bulletin ?? null) === (updated.bulletin ?? null);
+        if (!same) setSelectedRoom(updated);
       }
     } catch {
       // Se falhar, manter o estado atual do room object
