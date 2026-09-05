@@ -1,10 +1,14 @@
 /**
- * MOD-001: Registra automaticamente uma denúncia quando o spam-check
- * (src/lib/spam-check.ts) classifica um post/comentário como spam.
+ * MOD-001 / MOD-002: Registra automaticamente uma denúncia quando alguma
+ * checagem de IA (spam-check.ts para posts/comentários, chat-moderation.ts
+ * para salas/DMs) classifica conteúdo como problemático.
  *
  * Reaproveita 100% a tabela `reports` e o painel AdminReportsView já
  * existentes — o item cai na fila de moderação normal, com status
- * "pending", como se um usuário tivesse denunciado.
+ * "pending", como se um usuário tivesse denunciado. Os target_type
+ * "room_message" e "dm_message" já existem em REPORT_TARGET_TYPES
+ * (report-constants.ts) — só não eram usados por nenhum fluxo automático
+ * até o MOD-002.
  *
  * Requer uma conta de sistema (perfil "Gente da Feira · Moderação" ou
  * similar) cujo ID vai em SYSTEM_REPORTER_USER_ID. Isso evita mexer na
@@ -15,11 +19,15 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/server";
+import type { ReportCategory, ReportTargetType } from "@/lib/report-constants";
+import { REPORT_CATEGORY_LABELS } from "@/lib/report-constants";
 
-export async function autoReportSpam(params: {
-  targetType: "post" | "comment";
+export async function autoReportContent(params: {
+  targetType: ReportTargetType;
   targetId: string;
   targetOwnerId: string;
+  /** Categoria real detectada pela IA — default "spam" por compatibilidade */
+  category?: ReportCategory;
   reason: string | null;
 }): Promise<void> {
   const systemReporterId = process.env.SYSTEM_REPORTER_USER_ID;
@@ -28,6 +36,8 @@ export async function autoReportSpam(params: {
   // Nunca denuncia o próprio "sistema" nem tenta se a IA falhar em identificar o dono
   if (!params.targetOwnerId || params.targetOwnerId === systemReporterId) return;
 
+  const category = params.category ?? "spam";
+
   try {
     const admin = createAdminClient();
     await admin.from("reports").insert({
@@ -35,16 +45,26 @@ export async function autoReportSpam(params: {
       target_type: params.targetType,
       target_id: params.targetId,
       target_owner_id: params.targetOwnerId,
-      category: "spam",
+      category,
       description: params.reason
         ? `[Auto-detectado por IA] ${params.reason}`
-        : "[Auto-detectado por IA] Conteúdo classificado como spam/propaganda.",
+        : `[Auto-detectado por IA] Conteúdo classificado como "${REPORT_CATEGORY_LABELS[category]}".`,
     });
   } catch {
-    // Best-effort — nunca deve quebrar o fluxo de criação de post/comentário.
+    // Best-effort — nunca deve quebrar o fluxo de criação/envio de conteúdo.
     // Causas comuns: já existe denúncia ativa pra esse alvo (unique index),
     // conta de sistema não configurada corretamente, etc.
   }
+}
+
+/** @deprecated use autoReportContent — mantido para não quebrar posts-route.ts */
+export async function autoReportSpam(params: {
+  targetType: "post" | "comment";
+  targetId: string;
+  targetOwnerId: string;
+  reason: string | null;
+}): Promise<void> {
+  return autoReportContent({ ...params, category: "spam" });
 }
 
 /**

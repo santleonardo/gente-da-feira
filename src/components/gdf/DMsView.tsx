@@ -492,10 +492,20 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
     fetchSender();
   }, []);
 
+  // MOD-002: quando a moderação assíncrona soft-deleta uma mensagem
+  // (chat-moderation.ts), o UPDATE chega aqui e some da conversa pra
+  // quem estiver com a DM aberta — sem precisar recarregar.
+  const handleMessageUpdate = useCallback((payload: any) => {
+    if (payload?.is_deleted) {
+      setMessages((prev) => prev.filter((m) => m.id !== payload.id));
+    }
+  }, []);
+
   useRealtimeMessages({
     table: "messages",
     filter: `dm_id=eq.${conversation.id}`,
     onInsert: handleNewMessage,
+    onUpdate: handleMessageUpdate,
     enabled: !!profile,
   });
 

@@ -364,6 +364,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
       : message;
 
+    // MOD-002: classificação de moderação (assédio/ódio/violência/nudez/
+    // fraude/spam) roda em paralelo, sem atrasar o envio. Se pegar algo
+    // grave, a mensagem é soft-deleted e cai na fila de denúncias.
+    // Ver src/lib/chat-moderation.ts para o racional de ser assíncrono
+    // aqui (diferente do spam-check síncrono em posts).
+    void import("@/lib/chat-moderation").then(({ moderateChatMessageAsync }) =>
+      moderateChatMessageAsync({
+        messageId: (message as any).id,
+        content: insertData.content ?? null,
+        surface: "room_message",
+        senderId: user.id,
+      })
+    ).catch(() => {});
+
     // ── Notificações: reply ao autor + @menções ──
     // Fire-and-forget; não bloqueia o envio da mensagem.
     void (async () => {
