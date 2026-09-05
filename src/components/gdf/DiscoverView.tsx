@@ -4,9 +4,53 @@ import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, MessageCircle, UserRound } from "lucide-react";
+import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
+import { timeAgo } from "@/lib/constants";
+
+// ═══════════════════════════════════════════════════════════
+// Bento grid de publicações — "vitrine" estilo blog no Descobrir
+// Mostra posts de TODOS os usuários e bairros, independentemente
+// de o viewer seguir o autor ou não (a API já cuida de respeitar
+// posts marcados como "apenas seguidores" / privados).
+// ═══════════════════════════════════════════════════════════
+
+const BENTO_TONES = [
+  { bg: "#FBF3EC", accent: "#D96C4A" }, // pêssego
+  { bg: "#F2F1EA", accent: "#8B7355" }, // areia
+  { bg: "#EEF3EF", accent: "#5B7B6B" }, // sálvia
+  { bg: "#F6EEF1", accent: "#B4637A" }, // rosa empoeirado
+  { bg: "#EEF1F6", accent: "#4A6FA5" }, // azul empoeirado
+] as const;
+
+function getBentoTone(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return BENTO_TONES[Math.abs(hash) % BENTO_TONES.length];
+}
+
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function bentoSpanClass(index: number, hasImage: boolean): string {
+  if (hasImage && index % 5 === 0) return "col-span-2 row-span-2";
+  if (index % 7 === 3) return "col-span-2";
+  return "";
+}
 
 export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: string) => void }) {
   const { profile } = useStore();
@@ -32,7 +76,33 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   // SEC-004: client-side block list for defense in depth
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
 
-  // Fetch block list + suggestions + rooms on mount (block list first to filter suggestions)
+  // Publicações (bento grid) — de todos os usuários e bairros
+  const [discoverPosts, setDiscoverPosts] = useState<any[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+
+  const loadMorePosts = async () => {
+    if (loadingMorePosts || !postsCursor) return;
+    setLoadingMorePosts(true);
+    try {
+      const params = new URLSearchParams({ limit: "18", cursor: postsCursor });
+      const res = await fetch(`/api/posts?${params.toString()}`);
+      const data = await res.json();
+      setDiscoverPosts((prev) => [...prev, ...(data.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id))]);
+      setPostsCursor(data.nextCursor ?? null);
+      setPostsHasMore(!!data.hasMore);
+    } catch { /* silent */ }
+    finally { setLoadingMorePosts(false); }
+  };
+
+  const openPost = (post: any) => {
+    window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post } }));
+  };
+
+  // Fetch block list + suggestions + rooms + publicações on mount
+  // (block list first, para filtrar sugestões e publicações)
   useEffect(() => {
     const init = async () => {
       try {
@@ -44,15 +114,21 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         }
         const ids = new Set((blockData.blocks || []).map((b: any) => b.blocked_id));
 
-        // Then load suggestions and rooms, filtering out blocked users
-        const [userData, roomData] = await Promise.all([
+        // Then load suggestions, rooms e publicações — filtrando usuários bloqueados
+        // Sem parâmetro "neighborhood" => todos os bairros. Sem "authorId" => todos os usuários.
+        // A visibilidade (pública/seguidores/privada) continua sendo respeitada pela API.
+        const [userData, roomData, postsData] = await Promise.all([
           fetch("/api/users?limit=6").then((r) => r.json()),
           fetch("/api/rooms").then((r) => r.json()),
+          fetch("/api/posts?limit=18").then((r) => r.json()),
         ]);
         setSuggestedUsers((userData.users || []).filter((u: any) => !ids.has(u.id)));
         setPopularRoomsLoaded((roomData.rooms || []).filter((r: any) => r.type === "official").slice(0, 5));
+        setDiscoverPosts((postsData.posts || []).filter((p: any) => !ids.has(p.author_id)));
+        setPostsCursor(postsData.nextCursor ?? null);
+        setPostsHasMore(!!postsData.hasMore);
       } catch { /* silent */ }
-      finally { setLoadingSuggested(false); }
+      finally { setLoadingSuggested(false); setLoadingPosts(false); }
     };
     init();
   }, []);
@@ -218,6 +294,163 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       {/* Sugestões (quando não buscou) */}
       {!searched && (
         <div className="space-y-8">
+          {/* Publicações — vitrine estilo blog com posts de todos os bairros e usuários */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Newspaper className="h-4 w-4 text-[#D96C4A]" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+                Publicações da comunidade
+              </h2>
+            </div>
+
+            {loadingPosts ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 auto-rows-[150px] sm:auto-rows-[170px]">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="rounded-2xl bg-black/5 animate-pulse" />
+                ))}
+              </div>
+            ) : discoverPosts.length === 0 ? (
+              <p className="text-sm text-[#4A4A4A]/50 py-4">Nenhuma publicação por aqui ainda</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 auto-rows-[150px] sm:auto-rows-[170px] grid-flow-row-dense">
+                  {discoverPosts.map((post, index) => {
+                    const hasImage = !!(post.image_urls && post.image_urls.length > 0);
+                    const span = bentoSpanClass(index, hasImage);
+                    const author = post.author || {};
+                    const snippetSource = post.content?.trim()
+                      ? post.content
+                      : post.shared_post?.content || "";
+                    const snippet = stripHtml(snippetSource);
+                    const reactionCount = post.reactions?.length ?? 0;
+                    const commentCount = post.comment_count ?? 0;
+                    const tone = getBentoTone(post.author_id || author.id || String(index));
+
+                    return (
+                      <button
+                        key={post.id}
+                        onClick={() => openPost(post)}
+                        className={`group relative rounded-2xl overflow-hidden border border-black/[0.06] hover:border-black/15 hover:shadow-md transition-all text-left w-full h-full ${span}`}
+                        style={!hasImage ? { backgroundColor: tone.bg } : undefined}
+                      >
+                        {hasImage ? (
+                          <>
+                            <LazyImage
+                              src={post.image_urls[0]}
+                              alt=""
+                              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                            {post.neighborhood && (
+                              <span className="absolute top-2.5 left-2.5 rounded-full bg-white/85 backdrop-blur px-2 py-0.5 text-[10px] font-medium text-[#1A1A1A]">
+                                {post.neighborhood}
+                              </span>
+                            )}
+                            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-3.5">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <UserAvatar user={author} className="h-5 w-5 ring-1 ring-white/40" />
+                                <span className="text-[11px] font-medium text-white/90 truncate">
+                                  {author.display_name}
+                                </span>
+                                <span className="text-[10px] text-white/60 shrink-0">
+                                  · {timeAgo(post.created_at)}
+                                </span>
+                              </div>
+                              {snippet && (
+                                <p className="font-serif text-sm text-white leading-snug line-clamp-2">
+                                  {snippet}
+                                </p>
+                              )}
+                              {(reactionCount > 0 || commentCount > 0) && (
+                                <div className="flex items-center gap-3 mt-1.5 text-[10px] text-white/70">
+                                  {reactionCount > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Heart className="h-3 w-3" /> {reactionCount}
+                                    </span>
+                                  )}
+                                  {commentCount > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <MessageSquare className="h-3 w-3" /> {commentCount}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex h-full w-full flex-col p-3.5 sm:p-4">
+                            <span
+                              className="font-serif leading-none select-none pointer-events-none"
+                              style={{ color: tone.accent, opacity: 0.18, fontSize: "2.75rem" }}
+                              aria-hidden="true"
+                            >
+                              &ldquo;
+                            </span>
+                            <p
+                              className={`font-serif italic text-[#1A1A1A]/85 leading-snug -mt-3 flex-1 ${
+                                span.includes("row-span-2") ? "text-lg line-clamp-6" : "text-[13px] line-clamp-3"
+                              }`}
+                            >
+                              {snippet || "Sem legenda"}
+                            </p>
+                            {post.shared_post && (
+                              <span className="flex items-center gap-1 text-[10px] text-[#4A4A4A]/60 mb-1">
+                                <Repeat2 className="h-3 w-3" /> compartilhou
+                              </span>
+                            )}
+                            <div className="flex items-center justify-between gap-2 mt-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <UserAvatar user={author} className="h-5 w-5" />
+                                <span className="text-[11px] font-medium text-[#1A1A1A]/80 truncate">
+                                  {author.display_name}
+                                </span>
+                              </div>
+                              {post.neighborhood && (
+                                <span
+                                  className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium text-white"
+                                  style={{ backgroundColor: tone.accent }}
+                                >
+                                  {post.neighborhood}
+                                </span>
+                              )}
+                            </div>
+                            {(reactionCount > 0 || commentCount > 0) && (
+                              <div className="flex items-center gap-3 mt-1 text-[10px] text-[#4A4A4A]/55">
+                                {reactionCount > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <Heart className="h-3 w-3" /> {reactionCount}
+                                  </span>
+                                )}
+                                {commentCount > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <MessageSquare className="h-3 w-3" /> {commentCount}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {postsHasMore && (
+                  <div className="flex justify-center mt-4">
+                    <Button
+                      variant="outline"
+                      onClick={loadMorePosts}
+                      disabled={loadingMorePosts}
+                      className="rounded-full border-black/10 text-xs text-[#1A1A1A] hover:bg-black/5 h-9 px-5 disabled:opacity-50"
+                    >
+                      {loadingMorePosts ? "Carregando..." : "Ver mais publicações"}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
           {/* Pessoas */}
           <section>
             <div className="flex items-center gap-2 mb-4">
