@@ -10,7 +10,7 @@ import { filterCommentAuthorsNeighborhood, batchFetchPrivacyFlags } from "@/lib/
 import { checkPostVisibility } from "@/lib/content-visibility";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
-import { checkSpam } from "@/lib/spam-check";
+import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText } from "@/lib/text-validation";
 
@@ -101,15 +101,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // MOD-001: mesma checagem dos posts — fail-open em erro da IA;
     // bloqueia só quando a IA confirma spam.
     const spamResult = await checkSpam(sanitizedContent);
-    if (spamResult.isSpam) {
-      return NextResponse.json(
-        {
-          error: "Comentário bloqueado por moderação automática. Revise o texto e tente de novo.",
-          code: "SPAM_BLOCKED",
-          reason: spamResult.reason || null,
-        },
-        { status: 422 }
-      );
+    if (spamResult.status === "spam" || spamResult.status === "unavailable") {
+      return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
     }
 
     const { data: comment, error } = await supabase

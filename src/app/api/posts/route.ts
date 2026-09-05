@@ -28,7 +28,7 @@ import {
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
-import { checkSpam } from "@/lib/spam-check";
+import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
 
@@ -327,18 +327,9 @@ export async function POST(req: NextRequest) {
     // Fail-open: se a IA estiver offline/erro → libera (checkSpam retorna isSpam: false).
     // Fail-closed só quando a IA confirma spam com clareza → bloqueia a publicação.
     const spamResult = await checkSpam(sanitizedContent);
-    if (spamResult.isSpam) {
-      // Best-effort: registra denúncia mesmo sem publicar (target pode não existir ainda)
-      // A denúncia completa exige targetId — só auto-report após insert falharia.
-      // Aqui bloqueamos antes do insert e avisamos o usuário.
-      return NextResponse.json(
-        {
-          error: "Conteúdo bloqueado por moderação automática. Revise o texto e tente de novo.",
-          code: "SPAM_BLOCKED",
-          reason: spamResult.reason || null,
-        },
-        { status: 422 }
-      );
+    // Fail-closed: spam confirmado OU moderação indisponível (com check ligado)
+    if (spamResult.status === "spam" || spamResult.status === "unavailable") {
+      return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
     }
 
     const { data: post, error } = await supabase
