@@ -79,6 +79,7 @@ import {
   revokePreviewUrl,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
+import { validateText, TEXT_LIMITS, textCountTone } from "@/lib/text-validation";
 import {
   useMentionAutocomplete,
   MentionSuggestions,
@@ -1064,7 +1065,15 @@ export function ProfileView() {
   // ═══════ Publicar post com estilo e mídia ═══════
   const handlePublish = async () => {
     if (!profile) return;
-    if (!textContent.trim() && !hasMediaInComposer) return;
+    const textCheck = validateText(
+      editorRef.current?.innerText || textContent || "",
+      "post",
+      { hasMedia: hasMediaInComposer }
+    );
+    if (!textCheck.ok) {
+      toast.error(textCheck.error || "Texto inválido");
+      return;
+    }
     setPublishing(true);
     try {
       let imageUrls: string[] = [];
@@ -1831,8 +1840,16 @@ export function ProfileView() {
 
             {/* Char count */}
             <div className="mt-1.5 flex justify-end shrink-0">
-              <span className={`text-[11px] tabular-nums ${textContent.length > 900 ? "text-[#D96C4A]" : "text-[#4A4A4A]/45"}`}>
-                {textContent.length}/1000
+              <span
+                className={`text-[11px] tabular-nums ${
+                  textCountTone(textContent.trim().length, TEXT_LIMITS.post) === "over"
+                    ? "text-red-600 font-semibold"
+                    : textCountTone(textContent.trim().length, TEXT_LIMITS.post) === "warn"
+                      ? "text-[#D96C4A]"
+                      : "text-[#4A4A4A]/45"
+                }`}
+              >
+                {textContent.trim().length}/{TEXT_LIMITS.post}
               </span>
             </div>
 
@@ -1950,7 +1967,7 @@ export function ProfileView() {
             >
               <button
                 type="button"
-                disabled={publishing || (!textContent.trim() && selectedFiles.length === 0 && !selectedVideo && !selectedAudio)}
+                disabled={publishing || textContent.trim().length > TEXT_LIMITS.post || (!textContent.trim() && selectedFiles.length === 0 && !selectedVideo && !selectedAudio)}
                 onClick={handlePublish}
                 className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] text-white px-6 py-2.5 text-sm font-medium hover:bg-[#1A1A1A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >

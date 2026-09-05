@@ -30,6 +30,7 @@ import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
 import { parseInlineFormatting } from "@/lib/link-utils";
+import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
 import {
   useMentionAutocomplete,
   MentionSuggestions,
@@ -629,7 +630,12 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   };
 
   const submitComment = async () => {
-    if (!commentInput.trim() || !profile || !post || submitting) return;
+    if (!profile || !post || submitting) return;
+    const commentCheck = validateText(commentInput, "comment");
+    if (!commentCheck.ok) {
+      toast.error(commentCheck.error || "Comentário inválido");
+      return;
+    }
     setSubmitting(true);
     try {
       const body: { content: string; parentId?: string } = { content: commentInput.trim() };
@@ -1116,6 +1122,7 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                       <input
                         ref={commentInputRef}
                         placeholder="Comentar... Use @usuario"
+                        maxLength={TEXT_LIMITS.comment}
                         value={commentInput}
                         onChange={(e) => {
                           const v = e.target.value.slice(0, 500);
