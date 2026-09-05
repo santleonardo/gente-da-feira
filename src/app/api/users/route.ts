@@ -58,15 +58,36 @@ export async function GET(req: NextRequest) {
     }
 
     // Search — SEC-003: colunas explícitas (with neighborhood, filtered below)
-    let query = supabase.from("profiles").select(selectCols(PROFILE_SEARCH_COLUMNS)).limit(15);
+    // Sem termo: retorna sugestões recentes (limitado). Com termo: busca por nome/username.
+    const rawQ = (q || "").trim();
+    // Aceita letras com acento (pt-BR), números, espaços e @ . _ -
+    const sanitized = rawQ
+      .normalize("NFC")
+      .replace(/[^\p{L}\p{N}\s@._-]/gu, "")
+      .replace(/\s+/g, " ")
+      .slice(0, 50)
+      .trim();
 
-    if (q) {
-      const sanitized = q.replace(/[^\w\s@.-]/g, "").slice(0, 50);
-      if (sanitized) {
-        query = query.or(`display_name.ilike.%${sanitized}%,username.ilike.%${sanitized}%`);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) query = query.neq("id", user.id);
-      }
+    // Escape de curingas do ILIKE para o termo ser literal
+    const likeTerm = sanitized.replace(/[%_\\]/g, "\\$&");
+
+    let query = supabase
+      .from("profiles")
+      .select(selectCols(PROFILE_SEARCH_COLUMNS))
+      .limit(20);
+
+    if (likeTerm.length >= 1) {
+      // Busca em display_name e username (case-insensitive)
+      query = query.or(
+        `display_name.ilike.%${likeTerm}%,username.ilike.%${likeTerm}%`
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) query = query.neq("id", user.id);
+    } else {
+      // Sugestões: perfis mais recentes (sem o próprio usuário)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) query = query.neq("id", user.id);
+      query = query.order("created_at", { ascending: false }).limit(12);
     }
 
     const { data: users, error } = await query;
@@ -87,7 +108,25 @@ export async function GET(req: NextRequest) {
     );
     filteredUsers = filterSearchResults(filteredUsers, hiddenNeighborhoodIds);
 
-    return NextResponse.json({ users: filteredUsers });
+    // Ordenação simples por relevância quando há termo: username exact > prefixo > resto
+    if (likeTerm.length >= 1) {
+      const termLower = likeTerm.toLowerCase();
+      filteredUsers.sort((a, b) => {
+        const score = (u: any) => {
+          const un = String(u.username || "").toLowerCase();
+          const dn = String(u.display_name || "").toLowerCase();
+          if (un === termLower) return 0;
+          if (un.startsWith(termLower)) return 1;
+          if (dn.startsWith(termLower)) return 2;
+          if (un.includes(termLower)) return 3;
+          if (dn.includes(termLower)) return 4;
+          return 5;
+        };
+        return score(a) - score(b);
+      });
+    }
+
+    return NextResponse.json({ users: filteredUsers, q: sanitized || null });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[users search]");
     return NextResponse.json({ error: message }, { status });
