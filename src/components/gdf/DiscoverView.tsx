@@ -287,7 +287,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
             </div>
 
             {loadingPosts ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[190px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[230px]">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="rounded-2xl bg-black/5 animate-pulse" />
                 ))}
@@ -296,10 +296,11 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
               <p className="text-sm text-[#4A4A4A]/50 py-4">Nenhuma publicação por aqui ainda</p>
             ) : (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[190px] grid-flow-row-dense">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[230px] grid-flow-row-dense">
                   {discoverPosts.map((post, index) => {
                     const hasImage = !!(post.image_urls && post.image_urls.length > 0);
                     const span = bentoSpanClass(index, hasImage);
+                    const isWide = span.includes("col-span-2");
                     const author = post.author || {};
                     const snippetSource = post.content?.trim()
                       ? post.content
@@ -315,11 +316,15 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                         className={`group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white text-left transition-colors hover:border-black/15 ${span}`}
                       >
                         {hasImage && (
-                          <div className="relative h-24 w-full shrink-0 overflow-hidden bg-black/5">
+                          <div
+                            className={`relative w-full shrink-0 overflow-hidden bg-black/5 ${
+                              isWide ? "h-40" : "h-28"
+                            }`}
+                          >
                             <LazyImage
                               src={post.image_urls[0]}
                               alt=""
-                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                              className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                             />
                           </div>
                         )}
@@ -341,7 +346,11 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                             </span>
                           )}
 
-                          <p className="flex-1 text-[13px] leading-relaxed text-[#1A1A1A]/75 line-clamp-3">
+                          <p
+                            className={`flex-1 text-[13px] leading-relaxed text-[#1A1A1A]/75 ${
+                              hasImage ? "line-clamp-2" : "line-clamp-4"
+                            }`}
+                          >
                             {snippet || "Publicação sem legenda"}
                           </p>
 
