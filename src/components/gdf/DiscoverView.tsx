@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin, ChevronDown } from "lucide-react";
+import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin, ChevronDown, Loader2, X } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
@@ -80,6 +80,9 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   const [users, setUsers] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [searched, setSearched] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchSeqRef = useRef(0);
 
   // Sugestões e salas pré-carregadas ao montar
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
@@ -156,23 +159,75 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
     init();
   }, []);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const runSearch = async (term: string) => {
+    const q = term.trim();
+    if (!q) {
+      setSearched(false);
+      setUsers([]);
+      setRooms([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
+    const seq = ++searchSeqRef.current;
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearched(true);
     try {
       const [userRes, roomRes] = await Promise.all([
-        fetch(`/api/users?q=${encodeURIComponent(query)}`),
+        fetch(`/api/users?q=${encodeURIComponent(q)}`),
         fetch("/api/rooms"),
       ]);
+      if (seq !== searchSeqRef.current) return; // resposta antiga
       const userData = await userRes.json();
       const roomData = await roomRes.json();
-      // SEC-004: filter out blocked users client-side
-      setUsers((userData.users || []).filter((u: any) => !blockedUserIds.has(u.id)));
-      setRooms((roomData.rooms || []).filter((r: any) =>
-        r.name.toLowerCase().includes(query.toLowerCase())
-      ));
-      setSearched(true);
-    } catch { /* silent */ }
+      if (!userRes.ok) {
+        setSearchError(userData.error || "Erro ao buscar usuários");
+        setUsers([]);
+      } else {
+        // SEC-004: filter out blocked users client-side
+        setUsers((userData.users || []).filter((u: any) => !blockedUserIds.has(u.id)));
+      }
+      const qLower = q.toLowerCase();
+      setRooms(
+        (roomData.rooms || []).filter((r: any) =>
+          String(r.name || "").toLowerCase().includes(qLower) ||
+          String(r.description || "").toLowerCase().includes(qLower)
+        )
+      );
+    } catch {
+      if (seq === searchSeqRef.current) {
+        setSearchError("Não foi possível buscar. Tente de novo.");
+        setUsers([]);
+        setRooms([]);
+      }
+    } finally {
+      if (seq === searchSeqRef.current) setSearchLoading(false);
+    }
   };
+
+  const handleSearch = () => {
+    void runSearch(query);
+  };
+
+  // Busca com debounce enquanto digita (300ms)
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setSearched(false);
+      setUsers([]);
+      setRooms([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    const t = setTimeout(() => {
+      void runSearch(q);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, blockedUserIds]);
 
   const startDM = async (otherUser: any) => {
     if (!profile) return;
@@ -221,24 +276,41 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         </p>
       </div>
 
-      {/* Busca */}
+      {/* Busca de usuários e salas */}
       <div className="flex gap-2 w-full min-w-0">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A4A4A]/50 pointer-events-none" />
           <Input
-            placeholder="Buscar pessoas ou salas..."
+            placeholder="Buscar pessoas por nome ou @usuario..."
             value={query}
-            onChange={(e) => { setQuery(e.target.value); if (!e.target.value.trim()) setSearched(false); }}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-10 h-11 w-full min-w-0 rounded-full border-black/10 bg-white/80 text-[15px] placeholder:text-[#4A4A4A]/45 focus-visible:ring-[#D96C4A]/25"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
+            autoComplete="off"
+            enterKeyHint="search"
+            className="pl-10 pr-10 h-11 w-full min-w-0 rounded-full border-black/10 bg-white/80 text-[15px] placeholder:text-[#4A4A4A]/45 focus-visible:ring-[#D96C4A]/25"
           />
+          {query.trim() ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#4A4A4A]/50 hover:bg-black/5 hover:text-[#1A1A1A]"
+              aria-label="Limpar busca"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
         <Button
           onClick={handleSearch}
-          disabled={!query.trim()}
+          disabled={!query.trim() || searchLoading}
           className="rounded-full bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90 px-4 sm:px-5 h-11 shrink-0 disabled:opacity-40"
         >
-          Buscar
+          {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
         </Button>
       </div>
 
@@ -246,17 +318,40 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       {searched && (
         <div className="space-y-5">
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60">
-            Resultados para &quot;{query}&quot;
+            Resultados para &quot;{query.trim()}&quot;
           </h3>
 
-          {users.length > 0 && (
+          {searchLoading && users.length === 0 && rooms.length === 0 && (
+            <div className="space-y-2 py-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 animate-pulse">
+                  <div className="h-11 w-11 rounded-full bg-black/5 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 w-32 rounded bg-black/5" />
+                    <div className="h-3 w-20 rounded bg-black/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {searchError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {searchError}
+            </div>
+          )}
+
+          {!searchLoading && !searchError && users.length > 0 && (
             <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60 flex items-center gap-1.5">
+                <UserRound className="h-3.5 w-3.5" /> Pessoas ({users.length})
+              </p>
               {users.map((u) => (
                 <div
                   key={u.id}
                   className="flex items-center gap-2.5 sm:gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3 sm:p-3.5 hover:border-black/10 transition-colors min-w-0 w-full"
                 >
-                  <button onClick={() => navigateToProfile(u.id)} className="shrink-0">
+                  <button type="button" onClick={() => navigateToProfile(u.id)} className="shrink-0">
                     <UserAvatar
                       user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }}
                       className="h-11 w-11 hover:opacity-80 transition-opacity"
@@ -264,7 +359,12 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                   </button>
                   <div className="flex-1 min-w-0 cursor-pointer overflow-hidden" onClick={() => navigateToProfile(u.id)}>
                     <span className="text-sm font-semibold text-[#1A1A1A] truncate block">{u.display_name}</span>
-                    <p className="text-xs text-[#4A4A4A]/60">@{u.username}</p>
+                    <p className="text-xs text-[#4A4A4A]/60 truncate">
+                      @{u.username}
+                      {u.neighborhood ? (
+                        <span className="text-[#4A4A4A]/45"> · {u.neighborhood}</span>
+                      ) : null}
+                    </p>
                   </div>
                   <Button
                     variant="outline"
@@ -279,12 +379,15 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
             </div>
           )}
 
-          {rooms.length > 0 && (
+          {!searchLoading && rooms.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60">Salas</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" /> Salas ({rooms.length})
+              </p>
               {rooms.map((room) => (
                 <button
                   key={room.id}
+                  type="button"
                   onClick={() => useStore.getState().setSelectedRoom(room)}
                   className="flex w-full items-center gap-3 rounded-xl border border-black/[0.06] bg-white/70 p-3.5 text-left hover:border-black/10 transition-colors"
                 >
@@ -304,11 +407,11 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
             </div>
           )}
 
-          {users.length === 0 && rooms.length === 0 && (
+          {!searchLoading && !searchError && users.length === 0 && rooms.length === 0 && (
             <div className="py-12 text-center">
               <Search className="h-8 w-8 text-black/10 mx-auto mb-2" />
               <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhum resultado</p>
-              <p className="text-sm text-[#4A4A4A]/40 mt-1">Tente outro termo de busca</p>
+              <p className="text-sm text-[#4A4A4A]/40 mt-1">Tente outro nome, @usuario ou sala</p>
             </div>
           )}
         </div>
