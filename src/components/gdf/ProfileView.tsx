@@ -1495,7 +1495,7 @@ export function ProfileView() {
             <div
               className={
                 editorExpanded
-                  ? "flex items-center justify-between gap-3 shrink-0 pb-3 mb-2 border-b border-black/[0.06]"
+                  ? "flex items-center justify-between gap-3 shrink-0 pb-3 mb-2 border-b border-black/[0.06] relative z-20 bg-white"
                   : "flex items-start justify-between gap-3 mb-5 shrink-0"
               }
             >
@@ -1528,7 +1528,7 @@ export function ProfileView() {
             </div>
 
             {/* Toolbar editorial — mobile-friendly */}
-            <div className={`space-y-2 w-full min-w-0 shrink-0 ${editorExpanded ? "mb-2" : "mb-3"}`}>
+            <div className={`space-y-2 w-full min-w-0 shrink-0 relative z-20 bg-white ${editorExpanded ? "mb-2" : "mb-3"}`}>
               {/* Linha 1: estilo de bloco (sempre visível com rótulos) */}
               <div className="relative" ref={styleMenuRef}>
                 <button
@@ -1737,11 +1737,11 @@ export function ProfileView() {
               </div>
             </div>
 
-            {/* Editor — em tela cheia ocupa o espaço restante (scroll interno) */}
+            {/* Editor — em tela cheia preenche só o espaço livre (não cobre toolbar/publicar) */}
             <div
               className={
                 editorExpanded
-                  ? "relative flex-1 min-h-0 flex flex-col w-full max-w-full"
+                  ? "relative flex-1 min-h-0 basis-0 flex flex-col w-full max-w-full overflow-hidden"
                   : "relative"
               }
             >
@@ -1752,16 +1752,12 @@ export function ProfileView() {
                 className={
                   "editor-content overflow-y-auto overflow-x-hidden break-words break-anywhere rounded-xl border border-black/10 bg-[#F9F8F6] px-3 sm:px-5 py-3 sm:py-4 text-[15px] sm:text-base leading-relaxed text-[#1A1A1A] outline-none focus:border-[#D96C4A]/40 focus:ring-2 focus:ring-[#D96C4A]/10 transition-[border,box-shadow] empty:before:content-[attr(data-placeholder)] empty:before:text-[#4A4A4A]/40 empty:before:pointer-events-none " +
                   (editorExpanded
-                    ? "flex-1 min-h-[min(55dvh,28rem)] h-full max-h-full w-full max-w-full"
+                    ? "flex-1 min-h-0 h-full w-full max-w-full"
                     : "min-h-[140px] sm:min-h-[160px] max-h-[360px] sm:max-h-[480px]")
                 }
                 style={{
                   fontFamily: postStyle.font ? `'${postStyle.font}', sans-serif` : undefined,
                   textAlign: postStyle.alignment || "left",
-                  // Garante altura útil no modo expandido mesmo se o flex falhar em browsers antigos
-                  ...(editorExpanded
-                    ? { minHeight: "min(55dvh, 28rem)" }
-                    : {}),
                 }}
                 onInput={() => {
                   if (editorRef.current) setTextContent(editorRef.current.innerText);
@@ -1838,6 +1834,8 @@ export function ProfileView() {
               />
             </div>
 
+            {/* Rodapé do composer (não pode ser coberto pelo editor) */}
+            <div className={editorExpanded ? "shrink-0 relative z-20 bg-white pt-1.5 mt-auto" : "contents"}>
             {/* Char count */}
             <div className="mt-1.5 flex justify-end shrink-0">
               <span
@@ -1983,6 +1981,7 @@ export function ProfileView() {
                   </>
                 )}
               </button>
+            </div>
             </div>
           </div>
         </div>
