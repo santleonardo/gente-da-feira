@@ -276,6 +276,14 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
       <div className="space-y-1">
         {conversations.map((conv) => {
           const other = conv.initiator_id === profile?.id ? conv.receiver : conv.initiator;
+          const preview =
+            conv.lastMessage?.preview ||
+            (conv.lastMessage?.content
+              ? String(conv.lastMessage.content).slice(0, 80)
+              : `@${other?.username || "usuario"}`);
+          const ts = conv.lastMessage?.created_at || conv.updated_at;
+          const unread = Number(conv.unreadCount || 0);
+          const fromMe = conv.lastMessage?.sender_id === profile?.id;
           return (
             <button
               key={conv.id}
@@ -284,13 +292,28 @@ export function DMsView({ openUserProfile }: { openUserProfile?: (userId: string
             >
               <div className="relative shrink-0" onClick={(e) => { e.stopPropagation(); navigateToProfile(other.id); }}>
                 <UserAvatar user={{ id: other.id, display_name: other.display_name, avatar_url: other.avatar_url }} className="h-12 w-12 hover:opacity-80 transition-opacity" />
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#D96C4A] ring-2 ring-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold truncate">{other.display_name}</span>
-                  <span className="text-[10px] text-[#4A4A4A]/60 shrink-0">{timeAgo(conv.updated_at)}</span>
+                  <span className={`text-sm truncate ${unread > 0 ? "font-bold text-[#1A1A1A]" : "font-semibold"}`}>
+                    {other.display_name}
+                  </span>
+                  <span className="text-[10px] text-[#4A4A4A]/60 shrink-0">{ts ? timeAgo(ts) : ""}</span>
                 </div>
-                <p className="text-xs text-[#4A4A4A] truncate mt-0.5">@{other.username}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className={`text-xs truncate flex-1 min-w-0 ${unread > 0 ? "text-[#1A1A1A] font-medium" : "text-[#4A4A4A]"}`}>
+                    {fromMe ? <span className="text-[#4A4A4A]/70">Você: </span> : null}
+                    {preview || "Sem mensagens ainda"}
+                  </p>
+                  {unread > 0 && (
+                    <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-[#D96C4A] text-white text-[10px] font-bold flex items-center justify-center">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           );
@@ -345,6 +368,11 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   const { profile } = useStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  // Marca conversa como lida ao abrir
+  useEffect(() => {
+    if (!conversation?.id) return;
+    fetch(`/api/dm/${conversation.id}/read`, { method: "POST" }).catch(() => {});
+  }, [conversation?.id]);
   const dmInputRef = useRef<HTMLInputElement>(null);
   const {
     mentionQuery,
