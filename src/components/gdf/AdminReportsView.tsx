@@ -47,7 +47,16 @@ interface AdminReport {
   reporter: { id: string; display_name: string; username: string; avatar_url: string | null } | null;
   target_owner: { id: string; display_name: string; username: string; avatar_url: string | null } | null;
   moderator: { id: string; display_name: string; username: string } | null;
+  /** MOD-002: preview do conteúdo denunciado, buscado server-side via admin client. */
+  target_content: {
+    content: string | null;
+    media_url?: string | null;
+    media_type?: string | null;
+    is_deleted?: boolean;
+  } | null;
 }
+
+const RESTORABLE_TARGET_TYPES = new Set(["room_message", "dm_message"]);
 
 const STATUS_BADGE_STYLE: Record<ReportStatus, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
@@ -135,6 +144,41 @@ export function AdminReportsView() {
         fetchReports();
       } else {
         toast.error(data.error || "Erro ao atualizar denúncia");
+      }
+    } catch {
+      toast.error("Erro de conexão");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  // MOD-002: reverte o soft-delete de uma mensagem de sala/DM removida
+  // automaticamente pela IA, quando o moderador julga falso positivo.
+  const restoreContent = async (report: AdminReport) => {
+    setSavingId(report.id);
+    try {
+      const res = await fetch(`/api/admin/reports/${report.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restoreContent: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Mensagem restaurada");
+        setSelected((prev) =>
+          prev && prev.id === report.id
+            ? { ...prev, target_content: prev.target_content ? { ...prev.target_content, is_deleted: false } : prev.target_content }
+            : prev
+        );
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === report.id && r.target_content
+              ? { ...r, target_content: { ...r.target_content, is_deleted: false } }
+              : r
+          )
+        );
+      } else {
+        toast.error(data.error || "Erro ao restaurar mensagem");
       }
     } catch {
       toast.error("Erro de conexão");
@@ -249,6 +293,14 @@ export function AdminReportsView() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {REPORT_CATEGORY_LABELS[report.category as keyof typeof REPORT_CATEGORY_LABELS] || report.category}
                   </p>
+                  {report.target_content?.content && (
+                    <p className="mt-1 line-clamp-2 rounded bg-muted/60 px-2 py-1 text-xs italic text-foreground/70">
+                      "{report.target_content.content}"
+                      {report.target_content.is_deleted && (
+                        <span className="ml-1 not-italic text-[10px] text-red-600">(removido pela IA)</span>
+                      )}
+                    </p>
+                  )}
                   {report.description && (
                     <p className="mt-1 line-clamp-2 text-xs text-foreground/80">{report.description}</p>
                   )}
@@ -302,6 +354,31 @@ export function AdminReportsView() {
                     <p className="font-mono text-[11px] break-all">{selected.target_id}</p>
                   </div>
                 </div>
+
+                {selected.target_content?.content && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Conteúdo denunciado
+                      {selected.target_content.is_deleted && (
+                        <span className="ml-1 text-red-600">(removido automaticamente pela IA)</span>
+                      )}
+                    </p>
+                    <p className="rounded-lg bg-muted p-2.5 text-sm whitespace-pre-wrap">
+                      {selected.target_content.content}
+                    </p>
+                    {RESTORABLE_TARGET_TYPES.has(selected.target_type) && selected.target_content.is_deleted && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        disabled={savingId === selected.id}
+                        onClick={() => restoreContent(selected)}
+                      >
+                        Restaurar mensagem (falso positivo)
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {selected.description && (
                   <div>
