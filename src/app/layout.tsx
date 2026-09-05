@@ -61,9 +61,10 @@ export default async function RootLayout({
       <body className="antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
-          themes={["light", "dark", "noite", "a11y", "a11y-dark", "system"]}
+          defaultTheme="light"
+          forcedTheme="light"
+          enableSystem={false}
+          themes={["light"]}
           disableTransitionOnChange
           nonce={nonce}
         >
