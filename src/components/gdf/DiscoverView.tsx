@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin } from "lucide-react";
+import { Search, Users, MessageCircle, UserRound, Newspaper, Heart, MessageSquare, Repeat2, MapPin, ChevronDown } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
@@ -35,6 +35,36 @@ function bentoSpanClass(index: number, hasImage: boolean): string {
   return hasImage && index % 4 === 0 ? "col-span-2" : "";
 }
 
+function SectionHeader({
+  icon,
+  title,
+  collapsed,
+  onToggle,
+}: {
+  icon: ReactNode;
+  title: string;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="mb-4 flex w-full items-center gap-2 text-left"
+      aria-expanded={!collapsed}
+    >
+      {icon}
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+        {title}
+      </h2>
+      <ChevronDown
+        className={`ml-auto h-4 w-4 shrink-0 text-[#4A4A4A]/40 transition-transform ${
+          collapsed ? "" : "rotate-180"
+        }`}
+      />
+    </button>
+  );
+}
+
 export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: string) => void }) {
   const { profile } = useStore();
 
@@ -58,6 +88,16 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
 
   // SEC-004: client-side block list for defense in depth
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+
+  // Seções recolhíveis do Descobrir (posts / pessoas / salas)
+  const [collapsedSections, setCollapsedSections] = useState({
+    posts: false,
+    people: false,
+    rooms: false,
+  });
+  const toggleSection = (key: "posts" | "people" | "rooms") => {
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // Publicações (bento grid) — de todos os usuários e bairros
   const [discoverPosts, setDiscoverPosts] = useState<any[]>([]);
@@ -279,13 +319,15 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
         <div className="space-y-8">
           {/* Publicações — vitrine estilo blog com posts de todos os bairros e usuários */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Newspaper className="h-4 w-4 text-[#D96C4A]" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
-                Publicações da comunidade
-              </h2>
-            </div>
+            <SectionHeader
+              icon={<Newspaper className="h-4 w-4 text-[#D96C4A]" />}
+              title="Publicações da comunidade"
+              collapsed={collapsedSections.posts}
+              onToggle={() => toggleSection("posts")}
+            />
 
+            {!collapsedSections.posts && (
+            <>
             {loadingPosts ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[230px]">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -394,16 +436,20 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                 )}
               </>
             )}
+            </>
+            )}
           </section>
 
           {/* Pessoas */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <UserRound className="h-4 w-4 text-[#D96C4A]" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
-                Pessoas para conhecer
-              </h2>
-            </div>
+            <SectionHeader
+              icon={<UserRound className="h-4 w-4 text-[#D96C4A]" />}
+              title="Pessoas para conhecer"
+              collapsed={collapsedSections.people}
+              onToggle={() => toggleSection("people")}
+            />
+            {!collapsedSections.people && (
+            <>
             {loadingSuggested ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
@@ -447,16 +493,20 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                 ))}
               </div>
             )}
+            </>
+            )}
           </section>
 
           {/* Salas oficiais */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="h-4 w-4 text-[#D96C4A]" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
-                Salas em destaque
-              </h2>
-            </div>
+            <SectionHeader
+              icon={<Users className="h-4 w-4 text-[#D96C4A]" />}
+              title="Salas em destaque"
+              collapsed={collapsedSections.rooms}
+              onToggle={() => toggleSection("rooms")}
+            />
+            {!collapsedSections.rooms && (
+            <>
             {loadingSuggested ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
@@ -487,6 +537,8 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                   </button>
                 ))}
               </div>
+            )}
+            </>
             )}
           </section>
         </div>
