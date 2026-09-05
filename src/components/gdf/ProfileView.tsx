@@ -590,12 +590,15 @@ export function ProfileView() {
 
   // Converte "https://exemplo.com" em link clicável assim que o usuário
   // termina de digitar a URL (espaço) ou dá Enter logo depois dela.
+  // Manipula o DOM diretamente (sem execCommand, que é deprecated e
+  // inconsistente entre navegadores/mobile) para ser mais confiável.
   const linkifyUrlBeforeCaret = useCallback((requireTrailingSpace: boolean) => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || !editorRef.current || !sel.isCollapsed) return;
     const range = sel.getRangeAt(0);
     const node = range.startContainer;
     if (node.nodeType !== Node.TEXT_NODE || !editorRef.current.contains(node)) return;
+    if (!node.parentNode) return;
 
     const text = node.textContent || "";
     const caret = range.startOffset;
@@ -616,30 +619,31 @@ export function ProfileView() {
     const urlStart = searchText.length - url.length;
     const urlEnd = searchText.length;
 
-    const linkRange = document.createRange();
-    linkRange.setStart(node, urlStart);
-    linkRange.setEnd(node, urlEnd);
+    // Divide o nó de texto em 3 pedaços: antes | url | depois
+    // (splitText muda o próprio "node" para conter só o trecho restante)
+    const restNode = (node as Text).splitText(urlEnd);
+    const urlTextNode = (node as Text).splitText(urlStart);
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.className = "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition-colors";
+    anchor.textContent = url;
+
+    urlTextNode.parentNode?.replaceChild(anchor, urlTextNode);
+
+    // Reposiciona o cursor logo depois do link (e do espaço, se houver)
+    const newRange = document.createRange();
+    const skip = requireTrailingSpace ? 1 : 0;
+    if (restNode.textContent && restNode.textContent.length >= skip) {
+      newRange.setStart(restNode, skip);
+    } else {
+      newRange.setStartAfter(anchor);
+    }
+    newRange.collapse(true);
     sel.removeAllRanges();
-    sel.addRange(linkRange);
-
-    document.execCommand("createLink", false, url);
-
-    // Abre em nova aba com segurança
-    const focusNode = sel.focusNode;
-    const anchorEl = focusNode
-      ? focusNode.nodeType === Node.ELEMENT_NODE
-        ? (focusNode as HTMLElement).closest("a")
-        : focusNode.parentElement?.closest("a")
-      : null;
-    if (anchorEl) {
-      anchorEl.setAttribute("target", "_blank");
-      anchorEl.setAttribute("rel", "noopener noreferrer");
-    }
-
-    sel.collapseToEnd();
-    if (requireTrailingSpace) {
-      try { sel.modify("move", "forward", "character"); } catch {}
-    }
+    sel.addRange(newRange);
 
     if (editorRef.current) setTextContent(editorRef.current.innerText);
   }, []);
@@ -1739,16 +1743,33 @@ export function ProfileView() {
                 }}
                 onPaste={(e) => {
                   const text = e.clipboardData?.getData("text/plain")?.trim() || "";
-                  if (/^https?:\/\/\S+$/.test(text)) {
-                    e.preventDefault();
-                    const safeUrl = text.replace(/"/g, "&quot;");
-                    document.execCommand(
-                      "insertHTML",
-                      false,
-                      `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>&nbsp;`
-                    );
-                    if (editorRef.current) setTextContent(editorRef.current.innerText);
-                  }
+                  if (!/^https?:\/\/\S+$/.test(text)) return;
+                  e.preventDefault();
+
+                  const sel = window.getSelection();
+                  if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
+                  const range = sel.getRangeAt(0);
+                  if (!editorRef.current.contains(range.startContainer)) return;
+
+                  range.deleteContents();
+                  const anchor = document.createElement("a");
+                  anchor.href = text;
+                  anchor.target = "_blank";
+                  anchor.rel = "noopener noreferrer";
+                  anchor.className = "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition-colors";
+                  anchor.textContent = text;
+                  range.insertNode(anchor);
+
+                  const space = document.createTextNode("\u00A0");
+                  anchor.after(space);
+
+                  const newRange = document.createRange();
+                  newRange.setStartAfter(space);
+                  newRange.collapse(true);
+                  sel.removeAllRanges();
+                  sel.addRange(newRange);
+
+                  if (editorRef.current) setTextContent(editorRef.current.innerText);
                 }}
                 onMouseUp={() => {
                   setActiveFormats({
