@@ -196,9 +196,9 @@ export function AuthForm() {
       {/* Brand */}
       <div className="mb-8 text-center">
         <img
-          src="/brand/logo-editorial.svg"
+          src="/brand/logo.png"
           alt="Gente da Feira"
-          className="mx-auto h-9 sm:h-11 md:h-14 w-auto"
+          className="mx-auto h-14 sm:h-16 md:h-20 w-auto"
         />
         <p className="mt-2 text-sm text-[#4A4A4A]/70 max-w-xs mx-auto leading-relaxed">
           A rede local de Feira de Santana
