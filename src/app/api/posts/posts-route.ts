@@ -7,6 +7,7 @@
 //   cursor        — created_at do último post visto (ISO 8601)
 //                   Se ausente, retorna os mais recentes.
 //   authorId      — filtra posts de um usuário específico
+//   hashtag       — filtra posts que contêm #hashtag no conteúdo
 //
 // Resposta:
 //   { posts, nextCursor, hasMore }
@@ -47,6 +48,13 @@ export async function GET(req: NextRequest) {
     const neighborhood = searchParams.get("neighborhood");
     const authorId     = searchParams.get("authorId");
     const cursor       = searchParams.get("cursor"); // created_at do último post
+    const rawHashtag   = searchParams.get("hashtag") || "";
+    const hashtag      = rawHashtag
+      .replace(/^#/, "")
+      .normalize("NFC")
+      .replace(/[^\p{L}\p{N}_]/gu, "")
+      .slice(0, 40)
+      .toLowerCase();
     const rawLimit     = parseInt(searchParams.get("limit") || String(DEFAULT_PAGE_SIZE));
     const limit        = Math.min(Math.max(1, rawLimit), MAX_PAGE_SIZE);
 
@@ -94,6 +102,12 @@ export async function GET(req: NextRequest) {
     // Filtro de bairro só quando pedido explicitamente (não é o padrão do feed social)
     if (neighborhood && neighborhood !== "all") {
       query = query.or(`neighborhood.eq.${neighborhood},neighborhood.is.null`);
+    }
+
+    // Hashtag: busca #tag no conteúdo (case-insensitive). Escapa curingas ILIKE.
+    if (hashtag) {
+      const escaped = hashtag.replace(/[%_\\]/g, "\\$&");
+      query = query.ilike("content", `%#${escaped}%`);
     }
 
     const { data: rawPosts, error } = await query;
