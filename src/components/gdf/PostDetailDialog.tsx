@@ -30,6 +30,11 @@ import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { toast } from "sonner";
 import { parseInlineFormatting } from "@/lib/link-utils";
+import {
+  useMentionAutocomplete,
+  MentionSuggestions,
+  insertMentionAtCursor,
+} from "@/lib/mention-autocomplete";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 
 // ═══════════════════════════════════════════════════════════
@@ -528,6 +533,16 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const [showComments, setShowComments] = useState(true); // Always expanded in detail view
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState("");
+  const {
+    mentionQuery,
+    mentionIndex,
+    suggestions: mentionSuggestions,
+    loading: mentionLoading,
+    setMentionIndex,
+    onChangeWithMention,
+    onKeyDownMention,
+    closeMentions,
+  } = useMentionAutocomplete();
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -1076,13 +1091,54 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                         <button onClick={() => setReplyTo(null)} className="text-primary/60 hover:text-primary ml-1">✕</button>
                       </div>
                     )}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 relative">
+                      <MentionSuggestions
+                        open={mentionQuery !== null}
+                        suggestions={mentionSuggestions}
+                        activeIndex={mentionIndex}
+                        loading={mentionLoading}
+                        onSelect={(u) => {
+                          const el = commentInputRef.current;
+                          const pos = el?.selectionStart ?? commentInput.length;
+                          const { next, newCursor } = insertMentionAtCursor(commentInput, pos, u.username);
+                          setCommentInput(next.slice(0, 500));
+                          closeMentions();
+                          setTimeout(() => {
+                            if (commentInputRef.current) {
+                              commentInputRef.current.focus();
+                              commentInputRef.current.setSelectionRange(newCursor, newCursor);
+                            }
+                          }, 0);
+                        }}
+                        onHover={setMentionIndex}
+                        className="bottom-full mb-1"
+                      />
                       <input
                         ref={commentInputRef}
-                        placeholder="Comentar..."
+                        placeholder="Comentar... Use @usuario"
                         value={commentInput}
-                        onChange={(e) => setCommentInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && submitComment()}
+                        onChange={(e) => {
+                          const v = e.target.value.slice(0, 500);
+                          setCommentInput(v);
+                          onChangeWithMention(v, e.target.selectionStart ?? v.length);
+                        }}
+                        onKeyDown={(e) => {
+                          const handled = onKeyDownMention(e, (u) => {
+                            const el = commentInputRef.current;
+                            const pos = el?.selectionStart ?? commentInput.length;
+                            const { next, newCursor } = insertMentionAtCursor(commentInput, pos, u.username);
+                            setCommentInput(next.slice(0, 500));
+                            closeMentions();
+                            setTimeout(() => {
+                              if (commentInputRef.current) {
+                                commentInputRef.current.focus();
+                                commentInputRef.current.setSelectionRange(newCursor, newCursor);
+                              }
+                            }, 0);
+                          });
+                          if (!handled && e.key === "Enter") submitComment();
+                        }}
+                        onBlur={() => setTimeout(() => closeMentions(), 150)}
                         className="flex-1 min-w-0 rounded-full border border-primary/10 bg-[#f7f9fa] px-2.5 py-1 text-[11px] sm:text-xs text-card-foreground focus:outline-none focus:border-[#2EC4B6] placeholder:text-primary/30"
                       />
                       <button

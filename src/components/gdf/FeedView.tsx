@@ -3,6 +3,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo, Fragment } from "react";
 import { useStore, Profile } from "@/lib/store";
 import { parseInlineFormatting } from "@/lib/link-utils";
+import {
+  useMentionAutocomplete,
+  MentionSuggestions,
+  insertMentionAtCursor,
+} from "@/lib/mention-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -592,6 +597,18 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 
   // ─── Composer state ────────────────────────────────────
   const [content,            setContent]            = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const {
+    mentionQuery,
+    mentionIndex,
+    suggestions: mentionSuggestions,
+    loading: mentionLoading,
+    setMentionIndex,
+    onChangeWithMention,
+    onKeyDownMention,
+    closeMentions,
+  } = useMentionAutocomplete();
+
   const [selectedFiles,      setSelectedFiles]      = useState<File[]>([]);
   const [previewUrls,        setPreviewUrls]        = useState<string[]>([]);
   const [uploading,          setUploading]          = useState(false);
@@ -1152,13 +1169,59 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         <div className="flex items-start gap-3.5">
           <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-12 w-12 shrink-0" />
           <div className="flex-1 space-y-2">
-            <textarea
-              placeholder={hasMediaInComposer ? "Adicione uma legenda... (opcional)" : "O que está acontecendo no seu bairro?"}
-              value={content}
-              onChange={(e) => setContent(e.target.value.slice(0, 500))}
-              className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-[#1A1A1A] focus:outline-none placeholder:text-[#1A1A1A]/30"
-              rows={2}
-            />
+            <div className="relative">
+              <MentionSuggestions
+                open={mentionQuery !== null}
+                suggestions={mentionSuggestions}
+                activeIndex={mentionIndex}
+                loading={mentionLoading}
+                onSelect={(u) => {
+                  const el = composerRef.current;
+                  const pos = el?.selectionStart ?? content.length;
+                  const { next, newCursor } = insertMentionAtCursor(content, pos, u.username);
+                  setContent(next.slice(0, 500));
+                  closeMentions();
+                  setTimeout(() => {
+                    if (composerRef.current) {
+                      composerRef.current.focus();
+                      composerRef.current.setSelectionRange(newCursor, newCursor);
+                    }
+                  }, 0);
+                }}
+                onHover={setMentionIndex}
+              />
+              <textarea
+                ref={composerRef}
+                placeholder={hasMediaInComposer ? "Adicione uma legenda... (opcional)" : "O que está acontecendo no seu bairro? Use @usuario"}
+                value={content}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, 500);
+                  setContent(v);
+                  onChangeWithMention(v, e.target.selectionStart ?? v.length);
+                }}
+                onKeyDown={(e) => {
+                  onKeyDownMention(e, (u) => {
+                    const el = composerRef.current;
+                    const pos = el?.selectionStart ?? content.length;
+                    const { next, newCursor } = insertMentionAtCursor(content, pos, u.username);
+                    setContent(next.slice(0, 500));
+                    closeMentions();
+                    setTimeout(() => {
+                      if (composerRef.current) {
+                        composerRef.current.focus();
+                        composerRef.current.setSelectionRange(newCursor, newCursor);
+                      }
+                    }, 0);
+                  });
+                }}
+                onBlur={() => {
+                  // delay para permitir click na sugestão
+                  setTimeout(() => closeMentions(), 150);
+                }}
+                className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-[#1A1A1A] focus:outline-none placeholder:text-[#1A1A1A]/30"
+                rows={2}
+              />
+            </div>
 
             {hasPhotosInComposer && previewUrls.length > 0 && (
               <div className="flex gap-2 flex-wrap">

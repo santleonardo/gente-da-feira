@@ -20,6 +20,11 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import {
+  useMentionAutocomplete,
+  MentionSuggestions,
+  insertMentionAtCursor,
+} from "@/lib/mention-autocomplete";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -340,6 +345,18 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   const { profile } = useStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  const dmInputRef = useRef<HTMLInputElement>(null);
+  const {
+    mentionQuery,
+    mentionIndex,
+    suggestions: mentionSuggestions,
+    loading: mentionLoading,
+    setMentionIndex,
+    onChangeWithMention,
+    onKeyDownMention,
+    closeMentions,
+  } = useMentionAutocomplete();
+
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1123,11 +1140,52 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
 
             {/* Input de texto */}
             <div className="flex-1 relative">
+              <MentionSuggestions
+                open={mentionQuery !== null}
+                suggestions={mentionSuggestions}
+                activeIndex={mentionIndex}
+                loading={mentionLoading}
+                onSelect={(u) => {
+                  const el = dmInputRef.current;
+                  const pos = el?.selectionStart ?? input.length;
+                  const { next, newCursor } = insertMentionAtCursor(input, pos, u.username);
+                  setInput(next.slice(0, 2000));
+                  closeMentions();
+                  setTimeout(() => {
+                    if (dmInputRef.current) {
+                      dmInputRef.current.focus();
+                      dmInputRef.current.setSelectionRange(newCursor, newCursor);
+                    }
+                  }, 0);
+                }}
+                onHover={setMentionIndex}
+              />
               <Input
-                placeholder="Escreva uma mensagem..."
+                ref={dmInputRef}
+                placeholder="Escreva uma mensagem... Use @usuario"
                 value={input}
-                onChange={(e) => setInput(e.target.value.slice(0, 2000))}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, 2000);
+                  setInput(v);
+                  onChangeWithMention(v, e.target.selectionStart ?? v.length);
+                }}
+                onKeyDown={(e) => {
+                  const handled = onKeyDownMention(e, (u) => {
+                    const el = dmInputRef.current;
+                    const pos = el?.selectionStart ?? input.length;
+                    const { next, newCursor } = insertMentionAtCursor(input, pos, u.username);
+                    setInput(next.slice(0, 2000));
+                    closeMentions();
+                    setTimeout(() => {
+                      if (dmInputRef.current) {
+                        dmInputRef.current.focus();
+                        dmInputRef.current.setSelectionRange(newCursor, newCursor);
+                      }
+                    }, 0);
+                  });
+                  if (!handled && e.key === "Enter" && !e.shiftKey) sendMessage();
+                }}
+                onBlur={() => setTimeout(() => closeMentions(), 150)}
                 className="h-11 rounded-full pl-4 pr-4 bg-[#EFEDE8]/50 border-0 focus-visible:ring-1 focus-visible:ring-[#1A1A1A]/30"
               />
             </div>

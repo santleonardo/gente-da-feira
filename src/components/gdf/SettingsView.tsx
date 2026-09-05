@@ -409,6 +409,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
               {notifications.slice(0, 5).map((notif: any) => {
                 const notifText: Record<string, string> = {
                   follow:          "começou a te seguir",
+                  mention:         "te mencionou",
                   follow_request:  "solicitou te seguir",
                   follow_accepted: "aceitou sua solicitação",
                   reaction:        "reagiu ao seu post",
