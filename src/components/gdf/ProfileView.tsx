@@ -587,6 +587,62 @@ export function ProfileView() {
     setTextContent(editorRef.current.innerText);
     closeMentions();
   }, [closeMentions]);
+
+  // Converte "https://exemplo.com" em link clicável assim que o usuário
+  // termina de digitar a URL (espaço) ou dá Enter logo depois dela.
+  const linkifyUrlBeforeCaret = useCallback((requireTrailingSpace: boolean) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editorRef.current || !sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE || !editorRef.current.contains(node)) return;
+
+    const text = node.textContent || "";
+    const caret = range.startOffset;
+    let searchText = text.slice(0, caret);
+
+    if (requireTrailingSpace) {
+      if (searchText.slice(-1) !== " ") return;
+      searchText = searchText.slice(0, -1);
+    }
+
+    const match = searchText.match(/https?:\/\/[^\s<>"')\]]+$/);
+    if (!match) return;
+
+    // Já está dentro de um link? Não faz nada.
+    if ((node.parentElement)?.closest("a")) return;
+
+    const url = match[0];
+    const urlStart = searchText.length - url.length;
+    const urlEnd = searchText.length;
+
+    const linkRange = document.createRange();
+    linkRange.setStart(node, urlStart);
+    linkRange.setEnd(node, urlEnd);
+    sel.removeAllRanges();
+    sel.addRange(linkRange);
+
+    document.execCommand("createLink", false, url);
+
+    // Abre em nova aba com segurança
+    const focusNode = sel.focusNode;
+    const anchorEl = focusNode
+      ? focusNode.nodeType === Node.ELEMENT_NODE
+        ? (focusNode as HTMLElement).closest("a")
+        : focusNode.parentElement?.closest("a")
+      : null;
+    if (anchorEl) {
+      anchorEl.setAttribute("target", "_blank");
+      anchorEl.setAttribute("rel", "noopener noreferrer");
+    }
+
+    sel.collapseToEnd();
+    if (requireTrailingSpace) {
+      try { sel.modify("move", "forward", "character"); } catch {}
+    }
+
+    if (editorRef.current) setTextContent(editorRef.current.innerText);
+  }, []);
   const [activeFormats, setActiveFormats] = useState({ bold: false, italic: false });
 
   // Media state
@@ -1664,15 +1720,34 @@ export function ProfileView() {
                   checkMentionAtCaret();
                 }}
                 onKeyDown={(e) => {
-                  onKeyDownMention(e, insertMentionInEditor);
+                  const handled = onKeyDownMention(e, insertMentionInEditor);
+                  if (!handled && e.key === "Enter") {
+                    linkifyUrlBeforeCaret(false);
+                  }
                 }}
                 onKeyUp={(e) => {
                   setActiveFormats({
                     bold: document.queryCommandState("bold"),
                     italic: document.queryCommandState("italic"),
                   });
+                  if (e.key === " ") {
+                    linkifyUrlBeforeCaret(true);
+                  }
                   if (!["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
                     checkMentionAtCaret();
+                  }
+                }}
+                onPaste={(e) => {
+                  const text = e.clipboardData?.getData("text/plain")?.trim() || "";
+                  if (/^https?:\/\/\S+$/.test(text)) {
+                    e.preventDefault();
+                    const safeUrl = text.replace(/"/g, "&quot;");
+                    document.execCommand(
+                      "insertHTML",
+                      false,
+                      `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>&nbsp;`
+                    );
+                    if (editorRef.current) setTextContent(editorRef.current.innerText);
                   }
                 }}
                 onMouseUp={() => {
