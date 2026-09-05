@@ -25,7 +25,7 @@ import {
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
-  Reply, SmilePlus,
+  Reply, SmilePlus, Megaphone, Pencil,
 } from "lucide-react";
 
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
@@ -2086,6 +2086,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showDeleteRoom, setShowDeleteRoom] = useState(false);
+  const [showBulletin, setShowBulletin] = useState(false);
+  const [bulletinDraft, setBulletinDraft] = useState("");
+  const [bulletinEditing, setBulletinEditing] = useState(false);
+  const [bulletinSaving, setBulletinSaving] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Mídia no chat ──
@@ -2488,7 +2492,18 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       const data = await res.json();
       if (data.room) {
         const currentRoom = roomRef.current;
-        const updated = { ...currentRoom, isMember: data.room.isMember, myRole: data.room.myRole, isBanned: data.room.isBanned, canJoin: data.room.canJoin, isOpen: data.room.isOpen, memberCount: data.room.memberCount, has_password: data.room.has_password };
+        const updated = {
+          ...currentRoom,
+          ...data.room,
+          isMember: data.room.isMember,
+          myRole: data.room.myRole,
+          isBanned: data.room.isBanned,
+          canJoin: data.room.canJoin,
+          isOpen: data.room.isOpen,
+          memberCount: data.room.memberCount,
+          has_password: data.room.has_password,
+          bulletin: data.room.bulletin ?? currentRoom.bulletin ?? null,
+        };
         setSelectedRoom(updated);
       }
     } catch {
@@ -3344,6 +3359,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 )}
                 <DropdownMenuItem onClick={() => setShowInvite(true)} className="gap-2">
                   <UserPlus className="h-4 w-4" /> Convidar pessoa
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setBulletinDraft(String(room.bulletin || ""));
+                    setBulletinEditing(false);
+                    setShowBulletin(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Megaphone className="h-4 w-4" /> Mural de avisos
+                  {room.bulletin ? (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#D96C4A]" />
+                  ) : null}
                 </DropdownMenuItem>
                 {isCreator && (
                   <>
@@ -4431,6 +4459,128 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </div>
         </div>
       )}
+
+      {/* ═══════ Mural de avisos ═══════ */}
+      <Dialog
+        open={showBulletin}
+        onOpenChange={(open) => {
+          setShowBulletin(open);
+          if (!open) setBulletinEditing(false);
+        }}
+      >
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
+            <DialogTitle className="flex items-center gap-2 font-serif text-xl">
+              <Megaphone className="h-4 w-4 text-[#D96C4A]" /> Mural de avisos
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#4A4A4A]/70">
+              Avisos e anúncios permanentes desta sala
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-5 py-4 space-y-3 max-h-[min(28rem,70dvh)] overflow-y-auto">
+            {bulletinEditing && isCreator ? (
+              <>
+                <Textarea
+                  value={bulletinDraft}
+                  onChange={(e) => setBulletinDraft(e.target.value.slice(0, 2000))}
+                  placeholder="Escreva o aviso da sala… (regras, horários, novidades)"
+                  className="min-h-[140px] rounded-xl border-black/10 text-sm resize-y"
+                  maxLength={2000}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-[#4A4A4A]/50">
+                    {bulletinDraft.length}/2000
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => {
+                        setBulletinDraft(String(room.bulletin || ""));
+                        setBulletinEditing(false);
+                      }}
+                      disabled={bulletinSaving}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-full gap-1.5"
+                      disabled={bulletinSaving}
+                      onClick={async () => {
+                        setBulletinSaving(true);
+                        try {
+                          const res = await fetch(`/api/rooms/${room.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ bulletin: bulletinDraft.trim() }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            toast.error(data.error || "Erro ao salvar mural");
+                          } else {
+                            const next = (data.room?.bulletin ?? bulletinDraft.trim()) || null;
+                            setSelectedRoom({ ...room, bulletin: next });
+                            setBulletinDraft(String(next || ""));
+                            setBulletinEditing(false);
+                            toast.success(
+                              next ? "Mural de avisos atualizado" : "Mural de avisos limpo"
+                            );
+                          }
+                        } catch {
+                          toast.error("Erro ao salvar mural");
+                        } finally {
+                          setBulletinSaving(false);
+                        }
+                      }}
+                    >
+                      {bulletinSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : room.bulletin ? (
+              <div className="rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-4">
+                <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap break-words leading-relaxed">
+                  {room.bulletin}
+                </p>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <Megaphone className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                <p className="font-serif text-base text-[#4A4A4A]/50">Nenhum aviso no mural</p>
+                <p className="text-xs text-[#4A4A4A]/40 mt-1">
+                  {isCreator
+                    ? "Clique em Editar para publicar o primeiro aviso."
+                    : "O criador da sala ainda não publicou avisos."}
+                </p>
+              </div>
+            )}
+          </div>
+          {isCreator && !bulletinEditing && (
+            <div className="px-5 pb-5 pt-1 flex justify-end border-t border-black/5">
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full gap-1.5"
+                onClick={() => {
+                  setBulletinDraft(String(room.bulletin || ""));
+                  setBulletinEditing(true);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                {room.bulletin ? "Editar aviso" : "Escrever aviso"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ═══════ Admin Panel Dialog ═══════ */}
       <AdminPanel
