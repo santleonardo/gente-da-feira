@@ -152,6 +152,35 @@ export function AuthForm() {
     }
   };
 
+  // Login/cadastro com Google (OAuth). O Supabase cria o usuário no
+  // auth.users automaticamente; o /auth/callback decide se o perfil já
+  // está completo (tem username) ou se precisa ir para /auth/complete-profile.
+  const handleGoogleAuth = async () => {
+    if (SIGNUP_DISABLED && mode === "register") {
+      toast.error("Cadastros temporariamente desabilitados. Tente novamente mais tarde.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { access_type: "offline", prompt: "consent" },
+        },
+      });
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+      }
+      // Em caso de sucesso o navegador é redirecionado para o Google —
+      // não há mais nada a fazer aqui.
+    } catch {
+      toast.error("Erro ao conectar com o Google");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="auth-blog flex min-h-[100dvh] w-full max-w-full flex-col items-center justify-center px-3 sm:px-4 py-8 sm:py-10 bg-[#F9F8F6] overflow-x-hidden">
       <style>{`
@@ -429,6 +458,28 @@ export function AuthForm() {
                   )}
                 </div>
               )}
+
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-black/[0.08]" />
+                <span className="text-[11px] font-medium uppercase tracking-wider text-[#4A4A4A]/45">ou</span>
+                <div className="h-px flex-1 bg-black/[0.08]" />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleAuth}
+                disabled={loading}
+                className="w-full h-11 rounded-full border-black/15 bg-white text-[#1A1A1A] hover:bg-black/[0.03] gap-2.5"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47c-.28 1.48-1.13 2.73-2.4 3.58v2.98h3.88c2.27-2.09 3.54-5.17 3.54-8.8z" />
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.88-2.98c-1.07.72-2.45 1.15-4.05 1.15-3.11 0-5.75-2.1-6.69-4.92H1.3v3.07C3.26 21.3 7.31 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.31 14.35c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.72H1.3A11.97 11.97 0 0 0 0 12.07c0 1.94.46 3.77 1.3 5.35l4.01-3.07z" />
+                  <path fill="#EA4335" d="M12 4.75c1.76 0 3.35.61 4.6 1.8l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.3 6.72l4.01 3.07C6.25 6.85 8.89 4.75 12 4.75z" />
+                </svg>
+                Continuar com o Google
+              </Button>
             </>
           )}
         </CardContent>
