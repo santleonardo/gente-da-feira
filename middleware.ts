@@ -15,11 +15,15 @@ const CSP_REPORT_URI = "/api/csp-report";
 function clearSupabaseAuthCookies(req: NextRequest, res: NextResponse) {
   const all = req.cookies.getAll();
   for (const { name } of all) {
-    // sb-<project-ref>-auth-token, chunks, code-verifier, etc.
+    // sb-<project-ref>-auth-token, chunks, etc.
+    // NUNCA apagar o cookie "code-verifier": ele pertence a um handshake
+    // PKCE (login Google) que pode estar em andamento em outra aba/rota,
+    // e apagá-lo por engano quebra o login (ver bugfix em /auth/callback acima).
     if (
-      name.startsWith("sb-") ||
-      name.includes("supabase") ||
-      name.startsWith("supabase-")
+      (name.startsWith("sb-") ||
+        name.includes("supabase") ||
+        name.startsWith("supabase-")) &&
+      !name.includes("code-verifier")
     ) {
       res.cookies.set(name, "", {
         path: "/",
@@ -76,6 +80,17 @@ export async function middleware(req: NextRequest) {
 
   // ── Supabase SSR auth ──
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return res;
+  }
+
+  // BUGFIX: /auth/callback está no meio de um handshake OAuth (PKCE) novo —
+  // o cookie "code-verifier" começa com "sb-" e pode ser apagado por engano
+  // por clearSupabaseAuthCookies() caso exista uma sessão antiga inválida no
+  // navegador. Isso fazia o exchangeCodeForSession falhar silenciosamente na
+  // 1ª tentativa de login com Google (só funcionava no 2º clique, depois que
+  // a sessão antiga já tinha sido limpa). Essa rota não precisa de checagem
+  // de sessão — pula o bloco do Supabase aqui.
+  if (req.nextUrl.pathname.startsWith("/auth/callback")) {
     return res;
   }
 
