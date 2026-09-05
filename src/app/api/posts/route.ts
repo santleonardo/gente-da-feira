@@ -323,10 +323,23 @@ export async function POST(req: NextRequest) {
 
     const sanitizedContent = sanitizeRichContent((content || "").trim());
 
-    // MOD-001: checagem de spam via Gemini Flash-Lite — síncrona, fail-open.
-    // Nunca bloqueia a publicação; apenas decide se o post entra na fila
-    // de moderação (ver autoReportSpam após o insert).
+    // MOD-001: checagem de spam via Gemini Flash-Lite.
+    // Fail-open: se a IA estiver offline/erro → libera (checkSpam retorna isSpam: false).
+    // Fail-closed só quando a IA confirma spam com clareza → bloqueia a publicação.
     const spamResult = await checkSpam(sanitizedContent);
+    if (spamResult.isSpam) {
+      // Best-effort: registra denúncia mesmo sem publicar (target pode não existir ainda)
+      // A denúncia completa exige targetId — só auto-report após insert falharia.
+      // Aqui bloqueamos antes do insert e avisamos o usuário.
+      return NextResponse.json(
+        {
+          error: "Conteúdo bloqueado por moderação automática. Revise o texto e tente de novo.",
+          code: "SPAM_BLOCKED",
+          reason: spamResult.reason || null,
+        },
+        { status: 422 }
+      );
+    }
 
     const { data: post, error } = await supabase
       .from("posts")
@@ -361,17 +374,6 @@ export async function POST(req: NextRequest) {
     // Cast to any — Supabase cannot infer types for complex nested joins
     const p = post as any;
 
-    // MOD-001: post já foi publicado (nunca bloqueamos por causa da IA) —
-    // se sinalizado como spam, registra denúncia automática pra fila de
-    // moderação. Best-effort, não afeta a resposta ao usuário.
-    if (spamResult.isSpam) {
-      autoReportSpam({
-        targetType: "post",
-        targetId: p.id,
-        targetOwnerId: user.id,
-        reason: spamResult.reason,
-      }).catch(() => {});
-    }
 
     // Self-referencing FK (shared_post_id → posts.id) faz o PostgREST às vezes
     // devolver `shared_post` como array (mesmo vazio) em vez de objeto/null.

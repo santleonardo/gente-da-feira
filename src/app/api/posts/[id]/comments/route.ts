@@ -98,8 +98,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const insertData: Record<string, any> = { content: sanitizedContent, post_id: postId, author_id: user.id };
     if (parentId) insertData.parent_id = parentId;
 
-    // MOD-001: mesma checagem de spam dos posts — síncrona, fail-open.
+    // MOD-001: mesma checagem dos posts — fail-open em erro da IA;
+    // bloqueia só quando a IA confirma spam.
     const spamResult = await checkSpam(sanitizedContent);
+    if (spamResult.isSpam) {
+      return NextResponse.json(
+        {
+          error: "Comentário bloqueado por moderação automática. Revise o texto e tente de novo.",
+          code: "SPAM_BLOCKED",
+          reason: spamResult.reason || null,
+        },
+        { status: 422 }
+      );
+    }
 
     const { data: comment, error } = await supabase
       .from("comments").insert(insertData)
@@ -108,14 +119,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (error) throw error;
 
-    if (spamResult.isSpam) {
-      autoReportSpam({
-        targetType: "comment",
-        targetId: (comment as any).id,
-        targetOwnerId: user.id,
-        reason: spamResult.reason,
-      }).catch(() => {});
-    }
 
     // SEC-009: Filter neighborhood from new comment's author
     // (For the user's own comment, they'll always see their own neighborhood,
