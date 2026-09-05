@@ -648,7 +648,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                 <div className="mt-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
+                    <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                       {userData.display_name}
                     </h2>
                     {privacyInfo.is_private && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
@@ -836,7 +836,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 )}
                               </div>
 
-                              <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
+                              <h3 className="font-serif text-base sm:text-lg md:text-xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
                                 {getTitle()}
                               </h3>
 
@@ -927,7 +927,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           </div>
                         </div>
                         <div className="w-full sm:w-[60%] flex flex-col">
-                          <h3 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-[#1A1A1A] mb-2">
+                          <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] mb-2">
                             Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
                           </h3>
                           {canSeeNeighborhood && userData.neighborhood && (

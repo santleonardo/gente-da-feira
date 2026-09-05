@@ -1079,7 +1079,7 @@ export function ProfileView() {
 
             <div className="flex-1 min-w-0 pb-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
+                <h1 className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                   {profile?.display_name}
                 </h1>
                 {isPrivate && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
@@ -1266,7 +1266,7 @@ export function ProfileView() {
                     </div>
 
                     {/* Title */}
-                    <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
+                    <h2 className="font-serif text-lg sm:text-xl md:text-xl font-medium tracking-tight text-[#1A1A1A] group-hover:text-[#D96C4A] transition-colors leading-snug break-words">
                       {getPostTitle(post)}
                     </h2>
 
@@ -1771,7 +1771,7 @@ export function ProfileView() {
 
               {/* Texto longo */}
               <div className="w-full md:w-[58%] flex flex-col pt-2 md:pt-0">
-                <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
+                <h2 className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
                   Sobre {profile?.display_name?.split(" ")[0] || "mim"}
                 </h2>
                 {profile?.neighborhood && (
