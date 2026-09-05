@@ -1,35 +1,31 @@
 /**
  * MOD-001: Detecção de spam via Gemini Flash-Lite (Google AI Studio).
  *
- * Uso: chamado de forma síncrona nas rotas de criação de posts/comentários,
- * logo após a sanitização e antes do INSERT — a resposta do Flash-Lite
- * costuma vir abaixo de 1s, então o impacto de latência é imperceptível.
- *
- * Design "fail-open": qualquer problema (sem API key, timeout, erro de
- * rede, resposta malformada) resulta em `isSpam: false`. Uma dependência
- * externa fora do ar NUNCA pode impedir alguém de publicar.
+ * Política FAIL-CLOSED quando a moderação está ligada:
+ *   - SPAM_CHECK_ENABLED=1 + GEMINI_API_KEY → a checagem é obrigatória
+ *   - spam confirmado → bloqueia
+ *   - timeout / rede / resposta inválida → também bloqueia
+ *     (não publica conteúdo sem parecer da moderação)
+ *   - SPAM_CHECK desligado ou sem chave → não checa, libera (moderação off)
  *
  * Ativar com:
- *   GEMINI_API_KEY=...           — chave do Google AI Studio (grátis, sem cartão)
+ *   GEMINI_API_KEY=...           — chave do Google AI Studio
  *   SPAM_CHECK_ENABLED=1         — liga a checagem (desligada por padrão)
  *   GEMINI_SPAM_MODEL=...        — opcional, default abaixo
- *
- * O critério de classificação vive no prompt abaixo — ajuste aqui conforme
- * os casos reais de spam que aparecerem no bairro (link externo em excesso,
- * número de WhatsApp solto, texto promocional repetido/colado em vários
- * posts, revenda disfarçada de post de vizinhança, etc.).
  */
 
 const DEFAULT_MODEL = "gemini-flash-lite-latest";
-const TIMEOUT_MS = 3000;
-const MAX_CONTENT_CHARS = 2000; // suficiente pro limite de 1000 chars de posts
+const TIMEOUT_MS = 5000;
+const MAX_CONTENT_CHARS = 2000;
+
+export type SpamCheckStatus = "disabled" | "clean" | "spam" | "unavailable";
 
 export interface SpamCheckResult {
+  /** @deprecated use status === "spam" */
   isSpam: boolean;
+  status: SpamCheckStatus;
   reason: string | null;
 }
-
-const SAFE_RESULT: SpamCheckResult = { isSpam: false, reason: null };
 
 function envFlag(name: string): boolean {
   const v = process.env[name];
@@ -60,24 +56,28 @@ Responda APENAS com um JSON válido, sem markdown, no formato exato:
 {"spam": true ou false, "reason": "motivo em até 15 palavras, em português"}`;
 
 /**
- * Classifica um texto como spam ou não usando o Gemini Flash-Lite.
+ * Classifica texto com Gemini.
+ * Nunca lança — devolve status para a rota decidir.
  *
- * Política híbrida (aplicada nas rotas de post/comentário):
- *   - Fail-open na INFRA: timeout, rede, chave ausente, JSON inválido → isSpam: false
- *     (não derruba a rede inteira se a IA cair).
- *   - Fail-closed no SINAL: se isSpam === true, a API deve RECUSAR publicar o conteúdo.
- *
- * Nunca lança exceção — em caso de falha, retorna { isSpam: false }.
+ * - disabled: moderação off → rotas devem publicar
+ * - clean: não é spam → publicar
+ * - spam: é spam → bloquear
+ * - unavailable: IA falhou com moderação ON → bloquear (fail-closed)
  */
 export async function checkSpam(content: string): Promise<SpamCheckResult> {
-  if (!isSpamCheckEnabled()) return SAFE_RESULT;
+  if (!isSpamCheckEnabled()) {
+    return { isSpam: false, status: "disabled", reason: null };
+  }
 
   const plainText = content
     .replace(/<[^>]*>/g, " ")
     .replace(/&\w+;/g, " ")
     .trim();
 
-  if (!plainText) return SAFE_RESULT;
+  // Sem texto (só mídia): nada para classificar
+  if (!plainText) {
+    return { isSpam: false, status: "clean", reason: null };
+  }
 
   const truncated = plainText.slice(0, MAX_CONTENT_CHARS);
   const apiKey = process.env.GEMINI_API_KEY;
@@ -97,7 +97,10 @@ export async function checkSpam(content: string): Promise<SpamCheckResult> {
         },
         body: JSON.stringify({
           contents: [
-            { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nTexto:\n"""${truncated}"""` }] },
+            {
+              role: "user",
+              parts: [{ text: `${SYSTEM_PROMPT}\n\nTexto:\n"""${truncated}"""` }],
+            },
           ],
           generationConfig: {
             temperature: 0,
@@ -109,23 +112,86 @@ export async function checkSpam(content: string): Promise<SpamCheckResult> {
       }
     );
 
-    if (!res.ok) return SAFE_RESULT;
+    if (!res.ok) {
+      console.warn("[spam-check] Gemini HTTP", res.status);
+      return {
+        isSpam: true,
+        status: "unavailable",
+        reason: "Moderação automática temporariamente indisponível",
+      };
+    }
 
     const data = await res.json();
-    const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return SAFE_RESULT;
+    const text: string | undefined =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      return {
+        isSpam: true,
+        status: "unavailable",
+        reason: "Moderação automática temporariamente indisponível",
+      };
+    }
 
-    const parsed = JSON.parse(text);
-    if (typeof parsed?.spam !== "boolean") return SAFE_RESULT;
+    let parsed: { spam?: unknown; reason?: unknown };
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return {
+        isSpam: true,
+        status: "unavailable",
+        reason: "Moderação automática temporariamente indisponível",
+      };
+    }
 
+    if (typeof parsed?.spam !== "boolean") {
+      return {
+        isSpam: true,
+        status: "unavailable",
+        reason: "Moderação automática temporariamente indisponível",
+      };
+    }
+
+    if (parsed.spam) {
+      return {
+        isSpam: true,
+        status: "spam",
+        reason:
+          typeof parsed.reason === "string" ? parsed.reason.slice(0, 300) : null,
+      };
+    }
+
+    return { isSpam: false, status: "clean", reason: null };
+  } catch (err) {
+    console.warn("[spam-check] falha", err instanceof Error ? err.message : err);
+    // Fail-closed: moderação ligada e IA falhou → não publica
     return {
-      isSpam: parsed.spam,
-      reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 300) : null,
+      isSpam: true,
+      status: "unavailable",
+      reason: "Moderação automática temporariamente indisponível",
     };
-  } catch {
-    // Timeout, erro de rede, JSON malformado, etc. → fail-open
-    return SAFE_RESULT;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/** Mensagem amigável para a API devolver ao cliente */
+export function spamBlockResponse(result: SpamCheckResult): {
+  error: string;
+  code: string;
+  reason: string | null;
+} {
+  if (result.status === "unavailable") {
+    return {
+      error:
+        "Não foi possível validar o conteúdo agora. Tente de novo em instantes.",
+      code: "MODERATION_UNAVAILABLE",
+      reason: result.reason,
+    };
+  }
+  return {
+    error:
+      "Conteúdo bloqueado por moderação automática. Revise o texto e tente de novo.",
+    code: "SPAM_BLOCKED",
+    reason: result.reason,
+  };
 }
