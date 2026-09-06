@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -227,6 +227,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [albumPhotos, setAlbumPhotos] = useState<any[]>([]);
   const [albumVideos, setAlbumVideos] = useState<any[]>([]);
   const [albumLoading, setAlbumLoading] = useState(false);
+  // PERF-002: paginação do álbum (fotos e vídeos têm cursores independentes)
+  const [albumLoadingMore, setAlbumLoadingMore] = useState(false);
+  const [photosCursor, setPhotosCursor] = useState<string | null>(null);
+  const [photosHasMore, setPhotosHasMore] = useState(false);
+  const [videosCursor, setVideosCursor] = useState<string | null>(null);
+  const [videosHasMore, setVideosHasMore] = useState(false);
+  const albumLoadMoreRef = useRef<HTMLDivElement | null>(null);
+  const albumLoadingMoreRefFlag = useRef(false);
   const [postsVisibleCount, setPostsVisibleCount] = useState(8);
 
   // Photo viewer state
@@ -283,6 +291,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setUserPosts([]);
     setAlbumPhotos([]);
     setAlbumVideos([]);
+    setPhotosCursor(null);
+    setPhotosHasMore(false);
+    setVideosCursor(null);
+    setVideosHasMore(false);
     setFollowList([]);
     setViewerOpen(false);
 
@@ -359,6 +371,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   }, [userId, open]);
 
   // Álbum sob demanda — só quando a aba Fotografia é aberta
+  // PERF-002: primeira página apenas; o resto vem por scroll infinito (loadMoreAlbum)
   useEffect(() => {
     if (!userId || !open || activeTab !== "album") return;
     if (albumPhotos.length > 0 || albumVideos.length > 0) return;
@@ -377,7 +390,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         const [pData, vData] = await Promise.all([pRes.json(), vRes.json()]);
         if (cancelled) return;
         if (pData.photos) setAlbumPhotos(pData.photos);
+        setPhotosCursor(pData.nextCursor ?? null);
+        setPhotosHasMore(pData.hasMore ?? false);
         if (vData.videos) setAlbumVideos(vData.videos);
+        setVideosCursor(vData.nextCursor ?? null);
+        setVideosHasMore(vData.hasMore ?? false);
       } catch (err: any) {
         if (err?.name === "AbortError") return;
       } finally {
@@ -390,6 +407,60 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
       ac.abort();
     };
   }, [userId, open, activeTab, albumPhotos.length, albumVideos.length]);
+
+  // PERF-002: busca a próxima página de fotos e/ou vídeos (o que ainda tiver mais)
+  const loadMoreAlbum = useCallback(async () => {
+    if (!userId || albumLoadingMoreRefFlag.current) return;
+    if (!photosHasMore && !videosHasMore) return;
+    albumLoadingMoreRefFlag.current = true;
+    setAlbumLoadingMore(true);
+    try {
+      const requests: Promise<void>[] = [];
+      if (photosHasMore) {
+        requests.push(
+          fetch(`/api/profile-photos?userId=${userId}&cursor=${encodeURIComponent(photosCursor || "")}`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.photos) setAlbumPhotos((prev) => [...prev, ...data.photos]);
+              setPhotosCursor(data.nextCursor ?? null);
+              setPhotosHasMore(data.hasMore ?? false);
+            })
+        );
+      }
+      if (videosHasMore) {
+        requests.push(
+          fetch(`/api/profile-videos?userId=${userId}&cursor=${encodeURIComponent(videosCursor || "")}`)
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.videos) setAlbumVideos((prev) => [...prev, ...data.videos]);
+              setVideosCursor(data.nextCursor ?? null);
+              setVideosHasMore(data.hasMore ?? false);
+            })
+        );
+      }
+      await Promise.all(requests);
+    } catch {
+      /* silencioso — tenta de novo no próximo scroll */
+    } finally {
+      albumLoadingMoreRefFlag.current = false;
+      setAlbumLoadingMore(false);
+    }
+  }, [userId, photosHasMore, videosHasMore, photosCursor, videosCursor]);
+
+  // Scroll infinito do álbum — carrega mais ao aproximar do fim da lista
+  useEffect(() => {
+    if (activeTab !== "album") return;
+    const el = albumLoadMoreRef.current;
+    if (!el || (!photosHasMore && !videosHasMore)) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreAlbum();
+      },
+      { rootMargin: typeof window !== "undefined" && window.innerWidth < 640 ? "200px 0px" : "400px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [activeTab, photosHasMore, videosHasMore, loadMoreAlbum]);
 
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
@@ -1098,6 +1169,15 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {/* Sentinela do scroll infinito — dispara loadMoreAlbum ao entrar na viewport */}
+                        {(photosHasMore || videosHasMore) && (
+                          <div ref={albumLoadMoreRef} className="flex justify-center py-4">
+                            {albumLoadingMore && (
+                              <Loader2 className="h-5 w-5 animate-spin text-[#4A4A4A]/40" />
+                            )}
                           </div>
                         )}
                       </div>
