@@ -17,10 +17,10 @@ import {
   Camera,
   Film,
   Music,
-  X,
   AlertCircle,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { PhotoViewer } from "./PhotoViewer";
 import { toast } from "sonner";
 
 // ═══════ Regras do álbum ═══════
@@ -632,54 +632,11 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
 
       {/* ═══════ LIGHTBOX ═══════ */}
       {viewerOpen && viewerPhotos.length > 0 && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1A1A1A]/95 backdrop-blur-md p-3 sm:p-8 overflow-hidden"
-          onClick={() => setViewerOpen(false)}
-        >
-          <button
-            onClick={() => setViewerOpen(false)}
-            className="absolute top-5 right-5 z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/50 hover:text-white transition-colors"
-            aria-label="Fechar"
-          >
-            <X className="h-7 w-7" />
-          </button>
-
-          {viewerPhotos.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewerIndex((i) => (i > 0 ? i - 1 : viewerPhotos.length - 1));
-                }}
-                className="absolute left-3 sm:left-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-2xl"
-              >
-                ‹
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setViewerIndex((i) => (i < viewerPhotos.length - 1 ? i + 1 : 0));
-                }}
-                className="absolute right-3 sm:right-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors text-2xl"
-              >
-                ›
-              </button>
-            </>
-          )}
-
-          <img
-            src={viewerPhotos[viewerIndex]}
-            alt={`Foto ${viewerIndex + 1}`}
-            className="max-h-[75dvh] max-w-[min(95vw,100%)] object-contain rounded-sm shadow-2xl shadow-black/50"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {viewerPhotos.length > 1 && (
-            <div className="absolute bottom-6 text-white/60 text-sm font-medium tabular-nums tracking-wide">
-              {viewerIndex + 1} / {viewerPhotos.length}
-            </div>
-          )}
-        </div>
+        <PhotoViewer
+          photos={viewerPhotos}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerOpen(false)}
+        />
       )}
     </div>
   );

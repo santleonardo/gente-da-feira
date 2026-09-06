@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Camera, Flag } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { PhotoViewer } from "./PhotoViewer";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -130,22 +131,6 @@ function AudioPlayer({ src }: { src: string }) {
 // ═══════════════════════════════════════════════════════════
 // PhotoViewer — fullscreen overlay
 // ═══════════════════════════════════════════════════════════
-function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000305]/92" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"><X className="h-5 w-5" /></button>
-      {photos.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">&#8249;</button>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">&#8250;</button>
-        </>
-      )}
-      <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      {photos.length > 1 && <div className="absolute bottom-4 text-white/70 text-sm">{currentIndex + 1} / {photos.length}</div>}
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════
 // FormattedText — renderiza HTML do editor WYSIWYG ou markdown
@@ -527,6 +512,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className={
           "p-0 gap-0 overflow-hidden bg-[#F9F8F6] border-0 shadow-2xl " +
           // fullscreen total — sobrescreve defaults do Dialog (centro/max-w)

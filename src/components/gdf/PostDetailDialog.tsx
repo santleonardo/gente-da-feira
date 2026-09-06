@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
+import { PhotoViewer } from "./PhotoViewer";
 import { toast } from "sonner";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
@@ -378,22 +379,6 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
 // ═══════════════════════════════════════════════════════════
 // PhotoViewer
 // ═══════════════════════════════════════════════════════════
-function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors"><X className="h-5 w-5" /></button>
-      {photos.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors">&#8249;</button>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-card-foreground transition-colors">&#8250;</button>
-        </>
-      )}
-      <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      {photos.length > 1 && <div className="absolute bottom-4 text-[#f7f9fa]/70 text-sm">{currentIndex + 1} / {photos.length}</div>}
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════
 // ShareMenu
