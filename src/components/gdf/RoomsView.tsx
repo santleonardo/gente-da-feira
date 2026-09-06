@@ -35,6 +35,7 @@ import { LazyImage } from "./LazyImage";
 import { useRealtimeMessages } from "@/hooks/use-realtime";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { assessTextRisk, riskBannerTitle, type RiskAssessment } from "@/lib/risk-check";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import {
   Dialog,
@@ -2046,6 +2047,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const { profile, setSelectedRoom } = useStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  const [riskWarning, setRiskWarning] = useState<RiskAssessment | null>(null);
+  const [riskAckText, setRiskAckText] = useState<string | null>(null);
   /** Mensagem sendo respondida (quote) */
   const [replyTo, setReplyTo] = useState<any | null>(null);
   /** Autocomplete de @menção: query após o @ e índice selecionado */
@@ -2886,6 +2889,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     if ((!input.trim() && !mediaData) || !profile || !isMember) return;
     const text = input.trim();
     const replyingTo = replyTo;
+
+    if (text && !mediaData) {
+      const risk = assessTextRisk(text);
+      if (risk.level === "warn" && riskAckText !== text) {
+        setRiskWarning(risk);
+        return;
+      }
+    }
+    setRiskWarning(null);
+    setRiskAckText(null);
+
     setInput("");
     setReplyTo(null);
     setMentionQuery(null);
@@ -4184,6 +4198,38 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     </div>
                   )}
 
+                  {riskWarning && riskWarning.level === "warn" && (
+                    <div className="mb-2 rounded-xl border border-amber-500/40 bg-amber-50 px-3 py-2.5 text-left w-full">
+                      <p className="text-xs font-semibold text-amber-900">
+                        ⚠️ {riskBannerTitle(riskWarning)}
+                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {riskWarning.messages.map((m, i) => (
+                          <li key={i} className="text-[11px] text-amber-900/80 leading-snug">{m}</li>
+                        ))}
+                      </ul>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-full bg-amber-900 text-white text-[11px] font-medium px-3 py-1"
+                          onClick={() => {
+                            setRiskAckText(input.trim());
+                            setRiskWarning(null);
+                            void sendMessage();
+                          }}
+                        >
+                          Enviar mesmo assim
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full border border-amber-800/20 text-amber-900 text-[11px] font-medium px-3 py-1"
+                          onClick={() => setRiskWarning(null)}
+                        >
+                          Revisar texto
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <Textarea
                     ref={inputRef}
                     rows={1}
@@ -4192,6 +4238,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     onChange={(e) => {
                       const v = e.target.value.slice(0, 2000);
                       setInput(v);
+                      if (riskWarning) setRiskWarning(null);
+                      if (riskAckText && v.trim() !== riskAckText) setRiskAckText(null);
                       detectMention(v, e.target.selectionStart ?? v.length);
                       // auto-grow até ~4 linhas
                       const el = e.target;

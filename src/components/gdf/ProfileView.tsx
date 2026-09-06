@@ -80,6 +80,7 @@ import {
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 import { validateText, TEXT_LIMITS, textCountTone } from "@/lib/text-validation";
+import { assessTextRisk, riskBannerTitle, type RiskAssessment } from "@/lib/risk-check";
 import {
   useMentionAutocomplete,
   MentionSuggestions,
@@ -506,6 +507,8 @@ export function ProfileView() {
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorExpanded, setEditorExpanded] = useState(false);
   const [textContent, setTextContent] = useState("");
+  const [riskWarning, setRiskWarning] = useState<RiskAssessment | null>(null);
+  const [riskAckText, setRiskAckText] = useState<string | null>(null);
 
   // Modo tela cheia do editor: trava o scroll do body e permite fechar com Esc
   useEffect(() => {
@@ -1074,6 +1077,20 @@ export function ProfileView() {
       toast.error(textCheck.error || "Texto inválido");
       return;
     }
+
+    const plainForRisk =
+      textCheck.normalized ||
+      (editorRef.current?.innerText || textContent || "").trim();
+    if (plainForRisk) {
+      const risk = assessTextRisk(plainForRisk);
+      if (risk.level === "warn" && riskAckText !== plainForRisk) {
+        setRiskWarning(risk);
+        return;
+      }
+    }
+    setRiskWarning(null);
+    setRiskAckText(null);
+
     setPublishing(true);
     try {
       let imageUrls: string[] = [];
@@ -1952,6 +1969,38 @@ export function ProfileView() {
                 >
                   <X className="h-4 w-4" />
                 </button>
+              </div>
+            )}
+
+            {riskWarning && riskWarning.level === "warn" && (
+              <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-50 px-3 py-2.5 text-left shrink-0">
+                <p className="text-xs font-semibold text-amber-900">⚠️ {riskBannerTitle(riskWarning)}</p>
+                <ul className="mt-1 space-y-0.5">
+                  {riskWarning.messages.map((m, i) => (
+                    <li key={i} className="text-[11px] text-amber-900/80 leading-snug">{m}</li>
+                  ))}
+                </ul>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full bg-amber-900 text-white text-[11px] font-medium px-3 py-1"
+                    onClick={() => {
+                      const plain = (editorRef.current?.innerText || textContent || "").trim();
+                      setRiskAckText(plain);
+                      setRiskWarning(null);
+                      void handlePublish();
+                    }}
+                  >
+                    Publicar mesmo assim
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-amber-800/20 text-amber-900 text-[11px] font-medium px-3 py-1"
+                    onClick={() => setRiskWarning(null)}
+                  >
+                    Revisar texto
+                  </button>
+                </div>
               </div>
             )}
 
