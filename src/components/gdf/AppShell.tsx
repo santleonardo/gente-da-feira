@@ -536,9 +536,9 @@ export function AppShell() {
             className="flex min-w-0 items-center gap-2.5 text-left hover:opacity-90 transition-opacity"
           >
             <img
-              src="/brand/logo-editorial.svg"
+              src="/brand/logo.png"
               alt="Gente da Feira"
-              className="h-6 lg:h-7 w-auto"
+              className="h-8 lg:h-9 w-auto"
             />
             <p className="hidden lg:block text-[10px] uppercase tracking-[0.14em] text-[#4A4A4A]/50 leading-none">
               Feira de Santana · BA

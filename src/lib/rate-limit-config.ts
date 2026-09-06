@@ -33,9 +33,6 @@ const rules: RateLimitRule[] = [
 
   // ── Posts (HIGH) — limites reduzidos para beta / Supabase Free ─────
   { key: "posts:create",   limit: 4,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
-
-  // ── AI assist (composer rewrite) ─────────────────────────────────
-  { key: "ai:rewrite",     limit: 12,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "posts:list",     limit: 60,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
   { key: "posts:delete",   limit: 20,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
 

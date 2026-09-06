@@ -16,6 +16,8 @@ type TermsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAccept?: () => void;
+  /** Ao abrir, rola direto até a seção de Privacidade (LGPD) em vez do topo. */
+  initialSection?: "privacy";
 };
 
 // PERF-001: react-markdown (~80kB) + remark-gfm carregados sob demanda
@@ -42,15 +44,35 @@ const TermsContent = React.lazy(async () => {
  * Renderiza o documento em markdown (com suporte a tabelas via remark-gfm)
  * dentro de uma área rolável, com cabeçalho e rodapé fixos.
  */
-export function TermsDialog({ open, onOpenChange, onAccept }: TermsDialogProps) {
+export function TermsDialog({ open, onOpenChange, onAccept, initialSection }: TermsDialogProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Sempre volta ao topo ao (re)abrir o diálogo.
+  // Ao (re)abrir o diálogo: volta ao topo, ou pula direto para a seção de
+  // Privacidade quando aberto a partir do link "Política de Privacidade".
   React.useEffect(() => {
-    if (open && scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0 });
+    if (!open || !scrollRef.current) return;
+    if (initialSection === "privacy") {
+      // Aguarda o chunk de markdown (lazy) renderizar antes de procurar o heading.
+      const el = scrollRef.current;
+      let cancelled = false;
+      const tryScroll = (attempt = 0) => {
+        if (cancelled) return;
+        const heading = Array.from(el.querySelectorAll("h2")).find((h) =>
+          h.textContent?.includes("Privacidade")
+        );
+        if (heading) {
+          heading.scrollIntoView({ block: "start" });
+        } else if (attempt < 20) {
+          setTimeout(() => tryScroll(attempt + 1), 100);
+        }
+      };
+      tryScroll();
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [open]);
+    scrollRef.current.scrollTo({ top: 0 });
+  }, [open, initialSection]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -65,9 +87,14 @@ export function TermsDialog({ open, onOpenChange, onAccept }: TermsDialogProps) 
             </span>
             <div>
               <DialogTitle className="text-lg font-bold tracking-tight">
-                Termos de Uso — Gente da Feira
+                {initialSection === "privacy"
+                  ? "Política de Privacidade — Gente da Feira"
+                  : "Termos de Uso — Gente da Feira"}
               </DialogTitle>
               <DialogDescription id="terms-desc" className="text-xs">
+                {initialSection === "privacy"
+                  ? "Parte dos Termos de Uso (Seção 10 — LGPD) · "
+                  : ""}
                 Versão {TERMS_VERSION} · Elaborada em {TERMS_DATE}
               </DialogDescription>
             </div>
