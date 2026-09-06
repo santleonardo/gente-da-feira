@@ -77,6 +77,7 @@ import {
   validateImageFile,
   createPreviewUrl,
   revokePreviewUrl,
+  getExtensionForBlob,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 import { validateText, TEXT_LIMITS, textCountTone } from "@/lib/text-validation";
@@ -1035,7 +1036,7 @@ export function ProfileView() {
       try {
         const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.55, maxSizeKB: 150 });
         const formData = new FormData();
-        formData.append("file", compressed, "photo.webp");
+        formData.append("file", compressed, `photo.${getExtensionForBlob(compressed)}`);
         formData.append("folder", "posts");
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();

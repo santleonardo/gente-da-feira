@@ -51,6 +51,7 @@ import {
   validateImageFile,
   createPreviewUrl,
   revokePreviewUrl,
+  getExtensionForBlob,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 
@@ -1081,7 +1082,8 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         // Cliente: WebP (ou JPEG fallback) ≤ ~180KB, lado ≤ 1280
         const compressed = await compressImageForFeed(file);
         const formData = new FormData();
-        formData.append("file", compressed, compressed.name);
+        const filename = `photo.${getExtensionForBlob(compressed)}`;
+        formData.append("file", compressed, filename);
         formData.append("folder", "posts");
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json().catch(() => ({}));
