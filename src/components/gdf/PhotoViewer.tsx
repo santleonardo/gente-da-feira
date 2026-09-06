@@ -24,6 +24,11 @@ import { X } from "lucide-react";
  * de fechar do perfil, que fica no canto superior), setas sempre
  * visíveis (em qualquer tamanho de tela), navegação por teclado e
  * swipe.
+ *
+ * Fix mobile: a regra global em globals.css (`img { max-width:100%; height:auto }`)
+ * conflitava com `h-full w-full object-contain`, fazendo a foto aparecer
+ * desalinhada (deslocada para o lado) no celular. Usamos max-h/max-w +
+ * flex center para o tamanho natural da imagem ser respeitado e centralizado.
  */
 export function PhotoViewer({
   photos,
@@ -92,7 +97,8 @@ export function PhotoViewer({
           key={photos[currentIndex]}
           src={photos[currentIndex]}
           alt={`Foto ${currentIndex + 1} de ${photos.length}`}
-          className="h-full w-full object-contain select-none"
+          className="max-h-full max-w-full object-contain select-none"
+          style={{ maxHeight: "100%", maxWidth: "100%", width: "auto", height: "auto" }}
           draggable={false}
         />
       </div>
