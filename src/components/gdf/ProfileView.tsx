@@ -398,9 +398,6 @@ function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; init
   );
 }
 
-
-}
-
 // ═══════════════════════════════════════════════════════════
 // ExpirationCounter (para Meus Posts)
 // ═══════════════════════════════════════════════════════════
