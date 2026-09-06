@@ -584,9 +584,15 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        // BUG-FIX: com o PhotoViewer aberto, Esc não deve fechar o
-        // perfil inteiro — só a foto (o PhotoViewer já trata Esc sozinho).
+        // BUG-FIX: com o PhotoViewer aberto (agora em portal no body),
+        // Esc / clique fora não devem fechar o perfil inteiro — só a foto.
         onEscapeKeyDown={(e) => {
+          if (viewerOpen) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (viewerOpen) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
           if (viewerOpen) e.preventDefault();
         }}
         className={
@@ -1202,18 +1208,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           </div>
         )}
 
-        {/*
-          BUG-FIX: o PhotoViewer precisa ficar DENTRO do DialogContent.
-          Quando ele era renderizado como irmão do DialogContent (fora da
-          árvore do Content), o Radix Dialog tratava cliques nos botões do
-          viewer (fechar, seta anterior/próxima) como "clique fora do
-          modal" e disparava o fechamento de todo o perfil antes do
-          onClick do próprio botão rodar — por isso os botões pareciam não
-          fazer nada. Como o DialogContent aqui já ocupa a tela inteira
-          (!fixed !inset-0 !w-screen !h-[100dvh]), mover o viewer para
-          dentro não muda o visual (o "fixed inset-0" dele continua
-          cobrindo 100% da tela).
-        */}
+        {/* PhotoViewer via portal no body (tela cheia real no mobile).
+            onPointerDownOutside / onInteractOutside acima impedem que
+            cliques no viewer fechem o perfil. */}
         {viewerOpen && viewerPhotos.length > 0 && (
           <PhotoViewer photos={viewerPhotos} initialIndex={viewerIndex} onClose={() => setViewerOpen(false)} />
         )}

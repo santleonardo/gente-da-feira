@@ -1,34 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /**
  * Visualizador de fotos (lightbox) compartilhado.
  *
- * Antes esse componente estava duplicado em 4 arquivos diferentes
- * (FeedView, ProfileView, PostDetailDialog, UserProfileDialog), cada
- * cópia com um bug diferente:
- *  - ProfileView: não tinha botões de próxima/anterior foto quando
- *    havia mais de 12 fotos (só existiam os "pontinhos").
- *  - FeedView: os botões de próxima/anterior só apareciam em telas
- *    "sm" pra cima (`hidden sm:flex`), então em celular sumiam.
- *  - UserProfileDialog: o viewer era renderizado como irmão do
- *    DialogContent do Radix Dialog, então cliques nos seus botões
- *    contavam como "clique fora do modal" e fechavam o perfil
- *    inteiro antes do próprio clique ser processado.
- *
- * Esta versão única corrige os problemas: foto ocupa a tela inteira
- * (sem barras reservando espaço), controles flutuam por cima em
- * overlay, botão de fechar isolado no canto inferior (longe do botão
- * de fechar do perfil, que fica no canto superior), setas sempre
- * visíveis (em qualquer tamanho de tela), navegação por teclado e
- * swipe.
- *
- * Fix mobile: a regra global em globals.css (`img { max-width:100%; height:auto }`)
- * conflitava com `h-full w-full object-contain`, fazendo a foto aparecer
- * desalinhada (deslocada para o lado) no celular. Usamos max-h/max-w +
- * flex center para o tamanho natural da imagem ser respeitado e centralizado.
+ * Renderiza via portal em document.body para garantir tela cheia de verdade
+ * no mobile. Sem portal, o `position: fixed` fica relativo a ancestrais com
+ * transform (ex.: .animate-tab-in) ou overflow/max-width do shell, e a
+ * "caixinha preta" aparece desalinhada / não ocupa a tela inteira.
  */
 export function PhotoViewer({
   photos,
@@ -40,7 +22,12 @@ export function PhotoViewer({
   onClose: () => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [mounted, setMounted] = useState(false);
   const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -70,17 +57,32 @@ export function PhotoViewer({
     });
   };
 
-  return (
+  if (!mounted) return null;
+
+  const content = (
     <div
-      className="fixed inset-0 z-[100] bg-black"
+      className="fixed inset-0 z-[200] bg-black"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100dvh",
+        maxWidth: "100vw",
+        maxHeight: "100dvh",
+        zIndex: 200,
+      }}
       role="dialog"
       aria-modal="true"
       aria-label="Visualizar fotos"
       onClick={onClose}
     >
-      {/* Foto em tela inteira — sem barras reservando espaço, controles flutuam por cima */}
+      {/* Foto em tela inteira */}
       <div
         className="absolute inset-0 flex items-center justify-center"
+        style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => {
           touchStartX.current = e.changedTouches[0]?.clientX ?? null;
@@ -98,19 +100,28 @@ export function PhotoViewer({
           src={photos[currentIndex]}
           alt={`Foto ${currentIndex + 1} de ${photos.length}`}
           className="max-h-full max-w-full object-contain select-none"
-          style={{ maxHeight: "100%", maxWidth: "100%", width: "auto", height: "auto" }}
+          style={{
+            maxHeight: "100%",
+            maxWidth: "100%",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+          }}
           draggable={false}
         />
       </div>
 
-      {/* Contador — sobreposto no topo, não ocupa espaço da foto */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-[max(0.75rem,env(safe-area-inset-top))]">
+      {/* Contador */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
         <span className="rounded-full bg-black/40 px-3 py-1 text-sm text-white/90 tabular-nums font-medium backdrop-blur-sm">
           {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
         </span>
       </div>
 
-      {/* Setas de navegação */}
+      {/* Setas */}
       {photos.length > 1 && (
         <>
           <button
@@ -138,10 +149,11 @@ export function PhotoViewer({
         </>
       )}
 
-      {/* Pontinhos — sobrepostos no rodapé, centralizados */}
+      {/* Pontinhos */}
       {photos.length > 1 && photos.length <= 12 && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-1.5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-1.5"
+          style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
         >
           {photos.map((_, i) => (
             <button
@@ -160,18 +172,21 @@ export function PhotoViewer({
         </div>
       )}
 
-      {/* Fechar — canto inferior, longe do botão de fechar do perfil (que fica no topo) */}
+      {/* Fechar */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
-        className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+        className="absolute right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+        style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
         aria-label="Fechar"
       >
         <X className="h-5 w-5" />
       </button>
     </div>
   );
+
+  return createPortal(content, document.body);
 }
