@@ -594,18 +594,19 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           // fullscreen total — sobrescreve defaults do Dialog (centro/max-w)
           "!fixed !inset-0 !left-0 !top-0 !z-50 " +
           "!w-screen !h-[100dvh] !max-w-none !max-h-none " +
-          // BUG-FIX: `translate-x-0`/`translate-y-0` ainda deixam um
-          // `transform` (mesmo "zerado") aplicado no elemento. Qualquer
-          // transform != none vira containing block dos filhos com
-          // `position: fixed` — e é exatamente isso que o PhotoViewer usa
-          // pra ocupar a tela inteira. Resultado: no celular, onde a altura
-          // visível muda (barra de endereço, teclado), a caixa do
-          // DialogContent não bate 100% com a viewport real, e a foto/seus
-          // botões aparecem deslocados pra um lado. `transform-none` remove
-          // esse containing block e faz o PhotoViewer voltar a se posicionar
-          // relativo à viewport de verdade.
-          "!transform-none !rounded-none " +
-          "data-[state=open]:!zoom-in-100 data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0"
+          // BUG-FIX: no Tailwind v4, `translate-x-*`/`translate-y-*` setam a
+          // propriedade CSS `translate` (separada de `transform`). Zerar só
+          // o `transform` (como na tentativa anterior) deixava o `translate:
+          // -50% -50%` herdado do Dialog centralizado ainda ativo, empurrando
+          // o modal inteiro pra fora da tela — só sobrava visível o
+          // quadrante superior esquerdo, sem dar pra ver nem interagir.
+          // Zerando as DUAS propriedades o modal realmente fica full-screen,
+          // e também resolve o problema original: qualquer `transform`
+          // OU `translate` diferente de "none" vira containing block dos
+          // filhos com `position: fixed` (caso do PhotoViewer), o que
+          // desalinhava a foto no celular.
+          "!transform-none !translate-none !rounded-none " +
+          "data-[state=open]:!zoom-in-100"
         }
       >
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
