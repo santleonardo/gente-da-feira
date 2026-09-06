@@ -251,20 +251,21 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      content, neighborhood, imageUrls, videoUrl, audioUrl, postType,
+      content, neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, postType,
       visibility, sharedPostId, postStyle,
     } = await req.json();
 
-    // Light / Free: vídeo e áudio desabilitados em posts
-    if (videoUrl || audioUrl) {
+    // Light / Free: vídeo continua desabilitado; áudio reativado
+    if (videoUrl) {
       return NextResponse.json(
-        { error: "Upload de vídeo e áudio está desabilitado nesta versão beta." },
+        { error: "Upload de vídeo está desabilitado nesta versão beta." },
         { status: 403 }
       );
     }
 
     const hasPhotos = Array.isArray(imageUrls) && imageUrls.length > 0;
-    const hasMedia = hasPhotos;
+    const hasAudio = typeof audioUrl === "string" && audioUrl.trim().length > 0;
+    const hasMedia = hasPhotos || hasAudio;
 
     // SEC-008: Validar URLs de imagem — rejeitar externas
     const IMAGE_BUCKETS = new Set(["post-photos", "post-images"]);
@@ -284,6 +285,19 @@ export async function POST(req: NextRequest) {
       if (!validatedImageUrls) {
         return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
       }
+    }
+
+    let validatedAudioUrl: string | null = null;
+    if (hasAudio) {
+      const AUDIO_BUCKETS = new Set(["post-audios"]);
+      const cleaned = validateMediaUrl(String(audioUrl).trim(), {
+        allowedBuckets: AUDIO_BUCKETS,
+        requireUserId: user.id,
+      });
+      if (!cleaned) {
+        return NextResponse.json({ error: "URL de áudio inválida" }, { status: 400 });
+      }
+      validatedAudioUrl = cleaned;
     }
 
     const textCheck = validateText(content || "", "post", { hasMedia });
@@ -345,8 +359,12 @@ export async function POST(req: NextRequest) {
         author_id: user.id,
         image_urls: validatedImageUrls || [],
         video_url: null,
-        audio_url: null,
-        audio_duration: null,
+        audio_url: validatedAudioUrl,
+        audio_duration: validatedAudioUrl
+          ? (typeof audioDuration === "number" && audioDuration > 0 && audioDuration <= 600
+              ? Math.round(audioDuration)
+              : null)
+          : null,
         video_duration: null,
         visibility: validVisibility,
         expires_at: expiresAt,
