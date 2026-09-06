@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const { buffer: compressedBuffer, contentType, ext } = await sanitizeImage(
       inputBuffer,
       file.type,
-      { maxWidth: 1280, maxHeight: 1280, quality: 72, preferAvif: true }
+      { maxWidth: 1280, maxHeight: 1280, quality: 78, preferWebP: true, preferAvif: false, maxBytes: 220 * 1024 }
     );
 
     const timestamp = Date.now();

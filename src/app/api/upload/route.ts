@@ -84,10 +84,29 @@ export async function POST(req: NextRequest) {
       inputBuffer,
       inputType,
       folder === "video-thumbs"
-        ? { maxWidth: 640, maxHeight: 640, preferAvif: true, quality: 65 }
+        ? {
+            maxWidth: 640,
+            maxHeight: 640,
+            preferWebP: true,
+            preferAvif: false,
+            quality: 70,
+            maxBytes: 90 * 1024,
+          }
         : isFeedPhoto
-          ? { maxWidth: 1280, maxHeight: 1280, preferAvif: true, quality: 72 }
-          : { preferAvif: true, quality: 75 }
+          ? {
+              maxWidth: 1280,
+              maxHeight: 1280,
+              preferWebP: true,
+              preferAvif: false,
+              quality: 78,
+              maxBytes: 220 * 1024,
+            }
+          : {
+              preferWebP: true,
+              preferAvif: false,
+              quality: 80,
+              maxBytes: 280 * 1024,
+            }
     );
 
     const timestamp = Date.now();
