@@ -1,11 +1,11 @@
 // ============================================
-// GDF Chat — Service Worker v4
+// GDF Chat — Service Worker v5
 // Network-first para assets estáticos
 // Offline fallback para navegação
 // Push Notifications com VAPID
 // ============================================
 
-const CACHE_NAME = 'gdf-v4';
+const CACHE_NAME = 'gdf-v5';
 const OFFLINE_URL = '/offline.html';
 
 // Instalar — pré-cachear página offline
