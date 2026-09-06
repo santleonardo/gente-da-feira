@@ -1919,6 +1919,38 @@ export function ProfileView() {
                 />
               </label>
 
+              <button
+                type="button"
+                title="Gravar áudio"
+                disabled={!canAddAudio || isRecordingAudio}
+                onClick={() => {
+                  if (canAddAudio && !isRecordingAudio) startAudioRecording();
+                }}
+                className={`p-2 rounded-lg transition-colors ${
+                  canAddAudio && !isRecordingAudio
+                    ? "text-[#4A4A4A] hover:bg-black/5"
+                    : "text-[#4A4A4A]/30 cursor-not-allowed"
+                }`}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+              <label
+                className={`p-2 rounded-lg transition-colors ${
+                  canAddAudio ? "text-[#4A4A4A] hover:bg-black/5 cursor-pointer" : "text-[#4A4A4A]/30 cursor-not-allowed"
+                }`}
+                title="Escolher áudio"
+              >
+                <Music className="h-4 w-4" />
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a"
+                  className="hidden"
+                  disabled={!canAddAudio}
+                  onChange={handleAudioSelect}
+                />
+              </label>
+
               <div className="flex-1" />
 
               <button

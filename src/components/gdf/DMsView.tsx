@@ -369,6 +369,8 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
   const { profile } = useStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  const [riskWarning, setRiskWarning] = useState<RiskAssessment | null>(null);
+  const [riskAckText, setRiskAckText] = useState<string | null>(null);
   // Marca conversa como lida ao abrir
   useEffect(() => {
     if (!conversation?.id) return;
