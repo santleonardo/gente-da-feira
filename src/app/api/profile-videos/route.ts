@@ -3,6 +3,17 @@
 // SEC-009: privacy check for private profiles
 // REL-006: Delete atômico via rpc_delete_profile_video
 // LIGHT / FREE: POST (criar) desabilitado no beta
+// PERF-002: paginação cursor-based (keyset), mesmo padrão de /api/posts
+//
+// Parâmetros GET:
+//   userId  — dono do álbum (obrigatório)
+//   limit   — quantos vídeos retornar (padrão 8, máx 20)
+//   cursor  — created_at do último vídeo visto (ISO 8601)
+//             Se ausente, retorna os mais recentes.
+//
+// Resposta:
+//   { videos, nextCursor, hasMore }
+//   nextCursor é null quando não há mais vídeos.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,11 +27,17 @@ import { extractStoragePathFromUrl } from "@/lib/storage-security";
 // SEC-009: Explicit columns for profile_videos — no SELECT *
 const VIDEO_COLUMNS = "id, user_id, url, thumbnail_url, duration, created_at";
 
+const DEFAULT_PAGE_SIZE = 8;
+const MAX_PAGE_SIZE = 20;
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const cursor = searchParams.get("cursor"); // created_at do último vídeo visto
+    const rawLimit = parseInt(searchParams.get("limit") || String(DEFAULT_PAGE_SIZE));
+    const limit = Math.min(Math.max(1, rawLimit), MAX_PAGE_SIZE);
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
 
@@ -31,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (authUser && !isOwnProfile) {
       const blocked = await isBlocked(supabase, authUser.id, userId);
       if (blocked) {
-        return NextResponse.json({ videos: [], _privacy: { isBlocked: true } });
+        return NextResponse.json({ videos: [], nextCursor: null, hasMore: false, _privacy: { isBlocked: true } });
       }
     }
 
@@ -52,25 +69,36 @@ export async function GET(req: NextRequest) {
           .maybeSingle();
 
         if (!followRow || followRow.status !== "accepted") {
-          return NextResponse.json({ videos: [], _privacy: { isRestricted: true } });
+          return NextResponse.json({ videos: [], nextCursor: null, hasMore: false, _privacy: { isRestricted: true } });
         }
       } else {
-        return NextResponse.json({ videos: [], _privacy: { isRestricted: true } });
+        return NextResponse.json({ videos: [], nextCursor: null, hasMore: false, _privacy: { isRestricted: true } });
       }
     }
 
     const blocked = await rateLimitByRule(req, "videos:list", authUser?.id);
     if (blocked) return blocked;
 
-    const { data: videos, error } = await supabase
+    let query = supabase
       .from("profile_videos")
       .select(VIDEO_COLUMNS)
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(limit + 1); // +1 para detectar se há mais páginas
 
+    // Keyset cursor — retorna vídeos anteriores ao cursor
+    if (cursor) {
+      query = query.lt("created_at", cursor);
+    }
+
+    const { data: rawVideos, error } = await query;
     if (error) throw error;
 
-    return NextResponse.json({ videos: videos || [] });
+    const hasMore = (rawVideos?.length ?? 0) > limit;
+    const videos = hasMore ? rawVideos!.slice(0, limit) : (rawVideos ?? []);
+    const nextCursor = hasMore ? (videos[videos.length - 1] as any).created_at : null;
+
+    return NextResponse.json({ videos, nextCursor, hasMore });
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[profile-videos GET]");
     return NextResponse.json({ error: message }, { status });

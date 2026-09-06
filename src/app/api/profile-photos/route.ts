@@ -3,6 +3,17 @@
 // SEC-009: privacy check for private profiles
 // REL-006: Delete atômico via rpc_delete_profile_photo
 // LIGHT / FREE: POST (criar) desabilitado no beta
+// PERF-002: paginação cursor-based (keyset), mesmo padrão de /api/posts
+//
+// Parâmetros GET:
+//   userId  — dono do álbum (obrigatório)
+//   limit   — quantas fotos retornar (padrão 24, máx 48)
+//   cursor  — created_at da última foto vista (ISO 8601)
+//             Se ausente, retorna as mais recentes.
+//
+// Resposta:
+//   { photos, nextCursor, hasMore }
+//   nextCursor é null quando não há mais fotos.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,11 +24,17 @@ import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempo
 import { stripStoragePaths } from "@/lib/privacy-filter";
 import { safeErrorResponse } from "@/lib/safe-error";
 
+const DEFAULT_PAGE_SIZE = 24;
+const MAX_PAGE_SIZE = 48;
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const cursor = searchParams.get("cursor"); // created_at da última foto vista
+    const rawLimit = parseInt(searchParams.get("limit") || String(DEFAULT_PAGE_SIZE));
+    const limit = Math.min(Math.max(1, rawLimit), MAX_PAGE_SIZE);
 
     if (!userId) return NextResponse.json({ error: "userId necessário" }, { status: 400 });
 
@@ -28,7 +45,7 @@ export async function GET(req: NextRequest) {
     if (authUser && !isOwnProfile) {
       const blocked = await isBlocked(supabase, authUser.id, userId);
       if (blocked) {
-        return NextResponse.json({ photos: [], _privacy: { isBlocked: true } });
+        return NextResponse.json({ photos: [], nextCursor: null, hasMore: false, _privacy: { isBlocked: true } });
       }
     }
 
@@ -49,31 +66,42 @@ export async function GET(req: NextRequest) {
           .maybeSingle();
 
         if (!followRow || followRow.status !== "accepted") {
-          return NextResponse.json({ photos: [], _privacy: { isRestricted: true } });
+          return NextResponse.json({ photos: [], nextCursor: null, hasMore: false, _privacy: { isRestricted: true } });
         }
       } else {
-        return NextResponse.json({ photos: [], _privacy: { isRestricted: true } });
+        return NextResponse.json({ photos: [], nextCursor: null, hasMore: false, _privacy: { isRestricted: true } });
       }
     }
 
     const blocked = await rateLimitByRule(req, "photos:list", authUser?.id);
     if (blocked) return blocked;
 
-    const { data: photos, error } = await supabase
+    let query = supabase
       .from("profile_photos")
       .select("id, user_id, url, caption, created_at, reactions:profile_photo_reactions(user_id, type), comment_count:profile_photo_comments(count)")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(limit + 1); // +1 para detectar se há mais páginas
 
+    // Keyset cursor — retorna fotos anteriores ao cursor
+    if (cursor) {
+      query = query.lt("created_at", cursor);
+    }
+
+    const { data: rawPhotos, error } = await query;
     if (error) throw error;
 
-    const formatted = stripStoragePaths(photos || []).map((p: any) => ({
+    const hasMore = (rawPhotos?.length ?? 0) > limit;
+    const photos = hasMore ? rawPhotos!.slice(0, limit) : (rawPhotos ?? []);
+    const nextCursor = hasMore ? photos[photos.length - 1].created_at : null;
+
+    const formatted = stripStoragePaths(photos).map((p: any) => ({
       ...p,
       reactions: p.reactions || [],
       comment_count: p.comment_count?.[0]?.count || 0,
     }));
 
-    return NextResponse.json({ photos: formatted });
+    return NextResponse.json({ photos: formatted, nextCursor, hasMore });
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[profile-photos GET]");
     return NextResponse.json({ error: message }, { status });
