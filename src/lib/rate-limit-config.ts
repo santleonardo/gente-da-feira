@@ -88,7 +88,8 @@ const rules: RateLimitRule[] = [
   // ── Uploads (CRITICAL) — limites agressivos para Supabase Free ─────
   { key: "upload:image",     limit: 5,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "upload:image:del", limit: 20,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
-  { key: "upload:audio",     limit: 0,   windowMs: 60_000,  methods: ["POST"],   byUser: true  }, // desabilitado
+  { key: "upload:audio",     limit: 8,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
+  { key: "upload:audio:del", limit: 20,  windowMs: 60_000,  methods: ["DELETE"], byUser: true  },
   { key: "upload:video",     limit: 0,   windowMs: 60_000,  methods: ["POST"],   byUser: true  }, // desabilitado
   { key: "upload:postimg",   limit: 5,   windowMs: 60_000,  methods: ["POST"],   byUser: true  },
 

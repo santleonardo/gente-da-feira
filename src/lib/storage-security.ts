@@ -43,7 +43,7 @@ export const BUCKET_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
 export const UPLOAD_FOLDER_WHITELIST: Record<string, Set<string>> = {
   "post-photos": new Set(["posts", "video-thumbs"]),
   "post-videos": new Set(["posts"]),
-  "post-audios": new Set(["posts"]),
+  "post-audios": new Set(["posts", "chat", "album-audios", "rooms"]),
   "profile-videos": new Set(["album-videos"]),
 };
 
