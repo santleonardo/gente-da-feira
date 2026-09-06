@@ -157,6 +157,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (error) throw error;
 
+    // MOD-002: classificação de moderação (assédio/ódio/violência/nudez/
+    // fraude/spam) roda em paralelo, sem atrasar o envio. DMs são o lugar
+    // onde golpes/assédio 1:1 mais acontecem sem ninguém mais ver — se
+    // pegar algo grave, a mensagem é soft-deleted e cai na fila de
+    // denúncias. Ver src/lib/chat-moderation.ts para o racional completo.
+    void import("@/lib/chat-moderation").then(({ moderateChatMessageAsync }) =>
+      moderateChatMessageAsync({
+        messageId: (message as any).id,
+        content: insertData.content ?? null,
+        surface: "dm_message",
+        senderId: user.id,
+      })
+    ).catch(() => {});
+
     // Mantém a conversa no topo da lista
     await supabase
       .from("direct_chats")

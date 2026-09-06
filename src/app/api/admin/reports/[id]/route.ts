@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
@@ -12,6 +12,13 @@ import { isValidReportStatus } from "@/lib/report-constants";
 // is_moderator = true para qualquer UPDATE; esta checagem na API
 // permite uma mensagem de erro clara em vez de um update silenciosamente
 // bloqueado pelo banco.
+//
+// MOD-002: também aceita `restoreContent: true` — reverte o soft-delete
+// de uma mensagem de sala/DM removida automaticamente pela IA
+// (chat-moderation.ts). Existe precisamente porque a classificação é
+// fail-open mas não infalível: se o moderador olhar o preview do
+// conteúdo (agora devolvido pelo GET) e concluir que foi falso positivo,
+// precisa de um jeito de desfazer sem acesso direto ao banco.
 
 const MAX_NOTES_LENGTH = 2000;
 
@@ -39,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
     }
 
-    const { status, moderatorNotes } = body ?? {};
+    const { status, moderatorNotes, restoreContent } = body ?? {};
     const updates: Record<string, any> = { moderator_id: user.id };
 
     if (status !== undefined) {
@@ -56,7 +63,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       updates.moderator_notes = sanitizePlainText(moderatorNotes.trim()).slice(0, MAX_NOTES_LENGTH) || null;
     }
 
-    if (Object.keys(updates).length === 1) {
+    if (restoreContent === true) {
+      // Precisa saber a que a denúncia se refere antes de decidir o que restaurar.
+      const { data: report } = await supabase
+        .from("reports")
+        .select("id, target_type, target_id")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (!report) {
+        return NextResponse.json({ error: "Denúncia não encontrada" }, { status: 404 });
+      }
+      if (report.target_type !== "room_message" && report.target_type !== "dm_message") {
+        return NextResponse.json(
+          { error: "Restaurar só é suportado para mensagens de sala ou DM" },
+          { status: 400 }
+        );
+      }
+
+      const admin = createAdminClient();
+      const { error: restoreError } = await admin
+        .from("messages")
+        .update({ is_deleted: false })
+        .eq("id", report.target_id);
+
+      if (restoreError) {
+        console.error("[admin/reports PATCH restore]", restoreError);
+        return NextResponse.json({ error: "Falha ao restaurar mensagem" }, { status: 500 });
+      }
+    }
+
+    if (Object.keys(updates).length === 1 && restoreContent !== true) {
       // Só tinha moderator_id — nada para atualizar de fato
       return NextResponse.json({ error: "Nenhuma alteração fornecida" }, { status: 400 });
     }
