@@ -1,18 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 
 /**
- * Galeria de fotos em tela cheia — UX mobile-first.
+ * Visualizador de fotos (lightbox) compartilhado.
  *
- * Estratégia:
- * 1. Portal em document.body (escapa transform/overflow do shell)
- * 2. Dimensões via 100dvw/100dvh + position fixed com style inline
- * 3. Fechar: botão grande no TOPO, toque na área escura, swipe para baixo, Esc
- * 4. Navegar: setas, swipe horizontal, teclado
- * 5. Controles com pointer-events e touch-action explícitos
+ * Antes esse componente estava duplicado em 4 arquivos diferentes
+ * (FeedView, ProfileView, PostDetailDialog, UserProfileDialog), cada
+ * cópia com um bug diferente:
+ *  - ProfileView: não tinha botões de próxima/anterior foto quando
+ *    havia mais de 12 fotos (só existiam os "pontinhos").
+ *  - FeedView: os botões de próxima/anterior só apareciam em telas
+ *    "sm" pra cima (`hidden sm:flex`), então em celular sumiam.
+ *  - UserProfileDialog: o viewer era renderizado como irmão do
+ *    DialogContent do Radix Dialog, então cliques nos seus botões
+ *    contavam como "clique fora do modal" e fechavam o perfil
+ *    inteiro antes do próprio clique ser processado.
+ *
+ * Esta versão única corrige os problemas: foto ocupa a tela inteira
+ * (sem barras reservando espaço), controles flutuam por cima em
+ * overlay, botão de fechar isolado no canto inferior (longe do botão
+ * de fechar do perfil, que fica no canto superior), setas sempre
+ * visíveis (em qualquer tamanho de tela), navegação por teclado e
+ * swipe.
  */
 export function PhotoViewer({
   photos,
@@ -23,324 +34,138 @@ export function PhotoViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
-  const [index, setIndex] = useState(initialIndex);
-  const [mounted, setMounted] = useState(false);
-  const touchRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const closingRef = useRef(false);
-
-  const close = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    onClose();
-  }, [onClose]);
-
-  const go = useCallback(
-    (dir: -1 | 1) => {
-      setIndex((i) => {
-        const n = i + dir;
-        if (n < 0) return photos.length - 1;
-        if (n >= photos.length) return 0;
-        return n;
-      });
-    },
-    [photos.length]
-  );
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    const prevOverflow = document.body.style.overflow;
-    const prevTouch = document.body.style.touchAction;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.touchAction = prevTouch;
+      document.body.style.overflow = prev;
     };
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [close, go]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, photos.length]);
 
-  if (!mounted || photos.length === 0) return null;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.changedTouches[0];
-    if (!t) return;
-    touchRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  const go = (dir: -1 | 1) => {
+    setCurrentIndex((i) => {
+      const next = i + dir;
+      if (next < 0) return photos.length - 1;
+      if (next >= photos.length) return 0;
+      return next;
+    });
   };
 
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchRef.current;
-    touchRef.current = null;
-    if (!start) return;
-    const t = e.changedTouches[0];
-    if (!t) return;
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-    // Swipe para baixo → fechar
-    if (dy > 80 && absY > absX * 1.2) {
-      close();
-      return;
-    }
-    // Swipe horizontal → navegar
-    if (photos.length > 1 && absX > 50 && absX > absY) {
-      go(dx > 0 ? -1 : 1);
-    }
-  };
-
-  const ui = (
+  return (
     <div
+      className="fixed inset-0 z-[100] bg-black"
       role="dialog"
       aria-modal="true"
-      aria-label="Galeria de fotos"
-      data-photo-viewer="true"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: "100vw",
-        height: "100dvh",
-        // fallback para browsers antigos sem dvh
-        minHeight: "100vh",
-        maxWidth: "100vw",
-        maxHeight: "100dvh",
-        margin: 0,
-        padding: 0,
-        zIndex: 2147483000,
-        backgroundColor: "#000",
-        display: "flex",
-        flexDirection: "column",
-        touchAction: "none",
-        overscrollBehavior: "none",
-      }}
+      aria-label="Visualizar fotos"
+      onClick={onClose}
     >
-      {/* Barra superior — fechar + contador */}
+      {/* Foto em tela inteira — sem barras reservando espaço, controles flutuam por cima */}
       <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingTop: "max(12px, env(safe-area-inset-top))",
-          paddingBottom: 8,
-          paddingLeft: 12,
-          paddingRight: 12,
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)",
-          position: "relative",
-          zIndex: 2,
+        className="absolute inset-0 flex items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => {
+          touchStartX.current = e.changedTouches[0]?.clientX ?? null;
         }}
-      >
-        <button
-          type="button"
-          aria-label="Fechar"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            close();
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            close();
-          }}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 999,
-            border: "none",
-            background: "rgba(255,255,255,0.15)",
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-            flexShrink: 0,
-          }}
-        >
-          <X size={22} strokeWidth={2.5} />
-        </button>
-
-        <span
-          style={{
-            color: "rgba(255,255,255,0.9)",
-            fontSize: 14,
-            fontWeight: 600,
-            fontVariantNumeric: "tabular-nums",
-            padding: "6px 14px",
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.35)",
-          }}
-        >
-          {photos.length > 1 ? `${index + 1} / ${photos.length}` : "Foto"}
-        </span>
-
-        {/* Espaçador para equilibrar o X */}
-        <div style={{ width: 48, height: 48 }} />
-      </div>
-
-      {/* Área da foto */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          padding: "0 8px",
-        }}
-        onClick={(e) => {
-          // clique no fundo (não na img) fecha
-          if (e.target === e.currentTarget) close();
+        onTouchEnd={(e) => {
+          if (touchStartX.current == null || photos.length < 2) return;
+          const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) < 50) return;
+          go(dx > 0 ? -1 : 1);
         }}
       >
         <img
-          key={photos[index]}
-          src={photos[index]}
-          alt={`Foto ${index + 1} de ${photos.length}`}
+          key={photos[currentIndex]}
+          src={photos[currentIndex]}
+          alt={`Foto ${currentIndex + 1} de ${photos.length}`}
+          className="h-full w-full object-contain select-none"
           draggable={false}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto",
-            objectFit: "contain",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            pointerEvents: "none",
-          }}
         />
-
-        {photos.length > 1 && (
-          <>
-            <button
-              type="button"
-              aria-label="Foto anterior"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(-1);
-              }}
-              style={{
-                position: "absolute",
-                left: 4,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                border: "none",
-                background: "rgba(255,255,255,0.12)",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                zIndex: 2,
-              }}
-            >
-              <ChevronLeft size={28} />
-            </button>
-            <button
-              type="button"
-              aria-label="Próxima foto"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(1);
-              }}
-              style={{
-                position: "absolute",
-                right: 4,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                border: "none",
-                background: "rgba(255,255,255,0.12)",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                zIndex: 2,
-              }}
-            >
-              <ChevronRight size={28} />
-            </button>
-          </>
-        )}
       </div>
 
-      {/* Rodapé: pontinhos + dica de gesto */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 10,
-          paddingBottom: "max(16px, env(safe-area-inset-bottom))",
-          paddingTop: 8,
-          background:
-            "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)",
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        {photos.length > 1 && photos.length <= 15 && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Ir para foto ${i + 1}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIndex(i);
-                }}
-                style={{
-                  width: i === index ? 18 : 7,
-                  height: 7,
-                  borderRadius: 999,
-                  border: "none",
-                  padding: 0,
-                  background:
-                    i === index ? "#f7f75e" : "rgba(255,255,255,0.35)",
-                  transition: "width 0.2s, background 0.2s",
-                  cursor: "pointer",
-                }}
-              />
-            ))}
-          </div>
-        )}
-        <p
-          style={{
-            margin: 0,
-            fontSize: 11,
-            color: "rgba(255,255,255,0.45)",
-            letterSpacing: "0.02em",
-          }}
+      {/* Contador — sobreposto no topo, não ocupa espaço da foto */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <span className="rounded-full bg-black/40 px-3 py-1 text-sm text-white/90 tabular-nums font-medium backdrop-blur-sm">
+          {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
+        </span>
+      </div>
+
+      {/* Setas de navegação */}
+      {photos.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(-1);
+            }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 sm:left-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors text-2xl"
+            aria-label="Foto anterior"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              go(1);
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 sm:right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors text-2xl"
+            aria-label="Próxima foto"
+          >
+            ›
+          </button>
+        </>
+      )}
+
+      {/* Pontinhos — sobrepostos no rodapé, centralizados */}
+      {photos.length > 1 && photos.length <= 12 && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-1.5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         >
-          Deslize para o lado · para baixo para fechar
-        </p>
-      </div>
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir para foto ${i + 1}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentIndex(i);
+              }}
+              className={`pointer-events-auto h-1.5 rounded-full transition-all ${
+                i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35 hover:bg-white/55"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Fechar — canto inferior, longe do botão de fechar do perfil (que fica no topo) */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+        aria-label="Fechar"
+      >
+        <X className="h-5 w-5" />
+      </button>
     </div>
   );
-
-  return createPortal(ui, document.body);
 }

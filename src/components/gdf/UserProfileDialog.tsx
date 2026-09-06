@@ -584,27 +584,28 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        // BUG-FIX: com o PhotoViewer aberto (agora em portal no body),
-        // Esc / clique fora não devem fechar o perfil inteiro — só a foto.
+        // BUG-FIX: com o PhotoViewer aberto, Esc não deve fechar o
+        // perfil inteiro — só a foto (o PhotoViewer já trata Esc sozinho).
         onEscapeKeyDown={(e) => {
           if (viewerOpen) e.preventDefault();
-        }}
-        onPointerDownOutside={(e) => {
-          // PhotoViewer vive em portal no body — não fechar o perfil
-          const t = e.target as HTMLElement | null;
-          if (viewerOpen || t?.closest?.("[data-photo-viewer]")) e.preventDefault();
-        }}
-        onInteractOutside={(e) => {
-          const t = e.target as HTMLElement | null;
-          if (viewerOpen || t?.closest?.("[data-photo-viewer]")) e.preventDefault();
         }}
         className={
           "p-0 gap-0 overflow-hidden bg-[#F9F8F6] border-0 shadow-2xl " +
           // fullscreen total — sobrescreve defaults do Dialog (centro/max-w)
           "!fixed !inset-0 !left-0 !top-0 !z-50 " +
           "!w-screen !h-[100dvh] !max-w-none !max-h-none " +
-          "!translate-x-0 !translate-y-0 !rounded-none " +
-          "data-[state=open]:!zoom-in-100"
+          // BUG-FIX: `translate-x-0`/`translate-y-0` ainda deixam um
+          // `transform` (mesmo "zerado") aplicado no elemento. Qualquer
+          // transform != none vira containing block dos filhos com
+          // `position: fixed` — e é exatamente isso que o PhotoViewer usa
+          // pra ocupar a tela inteira. Resultado: no celular, onde a altura
+          // visível muda (barra de endereço, teclado), a caixa do
+          // DialogContent não bate 100% com a viewport real, e a foto/seus
+          // botões aparecem deslocados pra um lado. `transform-none` remove
+          // esse containing block e faz o PhotoViewer voltar a se posicionar
+          // relativo à viewport de verdade.
+          "!transform-none !rounded-none " +
+          "data-[state=open]:!zoom-in-100 data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0"
         }
       >
         <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
@@ -619,6 +620,72 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         >
           <X className="h-5 w-5" />
         </button>
+
+        {/* Menu de ações — canto superior ESQUERDO no celular (espelha o "Fechar",
+            que fica no canto direito). No mobile o hero vira um layout de "blog
+            pessoal" (nome em cima, foto em destaque, bio pequena), então as ações
+            de seguir/mensagem/bloquear/denunciar saem de baixo da foto e viram
+            este menu compacto, sempre visível mesmo com a página rolada. */}
+        {!loading && userData && !isRestricted && !isOwnProfile && (
+          <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-3 z-50 sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-10 w-10 rounded-full p-0 bg-[#1A1A1A]/80 text-white backdrop-blur-sm hover:bg-[#1A1A1A] shadow-md"
+                  aria-label="Ações do perfil"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="rounded-xl">
+                {!isBlocked && (
+                  <DropdownMenuItem onClick={handleFollowToggle} disabled={followLoading} className="gap-2">
+                    {followLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : followData.isFollowing ? (
+                      <UserMinus className="h-4 w-4" />
+                    ) : (
+                      <UserPlus className="h-4 w-4" />
+                    )}
+                    {followData.isFollowing
+                      ? "Deixar de seguir"
+                      : followData.isPending
+                      ? "Solicitado"
+                      : privacyInfo.approve_followers
+                      ? "Solicitar"
+                      : "Seguir"}
+                  </DropdownMenuItem>
+                )}
+                {!isBlocked && (
+                  <DropdownMenuItem onClick={handleStartDM} className="gap-2">
+                    <MessageCircle className="h-4 w-4" /> Mensagem
+                  </DropdownMenuItem>
+                )}
+                {privacyInfo.isBlockedByViewer ? (
+                  <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading} className="gap-2">
+                    <ShieldBan className="h-4 w-4" /> Desbloquear
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={handleBlockToggle} disabled={blockLoading} className="gap-2 text-red-600">
+                    <Ban className="h-4 w-4" /> Bloquear
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openReport", {
+                      detail: { type: "user", id: userId, name: userData.display_name },
+                    }));
+                  }}
+                  className="gap-2"
+                >
+                  <Flag className="h-4 w-4" /> Denunciar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
         <style>{`
           .upd-blog {
@@ -656,7 +723,94 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           <div className="upd-blog h-[100dvh] w-full max-w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain" style={{WebkitOverflowScrolling: "touch"}}>
             {/* ═══════ HERO ═══════ */}
             <div className="relative">
-              <div className="px-3.5 sm:px-6 pt-5 sm:pt-6 pb-5 relative min-w-0">
+              {/* ---- Mobile: hero estilo "blog pessoal" — inspirado nos templates
+                  Wix de blog pessoal: nome no topo, foto em grande destaque logo
+                  abaixo, username, e uma bio pequena centralizada antes das entradas.
+                  As ações (seguir/mensagem/bloquear) ficam no menu do canto
+                  superior esquerdo, não competindo com a foto. ---- */}
+              <div className="sm:hidden px-5 pt-16 pb-6 text-center">
+                <div className="flex items-center justify-center gap-2 flex-wrap min-w-0">
+                  <h2 className="font-serif text-[26px] font-medium tracking-tight text-[#1A1A1A] leading-tight break-words">
+                    {userData.display_name}
+                  </h2>
+                  {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
+                </div>
+
+                <div className="relative mt-5 flex justify-center">
+                  <UserAvatar
+                    user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                    className="h-32 w-32 ring-[6px] ring-[#F9F8F6] shadow-lg"
+                  />
+                  {(isRestricted || isBlocked) && (
+                    <div className="absolute bottom-0 right-[calc(50%-4.25rem)] flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                  )}
+                </div>
+
+                <p className="mt-4 text-sm text-[#4A4A4A]">
+                  @{userData.username}
+                  {canSeeNeighborhood && userData.neighborhood && (
+                    <span className="inline-flex items-center gap-1 ml-2.5">
+                      <MapPin className="h-3 w-3" />
+                      {userData.neighborhood}
+                    </span>
+                  )}
+                </p>
+
+                {userData.bio && !isRestricted && (
+                  <p
+                    className="mt-3 text-[15px] leading-relaxed text-[#4A4A4A] max-w-sm mx-auto"
+                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                  >
+                    {parseInlineContent(userData.bio, openUserProfileById)}
+                  </p>
+                )}
+
+                {!isRestricted && (
+                  <div className="mt-5 flex justify-center items-center gap-5 text-sm">
+                    <div>
+                      <span className="font-semibold text-[#1A1A1A]">{postCount}</span>
+                      <span className="text-[#4A4A4A] ml-1.5">entradas</span>
+                    </div>
+                    {canSeeFollowing && (
+                      <button
+                        onClick={() => setActiveTab("following")}
+                        className="hover:text-[#D96C4A] transition-colors"
+                      >
+                        <span className="font-semibold text-[#1A1A1A]">{followData.followingCount}</span>
+                        <span className="text-[#4A4A4A] ml-1.5">seguindo</span>
+                      </button>
+                    )}
+                    {canSeeFollowers && (
+                      <button
+                        onClick={() => setActiveTab("followers")}
+                        className="hover:text-[#D96C4A] transition-colors"
+                      >
+                        <span className="font-semibold text-[#1A1A1A]">{followData.followersCount}</span>
+                        <span className="text-[#4A4A4A] ml-1.5">seguidores</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {isRestricted && (
+                  <div className="mt-6 rounded-xl border border-black/10 bg-white/60 px-4 py-5 text-center">
+                    <Lock className="h-8 w-8 text-[#4A4A4A]/30 mx-auto mb-2" />
+                    <p className="text-sm text-[#4A4A4A]">
+                      {isBlocked
+                        ? "Você não pode ver este perfil"
+                        : "Este perfil é privado"}
+                    </p>
+                    {!isBlocked && !followData.isFollowing && !followData.isPending && (
+                      <div className="mt-3 flex justify-center">{renderFollowButton()}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
+              <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
                   <div className="relative">
                     <UserAvatar
@@ -1211,9 +1365,18 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           </div>
         )}
 
-        {/* PhotoViewer via portal no body (tela cheia real no mobile).
-            onPointerDownOutside / onInteractOutside acima impedem que
-            cliques no viewer fechem o perfil. */}
+        {/*
+          BUG-FIX: o PhotoViewer precisa ficar DENTRO do DialogContent.
+          Quando ele era renderizado como irmão do DialogContent (fora da
+          árvore do Content), o Radix Dialog tratava cliques nos botões do
+          viewer (fechar, seta anterior/próxima) como "clique fora do
+          modal" e disparava o fechamento de todo o perfil antes do
+          onClick do próprio botão rodar — por isso os botões pareciam não
+          fazer nada. Como o DialogContent aqui já ocupa a tela inteira
+          (!fixed !inset-0 !w-screen !h-[100dvh]), mover o viewer para
+          dentro não muda o visual (o "fixed inset-0" dele continua
+          cobrindo 100% da tela).
+        */}
         {viewerOpen && viewerPhotos.length > 0 && (
           <PhotoViewer photos={viewerPhotos} initialIndex={viewerIndex} onClose={() => setViewerOpen(false)} />
         )}
