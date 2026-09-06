@@ -590,10 +590,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           if (viewerOpen) e.preventDefault();
         }}
         onPointerDownOutside={(e) => {
-          if (viewerOpen) e.preventDefault();
+          // PhotoViewer vive em portal no body — não fechar o perfil
+          const t = e.target as HTMLElement | null;
+          if (viewerOpen || t?.closest?.("[data-photo-viewer]")) e.preventDefault();
         }}
         onInteractOutside={(e) => {
-          if (viewerOpen) e.preventDefault();
+          const t = e.target as HTMLElement | null;
+          if (viewerOpen || t?.closest?.("[data-photo-viewer]")) e.preventDefault();
         }}
         className={
           "p-0 gap-0 overflow-hidden bg-[#F9F8F6] border-0 shadow-2xl " +

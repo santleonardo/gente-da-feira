@@ -18,9 +18,11 @@ import {
   Film,
   Music,
   AlertCircle,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoViewer } from "./PhotoViewer";
 import { toast } from "sonner";
 
 // ═══════ Regras do álbum ═══════
@@ -66,6 +68,16 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
     if (!profile) return;
     fetchMedia();
   }, [profile]);
+
+  // Trava scroll do body enquanto a galeria está aberta
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [viewerOpen]);
 
   const fetchMedia = async () => {
     if (!profile) return;
@@ -289,6 +301,131 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
+
+
+  // ── Modo galeria em tela cheia (substitui o álbum — sem fixed/portal) ──
+  // Mais confiável no mobile: o conteúdo da aba vira a galeria.
+  if (viewerOpen && viewerPhotos.length > 0) {
+    const total = viewerPhotos.length;
+    const src = viewerPhotos[viewerIndex];
+    const go = (dir: -1 | 1) => {
+      setViewerIndex((i) => {
+        const n = i + dir;
+        if (n < 0) return total - 1;
+        if (n >= total) return 0;
+        return n;
+      });
+    };
+    return (
+      <div
+        className="album-gallery-mode bg-black text-white flex flex-col w-full"
+        style={{
+          minHeight: "100dvh",
+          width: "100vw",
+          maxWidth: "100vw",
+          position: "relative",
+          left: "50%",
+          marginLeft: "-50vw",
+          marginRight: "-50vw",
+          right: "50%",
+        }}
+        onTouchStart={(e) => {
+          const t = e.changedTouches[0];
+          if (t) (e.currentTarget as any)._tx = t.clientX;
+          if (t) (e.currentTarget as any)._ty = t.clientY;
+        }}
+        onTouchEnd={(e) => {
+          const el = e.currentTarget as any;
+          const t = e.changedTouches[0];
+          if (!t || el._tx == null) return;
+          const dx = t.clientX - el._tx;
+          const dy = t.clientY - el._ty;
+          el._tx = null;
+          if (Math.abs(dy) > 90 && Math.abs(dy) > Math.abs(dx) * 1.2 && dy > 0) {
+            setViewerOpen(false);
+            return;
+          }
+          if (total > 1 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+            go(dx > 0 ? -1 : 1);
+          }
+        }}
+      >
+        {/* Top bar */}
+        <div
+          className="flex items-center justify-between px-3 shrink-0"
+          style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+        >
+          <button
+            type="button"
+            onClick={() => setViewerOpen(false)}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white active:bg-white/25"
+            aria-label="Fechar"
+          >
+            <X className="h-6 w-6" strokeWidth={2.5} />
+          </button>
+          <span className="rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold tabular-nums text-white/90">
+            {total > 1 ? `${viewerIndex + 1} / ${total}` : "Foto"}
+          </span>
+          <div className="h-12 w-12" />
+        </div>
+
+        {/* Photo */}
+        <div className="flex-1 min-h-0 flex items-center justify-center px-2 relative">
+          <img
+            key={src}
+            src={src}
+            alt={`Foto ${viewerIndex + 1}`}
+            className="max-h-full max-w-full object-contain select-none"
+            style={{ maxHeight: "100%", maxWidth: "100%", width: "auto", height: "auto" }}
+            draggable={false}
+          />
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                className="absolute left-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white"
+                aria-label="Anterior"
+              >
+                <ChevronLeft className="h-7 w-7" />
+              </button>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white"
+                aria-label="Próxima"
+              >
+                <ChevronRight className="h-7 w-7" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Bottom */}
+        <div
+          className="shrink-0 flex flex-col items-center gap-2 px-3"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          {total > 1 && total <= 15 && (
+            <div className="flex gap-1.5">
+              {viewerPhotos.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setViewerIndex(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === viewerIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35"
+                  }`}
+                  aria-label={`Foto ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-white/40">Deslize · toque X para voltar</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!profile) return null;
 
@@ -630,14 +767,6 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
         </div>
       )}
 
-      {/* ═══════ LIGHTBOX ═══════ */}
-      {viewerOpen && viewerPhotos.length > 0 && (
-        <PhotoViewer
-          photos={viewerPhotos}
-          initialIndex={viewerIndex}
-          onClose={() => setViewerOpen(false)}
-        />
-      )}
     </div>
   );
 }
