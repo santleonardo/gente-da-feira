@@ -410,49 +410,76 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
 
   if (count === 1) {
     return (
-      <button onClick={() => onPhotoClick?.(0)} className="mt-2 w-full overflow-hidden rounded-xl">
+      <button
+        type="button"
+        onClick={() => onPhotoClick?.(0)}
+        className="mt-2.5 w-full overflow-hidden rounded-2xl bg-black/[0.03] ring-1 ring-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D96C4A]/40"
+      >
         <LazyImage
           src={photos[0]}
           alt="Foto do post"
-          className="w-full max-h-[70vh] sm:max-h-[32rem] object-cover hover:opacity-95"
+          className="w-full max-h-[min(70vh,28rem)] object-cover transition-opacity hover:opacity-95"
           wrapperClassName="w-full"
         />
       </button>
     );
   }
+
   if (count === 2) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
+      <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl ring-1 ring-black/[0.06]">
         {photos.map((url, i) => (
-          <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
+          <button
+            key={i}
+            type="button"
+            onClick={() => onPhotoClick?.(i)}
+            className="relative aspect-[4/5] overflow-hidden bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D96C4A]/40"
+          >
+            <LazyImage src={url} alt={`Foto ${i + 1}`} className="h-full w-full object-cover transition-opacity hover:opacity-95" wrapperClassName="h-full w-full" />
           </button>
         ))}
       </div>
     );
   }
+
   if (count === 3) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
-        <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <LazyImage src={photos[0]} alt="Foto 1" className="w-full h-full min-h-[14rem] object-cover hover:opacity-95" wrapperClassName="w-full h-full" />
+      <div className="mt-2.5 grid grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl ring-1 ring-black/[0.06] min-h-[16rem]">
+        <button
+          type="button"
+          onClick={() => onPhotoClick?.(0)}
+          className="row-span-2 relative overflow-hidden bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D96C4A]/40"
+        >
+          <LazyImage src={photos[0]} alt="Foto 1" className="absolute inset-0 h-full w-full object-cover transition-opacity hover:opacity-95" wrapperClassName="absolute inset-0 h-full w-full" />
         </button>
-        <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <LazyImage src={photos[1]} alt="Foto 2" className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
-        </button>
-        <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <LazyImage src={photos[2]} alt="Foto 3" className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
-        </button>
+        {[1, 2].map((i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onPhotoClick?.(i)}
+            className="relative overflow-hidden bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D96C4A]/40"
+          >
+            <LazyImage src={photos[i]} alt={`Foto ${i + 1}`} className="h-full w-full min-h-[7.5rem] object-cover transition-opacity hover:opacity-95" wrapperClassName="h-full w-full min-h-[7.5rem]" />
+          </button>
+        ))}
       </div>
     );
   }
+
   return (
-    <div className="mt-2 grid grid-cols-2 gap-0.5 overflow-hidden rounded-xl">
+    <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl ring-1 ring-black/[0.06]">
       {photos.slice(0, 4).map((url, i) => (
-        <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-56 object-cover hover:opacity-95" wrapperClassName="w-full h-56" />
+        <button
+          key={i}
+          type="button"
+          onClick={() => onPhotoClick?.(i)}
+          className="relative aspect-square overflow-hidden bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D96C4A]/40"
+        >
+          <LazyImage src={url} alt={`Foto ${i + 1}`} className="h-full w-full object-cover transition-opacity hover:opacity-95" wrapperClassName="h-full w-full" />
           {i === 3 && count > 4 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#F9F8F6] font-bold text-lg">+{count - 4}</div>
+            <div className="absolute inset-0 flex items-center justify-center bg-[#1A1A1A]/55 backdrop-blur-[2px]">
+              <span className="text-white font-semibold text-lg tracking-tight">+{count - 4}</span>
+            </div>
           )}
         </button>
       ))}
@@ -460,27 +487,125 @@ const PhotoGrid = memo(function PhotoGrid({ photos, onPhotoClick }: { photos: st
   );
 });
 
-// ═══════════════════════════════════════════════════════════
-// PhotoViewer
-// ═══════════════════════════════════════════════════════════
 function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1));
+      if (e.key === "ArrowRight") setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, photos.length]);
+
+  const go = (dir: -1 | 1) => {
+    setCurrentIndex((i) => {
+      const next = i + dir;
+      if (next < 0) return photos.length - 1;
+      if (next >= photos.length) return 0;
+      return next;
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors">
-        <X className="h-5 w-5" />
-      </button>
-      {photos.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors">&#8249;</button>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#F9F8F6]/10 text-[#F9F8F6] hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors">&#8250;</button>
-        </>
+    <div
+      className="fixed inset-0 z-[80] flex flex-col bg-[#0a0a0a]/94 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Visualizar fotos"
+      onClick={onClose}
+    >
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <span className="text-sm text-white/80 tabular-nums font-medium px-1">
+          {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
+          aria-label="Fechar"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Image stage */}
+      <div
+        className="relative flex-1 flex items-center justify-center min-h-0 px-2 pb-4"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => {
+          touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+        }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current == null || photos.length < 2) return;
+          const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) < 50) return;
+          go(dx > 0 ? -1 : 1);
+        }}
+      >
+        {photos.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              className="absolute left-2 z-10 hidden sm:flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
+              aria-label="Foto anterior"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              className="absolute right-2 z-10 hidden sm:flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
+              aria-label="Próxima foto"
+            >
+              ›
+            </button>
+          </>
+        )}
+        <img
+          key={photos[currentIndex]}
+          src={photos[currentIndex]}
+          alt={`Foto ${currentIndex + 1} de ${photos.length}`}
+          className="max-h-full max-w-full object-contain rounded-lg shadow-2xl select-none"
+          draggable={false}
+        />
+      </div>
+
+      {/* Dots */}
+      {photos.length > 1 && photos.length <= 12 && (
+        <div className="flex justify-center gap-1.5 pb-[max(1rem,env(safe-area-inset-bottom))] shrink-0" onClick={(e) => e.stopPropagation()}>
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir para foto ${i + 1}`}
+              onClick={() => setCurrentIndex(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35 hover:bg-white/55"
+              }`}
+            />
+          ))}
+        </div>
       )}
-      <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      {photos.length > 1 && <div className="absolute bottom-4 text-[#F9F8F6]/70 text-sm">{currentIndex + 1} / {photos.length}</div>}
     </div>
   );
 }
+
+
 
 // ═══════════════════════════════════════════════════════════
 // ShareMenu
@@ -1225,15 +1350,35 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
             </div>
 
             {hasPhotosInComposer && previewUrls.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {previewUrls.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <img src={url} alt={`Preview ${i + 1}`} className="h-20 w-20 rounded-2xl object-cover shadow-md border-2 border-[#F9F8F6]" />
-                    <button onClick={() => removeSelectedFile(i)} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#1A1A1A] text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-medium text-[#4A4A4A]">
+                    {previewUrls.length} foto{previewUrls.length > 1 ? "s" : ""} selecionada{previewUrls.length > 1 ? "s" : ""}
+                  </p>
+                  <p className="text-[10px] text-[#4A4A4A]/70">Toque no X para remover</p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 snap-x snap-mandatory">
+                  {previewUrls.map((url, i) => (
+                    <div key={url} className="relative shrink-0 snap-start group">
+                      <img
+                        src={url}
+                        alt={`Preview ${i + 1}`}
+                        className="h-28 w-28 rounded-2xl object-cover shadow-md ring-1 ring-black/10 bg-black/[0.03]"
+                      />
+                      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                        {i + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedFile(i)}
+                        className="absolute -top-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A] text-white shadow-md ring-2 ring-white active:scale-95 transition-transform"
+                        aria-label={`Remover foto ${i + 1}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

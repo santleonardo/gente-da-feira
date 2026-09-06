@@ -469,7 +469,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
                         handleDelete(photo.id, "photo");
                       }}
                       disabled={deletingId === photo.id && deletingType === "photo"}
-                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
+                      className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1A1A]/60 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm shadow-md"
                     >
                       {deletingId === photo.id && deletingType === "photo" ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -557,7 +557,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
                     type="button"
                     onClick={() => handleDelete(video.id, "video")}
                     disabled={deletingId === video.id && deletingType === "video"}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
+                    className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1A1A]/60 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm shadow-md"
                   >
                     {deletingId === video.id && deletingType === "video" ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />

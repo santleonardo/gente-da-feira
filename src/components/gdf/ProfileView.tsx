@@ -336,19 +336,69 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
 // ═══════════════════════════════════════════════════════════
 function PhotoViewer({ photos, initialIndex, onClose }: { photos: string[]; initialIndex: number; onClose: () => void }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1));
+      if (e.key === "ArrowRight") setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, photos.length]);
+
+  const go = (dir: -1 | 1) => {
+    setCurrentIndex((i) => {
+      const next = i + dir;
+      if (next < 0) return photos.length - 1;
+      if (next >= photos.length) return 0;
+      return next;
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000305]/90 backdrop-blur-sm" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors"><X className="h-5 w-5" /></button>
-      {photos.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1)); }} className="absolute left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors">&#8249;</button>
-          <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0)); }} className="absolute right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f9fa]/10 text-[#f7f9fa] hover:bg-[#f7f75e] hover:text-[#000305] transition-colors">&#8250;</button>
-        </>
+    <div className="fixed inset-0 z-[80] flex flex-col bg-[#0a0a0a]/94 backdrop-blur-md" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2" onClick={(e) => e.stopPropagation()}>
+        <span className="text-sm text-white/80 tabular-nums font-medium">
+          {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
+        </span>
+        <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors" aria-label="Fechar">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div
+        className="relative flex-1 flex items-center justify-center min-h-0 px-2 pb-4"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => { touchStartX.current = e.changedTouches[0]?.clientX ?? null; }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current == null || photos.length < 2) return;
+          const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) < 50) return;
+          go(dx > 0 ? -1 : 1);
+        }}
+      >
+        <img key={photos[currentIndex]} src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-full max-w-full object-contain rounded-lg shadow-2xl select-none" draggable={false} />
+      </div>
+      {photos.length > 1 && photos.length <= 12 && (
+        <div className="flex justify-center gap-1.5 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+          {photos.map((_, i) => (
+            <button key={i} type="button" onClick={() => setCurrentIndex(i)} className={`h-1.5 rounded-full transition-all ${i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35"}`} />
+          ))}
+        </div>
       )}
-      <img src={photos[currentIndex]} alt={`Foto ${currentIndex + 1}`} className="max-h-[90vh] max-w-[95vw] object-contain" onClick={(e) => e.stopPropagation()} />
-      {photos.length > 1 && <div className="absolute bottom-4 text-[#f7f9fa]/70 text-sm">{currentIndex + 1} / {photos.length}</div>}
     </div>
   );
+}
+
+
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1965,25 +2015,35 @@ export function ProfileView() {
 
             {/* Previews */}
             {previewUrls.length > 0 && (
-              <div className="mt-4 flex gap-2 overflow-x-auto shrink-0">
-                {previewUrls.map((url, i) => (
-                  <div key={i} className="relative shrink-0">
-                    <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover border border-black/10" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newFiles = selectedFiles.filter((_, idx) => idx !== i);
-                        const newUrls = previewUrls.filter((_, idx) => idx !== i);
-                        revokePreviewUrl(url);
-                        setSelectedFiles(newFiles);
-                        setPreviewUrls(newUrls);
-                      }}
-                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+              <div className="mt-4 space-y-1.5 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-medium text-[#4A4A4A]">
+                    {previewUrls.length} foto{previewUrls.length > 1 ? "s" : ""}
+                  </p>
+                  <p className="text-[10px] text-[#4A4A4A]/70">Toque no X para remover</p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory">
+                  {previewUrls.map((url, i) => (
+                    <div key={url} className="relative shrink-0 snap-start">
+                      <img src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" />
+                      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">{i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFiles = selectedFiles.filter((_, idx) => idx !== i);
+                          const newUrls = previewUrls.filter((_, idx) => idx !== i);
+                          revokePreviewUrl(url);
+                          setSelectedFiles(newFiles);
+                          setPreviewUrls(newUrls);
+                        }}
+                        className="absolute -top-1.5 -right-1.5 h-7 w-7 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center shadow-md ring-2 ring-white"
+                        aria-label={`Remover foto ${i + 1}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {videoPreview && (
