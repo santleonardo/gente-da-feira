@@ -2563,20 +2563,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     fetchSender();
   }, [profile?.id, room.id]);
 
-  // MOD-002: quando a moderação assíncrona soft-deleta uma mensagem
-  // (chat-moderation.ts), o UPDATE chega aqui e some da lista pra quem
-  // estiver com a sala aberta — sem precisar recarregar.
-  const handleMessageUpdate = useCallback((payload: any) => {
-    if (payload?.is_deleted) {
-      setMessages((prev) => prev.filter((m) => m.id !== payload.id));
-    }
-  }, []);
-
   useRealtimeMessages({
     table: "messages",
     filter: `room_id=eq.${room.id}`,
     onInsert: handleNewMessage,
-    onUpdate: handleMessageUpdate,
     enabled: !!profile && isMember,
   });
 

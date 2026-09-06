@@ -36,7 +36,6 @@ export function AuthForm() {
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [declaredAdult, setDeclaredAdult] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
-  const [termsSection, setTermsSection] = useState<"privacy" | undefined>(undefined);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [regData, setRegData] = useState({ name: "", username: "", email: "", password: "", neighborhood: "" });
   const [forgotEmail, setForgotEmail] = useState("");
@@ -197,9 +196,9 @@ export function AuthForm() {
       {/* Brand */}
       <div className="mb-8 text-center">
         <img
-          src="/brand/logo.png"
+          src="/brand/logo-editorial.svg"
           alt="Gente da Feira"
-          className="mx-auto h-14 sm:h-16 md:h-20 w-auto"
+          className="mx-auto h-9 sm:h-11 md:h-14 w-auto"
         />
         <p className="mt-2 text-sm text-[#4A4A4A]/70 max-w-xs mx-auto leading-relaxed">
           A rede local de Feira de Santana
@@ -440,7 +439,7 @@ export function AuthForm() {
                         </label>
                         <button
                           type="button"
-                          onClick={() => { setTermsSection(undefined); setTermsOpen(true); }}
+                          onClick={() => setTermsOpen(true)}
                           className="flex items-center gap-1.5 pl-6 text-xs font-medium text-[#D96C4A] underline-offset-2 hover:underline"
                         >
                           <FileText className="h-3.5 w-3.5" /> Ler Termos de Uso completos (v{TERMS_VERSION})
@@ -486,41 +485,17 @@ export function AuthForm() {
         </CardContent>
       </Card>
 
-      <p className="mt-8 text-[11px] text-[#4A4A4A]/50 text-center max-w-xs leading-relaxed">
-        Ao continuar, você concorda com nossos{" "}
-        <button
-          type="button"
-          onClick={() => { setTermsSection(undefined); setTermsOpen(true); }}
-          className="font-medium text-[#4A4A4A]/70 underline underline-offset-2 hover:text-[#1A1A1A]"
-        >
-          Termos de Uso
-        </button>{" "}
-        e nossa{" "}
-        <button
-          type="button"
-          onClick={() => { setTermsSection("privacy"); setTermsOpen(true); }}
-          className="font-medium text-[#4A4A4A]/70 underline underline-offset-2 hover:text-[#1A1A1A]"
-        >
-          Política de Privacidade
-        </button>
-        .
-      </p>
-      <p className="mt-2 text-[11px] text-[#4A4A4A]/40 text-center max-w-xs">
+      <p className="mt-8 text-[11px] text-[#4A4A4A]/40 text-center max-w-xs">
         Feito para a comunidade de Feira de Santana
       </p>
 
       <TermsDialog
         open={termsOpen}
         onOpenChange={setTermsOpen}
-        initialSection={termsSection}
-        onAccept={
-          mode === "register"
-            ? () => {
-                setAgreedTerms(true);
-                toast.success("Termos de Uso aceitos");
-              }
-            : undefined
-        }
+        onAccept={() => {
+          setAgreedTerms(true);
+          toast.success("Termos de Uso aceitos");
+        }}
       />
     </div>
   );

@@ -47,6 +47,8 @@ import {
   Maximize2,
   Minimize2,
   Loader2,
+  Sparkles,
+  Undo2,
   Clock,
   Repeat2,
   Heading1,
@@ -506,6 +508,9 @@ export function ProfileView() {
   const editorRef = useRef<HTMLDivElement>(null);
   const [editorExpanded, setEditorExpanded] = useState(false);
   const [textContent, setTextContent] = useState("");
+  const [rewriteLoading, setRewriteLoading] = useState<string | null>(null);
+  /** Snapshot do texto plano antes da última reescrita (desfazer) */
+  const [rewriteUndo, setRewriteUndo] = useState<string | null>(null);
 
   // Modo tela cheia do editor: trava o scroll do body e permite fechar com Esc
   useEffect(() => {
@@ -1063,6 +1068,61 @@ export function ProfileView() {
   };
 
   // ═══════ Publicar post com estilo e mídia ═══════
+  const applyPlainToEditor = (plain: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    // Reescrita devolve texto plano — preserva quebras de linha como <br>
+    el.innerHTML = "";
+    const lines = plain.split("\n");
+    lines.forEach((line, i) => {
+      if (i > 0) el.appendChild(document.createElement("br"));
+      el.appendChild(document.createTextNode(line));
+    });
+    setTextContent(el.innerText || plain);
+    el.focus();
+  };
+
+  const handleRewrite = async (mode: "improve" | "clarify" | "bairro" | "fix") => {
+    const plain = (editorRef.current?.innerText || textContent || "").trim();
+    if (!plain) {
+      toast.error("Escreva algo antes de pedir a reescrita");
+      return;
+    }
+    if (plain.length > TEXT_LIMITS.post) {
+      toast.error(`Texto acima do limite (${TEXT_LIMITS.post} caracteres)`);
+      return;
+    }
+    setRewriteLoading(mode);
+    try {
+      const res = await fetch("/api/ai/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: plain, mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Não foi possível reescrever");
+        return;
+      }
+      if (typeof data.text === "string" && data.text.trim()) {
+        setRewriteUndo(plain);
+        applyPlainToEditor(data.text.trim());
+        toast.success("Texto reescrito — revise antes de publicar");
+      }
+    } catch {
+      toast.error("Erro ao reescrever");
+    } finally {
+      setRewriteLoading(null);
+    }
+  };
+
+  const handleUndoRewrite = () => {
+    if (rewriteUndo == null) return;
+    applyPlainToEditor(rewriteUndo);
+    setRewriteUndo(null);
+    toast.message("Reescrita desfeita");
+  };
+
   const handlePublish = async () => {
     if (!profile) return;
     const textCheck = validateText(
@@ -1735,6 +1795,47 @@ export function ProfileView() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Assistente de reescrita (IA) — opcional, não publica sozinho */}
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0 relative z-20 bg-white mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]/50 mr-0.5 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#D96C4A]" />
+                IA
+              </span>
+              {(
+                [
+                  { mode: "improve" as const, label: "Melhorar" },
+                  { mode: "clarify" as const, label: "Mais claro" },
+                  { mode: "bairro" as const, label: "Tom de bairro" },
+                  { mode: "fix" as const, label: "Corrigir" },
+                ] as const
+              ).map((btn) => (
+                <button
+                  key={btn.mode}
+                  type="button"
+                  disabled={!!rewriteLoading || publishing}
+                  onClick={() => handleRewrite(btn.mode)}
+                  className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-[#F9F8F6] px-2.5 py-1 text-[11px] font-medium text-[#1A1A1A] hover:bg-black/[0.04] disabled:opacity-50 transition-colors"
+                >
+                  {rewriteLoading === btn.mode ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : null}
+                  {btn.label}
+                </button>
+              ))}
+              {rewriteUndo != null && (
+                <button
+                  type="button"
+                  disabled={!!rewriteLoading}
+                  onClick={handleUndoRewrite}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#D96C4A]/30 bg-[#D96C4A]/5 px-2.5 py-1 text-[11px] font-medium text-[#D96C4A] hover:bg-[#D96C4A]/10 disabled:opacity-50 transition-colors"
+                  title="Voltar ao texto anterior"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  Desfazer
+                </button>
+              )}
             </div>
 
             {/* Editor — em tela cheia preenche só o espaço livre (não cobre toolbar/publicar) */}
