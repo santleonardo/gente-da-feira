@@ -467,6 +467,7 @@ export function ProfileView() {
   // Fotos do álbum exibidas junto com a foto de perfil no slide do hero
   // (a antiga aba "Fotografia" foi removida; as mídias agora aparecem aqui).
   const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
+  const [settingAvatar, setSettingAvatar] = useState(false);
   // Salas criadas pelo usuário, exibidas na aba "Sobre"
   const [createdRooms, setCreatedRooms] = useState<any[]>([]);
   const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
@@ -1056,7 +1057,9 @@ export function ProfileView() {
     } catch { toast.error("Erro ao salvar"); }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Câmera do hero: ADICIONA foto ao álbum (não apaga as anteriores).
+  // Se ainda não houver avatar, também define como foto de perfil.
+  const handleAlbumPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
     const validationError = validateImageFile(file);
@@ -1065,24 +1068,84 @@ export function ProfileView() {
       if (avatarInputRef.current) avatarInputRef.current.value = "";
       return;
     }
+    if (heroPhotos.length >= 20) {
+      toast.error("Limite de 20 fotos no álbum. Remova uma para adicionar outra.");
+      return;
+    }
     setUploading(true);
     try {
-      // Comprime no device antes de enviar (galeria grande → ~180 KB)
       const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
       const formData = new FormData();
-      formData.append("file", compressed, `avatar.${getExtensionForBlob(compressed)}`);
+      formData.append("file", compressed, `photo.${getExtensionForBlob(compressed)}`);
+      formData.append("folder", "album-photos");
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadData = await uploadRes.json();
+      if (uploadData.error) {
+        toast.error(uploadData.error);
+        setUploading(false);
+        if (avatarInputRef.current) avatarInputRef.current.value = "";
+        return;
+      }
+
+      const saveRes = await fetch("/api/profile-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: uploadData.url,
+          storagePath: uploadData.path,
+          caption: "",
+        }),
+      });
+      const saveData = await saveRes.json();
+      if (!saveData.photo) {
+        toast.error(saveData.error || "Erro ao salvar foto no álbum");
+        setUploading(false);
+        if (avatarInputRef.current) avatarInputRef.current.value = "";
+        return;
+      }
+
+      setHeroPhotos((prev) => {
+        if (prev.includes(saveData.photo.url)) return prev;
+        return [saveData.photo.url, ...prev];
+      });
+
+      if (!profile.avatar_url) {
+        const avForm = new FormData();
+        avForm.append("userId", profile.id);
+        avForm.append("imageUrl", saveData.photo.url);
+        const avRes = await fetch("/api/users/avatar", { method: "POST", body: avForm });
+        const avData = await avRes.json();
+        if (avData.avatar_url) updateProfile({ avatar_url: avData.avatar_url });
+      }
+
+      toast.success("Foto adicionada ao álbum! Abra em tela cheia para usar como foto de perfil.");
+    } catch {
+      toast.error("Erro ao enviar foto");
+    }
+    setUploading(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
+  const handleSetAsProfilePhoto = async (url: string) => {
+    if (!profile || settingAvatar) return;
+    setSettingAvatar(true);
+    try {
+      const formData = new FormData();
       formData.append("userId", profile.id);
+      formData.append("imageUrl", url);
       const res = await fetch("/api/users/avatar", { method: "POST", body: formData });
       const data = await res.json();
       if (data.avatar_url) {
         updateProfile({ avatar_url: data.avatar_url });
-        toast.success("Avatar atualizado!");
-      } else toast.error(data.error || "Erro ao enviar avatar");
+        toast.success("Foto de perfil atualizada!");
+      } else {
+        toast.error(data.error || "Não foi possível definir a foto de perfil");
+      }
     } catch {
-      toast.error("Erro ao enviar avatar");
+      toast.error("Erro ao definir foto de perfil");
+    } finally {
+      setSettingAvatar(false);
     }
-    setUploading(false);
-    if (avatarInputRef.current) avatarInputRef.current.value = "";
   };
 
   const handleLogout = async () => {
@@ -1264,14 +1327,16 @@ export function ProfileView() {
                 photos={heroPhotos}
                 editable
                 uploading={uploading}
-                onEditAvatar={() => avatarInputRef.current?.click()}
+                onAddPhoto={() => avatarInputRef.current?.click()}
+                onSetAsProfilePhoto={handleSetAsProfilePhoto}
+                setAsProfileLoading={settingAvatar}
                 className="h-24 w-24 sm:h-28 sm:w-28 ring-[5px] ring-[#F9F8F6] shadow-md"
               />
               <input
                 ref={avatarInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleAvatarUpload}
+                onChange={handleAlbumPhotoUpload}
                 className="hidden"
               />
             </div>

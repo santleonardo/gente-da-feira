@@ -1,11 +1,8 @@
 "use client";
 
-// ═══════════════════════════════════════════════════════════
-// ProfileHeroSlider
-// Slideshow do hero: avatar + fotos do álbum.
-// Em tela cheia, o próprio perfil pode definir a foto atual
-// como avatar via onSetAsProfilePhoto.
-// ═══════════════════════════════════════════════════════════
+// ProfileHeroSlider — avatar + fotos do álbum no hero do perfil.
+// Câmera = adicionar foto ao álbum (não substitui).
+// Em tela cheia: onSetAsProfilePhoto define o avatar.
 
 import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Camera, Loader2 } from "lucide-react";
@@ -15,14 +12,15 @@ import { LazyImage } from "./LazyImage";
 
 interface ProfileHeroSliderProps {
   user: { id: string; display_name: string; avatar_url?: string | null };
-  /** URLs das fotos do álbum (sem incluir a foto de perfil). */
+  /** URLs das fotos do álbum (sem a foto de perfil). */
   photos: string[];
   className?: string;
   editable?: boolean;
   uploading?: boolean;
-  /** Adiciona uma NOVA foto ao álbum (não substitui as anteriores). */
+  /** Abre o seletor para ADICIONAR foto ao álbum. */
   onAddPhoto?: () => void;
-  /** Define a URL atual como foto de perfil (avatar). */
+  /** @deprecated use onAddPhoto — mantido só para compat transitória */
+  onEditAvatar?: () => void;
   onSetAsProfilePhoto?: (url: string) => void;
   setAsProfileLoading?: boolean;
   overlay?: ReactNode;
@@ -35,6 +33,7 @@ export function ProfileHeroSlider({
   editable,
   uploading,
   onAddPhoto,
+  onEditAvatar,
   onSetAsProfilePhoto,
   setAsProfileLoading,
   overlay,
@@ -55,6 +54,8 @@ export function ProfileHeroSlider({
 
   const viewablePhotos = slides.map((s) => s.url).filter((u): u is string => !!u);
   const viewerIndex = current.url ? viewablePhotos.indexOf(current.url) : -1;
+
+  const openPicker = onAddPhoto ?? onEditAvatar;
 
   return (
     <div className="shrink-0 inline-flex flex-col items-center">
@@ -117,18 +118,17 @@ export function ProfileHeroSlider({
 
         {overlay}
 
-        {/* Câmera = ADICIONAR foto ao álbum (não substitui) */}
         {editable && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onAddPhoto?.();
+              openPicker?.();
             }}
             disabled={uploading}
             title="Adicionar foto ao álbum"
             aria-label="Adicionar foto ao álbum"
-            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50 z-10"
+            className="absolute -bottom-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
           >
             {uploading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -153,7 +153,7 @@ export function ProfileHeroSlider({
       )}
 
       {editable && (
-        <p className="mt-1.5 text-[10px] text-[#4A4A4A]/55 text-center max-w-[9rem] leading-tight">
+        <p className="mt-1.5 max-w-[9rem] text-center text-[10px] leading-tight text-[#4A4A4A]/55">
           Toque na foto · use o botão amarelo para definir perfil
         </p>
       )}
