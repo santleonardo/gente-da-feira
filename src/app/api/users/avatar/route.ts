@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
     let mimeType: string;
 
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        return NextResponse.json({ error: "Arquivo muito grande (máx 2MB)" }, { status: 400 });
+      // Cliente comprime antes; aceita até 12 MB da galeria
+      if (file.size > 12 * 1024 * 1024) {
+        return NextResponse.json({ error: "Arquivo muito grande (máx 12MB)" }, { status: 400 });
       }
-      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
       if (!allowedTypes.includes(file.type)) {
         return NextResponse.json(
           { error: "Tipo de arquivo não suportado (use JPG, PNG, WebP ou GIF)" },
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Não foi possível baixar a imagem" }, { status: 400 });
       }
       const contentType = (imgRes.headers.get("content-type") || "").split(";")[0].trim();
-      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
       // Alguns CDNs não enviam content-type confiável — tentamos mesmo assim
       const ab = await imgRes.arrayBuffer();
       if (ab.byteLength > 5 * 1024 * 1024) {

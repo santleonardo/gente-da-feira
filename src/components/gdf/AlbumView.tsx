@@ -21,8 +21,13 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { PhotoViewer } from "./PhotoViewer";
-import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
+import {
+  compressImage,
+  validateImageFile,
+  getExtensionForBlob,
+  FEED_IMAGE_OPTIONS,
+} from "@/lib/image-compression";
 
 // ═══════ Regras do álbum ═══════
 const MAX_PHOTOS = 20;
@@ -95,11 +100,23 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       return;
     }
 
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+      return;
+    }
+
     setUploadingPhoto(true);
     try {
-      // Upload da imagem para storage (pasta album-photos — adiciona, não substitui)
+      // Comprime no celular (galeria 2–12 MB → ~180 KB) antes do upload
+      const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append(
+        "file",
+        compressed,
+        `photo.${getExtensionForBlob(compressed)}`
+      );
       formData.append("folder", "album-photos");
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
       const uploadData = await uploadRes.json();
@@ -110,7 +127,6 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
         return;
       }
 
-      // Salvar no banco como NOVA linha (as fotos antigas permanecem)
       const saveRes = await fetch("/api/profile-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,12 +138,11 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       });
       const saveData = await saveRes.json();
       if (saveData.photo) {
-        // Prepende sem remover as existentes
         setPhotos((prev) => {
           if (prev.some((p) => p.id === saveData.photo.id)) return prev;
           return [saveData.photo, ...prev];
         });
-        toast.success("Foto adicionada ao álbum!");
+        toast.success("Foto adicionada!");
       } else {
         toast.error(saveData.error || "Erro ao salvar foto");
       }
@@ -480,11 +495,12 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
                         setViewerOpen(true);
                       }}
                     >
-                      <LazyImage
+                      <img
                         src={photo.url}
                         alt={photo.caption || "Foto do álbum"}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        wrapperClassName="h-full w-full"
+                        loading="lazy"
+                        decoding="async"
                       />
                       {/* Hover overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

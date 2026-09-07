@@ -1,7 +1,8 @@
 // ============================================================
 // API de upload de fotos e vídeos para o Supabase Storage
 // Bucket: post-photos (público) — images
-// Suporta: images (max 1MB) — WebP ou JPEG
+// Suporta: images — o cliente comprime; o servidor aceita até 12 MB e
+// reprocessa (sharp) para ~200–280 KB no Storage.
 // Para vídeos, use /api/upload/video
 // ============================================================
 
@@ -19,8 +20,9 @@ const ALLOWED_IMAGE_TYPES = [
   "image/avif",
   "image/gif",
 ];
-// Light / Supabase Free: 500 KB máx para economizar storage e egress
-const MAX_IMAGE_SIZE = 500 * 1024; // 500 KB
+// Aceita foto da galeria (até ~12 MB). O app comprime no cliente;
+// o servidor ainda reduz para ~200–280 KB antes de gravar.
+const MAX_IMAGE_SIZE = 12 * 1024 * 1024; // 12 MB
 const MAX_VIDEO_THUMB_SIZE = 300 * 1024; // 300 KB para thumbnails
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif"];
 
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
     const maxSize = folder === "video-thumbs" ? MAX_VIDEO_THUMB_SIZE : MAX_IMAGE_SIZE;
     if (file.size > maxSize) {
       return NextResponse.json({
-        error: "Arquivo muito grande. Comprima antes de enviar."
+        error: "Arquivo muito grande (máx. 12 MB). Escolha outra foto ou comprima no celular."
       }, { status: 400 });
     }
 
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
               : "image/jpeg";
     const inputBuffer = Buffer.from(await file.arrayBuffer());
 
-    const isFeedPhoto = folder === "posts" || folder === "post-photos";
+    const isFeedPhoto = folder === "posts" || folder === "post-photos" || folder === "album-photos";
     const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(
       inputBuffer,
       inputType,

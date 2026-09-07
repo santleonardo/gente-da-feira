@@ -61,7 +61,6 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
-import { LazyImage } from "./LazyImage";
 // Code-split: só carrega quando a aba correspondente é aberta
 const SettingsView = dynamic(
   () => import("./SettingsView").then((m) => ({ default: m.SettingsView })),
@@ -77,6 +76,7 @@ import {
   createPreviewUrl,
   revokePreviewUrl,
   getExtensionForBlob,
+  FEED_IMAGE_OPTIONS,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 import { validateText, TEXT_LIMITS, textCountTone } from "@/lib/text-validation";
@@ -287,7 +287,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
   if (count === 1) {
     return (
       <button onClick={() => onPhotoClick?.(0)} className="mt-2.5 w-full overflow-hidden rounded-2xl shadow-lg">
-        <LazyImage src={photos[0]} alt="Foto do post" className="w-full max-h-72 object-cover hover:opacity-95 transition-opacity" />
+        <img src={photos[0]} alt="Foto do post" className="w-full max-h-72 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
       </button>
     );
   }
@@ -296,7 +296,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
         {photos.map((url, i) => (
           <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" wrapperClassName="w-full h-36" />
+            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
           </button>
         ))}
       </div>
@@ -306,13 +306,13 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     return (
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
         <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <LazyImage src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" wrapperClassName="w-full h-full" />
+          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
         <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <LazyImage src={photos[1]} alt="Foto 2" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" wrapperClassName="w-full h-36" />
+          <img src={photos[1]} alt="Foto 2" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
         <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <LazyImage src={photos[2]} alt="Foto 3" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" wrapperClassName="w-full h-36" />
+          <img src={photos[2]} alt="Foto 3" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
         </button>
       </div>
     );
@@ -321,7 +321,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
       {photos.slice(0, 4).map((url, i) => (
         <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" wrapperClassName="w-full h-36" />
+          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#f7f9fa] font-bold text-lg">+{count - 4}</div>
           )}
@@ -467,7 +467,6 @@ export function ProfileView() {
   // Fotos do álbum exibidas junto com a foto de perfil no slide do hero
   // (a antiga aba "Fotografia" foi removida; as mídias agora aparecem aqui).
   const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
-  const [settingAvatar, setSettingAvatar] = useState(false);
   // Salas criadas pelo usuário, exibidas na aba "Sobre"
   const [createdRooms, setCreatedRooms] = useState<any[]>([]);
   const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
@@ -1004,7 +1003,7 @@ export function ProfileView() {
     const urls: string[] = [];
     for (const file of selectedFiles) {
       try {
-        const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.55, maxSizeKB: 150 });
+        const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
         const formData = new FormData();
         formData.append("file", compressed, `photo.${getExtensionForBlob(compressed)}`);
         formData.append("folder", "posts");
@@ -1057,96 +1056,33 @@ export function ProfileView() {
     } catch { toast.error("Erro ao salvar"); }
   };
 
-  // Câmera do hero: ADICIONA foto ao álbum (não apaga as anteriores).
-  // Se ainda não houver avatar, também define como foto de perfil.
-  const handleAlbumPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Imagem muito grande (máx 2MB)");
-      return;
-    }
-    if (heroPhotos.length >= 20) {
-      toast.error("Limite de 20 fotos no álbum. Remova uma para adicionar outra.");
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
       return;
     }
     setUploading(true);
     try {
+      // Comprime no device antes de enviar (galeria grande → ~180 KB)
+      const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", "album-photos");
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-      const uploadData = await uploadRes.json();
-      if (uploadData.error) {
-        toast.error(uploadData.error);
-        setUploading(false);
-        if (avatarInputRef.current) avatarInputRef.current.value = "";
-        return;
-      }
-
-      const saveRes = await fetch("/api/profile-photos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: uploadData.url,
-          storagePath: uploadData.path,
-          caption: "",
-        }),
-      });
-      const saveData = await saveRes.json();
-      if (!saveData.photo) {
-        toast.error(saveData.error || "Erro ao salvar foto no álbum");
-        setUploading(false);
-        if (avatarInputRef.current) avatarInputRef.current.value = "";
-        return;
-      }
-
-      // Adiciona à lista local sem remover as existentes
-      setHeroPhotos((prev) => {
-        if (prev.includes(saveData.photo.url)) return prev;
-        return [saveData.photo.url, ...prev];
-      });
-
-      // Se não tem avatar ainda, define esta foto como perfil
-      if (!profile.avatar_url) {
-        const avForm = new FormData();
-        avForm.append("userId", profile.id);
-        avForm.append("imageUrl", saveData.photo.url);
-        const avRes = await fetch("/api/users/avatar", { method: "POST", body: avForm });
-        const avData = await avRes.json();
-        if (avData.avatar_url) {
-          updateProfile({ avatar_url: avData.avatar_url });
-        }
-      }
-
-      toast.success("Foto adicionada ao álbum! Abra em tela cheia para usar como foto de perfil.");
-    } catch {
-      toast.error("Erro ao enviar foto");
-    }
-    setUploading(false);
-    if (avatarInputRef.current) avatarInputRef.current.value = "";
-  };
-
-  const handleSetAsProfilePhoto = async (url: string) => {
-    if (!profile || settingAvatar) return;
-    setSettingAvatar(true);
-    try {
-      const formData = new FormData();
+      formData.append("file", compressed, `avatar.${getExtensionForBlob(compressed)}`);
       formData.append("userId", profile.id);
-      formData.append("imageUrl", url);
       const res = await fetch("/api/users/avatar", { method: "POST", body: formData });
       const data = await res.json();
       if (data.avatar_url) {
         updateProfile({ avatar_url: data.avatar_url });
-        toast.success("Foto de perfil atualizada!");
-      } else {
-        toast.error(data.error || "Não foi possível definir a foto de perfil");
-      }
+        toast.success("Avatar atualizado!");
+      } else toast.error(data.error || "Erro ao enviar avatar");
     } catch {
-      toast.error("Erro ao definir foto de perfil");
-    } finally {
-      setSettingAvatar(false);
+      toast.error("Erro ao enviar avatar");
     }
+    setUploading(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
   };
 
   const handleLogout = async () => {
@@ -1328,16 +1264,14 @@ export function ProfileView() {
                 photos={heroPhotos}
                 editable
                 uploading={uploading}
-                onAddPhoto={() => avatarInputRef.current?.click()}
-                onSetAsProfilePhoto={handleSetAsProfilePhoto}
-                setAsProfileLoading={settingAvatar}
+                onEditAvatar={() => avatarInputRef.current?.click()}
                 className="h-24 w-24 sm:h-28 sm:w-28 ring-[5px] ring-[#F9F8F6] shadow-md"
               />
               <input
                 ref={avatarInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleAlbumPhotoUpload}
+                onChange={handleAvatarUpload}
                 className="hidden"
               />
             </div>
@@ -1487,11 +1421,11 @@ export function ProfileView() {
                     {/* Featured image */}
                     {hasPhotos && (
                       <div className="aspect-[16/10] overflow-hidden rounded-sm bg-black/5 mb-5">
-                        <LazyImage
+                        <img
                           src={post.image_urls[0]}
                           alt=""
                           className="w-full h-full max-w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                          wrapperClassName="h-full w-full"
+                          loading="lazy"
                         />
                       </div>
                     )}
@@ -2062,7 +1996,7 @@ export function ProfileView() {
                 <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory">
                   {previewUrls.map((url, i) => (
                     <div key={url} className="relative shrink-0 snap-start">
-                      <LazyImage src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10" skeleton={false} />
+                      <img src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" />
                       <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">{i + 1}</span>
                       <button
                         type="button"
