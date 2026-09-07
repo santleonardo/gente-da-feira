@@ -2,17 +2,9 @@
 
 // ═══════════════════════════════════════════════════════════
 // ProfileHeroSlider
-// ─────────────────────────────────────────────────────────
-// Substitui o antigo avatar estático do hero do perfil por um
-// pequeno slideshow: a foto de perfil sempre entra como o
-// primeiro slide, seguida pelas fotos que o usuário already
-// subiu para o álbum (extinta a aba "Fotografia" — as mídias
-// agora vivem aqui, junto com a foto de perfil).
-//
-// Navegação por swipe (mobile) e setas (hover, desktop) +
-// indicadores de posição (dots). Quando há apenas um slide
-// (sem fotos no álbum), o componente se comporta exatamente
-// como o avatar simples de antes.
+// Slideshow do hero: avatar + fotos do álbum.
+// Em tela cheia, o próprio perfil pode definir a foto atual
+// como avatar via onSetAsProfilePhoto.
 // ═══════════════════════════════════════════════════════════
 
 import { useRef, useState, type ReactNode } from "react";
@@ -22,15 +14,16 @@ import { PhotoViewer } from "./PhotoViewer";
 
 interface ProfileHeroSliderProps {
   user: { id: string; display_name: string; avatar_url?: string | null };
-  /** URLs das fotos do álbum (sem incluir a foto de perfil, adicionada automaticamente). */
+  /** URLs das fotos do álbum (sem incluir a foto de perfil). */
   photos: string[];
-  /** Classes de tamanho/anel/sombra aplicadas ao círculo do slide (ex: "h-24 w-24 ring-[5px] ring-[#F9F8F6] shadow-md"). */
   className?: string;
-  /** Mostra o botão de câmera para trocar a foto de perfil (só no próprio perfil). */
   editable?: boolean;
   uploading?: boolean;
-  onEditAvatar?: () => void;
-  /** Elemento extra sobreposto ao slide (ex: ícone de cadeado em perfil privado/bloqueado). */
+  /** Adiciona uma NOVA foto ao álbum (não substitui as anteriores). */
+  onAddPhoto?: () => void;
+  /** Define a URL atual como foto de perfil (avatar). */
+  onSetAsProfilePhoto?: (url: string) => void;
+  setAsProfileLoading?: boolean;
   overlay?: ReactNode;
 }
 
@@ -40,7 +33,9 @@ export function ProfileHeroSlider({
   className,
   editable,
   uploading,
-  onEditAvatar,
+  onAddPhoto,
+  onSetAsProfilePhoto,
+  setAsProfileLoading,
   overlay,
 }: ProfileHeroSliderProps) {
   const slides = [
@@ -57,25 +52,11 @@ export function ProfileHeroSlider({
   const go = (dir: 1 | -1) => setIndex((i) => (i + dir + slides.length) % slides.length);
   const current = slides[clampedIndex];
 
-  // Lista de fotos "abríveis" em tela cheia (avatar sem foto fica de fora).
   const viewablePhotos = slides.map((s) => s.url).filter((u): u is string => !!u);
   const viewerIndex = current.url ? viewablePhotos.indexOf(current.url) : -1;
 
   return (
     <div className="shrink-0 inline-flex flex-col items-center">
-      {/*
-        BUG-FIX: o botão de câmera (editar avatar) e os dots de navegação
-        ficavam parcialmente cortados porque estavam dentro do MESMO
-        container que tinha `overflow-hidden` (necessário para recortar a
-        imagem/avatar em círculo/rounded). Como o botão usa offsets
-        negativos (-bottom-1 -right-1) para "flutuar" na borda do círculo,
-        o `overflow-hidden` do pai cortava metade dele.
-        Solução: o `overflow-hidden` + arredondamento fica só no wrapper
-        INTERNO (que preenche 100% via absolute inset-0), enquanto o
-        wrapper externo (que define o tamanho via `className` e recebe o
-        botão/overlay) fica sem overflow-hidden, deixando o botão flutuar
-        livremente por cima da borda sem ser cortado.
-      */}
       <div
         className={`relative rounded-xl ${current.url ? "cursor-pointer" : ""} ${className || ""}`}
         onClick={() => {
@@ -95,7 +76,13 @@ export function ProfileHeroSlider({
           {current.isAvatar ? (
             <UserAvatar user={user} className="h-full w-full" />
           ) : (
-            <img src={current.url || ""} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+            <img
+              src={current.url || ""}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           )}
 
           {multi && (
@@ -128,17 +115,24 @@ export function ProfileHeroSlider({
 
         {overlay}
 
+        {/* Câmera = ADICIONAR foto ao álbum (não substitui) */}
         {editable && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onEditAvatar?.();
+              onAddPhoto?.();
             }}
             disabled={uploading}
+            title="Adicionar foto ao álbum"
+            aria-label="Adicionar foto ao álbum"
             className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50 z-10"
           >
-            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+            {uploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Camera className="h-3.5 w-3.5" />
+            )}
           </button>
         )}
       </div>
@@ -156,11 +150,19 @@ export function ProfileHeroSlider({
         </div>
       )}
 
+      {editable && (
+        <p className="mt-1.5 text-[10px] text-[#4A4A4A]/55 text-center max-w-[9rem] leading-tight">
+          Toque na foto · use o botão amarelo para definir perfil
+        </p>
+      )}
+
       {viewerOpen && viewablePhotos.length > 0 && (
         <PhotoViewer
           photos={viewablePhotos}
           initialIndex={Math.max(viewerIndex, 0)}
           onClose={() => setViewerOpen(false)}
+          onSetAsProfilePhoto={editable ? onSetAsProfilePhoto : undefined}
+          setAsProfileLoading={setAsProfileLoading}
         />
       )}
     </div>
