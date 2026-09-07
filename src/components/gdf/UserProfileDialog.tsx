@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag } from "lucide-react";
+import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
@@ -556,10 +556,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-10 w-10 rounded-full p-0 bg-[#1A1A1A]/80 text-white backdrop-blur-md ring-1 ring-inset ring-white/15 shadow-lg shadow-black/20 hover:bg-[#1A1A1A] hover:ring-white/25 active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:ring-[#D96C4A]/60"
+                  className="h-10 w-10 rounded-xl p-0 bg-[#1A1A1A]/80 text-white backdrop-blur-md ring-1 ring-inset ring-white/15 shadow-lg shadow-black/20 hover:bg-[#1A1A1A] hover:ring-white/25 active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:ring-[#D96C4A]/60"
                   aria-label="Ações do perfil"
                 >
-                  <MoreVertical className="h-5 w-5" />
+                  <MenuIcon className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="rounded-xl">
@@ -771,10 +771,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 rounded-full p-0 border-black/15 bg-white/80 text-[#4A4A4A] shadow-sm hover:border-black/25 hover:bg-black/5 hover:text-[#1A1A1A] active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:border-[#1A1A1A] data-[state=open]:text-white"
+                            className="h-8 w-8 rounded-lg p-0 border-black/15 bg-white/80 text-[#4A4A4A] shadow-sm hover:border-black/25 hover:bg-black/5 hover:text-[#1A1A1A] active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:border-[#1A1A1A] data-[state=open]:text-white"
                             aria-label="Mais ações"
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <MenuIcon className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl">
