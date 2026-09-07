@@ -3,10 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { X, User } from "lucide-react";
 
-// ── Fullscreen API (com fallbacks de prefixo pra navegadores mais antigos) ──
-// Em iOS Safari a API não existe pra elementos comuns (só pra <video>), então
-// o request falha silenciosamente e o viewer continua funcionando como um
-// overlay comum ocupando 100% da tela — já é o melhor resultado possível lá.
+// ── Fullscreen API (com fallbacks de prefixo) ──
+// Em iOS Safari a API não existe pra elementos comuns — o request falha
+// e o viewer segue como overlay cobrindo 100% da tela.
 function requestElementFullscreen(el: HTMLElement): Promise<void> {
   const anyEl = el as any;
   const fn: (() => Promise<void>) | undefined =
@@ -18,7 +17,10 @@ function requestElementFullscreen(el: HTMLElement): Promise<void> {
 
 function exitDocumentFullscreen(): Promise<void> {
   const anyDoc = document as any;
-  const fullscreenEl = document.fullscreenElement || anyDoc.webkitFullscreenElement || anyDoc.msFullscreenElement;
+  const fullscreenEl =
+    document.fullscreenElement ||
+    anyDoc.webkitFullscreenElement ||
+    anyDoc.msFullscreenElement;
   if (!fullscreenEl) return Promise.resolve();
   const fn: (() => Promise<void>) | undefined =
     document.exitFullscreen?.bind(document) ||
@@ -29,30 +31,17 @@ function exitDocumentFullscreen(): Promise<void> {
 
 function isDocumentFullscreen(): boolean {
   const anyDoc = document as any;
-  return !!(document.fullscreenElement || anyDoc.webkitFullscreenElement || anyDoc.msFullscreenElement);
+  return !!(
+    document.fullscreenElement ||
+    anyDoc.webkitFullscreenElement ||
+    anyDoc.msFullscreenElement
+  );
 }
 
 /**
  * Visualizador de fotos (lightbox) compartilhado.
- *
- * Antes esse componente estava duplicado em 4 arquivos diferentes
- * (FeedView, ProfileView, PostDetailDialog, UserProfileDialog), cada
- * cópia com um bug diferente:
- *  - ProfileView: não tinha botões de próxima/anterior foto quando
- *    havia mais de 12 fotos (só existiam os "pontinhos").
- *  - FeedView: os botões de próxima/anterior só apareciam em telas
- *    "sm" pra cima (`hidden sm:flex`), então em celular sumiam.
- *  - UserProfileDialog: o viewer era renderizado como irmão do
- *    DialogContent do Radix Dialog, então cliques nos seus botões
- *    contavam como "clique fora do modal" e fechavam o perfil
- *    inteiro antes do próprio clique ser processado.
- *
- * Esta versão única corrige os problemas: foto ocupa a tela inteira
- * (sem barras reservando espaço), controles flutuam por cima em
- * overlay, botão de fechar isolado no canto inferior (longe do botão
- * de fechar do perfil, que fica no canto superior), setas sempre
- * visíveis (em qualquer tamanho de tela), navegação por teclado e
- * swipe.
+ * Quando `onSetAsProfilePhoto` é passado (álbum do próprio usuário),
+ * o CTA "Usar como foto de perfil" fica bem visível no topo e no rodapé.
  */
 export function PhotoViewer({
   photos,
@@ -64,13 +53,13 @@ export function PhotoViewer({
   photos: string[];
   initialIndex: number;
   onClose: () => void;
-  /** Quando informado, mostra botão "Usar como foto de perfil" no slide */
   onSetAsProfilePhoto?: (url: string) => void;
   setAsProfileLoading?: boolean;
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const touchStartX = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const enteredFullscreen = useRef(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -80,21 +69,20 @@ export function PhotoViewer({
     };
   }, []);
 
-  // Tela cheia de verdade (Fullscreen API), não só um modal cobrindo a viewport.
-  // Entra ao abrir, sai ao fechar. Se o navegador não suportar (ex: iOS Safari)
-  // ou recusar o pedido, o viewer segue funcionando normalmente como overlay.
   useEffect(() => {
     let cancelled = false;
     const el = containerRef.current;
     if (el) {
       requestElementFullscreen(el)
         .then(() => {
-          // Se o componente já desmontou antes do pedido resolver, sai da tela
-          // cheia imediatamente pra não ficar "preso" nela com o viewer fechado.
-          if (cancelled) exitDocumentFullscreen().catch(() => {});
+          if (cancelled) {
+            exitDocumentFullscreen().catch(() => {});
+            return;
+          }
+          enteredFullscreen.current = true;
         })
         .catch(() => {
-          /* sem suporte/permissão — segue como overlay comum */
+          /* sem suporte — overlay normal */
         });
     }
     return () => {
@@ -103,12 +91,13 @@ export function PhotoViewer({
     };
   }, []);
 
-  // Se a tela cheia for encerrada por fora (ex: usuário aperta Esc, ou usa o
-  // controle nativo do navegador/SO), fecha o viewer junto pra não ficar um
-  // modal "preso" sem estar mais em tela cheia.
+  // Só fecha o viewer se nós tivermos entrado em fullscreen e o usuário saiu
+  // pelo controle nativo. Evita fechar logo ao abrir quando o browser recusa FS.
   useEffect(() => {
     const onFullscreenChange = () => {
-      if (!isDocumentFullscreen()) onClose();
+      if (enteredFullscreen.current && !isDocumentFullscreen()) {
+        onClose();
+      }
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     document.addEventListener("webkitfullscreenchange", onFullscreenChange);
@@ -139,6 +128,15 @@ export function PhotoViewer({
     });
   };
 
+  const handleSetProfile = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!onSetAsProfilePhoto || setAsProfileLoading) return;
+    onSetAsProfilePhoto(photos[currentIndex]);
+  };
+
+  const showProfileCta = typeof onSetAsProfilePhoto === "function";
+
   return (
     <div
       ref={containerRef}
@@ -148,9 +146,14 @@ export function PhotoViewer({
       aria-label="Visualizar fotos"
       onClick={onClose}
     >
-      {/* Foto em tela inteira — sem barras reservando espaço, controles flutuam por cima */}
+      {/* Foto */}
       <div
         className="absolute inset-0 flex items-center justify-center"
+        style={{
+          // Reserva espaço para barra superior + CTA inferior em tela cheia
+          paddingTop: showProfileCta ? 72 : 48,
+          paddingBottom: showProfileCta ? 96 : 56,
+        }}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => {
           touchStartX.current = e.changedTouches[0]?.clientX ?? null;
@@ -167,19 +170,56 @@ export function PhotoViewer({
           key={photos[currentIndex]}
           src={photos[currentIndex]}
           alt={`Foto ${currentIndex + 1} de ${photos.length}`}
-          className="h-full w-full object-contain select-none"
+          className="max-h-full max-w-full object-contain select-none"
+          style={{ maxHeight: "100%", maxWidth: "100%", width: "auto", height: "auto" }}
           draggable={false}
         />
       </div>
 
-      {/* Contador — sobreposto no topo, não ocupa espaço da foto */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <span className="rounded-full bg-black/40 px-3 py-1 text-sm text-white/90 tabular-nums font-medium backdrop-blur-sm">
+      {/* ── Barra superior: contador + fechar ── */}
+      <div
+        className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="rounded-full bg-black/55 px-3 py-1.5 text-sm font-semibold tabular-nums text-white/95 backdrop-blur-sm">
           {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
         </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+          aria-label="Fechar"
+        >
+          <X className="h-5 w-5" strokeWidth={2.5} />
+        </button>
       </div>
 
-      {/* Setas de navegação */}
+      {/* ── CTA no TOPO (sempre visível em tela cheia) ── */}
+      {showProfileCta && (
+        <div
+          className="absolute inset-x-0 z-30 flex justify-center px-4"
+          style={{ top: "max(3.75rem, calc(env(safe-area-inset-top) + 3rem))" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            disabled={setAsProfileLoading}
+            onClick={handleSetProfile}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex max-w-sm w-full items-center justify-center gap-2 rounded-full bg-[#f7f75e] px-5 py-3 text-[15px] font-bold text-[#1A1A1A] shadow-[0_6px_24px_rgba(0,0,0,0.5)] ring-2 ring-white/50 active:scale-[0.98] transition disabled:opacity-70"
+            aria-label="Usar como foto de perfil"
+          >
+            <User className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+            {setAsProfileLoading ? "Definindo…" : "Usar como foto de perfil"}
+          </button>
+        </div>
+      )}
+
+      {/* Setas */}
       {photos.length > 1 && (
         <>
           <button
@@ -188,7 +228,7 @@ export function PhotoViewer({
               e.stopPropagation();
               go(-1);
             }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 sm:left-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors text-2xl"
+            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white text-2xl hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
             aria-label="Foto anterior"
           >
             ‹
@@ -199,7 +239,7 @@ export function PhotoViewer({
               e.stopPropagation();
               go(1);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 sm:right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors text-2xl"
+            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white text-2xl hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
             aria-label="Próxima foto"
           >
             ›
@@ -207,14 +247,14 @@ export function PhotoViewer({
         </>
       )}
 
-      {/* Pontinhos — acima da barra de ações */}
+      {/* Pontinhos — acima do CTA inferior */}
       {photos.length > 1 && photos.length <= 12 && (
         <div
-          className="pointer-events-none absolute inset-x-0 z-10 flex justify-center gap-1.5"
+          className="pointer-events-none absolute inset-x-0 z-20 flex justify-center gap-1.5"
           style={{
-            bottom: onSetAsProfilePhoto
-              ? "max(5.75rem, calc(env(safe-area-inset-bottom) + 4.75rem))"
-              : "max(4.25rem, calc(env(safe-area-inset-bottom) + 3.25rem))",
+            bottom: showProfileCta
+              ? "max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem))"
+              : "max(1.5rem, env(safe-area-inset-bottom))",
           }}
         >
           {photos.map((_, i) => (
@@ -227,53 +267,37 @@ export function PhotoViewer({
                 setCurrentIndex(i);
               }}
               className={`pointer-events-auto h-1.5 rounded-full transition-all ${
-                i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35 hover:bg-white/55"
+                i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35"
               }`}
             />
           ))}
         </div>
       )}
 
-      {/* Fechar — canto superior direito, sempre visível */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
-        style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
-        aria-label="Fechar"
-      >
-        <X className="h-5 w-5" />
-      </button>
-
-      {/* CTA inferior — Foto de perfil bem evidente */}
-      <div
-        className="absolute inset-x-0 z-20 px-4"
-        style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {onSetAsProfilePhoto ? (
+      {/* ── CTA inferior (largura total, difícil de não ver) ── */}
+      {showProfileCta && (
+        <div
+          className="absolute inset-x-0 z-30 px-4"
+          style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             disabled={setAsProfileLoading}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetAsProfilePhoto(photos[currentIndex]);
-            }}
-            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#f7f75e] px-4 py-3.5 text-base font-bold text-[#1A1A1A] shadow-[0_8px_28px_rgba(0,0,0,0.45)] ring-2 ring-white/40 hover:brightness-105 active:scale-[0.98] transition disabled:opacity-70 disabled:pointer-events-none"
+            onClick={handleSetProfile}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#f7f75e] px-4 py-3.5 text-base font-bold text-[#1A1A1A] shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-white/40 active:scale-[0.98] transition disabled:opacity-70"
             aria-label="Usar como foto de perfil"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1A1A]/10">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
               <User className="h-5 w-5" strokeWidth={2.5} />
             </span>
-            <span className="whitespace-nowrap tracking-tight">
-              {setAsProfileLoading ? "Definindo foto de perfil…" : "Usar como foto de perfil"}
-            </span>
+            {setAsProfileLoading
+              ? "Definindo foto de perfil…"
+              : "Usar como foto de perfil"}
           </button>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
