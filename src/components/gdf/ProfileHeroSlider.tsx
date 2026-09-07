@@ -63,8 +63,21 @@ export function ProfileHeroSlider({
 
   return (
     <div className="shrink-0 inline-flex flex-col items-center">
+      {/*
+        BUG-FIX: o botão de câmera (editar avatar) e os dots de navegação
+        ficavam parcialmente cortados porque estavam dentro do MESMO
+        container que tinha `overflow-hidden` (necessário para recortar a
+        imagem/avatar em círculo/rounded). Como o botão usa offsets
+        negativos (-bottom-1 -right-1) para "flutuar" na borda do círculo,
+        o `overflow-hidden` do pai cortava metade dele.
+        Solução: o `overflow-hidden` + arredondamento fica só no wrapper
+        INTERNO (que preenche 100% via absolute inset-0), enquanto o
+        wrapper externo (que define o tamanho via `className` e recebe o
+        botão/overlay) fica sem overflow-hidden, deixando o botão flutuar
+        livremente por cima da borda sem ser cortado.
+      */}
       <div
-        className={`relative overflow-hidden rounded-xl bg-black/[0.04] ${current.url ? "cursor-pointer" : ""} ${className || ""}`}
+        className={`relative rounded-xl ${current.url ? "cursor-pointer" : ""} ${className || ""}`}
         onClick={() => {
           if (current.url) setViewerOpen(true);
         }}
@@ -78,38 +91,40 @@ export function ProfileHeroSlider({
           touchX.current = null;
         }}
       >
-        {current.isAvatar ? (
-          <UserAvatar user={user} className="h-full w-full" />
-        ) : (
-          <img src={current.url || ""} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
-        )}
+        <div className="absolute inset-0 overflow-hidden rounded-xl bg-black/[0.04]">
+          {current.isAvatar ? (
+            <UserAvatar user={user} className="h-full w-full" />
+          ) : (
+            <img src={current.url || ""} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+          )}
 
-        {multi && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(-1);
-              }}
-              aria-label="Foto anterior"
-              className="absolute left-0 top-0 h-full w-1/3 flex items-center justify-start pl-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-            >
-              <ChevronLeft className="h-4 w-4 text-white drop-shadow-md" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(1);
-              }}
-              aria-label="Próxima foto"
-              className="absolute right-0 top-0 h-full w-1/3 flex items-center justify-end pr-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-            >
-              <ChevronRight className="h-4 w-4 text-white drop-shadow-md" />
-            </button>
-          </>
-        )}
+          {multi && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(-1);
+                }}
+                aria-label="Foto anterior"
+                className="absolute left-0 top-0 h-full w-1/3 flex items-center justify-start pl-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              >
+                <ChevronLeft className="h-4 w-4 text-white drop-shadow-md" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(1);
+                }}
+                aria-label="Próxima foto"
+                className="absolute right-0 top-0 h-full w-1/3 flex items-center justify-end pr-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              >
+                <ChevronRight className="h-4 w-4 text-white drop-shadow-md" />
+              </button>
+            </>
+          )}
+        </div>
 
         {overlay}
 
