@@ -41,7 +41,7 @@ function isDocumentFullscreen(): boolean {
 /**
  * Visualizador de fotos (lightbox) compartilhado.
  * Quando `onSetAsProfilePhoto` é passado (álbum do próprio usuário),
- * o CTA "Usar como foto de perfil" fica bem visível no topo e no rodapé.
+ * o CTA "Usar como foto de perfil" fica no rodapé (largura total).
  */
 export function PhotoViewer({
   photos,
@@ -150,8 +150,8 @@ export function PhotoViewer({
       <div
         className="absolute inset-0 flex items-center justify-center"
         style={{
-          // Reserva espaço para barra superior + CTA inferior em tela cheia
-          paddingTop: showProfileCta ? 72 : 48,
+          // Reserva espaço para barra superior + CTA inferior
+          paddingTop: 48,
           paddingBottom: showProfileCta ? 96 : 56,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -198,26 +198,6 @@ export function PhotoViewer({
         </button>
       </div>
 
-      {/* ── CTA no TOPO (sempre visível em tela cheia) ── */}
-      {showProfileCta && (
-        <div
-          className="absolute inset-x-0 z-30 flex justify-center px-4"
-          style={{ top: "max(3.75rem, calc(env(safe-area-inset-top) + 3rem))" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            disabled={setAsProfileLoading}
-            onClick={handleSetProfile}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex max-w-sm w-full items-center justify-center gap-2 rounded-full bg-[#f7f75e] px-5 py-3 text-[15px] font-bold text-[#1A1A1A] shadow-[0_6px_24px_rgba(0,0,0,0.5)] ring-2 ring-white/50 active:scale-[0.98] transition disabled:opacity-70"
-            aria-label="Usar como foto de perfil"
-          >
-            <User className="h-5 w-5 shrink-0" strokeWidth={2.5} />
-            {setAsProfileLoading ? "Definindo…" : "Usar como foto de perfil"}
-          </button>
-        </div>
-      )}
 
       {/* Setas */}
       {photos.length > 1 && (
