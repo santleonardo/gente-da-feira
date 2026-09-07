@@ -144,11 +144,13 @@ export function ProfileHeroSlider({
       </div>
 
       {multi && (
-        <div className="mt-1.5 flex items-center gap-1">
+        <div className="mt-2 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <span
               key={i}
-              className={`h-1 w-1 rounded-full transition-colors ${i === clampedIndex ? "bg-[#1A1A1A]" : "bg-black/20"}`}
+              className={`h-1.5 rounded-full transition-all duration-200 ${
+                i === clampedIndex ? "w-4 bg-[#1A1A1A]" : "w-1.5 bg-black/30"
+              }`}
             />
           ))}
         </div>
