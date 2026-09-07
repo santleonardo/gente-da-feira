@@ -346,27 +346,74 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
     }
 
-    const { data: post, error } = await supabase
+    // Insert mínimo (só colunas da tabela) — evita 500 quando o select com
+    // joins (author/reactions/shared_post) falha por RLS ou shape do PostgREST
+    // depois do insert já ter sido aceito.
+    const insertPayload = {
+      content: sanitizedContent,
+      neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
+      author_id: user.id,
+      image_urls: validatedImageUrls || [],
+      video_url: null,
+      audio_url: validatedAudioUrl,
+      audio_duration: validatedAudioUrl
+        ? (typeof audioDuration === "number" && audioDuration > 0 && audioDuration <= 600
+            ? Math.round(audioDuration)
+            : null)
+        : null,
+      video_duration: null,
+      visibility: validVisibility,
+      expires_at: expiresAt,
+      shared_post_id: validSharedPostId,
+      post_style: null,
+      post_type: "simple",
+    };
+
+    const { data: inserted, error: insertError } = await supabase
       .from("posts")
-      .insert({
-        content: sanitizedContent,
-        neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
-        author_id: user.id,
-        image_urls: validatedImageUrls || [],
-        video_url: null,
-        audio_url: validatedAudioUrl,
-        audio_duration: validatedAudioUrl
-          ? (typeof audioDuration === "number" && audioDuration > 0 && audioDuration <= 600
-              ? Math.round(audioDuration)
-              : null)
-          : null,
-        video_duration: null,
-        visibility: validVisibility,
-        expires_at: expiresAt,
-        shared_post_id: validSharedPostId,
-        post_style: null,
-        post_type: "simple",
-      })
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (insertError) {
+      console.error("[posts POST] insert failed:", {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+      });
+      // Mensagens úteis sem vazar schema interno
+      const msg = (insertError.message || "").toLowerCase();
+      if (msg.includes("row-level security") || insertError.code === "42501") {
+        return NextResponse.json(
+          { error: "Sem permissão para publicar. Tente sair e entrar de novo." },
+          { status: 403 }
+        );
+      }
+      if (insertError.code === "23503") {
+        return NextResponse.json(
+          { error: "Referência inválida ao publicar. Atualize a página e tente de novo." },
+          { status: 400 }
+        );
+      }
+      if (insertError.code === "23514") {
+        return NextResponse.json(
+          { error: "Dados do post inválidos. Revise o texto e a mídia." },
+          { status: 400 }
+        );
+      }
+      if (insertError.code === "42703" || msg.includes("column")) {
+        return NextResponse.json(
+          { error: "Configuração do banco desatualizada. Contate o suporte." },
+          { status: 500 }
+        );
+      }
+      throw insertError;
+    }
+
+    // Busca o post completo (com joins) em request separada
+    const { data: post, error: selectError } = await supabase
+      .from("posts")
       .select(`
         ${selectCols(POST_COLUMNS)},
         author:profiles(${authorCols}),
@@ -376,13 +423,27 @@ export async function POST(req: NextRequest) {
           author:profiles(${authorCols})
         )
       `)
+      .eq("id", inserted.id)
       .single();
 
-    if (error) throw error;
+    if (selectError || !post) {
+      console.error("[posts POST] select after insert failed:", selectError?.message || "no row");
+      // Post já foi criado — devolve payload mínimo para o cliente não falhar
+      const minimal = {
+        id: inserted.id,
+        ...insertPayload,
+        created_at: new Date().toISOString(),
+        author: null,
+        reactions: [],
+        shared_post: null,
+      };
+      return NextResponse.json({
+        post: { ...minimal, comment_count: 0 },
+      });
+    }
 
     // Cast to any — Supabase cannot infer types for complex nested joins
     const p = post as any;
-
 
     // Self-referencing FK (shared_post_id → posts.id) faz o PostgREST às vezes
     // devolver `shared_post` como array (mesmo vazio) em vez de objeto/null.
