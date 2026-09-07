@@ -207,10 +207,15 @@ export function PhotoViewer({
         </>
       )}
 
-      {/* Pontinhos — sobrepostos no rodapé, centralizados */}
+      {/* Pontinhos — acima da barra de ações */}
       {photos.length > 1 && photos.length <= 12 && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-1.5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          className="pointer-events-none absolute inset-x-0 z-10 flex justify-center gap-1.5"
+          style={{
+            bottom: onSetAsProfilePhoto
+              ? "max(5.75rem, calc(env(safe-area-inset-bottom) + 4.75rem))"
+              : "max(4.25rem, calc(env(safe-area-inset-bottom) + 3.25rem))",
+          }}
         >
           {photos.map((_, i) => (
             <button
@@ -229,9 +234,23 @@ export function PhotoViewer({
         </div>
       )}
 
-      {/* Ações inferiores: definir como perfil + fechar */}
+      {/* Fechar — canto superior direito, sempre visível */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+        style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
+        aria-label="Fechar"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      {/* CTA inferior — Foto de perfil bem evidente */}
       <div
-        className="absolute inset-x-0 z-10 flex items-center justify-between gap-2 px-3"
+        className="absolute inset-x-0 z-20 px-4"
         style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -243,28 +262,17 @@ export function PhotoViewer({
               e.stopPropagation();
               onSetAsProfilePhoto(photos[currentIndex]);
             }}
-            className="flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-2.5 text-sm font-medium text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg disabled:opacity-60 disabled:pointer-events-none"
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#f7f75e] px-4 py-3.5 text-base font-bold text-[#1A1A1A] shadow-[0_8px_28px_rgba(0,0,0,0.45)] ring-2 ring-white/40 hover:brightness-105 active:scale-[0.98] transition disabled:opacity-70 disabled:pointer-events-none"
             aria-label="Usar como foto de perfil"
           >
-            <User className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">
-              {setAsProfileLoading ? "Definindo…" : "Foto de perfil"}
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1A1A1A]/10">
+              <User className="h-5 w-5" strokeWidth={2.5} />
+            </span>
+            <span className="whitespace-nowrap tracking-tight">
+              {setAsProfileLoading ? "Definindo foto de perfil…" : "Usar como foto de perfil"}
             </span>
           </button>
-        ) : (
-          <div />
-        )}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
-          aria-label="Fechar"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        ) : null}
       </div>
     </div>
   );
