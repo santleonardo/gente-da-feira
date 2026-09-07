@@ -221,7 +221,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [postsLoading, setPostsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "sobre">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "sobre" | "salas">("posts");
   const [followList, setFollowList] = useState<any[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
@@ -391,14 +391,15 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     };
   }, [userId, open]);
 
-  // Salas criadas pelo usuário — carregadas sob demanda quando a aba
-  // "Sobre" é aberta (evita custo em quem nunca visita essa aba).
+  // Salas criadas pelo usuário — carregadas assim que o perfil abre
+  // (junto com as fotos do hero), pois a própria aba "Salas" só aparece
+  // na navegação quando sabemos que existe pelo menos uma sala.
   // /api/rooms retorna isMember/canJoin relativos a QUEM está vendo
   // (o viewer), o que é o comportamento certo: ao clicar numa sala
   // aqui, abrimos o chat se o viewer já é membro, ou o prompt de
   // entrada caso contrário — igual ao fluxo normal da aba Salas.
   useEffect(() => {
-    if (!userId || !open || activeTab !== "sobre") return;
+    if (!userId || !open) return;
     if (createdRoomsUserIdRef.current === userId) return;
 
     const ac = new AbortController();
@@ -425,7 +426,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
       cancelled = true;
       ac.abort();
     };
-  }, [userId, open, activeTab]);
+  }, [userId, open]);
 
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
@@ -526,16 +527,17 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const canSeeFollowers = isOwnProfile || !privacyInfo.hide_followers;
   const canSeeNeighborhood = isOwnProfile || !privacyInfo.hide_neighborhood;
 
-  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "sobre"; label: string }> = [
+  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "sobre" | "salas"; label: string }> = [
     { id: "posts", label: "Posts" },
     { id: "sobre", label: "Sobre" },
   ];
+  if (createdRooms.length > 0) visibleTabs.push({ id: "salas", label: "Salas" });
   if (canSeeFollowers) visibleTabs.push({ id: "followers", label: "Seguidores" });
   if (canSeeFollowing) visibleTabs.push({ id: "following", label: "Seguindo" });
 
   useEffect(() => {
     if (activeTab !== "posts" && activeTab !== "sobre" && !visibleTabs.find(t => t.id === activeTab)) setActiveTab("posts");
-  }, [canSeeFollowers, canSeeFollowing]);
+  }, [canSeeFollowers, canSeeFollowing, createdRooms.length]);
 
   const renderFollowButton = () => {
     if (isOwnProfile || isBlocked) return null;
@@ -1168,45 +1170,6 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             </p>
                           )}
 
-                          {/* Salas criadas pelo usuário */}
-                          {(createdRooms.length > 0 || createdRoomsLoading) && (
-                            <div className="mt-8 pt-6 border-t border-black/[0.06]">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
-                                Salas criadas
-                              </p>
-                              {createdRoomsLoading && createdRooms.length === 0 ? (
-                                <div className="space-y-2">
-                                  {[1, 2].map((i) => (
-                                    <div key={i} className="h-14 rounded-xl bg-black/[0.04] animate-pulse" />
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  {createdRooms.map((room: any) => (
-                                    <button
-                                      key={room.id}
-                                      type="button"
-                                      onClick={() => handleOpenCreatedRoom(room)}
-                                      className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3 py-2.5 text-left hover:bg-white hover:border-black/10 transition-colors"
-                                    >
-                                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F3F1ED] text-lg">
-                                        {room.icon || "💬"}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
-                                        <div className="text-[11px] text-[#4A4A4A]/60">
-                                          {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
-                                          {room.is_open === false && " · Fechada"}
-                                        </div>
-                                      </div>
-                                      <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
                           <p className="mt-8 text-[11px] text-[#4A4A4A]/40">
                             @{userData.username}
                             {userData.created_at && (
@@ -1216,6 +1179,50 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         </div>
                       </div>
                     </article>
+                  )}
+
+                  {/* Salas */}
+                  {activeTab === "salas" && (
+                    <div>
+                      {createdRoomsLoading && createdRooms.length === 0 ? (
+                        <div className="space-y-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-16 rounded-xl bg-black/[0.04] animate-pulse" />
+                          ))}
+                        </div>
+                      ) : createdRooms.length === 0 ? (
+                        <div className="py-12 text-center">
+                          <MessageCircle className="h-8 w-8 text-black/10 mx-auto mb-2" />
+                          <p className="text-sm text-[#4A4A4A]/60">Nenhuma sala criada</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {createdRooms.map((room: any) => (
+                            <button
+                              key={room.id}
+                              type="button"
+                              onClick={() => handleOpenCreatedRoom(room)}
+                              className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3.5 py-3 text-left hover:bg-white hover:border-black/10 transition-colors"
+                            >
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F3F1ED] text-xl">
+                                {room.icon || "💬"}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
+                                {room.description && (
+                                  <div className="text-[12px] text-[#4A4A4A]/70 truncate">{room.description}</div>
+                                )}
+                                <div className="text-[11px] text-[#4A4A4A]/50 mt-0.5">
+                                  {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
+                                  {room.is_open === false && " · Fechada"}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Seguidores */}

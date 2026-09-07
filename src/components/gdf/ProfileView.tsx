@@ -477,7 +477,7 @@ export function ProfileView() {
   const [followListLoading, setFollowListLoading] = useState(false);
 
   // ═══════ Tab state ═══════
-  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "sobre">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "sobre" | "salas">("posts");
 
   // ═══════ Composer state ═══════
   const [postStyle, setPostStyle] = useState<PostStyle>({
@@ -1351,6 +1351,7 @@ export function ProfileView() {
           {[
             { id: "posts" as const, label: "Entradas" },
             { id: "sobre" as const, label: "Sobre" },
+            { id: "salas" as const, label: "Salas" },
             { id: "postar" as const, label: "Escrever" },
             { id: "config" as const, label: "Config" },
           ].map((tab) => (
@@ -2161,45 +2162,6 @@ export function ProfileView() {
                   </div>
                 )}
 
-                {/* Salas criadas por mim */}
-                {(createdRooms.length > 0 || createdRoomsLoading) && (
-                  <div className="mt-8 pt-6 border-t border-black/[0.06]">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
-                      Salas criadas
-                    </p>
-                    {createdRoomsLoading && createdRooms.length === 0 ? (
-                      <div className="space-y-2">
-                        {[1, 2].map((i) => (
-                          <div key={i} className="h-14 rounded-xl bg-black/[0.04] animate-pulse" />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {createdRooms.map((room: any) => (
-                          <button
-                            key={room.id}
-                            type="button"
-                            onClick={() => handleOpenCreatedRoom(room)}
-                            className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3 py-2.5 text-left hover:bg-white hover:border-black/10 transition-colors"
-                          >
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F3F1ED] text-lg">
-                              {room.icon || "💬"}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
-                              <div className="text-[11px] text-[#4A4A4A]/60">
-                                {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
-                                {room.is_open === false && " · Fechada"}
-                              </div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Editor de bio inline */}
                 <div className="mt-8 pt-6 border-t border-black/[0.06]">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-2">
@@ -2234,6 +2196,55 @@ export function ProfileView() {
               </div>
             </div>
           </article>
+        </div>
+
+        {/* ─── ABA: SALAS ─── */}
+        <div style={{ display: activeTab === "salas" ? "block" : "none" }}>
+          {createdRoomsLoading && createdRooms.length === 0 ? (
+            <div className="space-y-2 max-w-2xl">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 rounded-xl bg-black/[0.04] animate-pulse" />
+              ))}
+            </div>
+          ) : createdRooms.length === 0 ? (
+            <div className="py-12 text-center">
+              <MessageCircle className="h-8 w-8 text-black/10 mx-auto mb-2" />
+              <p className="text-sm text-[#4A4A4A]/60 mb-4">Você ainda não criou nenhuma sala</p>
+              <button
+                type="button"
+                onClick={() => useStore.getState().setTab("rooms")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] text-white px-4 py-2 text-xs font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+              >
+                Criar uma sala
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2 max-w-2xl">
+              {createdRooms.map((room: any) => (
+                <button
+                  key={room.id}
+                  type="button"
+                  onClick={() => handleOpenCreatedRoom(room)}
+                  className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3.5 py-3 text-left hover:bg-white hover:border-black/10 transition-colors"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F3F1ED] text-xl">
+                    {room.icon || "💬"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
+                    {room.description && (
+                      <div className="text-[12px] text-[#4A4A4A]/70 truncate">{room.description}</div>
+                    )}
+                    <div className="text-[11px] text-[#4A4A4A]/50 mt-0.5">
+                      {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
+                      {room.is_open === false && " · Fechada"}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ─── ABA: CONFIG ─── */}
