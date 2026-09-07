@@ -18,6 +18,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Camera, Loader2 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { PhotoViewer } from "./PhotoViewer";
 
 interface ProfileHeroSliderProps {
   user: { id: string; display_name: string; avatar_url?: string | null };
@@ -49,16 +50,24 @@ export function ProfileHeroSlider({
 
   const [index, setIndex] = useState(0);
   const touchX = useRef<number | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const multi = slides.length > 1;
   const clampedIndex = Math.min(index, slides.length - 1);
   const go = (dir: 1 | -1) => setIndex((i) => (i + dir + slides.length) % slides.length);
   const current = slides[clampedIndex];
 
+  // Lista de fotos "abríveis" em tela cheia (avatar sem foto fica de fora).
+  const viewablePhotos = slides.map((s) => s.url).filter((u): u is string => !!u);
+  const viewerIndex = current.url ? viewablePhotos.indexOf(current.url) : -1;
+
   return (
     <div className="shrink-0 inline-flex flex-col items-center">
       <div
-        className={`relative overflow-hidden rounded-xl bg-black/[0.04] ${className || ""}`}
+        className={`relative overflow-hidden rounded-xl bg-black/[0.04] ${current.url ? "cursor-pointer" : ""} ${className || ""}`}
+        onClick={() => {
+          if (current.url) setViewerOpen(true);
+        }}
         onTouchStart={(e) => {
           touchX.current = e.touches[0].clientX;
         }}
@@ -107,7 +116,10 @@ export function ProfileHeroSlider({
         {editable && (
           <button
             type="button"
-            onClick={onEditAvatar}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditAvatar?.();
+            }}
             disabled={uploading}
             className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50 z-10"
           >
@@ -125,6 +137,14 @@ export function ProfileHeroSlider({
             />
           ))}
         </div>
+      )}
+
+      {viewerOpen && viewablePhotos.length > 0 && (
+        <PhotoViewer
+          photos={viewablePhotos}
+          initialIndex={Math.max(viewerIndex, 0)}
+          onClose={() => setViewerOpen(false)}
+        />
       )}
     </div>
   );
