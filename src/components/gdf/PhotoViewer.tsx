@@ -3,6 +3,35 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
+// ── Fullscreen API (com fallbacks de prefixo pra navegadores mais antigos) ──
+// Em iOS Safari a API não existe pra elementos comuns (só pra <video>), então
+// o request falha silenciosamente e o viewer continua funcionando como um
+// overlay comum ocupando 100% da tela — já é o melhor resultado possível lá.
+function requestElementFullscreen(el: HTMLElement): Promise<void> {
+  const anyEl = el as any;
+  const fn: (() => Promise<void>) | undefined =
+    el.requestFullscreen?.bind(el) ||
+    anyEl.webkitRequestFullscreen?.bind(anyEl) ||
+    anyEl.msRequestFullscreen?.bind(anyEl);
+  return fn ? fn() : Promise.reject(new Error("Fullscreen API indisponível"));
+}
+
+function exitDocumentFullscreen(): Promise<void> {
+  const anyDoc = document as any;
+  const fullscreenEl = document.fullscreenElement || anyDoc.webkitFullscreenElement || anyDoc.msFullscreenElement;
+  if (!fullscreenEl) return Promise.resolve();
+  const fn: (() => Promise<void>) | undefined =
+    document.exitFullscreen?.bind(document) ||
+    anyDoc.webkitExitFullscreen?.bind(anyDoc) ||
+    anyDoc.msExitFullscreen?.bind(anyDoc);
+  return fn ? fn() : Promise.resolve();
+}
+
+function isDocumentFullscreen(): boolean {
+  const anyDoc = document as any;
+  return !!(document.fullscreenElement || anyDoc.webkitFullscreenElement || anyDoc.msFullscreenElement);
+}
+
 /**
  * Visualizador de fotos (lightbox) compartilhado.
  *
@@ -36,6 +65,7 @@ export function PhotoViewer({
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const touchStartX = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -43,6 +73,45 @@ export function PhotoViewer({
     return () => {
       document.body.style.overflow = prev;
     };
+  }, []);
+
+  // Tela cheia de verdade (Fullscreen API), não só um modal cobrindo a viewport.
+  // Entra ao abrir, sai ao fechar. Se o navegador não suportar (ex: iOS Safari)
+  // ou recusar o pedido, o viewer segue funcionando normalmente como overlay.
+  useEffect(() => {
+    let cancelled = false;
+    const el = containerRef.current;
+    if (el) {
+      requestElementFullscreen(el)
+        .then(() => {
+          // Se o componente já desmontou antes do pedido resolver, sai da tela
+          // cheia imediatamente pra não ficar "preso" nela com o viewer fechado.
+          if (cancelled) exitDocumentFullscreen().catch(() => {});
+        })
+        .catch(() => {
+          /* sem suporte/permissão — segue como overlay comum */
+        });
+    }
+    return () => {
+      cancelled = true;
+      exitDocumentFullscreen().catch(() => {});
+    };
+  }, []);
+
+  // Se a tela cheia for encerrada por fora (ex: usuário aperta Esc, ou usa o
+  // controle nativo do navegador/SO), fecha o viewer junto pra não ficar um
+  // modal "preso" sem estar mais em tela cheia.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!isDocumentFullscreen()) onClose();
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -67,6 +136,7 @@ export function PhotoViewer({
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[100] bg-black"
       role="dialog"
       aria-modal="true"
