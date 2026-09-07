@@ -1,8 +1,7 @@
 // ============================================================
 // API de upload de fotos e vídeos para o Supabase Storage
 // Bucket: post-photos (público) — images
-// Suporta: images — o cliente comprime; o servidor aceita até 12 MB e
-// reprocessa (sharp) para ~200–280 KB no Storage.
+// Limites em @/lib/upload-limits (UPLOAD_MAX_IMAGE_MB etc.)
 // Para vídeos, use /api/upload/video
 // ============================================================
 
@@ -12,6 +11,13 @@ import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { validateUploadFolder, validateStoragePath } from "@/lib/storage-security";
 import { safeErrorResponse } from "@/lib/safe-error";
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_MB,
+  MAX_VIDEO_THUMB_BYTES,
+  STORAGE_FEED_MAX_BYTES,
+  STORAGE_ALBUM_MAX_BYTES,
+} from "@/lib/upload-limits";
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -20,10 +26,6 @@ const ALLOWED_IMAGE_TYPES = [
   "image/avif",
   "image/gif",
 ];
-// Aceita foto da galeria (até ~12 MB). O app comprime no cliente;
-// o servidor ainda reduz para ~200–280 KB antes de gravar.
-const MAX_IMAGE_SIZE = 12 * 1024 * 1024; // 12 MB
-const MAX_VIDEO_THUMB_SIZE = 300 * 1024; // 300 KB para thumbnails
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "avif", "gif"];
 
 export async function POST(req: NextRequest) {
@@ -57,10 +59,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tipo não suportado" }, { status: 400 });
     }
 
-    const maxSize = folder === "video-thumbs" ? MAX_VIDEO_THUMB_SIZE : MAX_IMAGE_SIZE;
+    const maxSize = folder === "video-thumbs" ? MAX_VIDEO_THUMB_BYTES : MAX_IMAGE_UPLOAD_BYTES;
     if (file.size > maxSize) {
       return NextResponse.json({
-        error: "Arquivo muito grande (máx. 12 MB). Escolha outra foto ou comprima no celular."
+        error: `Arquivo muito grande (máx. ${MAX_IMAGE_UPLOAD_MB} MB). Escolha outra foto.`
       }, { status: 400 });
     }
 
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
             preferWebP: true,
             preferAvif: false,
             quality: 70,
-            maxBytes: 90 * 1024,
+            maxBytes: MAX_VIDEO_THUMB_BYTES > 90 * 1024 ? 90 * 1024 : MAX_VIDEO_THUMB_BYTES,
           }
         : isFeedPhoto
           ? {
@@ -101,13 +103,13 @@ export async function POST(req: NextRequest) {
               preferWebP: true,
               preferAvif: false,
               quality: 78,
-              maxBytes: 220 * 1024,
+              maxBytes: STORAGE_FEED_MAX_BYTES,
             }
           : {
               preferWebP: true,
               preferAvif: false,
               quality: 80,
-              maxBytes: 280 * 1024,
+              maxBytes: STORAGE_ALBUM_MAX_BYTES,
             }
     );
 

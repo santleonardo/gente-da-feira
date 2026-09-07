@@ -31,13 +31,15 @@ import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
+import {
+  MAX_PHOTOS_PER_POST,
+  MAX_ACTIVE_MEDIA_POSTS,
+  MEDIA_EXPIRATION_HOURS,
+} from "@/lib/upload-limits";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
 // (1 GB storage / 2 GB egress). Vídeo e áudio desabilitados.
-const MAX_PHOTOS_PER_POST = 1;
-const MAX_ACTIVE_MEDIA_POSTS = 2;
-const MEDIA_EXPIRATION_HOURS = 6;
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE_SIZE = 30;
 

@@ -28,12 +28,13 @@ import {
   getExtensionForBlob,
   FEED_IMAGE_OPTIONS,
 } from "@/lib/image-compression";
+import { CLIENT_UPLOAD_LIMITS } from "@/lib/upload-limits";
 
 // ═══════ Regras do álbum ═══════
-const MAX_PHOTOS = 20;
-const MAX_VIDEOS = 5;
-const MAX_VIDEO_DURATION = 30; // segundos
-const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_PHOTOS = CLIENT_UPLOAD_LIMITS.maxAlbumPhotos;
+const MAX_VIDEOS = CLIENT_UPLOAD_LIMITS.maxAlbumVideos;
+const MAX_VIDEO_DURATION = CLIENT_UPLOAD_LIMITS.maxAlbumVideoDurationSec;
+const MAX_AUDIO_SIZE = CLIENT_UPLOAD_LIMITS.maxAlbumAudioBytes; // 10MB
 
 export function AlbumView({ embedded }: { embedded?: boolean }) {
   const { profile, setProfileSubView, updateProfile } = useStore();

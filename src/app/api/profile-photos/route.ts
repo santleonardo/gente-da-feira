@@ -24,6 +24,7 @@ import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempo
 import { stripStoragePaths } from "@/lib/privacy-filter";
 import { validateMediaUrl, validateStoragePath, extractStoragePathFromUrl } from "@/lib/storage-security";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { MAX_ALBUM_PHOTOS } from "@/lib/upload-limits";
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 48;
@@ -109,7 +110,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-const MAX_ALBUM_PHOTOS = 20;
 
 export async function POST(req: NextRequest) {
   try {

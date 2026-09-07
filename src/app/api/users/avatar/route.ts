@@ -4,6 +4,7 @@ import { sanitizeImage } from "@/lib/image-sanitize";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB } from "@/lib/upload-limits";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,11 +30,10 @@ export async function POST(req: NextRequest) {
     let mimeType: string;
 
     if (file) {
-      // Cliente comprime antes; aceita até 12 MB da galeria
-      if (file.size > 12 * 1024 * 1024) {
-        return NextResponse.json({ error: "Arquivo muito grande (máx 12MB)" }, { status: 400 });
+      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+        return NextResponse.json({ error: `Arquivo muito grande (máx ${MAX_IMAGE_UPLOAD_MB}MB)` }, { status: 400 });
       }
-      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       if (!allowedTypes.includes(file.type)) {
         return NextResponse.json(
           { error: "Tipo de arquivo não suportado (use JPG, PNG, WebP ou GIF)" },
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Não foi possível baixar a imagem" }, { status: 400 });
       }
       const contentType = (imgRes.headers.get("content-type") || "").split(";")[0].trim();
-      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       // Alguns CDNs não enviam content-type confiável — tentamos mesmo assim
       const ab = await imgRes.arrayBuffer();
       if (ab.byteLength > 5 * 1024 * 1024) {

@@ -1,3 +1,4 @@
+import { CLIENT_UPLOAD_LIMITS } from "@/lib/upload-limits";
 // ============================================================
 // Compressão de imagens no cliente — otimizada para WebP
 //
@@ -33,10 +34,10 @@ const DEFAULT_OPTIONS: CompressionOptions = {
 
 /** Feed / posts: lado ≤1280, alvo ~180KB em WebP */
 export const FEED_IMAGE_OPTIONS: CompressionOptions = {
-  maxWidth: 1280,
-  maxHeight: 1280,
-  quality: 0.8,
-  maxSizeKB: 180,
+  maxWidth: CLIENT_UPLOAD_LIMITS.feedCompress.maxWidth,
+  maxHeight: CLIENT_UPLOAD_LIMITS.feedCompress.maxHeight,
+  quality: CLIENT_UPLOAD_LIMITS.feedCompress.quality,
+  maxSizeKB: CLIENT_UPLOAD_LIMITS.feedCompress.maxSizeKB,
   preferAvif: false,
 };
 
@@ -128,8 +129,8 @@ export function validateImageFile(file: File): string | null {
     }
   }
 
-  if (file.size > 12 * 1024 * 1024) {
-    return "Imagem muito grande. Máximo 12MB antes da compressão.";
+  if (file.size > CLIENT_UPLOAD_LIMITS.maxImageUploadBytes) {
+    return `Imagem muito grande. Máximo ${CLIENT_UPLOAD_LIMITS.maxImageUploadMb}MB antes da compressão.`;
   }
 
   return null;

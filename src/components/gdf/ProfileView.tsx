@@ -78,6 +78,7 @@ import {
   getExtensionForBlob,
   FEED_IMAGE_OPTIONS,
 } from "@/lib/image-compression";
+import { CLIENT_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 import { validateText, TEXT_LIMITS, textCountTone } from "@/lib/text-validation";
 import { assessTextRisk, riskBannerTitle, type RiskAssessment } from "@/lib/risk-check";
@@ -143,7 +144,7 @@ const FONTS = [
   { name: "Work Sans", value: "Work Sans" },
 ] as const;
 
-const MAX_PHOTOS_PER_POST = 5;
+const MAX_PHOTOS_PER_POST = CLIENT_UPLOAD_LIMITS.maxPhotosPerPost;
 const MAX_VIDEO_DURATION = 30;
 const MAX_AUDIO_DURATION = 60;
 
@@ -1068,8 +1069,8 @@ export function ProfileView() {
       if (avatarInputRef.current) avatarInputRef.current.value = "";
       return;
     }
-    if (heroPhotos.length >= 20) {
-      toast.error("Limite de 20 fotos no álbum. Remova uma para adicionar outra.");
+    if (heroPhotos.length >= CLIENT_UPLOAD_LIMITS.maxAlbumPhotos) {
+      toast.error(`Limite de ${CLIENT_UPLOAD_LIMITS.maxAlbumPhotos} fotos no álbum. Remova uma para adicionar outra.`);
       return;
     }
     setUploading(true);
