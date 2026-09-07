@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag } from "lucide-react";
+import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag, ChevronRight } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
@@ -229,6 +229,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   // (a antiga aba "Fotografia"/"Álbum" foi removida).
   const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
   const [postsVisibleCount, setPostsVisibleCount] = useState(8);
+  // Salas criadas pelo usuário, exibidas na aba "Sobre"
+  const [createdRooms, setCreatedRooms] = useState<any[]>([]);
+  const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
+  const createdRoomsUserIdRef = useRef<string | null>(null);
 
   // Photo viewer state
   const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
@@ -285,6 +289,8 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setHeroPhotos([]);
     setFollowList([]);
     setViewerOpen(false);
+    setCreatedRooms([]);
+    createdRoomsUserIdRef.current = null;
 
     const fetchData = async () => {
       setLoading(true);
@@ -385,6 +391,42 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     };
   }, [userId, open]);
 
+  // Salas criadas pelo usuário — carregadas sob demanda quando a aba
+  // "Sobre" é aberta (evita custo em quem nunca visita essa aba).
+  // /api/rooms retorna isMember/canJoin relativos a QUEM está vendo
+  // (o viewer), o que é o comportamento certo: ao clicar numa sala
+  // aqui, abrimos o chat se o viewer já é membro, ou o prompt de
+  // entrada caso contrário — igual ao fluxo normal da aba Salas.
+  useEffect(() => {
+    if (!userId || !open || activeTab !== "sobre") return;
+    if (createdRoomsUserIdRef.current === userId) return;
+
+    const ac = new AbortController();
+    let cancelled = false;
+
+    (async () => {
+      setCreatedRoomsLoading(true);
+      try {
+        const res = await fetch("/api/rooms", { signal: ac.signal });
+        if (cancelled) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.rooms)) {
+          setCreatedRooms(data.rooms.filter((r: any) => r.created_by === userId));
+          createdRoomsUserIdRef.current = userId;
+        }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+      } finally {
+        if (!cancelled) setCreatedRoomsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [userId, open, activeTab]);
+
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
     const fetchList = async () => {
@@ -464,6 +506,17 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
       const data = await res.json();
       if (data.conversation) { useStore.getState().setSelectedDM(data.conversation); useStore.getState().setTab("dms"); onOpenChange(false); }
     } catch { toast.error("Erro ao iniciar conversa"); }
+  };
+
+  // Abre uma sala listada em "Salas criadas" — mesma sala/objeto retornado
+  // por /api/rooms, já com isMember/canJoin calculados para QUEM está
+  // vendo o perfil. RoomChat sabe lidar com os dois casos (chat direto
+  // se já é membro, ou tela de "Entrar na sala" caso contrário).
+  const handleOpenCreatedRoom = (room: any) => {
+    onOpenChange(false);
+    setTimeout(() => {
+      useStore.getState().setSelectedRoom(room);
+    }, 200);
   };
 
   const isOwnProfile = profile?.id === userId;
@@ -1114,6 +1167,46 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                               Este perfil ainda não escreveu uma apresentação.
                             </p>
                           )}
+
+                          {/* Salas criadas pelo usuário */}
+                          {(createdRooms.length > 0 || createdRoomsLoading) && (
+                            <div className="mt-8 pt-6 border-t border-black/[0.06]">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
+                                Salas criadas
+                              </p>
+                              {createdRoomsLoading && createdRooms.length === 0 ? (
+                                <div className="space-y-2">
+                                  {[1, 2].map((i) => (
+                                    <div key={i} className="h-14 rounded-xl bg-black/[0.04] animate-pulse" />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {createdRooms.map((room: any) => (
+                                    <button
+                                      key={room.id}
+                                      type="button"
+                                      onClick={() => handleOpenCreatedRoom(room)}
+                                      className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3 py-2.5 text-left hover:bg-white hover:border-black/10 transition-colors"
+                                    >
+                                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F3F1ED] text-lg">
+                                        {room.icon || "💬"}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
+                                        <div className="text-[11px] text-[#4A4A4A]/60">
+                                          {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
+                                          {room.is_open === false && " · Fechada"}
+                                        </div>
+                                      </div>
+                                      <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           <p className="mt-8 text-[11px] text-[#4A4A4A]/40">
                             @{userData.username}
                             {userData.created_at && (

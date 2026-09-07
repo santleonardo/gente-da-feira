@@ -29,6 +29,7 @@ import {
   AlignRight,
   AlignJustify,
   ChevronDown,
+  ChevronRight,
   Type,
   Plus,
   ImagePlus,
@@ -465,6 +466,9 @@ export function ProfileView() {
   // Fotos do álbum exibidas junto com a foto de perfil no slide do hero
   // (a antiga aba "Fotografia" foi removida; as mídias agora aparecem aqui).
   const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
+  // Salas criadas pelo usuário, exibidas na aba "Sobre"
+  const [createdRooms, setCreatedRooms] = useState<any[]>([]);
+  const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
 
   // ═══════ Follow list dialog state ═══════
   const [showFollowingDialog, setShowFollowingDialog] = useState(false);
@@ -795,6 +799,18 @@ export function ProfileView() {
         if (Array.isArray(data.photos)) setHeroPhotos(data.photos.map((p: any) => p.url));
       })
       .catch(() => {});
+
+    // Salas criadas por mim (aba "Sobre")
+    setCreatedRoomsLoading(true);
+    fetch("/api/rooms")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.rooms)) {
+          setCreatedRooms(data.rooms.filter((r: any) => r.created_by === profile.id));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCreatedRoomsLoading(false));
   }, [profile]);
 
   const fetchMyPosts = () => {
@@ -805,6 +821,13 @@ export function ProfileView() {
         if (data.posts) setMyPosts(data.posts);
       })
       .catch(() => {});
+  };
+
+  // Abre uma sala listada em "Salas criadas" (mesmo objeto de /api/rooms,
+  // já com isMember/canJoin — no próprio perfil isso normalmente é o
+  // criador, então abre o chat direto).
+  const handleOpenCreatedRoom = (room: any) => {
+    useStore.getState().setSelectedRoom(room);
   };
 
   // ═══════ Follow list dialog ═══════
@@ -2135,6 +2158,45 @@ export function ProfileView() {
                       Use a bio do perfil para contar um pouco sobre você — o que te move,
                       o que você observa na cidade, ou simplesmente uma nota sobre o seu dia.
                     </p>
+                  </div>
+                )}
+
+                {/* Salas criadas por mim */}
+                {(createdRooms.length > 0 || createdRoomsLoading) && (
+                  <div className="mt-8 pt-6 border-t border-black/[0.06]">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
+                      Salas criadas
+                    </p>
+                    {createdRoomsLoading && createdRooms.length === 0 ? (
+                      <div className="space-y-2">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="h-14 rounded-xl bg-black/[0.04] animate-pulse" />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {createdRooms.map((room: any) => (
+                          <button
+                            key={room.id}
+                            type="button"
+                            onClick={() => handleOpenCreatedRoom(room)}
+                            className="flex items-center gap-3 w-full rounded-xl border border-black/[0.06] bg-white/60 px-3 py-2.5 text-left hover:bg-white hover:border-black/10 transition-colors"
+                          >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F3F1ED] text-lg">
+                              {room.icon || "💬"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-[#1A1A1A] truncate">{room.name}</div>
+                              <div className="text-[11px] text-[#4A4A4A]/60">
+                                {room.memberCount || 0} membro{room.memberCount === 1 ? "" : "s"}
+                                {room.is_open === false && " · Fechada"}
+                              </div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-[#4A4A4A]/30 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
