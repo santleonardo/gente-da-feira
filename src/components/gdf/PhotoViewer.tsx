@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, User } from "lucide-react";
+import { LazyImage } from "./LazyImage";
 
-// ── Fullscreen API (com fallbacks de prefixo) ──
-// Em iOS Safari a API não existe pra elementos comuns — o request falha
-// e o viewer segue como overlay cobrindo 100% da tela.
+// ── Fullscreen API (fallbacks de prefixo) ──
 function requestElementFullscreen(el: HTMLElement): Promise<void> {
   const anyEl = el as any;
-  const fn: (() => Promise<void>) | undefined =
+  const fn =
     el.requestFullscreen?.bind(el) ||
     anyEl.webkitRequestFullscreen?.bind(anyEl) ||
     anyEl.msRequestFullscreen?.bind(anyEl);
@@ -17,12 +16,12 @@ function requestElementFullscreen(el: HTMLElement): Promise<void> {
 
 function exitDocumentFullscreen(): Promise<void> {
   const anyDoc = document as any;
-  const fullscreenEl =
+  const el =
     document.fullscreenElement ||
     anyDoc.webkitFullscreenElement ||
     anyDoc.msFullscreenElement;
-  if (!fullscreenEl) return Promise.resolve();
-  const fn: (() => Promise<void>) | undefined =
+  if (!el) return Promise.resolve();
+  const fn =
     document.exitFullscreen?.bind(document) ||
     anyDoc.webkitExitFullscreen?.bind(anyDoc) ||
     anyDoc.msExitFullscreen?.bind(anyDoc);
@@ -38,10 +37,22 @@ function isDocumentFullscreen(): boolean {
   );
 }
 
+/** Botão circular translúcido (setas / fechar) */
+const iconBtn =
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full " +
+  "bg-black/55 text-white backdrop-blur-sm shadow-lg " +
+  "transition-colors hover:bg-[#f7f75e] hover:text-[#1A1A1A] " +
+  "active:scale-95";
+
+const navBtn =
+  "absolute top-1/2 z-20 -translate-y-1/2 " +
+  "flex h-11 w-11 items-center justify-center rounded-full " +
+  "bg-white/15 text-2xl text-white " +
+  "transition-colors hover:bg-[#f7f75e] hover:text-[#1A1A1A]";
+
 /**
- * Visualizador de fotos (lightbox) compartilhado.
- * Quando `onSetAsProfilePhoto` é passado (álbum do próprio usuário),
- * o CTA "Usar como foto de perfil" fica no rodapé (largura total).
+ * Visualizador de fotos (lightbox).
+ * CTA "Usar como foto de perfil" no rodapé quando `onSetAsProfilePhoto` é passado.
  */
 export function PhotoViewer({
   photos,
@@ -60,6 +71,9 @@ export function PhotoViewer({
   const touchStartX = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const enteredFullscreen = useRef(false);
+
+  const showProfileCta = typeof onSetAsProfilePhoto === "function";
+  const multi = photos.length > 1;
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -81,9 +95,7 @@ export function PhotoViewer({
           }
           enteredFullscreen.current = true;
         })
-        .catch(() => {
-          /* sem suporte — overlay normal */
-        });
+        .catch(() => {});
     }
     return () => {
       cancelled = true;
@@ -91,19 +103,15 @@ export function PhotoViewer({
     };
   }, []);
 
-  // Só fecha o viewer se nós tivermos entrado em fullscreen e o usuário saiu
-  // pelo controle nativo. Evita fechar logo ao abrir quando o browser recusa FS.
   useEffect(() => {
-    const onFullscreenChange = () => {
-      if (enteredFullscreen.current && !isDocumentFullscreen()) {
-        onClose();
-      }
+    const onFs = () => {
+      if (enteredFullscreen.current && !isDocumentFullscreen()) onClose();
     };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    document.addEventListener("fullscreenchange", onFs);
+    document.addEventListener("webkitfullscreenchange", onFs);
     return () => {
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+      document.removeEventListener("fullscreenchange", onFs);
+      document.removeEventListener("webkitfullscreenchange", onFs);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -121,12 +129,14 @@ export function PhotoViewer({
 
   const go = (dir: -1 | 1) => {
     setCurrentIndex((i) => {
-      const next = i + dir;
-      if (next < 0) return photos.length - 1;
-      if (next >= photos.length) return 0;
-      return next;
+      const n = i + dir;
+      if (n < 0) return photos.length - 1;
+      if (n >= photos.length) return 0;
+      return n;
     });
   };
+
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
   const handleSetProfile = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -135,80 +145,84 @@ export function PhotoViewer({
     onSetAsProfilePhoto(photos[currentIndex]);
   };
 
-  const showProfileCta = typeof onSetAsProfilePhoto === "function";
-
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] bg-black"
       role="dialog"
       aria-modal="true"
       aria-label="Visualizar fotos"
       onClick={onClose}
+      className="fixed inset-0 z-[100] bg-black"
     >
-      {/* Foto */}
+      {/* Imagem central */}
       <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          // Reserva espaço para barra superior + CTA inferior
-          paddingTop: 48,
-          paddingBottom: showProfileCta ? 96 : 56,
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className={
+          "absolute inset-0 flex items-center justify-center " +
+          (showProfileCta ? "pt-12 pb-24" : "pt-12 pb-14")
+        }
+        onClick={stop}
         onTouchStart={(e) => {
           touchStartX.current = e.changedTouches[0]?.clientX ?? null;
         }}
         onTouchEnd={(e) => {
-          if (touchStartX.current == null || photos.length < 2) return;
+          if (touchStartX.current == null || !multi) return;
           const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
           touchStartX.current = null;
           if (Math.abs(dx) < 50) return;
           go(dx > 0 ? -1 : 1);
         }}
       >
-        <img
+        <LazyImage
           key={photos[currentIndex]}
           src={photos[currentIndex]}
           alt={`Foto ${currentIndex + 1} de ${photos.length}`}
-          className="max-h-full max-w-full object-contain select-none"
-          style={{ maxHeight: "100%", maxWidth: "100%", width: "auto", height: "auto" }}
           draggable={false}
+          priority
+          skeleton={false}
+          className="max-h-full max-w-full select-none object-contain"
         />
+        {/* Pré-carrega anterior/próxima em background */}
+        {multi &&
+          [1, -1].map((dir) => {
+            const i = (currentIndex + dir + photos.length) % photos.length;
+            if (i === currentIndex) return null;
+            return (
+              <img
+                key={`preload-${i}`}
+                src={photos[i]}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                decoding="async"
+                className="pointer-events-none absolute h-0 w-0 opacity-0"
+              />
+            );
+          })}
       </div>
 
-      {/* ── Barra superior: contador + fechar ── */}
+      {/* Barra superior */}
       <div
-        className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3"
-        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
-        onClick={(e) => e.stopPropagation()}
+        className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+        onClick={stop}
       >
         <span className="rounded-full bg-black/55 px-3 py-1.5 text-sm font-semibold tabular-nums text-white/95 backdrop-blur-sm">
-          {photos.length > 1 ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
+          {multi ? `${currentIndex + 1} / ${photos.length}` : "Foto"}
         </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
-          aria-label="Fechar"
-        >
+        <button type="button" onClick={onClose} className={iconBtn} aria-label="Fechar">
           <X className="h-5 w-5" strokeWidth={2.5} />
         </button>
       </div>
 
-
       {/* Setas */}
-      {photos.length > 1 && (
+      {multi && (
         <>
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation();
+              stop(e);
               go(-1);
             }}
-            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white text-2xl hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
+            className={`${navBtn} left-2`}
             aria-label="Foto anterior"
           >
             ‹
@@ -216,10 +230,10 @@ export function PhotoViewer({
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation();
+              stop(e);
               go(1);
             }}
-            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white text-2xl hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors"
+            className={`${navBtn} right-2`}
             aria-label="Próxima foto"
           >
             ›
@@ -227,15 +241,15 @@ export function PhotoViewer({
         </>
       )}
 
-      {/* Pontinhos — acima do CTA inferior */}
-      {photos.length > 1 && photos.length <= 12 && (
+      {/* Indicadores */}
+      {multi && photos.length <= 12 && (
         <div
-          className="pointer-events-none absolute inset-x-0 z-20 flex justify-center gap-1.5"
-          style={{
-            bottom: showProfileCta
-              ? "max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem))"
-              : "max(1.5rem, env(safe-area-inset-bottom))",
-          }}
+          className={
+            "pointer-events-none absolute inset-x-0 z-20 flex justify-center gap-1.5 " +
+            (showProfileCta
+              ? "bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))]"
+              : "bottom-[max(1.5rem,env(safe-area-inset-bottom))]")
+          }
         >
           {photos.map((_, i) => (
             <button
@@ -243,31 +257,37 @@ export function PhotoViewer({
               type="button"
               aria-label={`Ir para foto ${i + 1}`}
               onClick={(e) => {
-                e.stopPropagation();
+                stop(e);
                 setCurrentIndex(i);
               }}
-              className={`pointer-events-auto h-1.5 rounded-full transition-all ${
-                i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35"
-              }`}
+              className={
+                "pointer-events-auto h-1.5 rounded-full transition-all " +
+                (i === currentIndex ? "w-5 bg-[#f7f75e]" : "w-1.5 bg-white/35")
+              }
             />
           ))}
         </div>
       )}
 
-      {/* ── CTA inferior (largura total, difícil de não ver) ── */}
+      {/* CTA — foto de perfil */}
       {showProfileCta && (
         <div
-          className="absolute inset-x-0 z-30 px-4"
-          style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
-          onClick={(e) => e.stopPropagation()}
+          className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 px-4"
+          onClick={stop}
         >
           <button
             type="button"
             disabled={setAsProfileLoading}
             onClick={handleSetProfile}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#f7f75e] px-4 py-3.5 text-base font-bold text-[#1A1A1A] shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-white/40 active:scale-[0.98] transition disabled:opacity-70"
+            onPointerDown={stop}
             aria-label="Usar como foto de perfil"
+            className={
+              "flex w-full items-center justify-center gap-2.5 rounded-2xl " +
+              "bg-[#f7f75e] px-4 py-3.5 text-base font-bold text-[#1A1A1A] " +
+              "shadow-lg ring-2 ring-white/40 " +
+              "transition active:scale-[0.98] " +
+              "disabled:pointer-events-none disabled:opacity-70"
+            }
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
               <User className="h-5 w-5" strokeWidth={2.5} />

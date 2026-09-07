@@ -7,9 +7,9 @@ export type LazyImageProps = Omit<
   React.ImgHTMLAttributes<HTMLImageElement>,
   "loading" | "decoding"
 > & {
-  /** Carrega imediatamente (above-the-fold / LCP) */
+  /** Carrega imediatamente (above-the-fold / LCP / lightbox atual) */
   priority?: boolean;
-  /** Placeholder cinza com pulse até carregar */
+  /** Placeholder com pulse até carregar (padrão: true) */
   skeleton?: boolean;
   /** Classe do wrapper quando skeleton=true */
   wrapperClassName?: string;
@@ -17,8 +17,8 @@ export type LazyImageProps = Omit<
 
 /**
  * Imagem com lazy loading nativo + fade-in.
- * - loading="lazy" / decoding="async" por padrão
- * - priority → eager + fetchPriority high (hero)
+ * - loading="lazy" + decoding="async" por padrão
+ * - priority → eager + fetchPriority high
  * - skeleton opcional enquanto baixa
  */
 export const LazyImage = memo(function LazyImage({
@@ -70,7 +70,9 @@ export const LazyImage = memo(function LazyImage({
       alt={alt}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
-      {...({ fetchPriority: priority ? "high" : "low" } as React.ImgHTMLAttributes<HTMLImageElement>)}
+      {...({
+        fetchPriority: priority ? "high" : "auto",
+      } as React.ImgHTMLAttributes<HTMLImageElement>)}
       onLoad={handleLoad}
       onError={handleError}
       className={cn(
@@ -86,10 +88,15 @@ export const LazyImage = memo(function LazyImage({
   if (!skeleton) return img;
 
   return (
-    <span className={cn("relative block max-w-full overflow-hidden", wrapperClassName)}>
+    <span
+      className={cn(
+        "relative block max-w-full overflow-hidden bg-black/[0.04]",
+        wrapperClassName
+      )}
+    >
       {!loaded && (
         <span
-          className="absolute inset-0 animate-pulse bg-muted/80 rounded-[inherit]"
+          className="absolute inset-0 animate-pulse bg-black/[0.06] rounded-[inherit]"
           aria-hidden
         />
       )}

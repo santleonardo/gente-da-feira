@@ -11,6 +11,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Camera, Loader2 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { PhotoViewer } from "./PhotoViewer";
+import { LazyImage } from "./LazyImage";
 
 interface ProfileHeroSliderProps {
   user: { id: string; display_name: string; avatar_url?: string | null };
@@ -76,12 +77,13 @@ export function ProfileHeroSlider({
           {current.isAvatar ? (
             <UserAvatar user={user} className="h-full w-full" />
           ) : (
-            <img
+            <LazyImage
               src={current.url || ""}
               alt=""
               className="h-full w-full object-cover"
-              loading="lazy"
-              decoding="async"
+              wrapperClassName="h-full w-full"
+              priority={clampedIndex === 0}
+              skeleton={false}
             />
           )}
 
