@@ -741,7 +741,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   <div className="relative inline-flex">
                     <UserAvatar
                       user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-[45vw] w-[45vw] max-h-[220px] max-w-[220px] ring-8 ring-[#F9F8F6] shadow-xl"
+                      className="h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] ring-8 ring-[#F9F8F6] shadow-xl"
                     />
                     {(isRestricted || isBlocked) && (
                       <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
