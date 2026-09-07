@@ -96,24 +96,37 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
 
     setUploadingPhoto(true);
     try {
-      // Upload da imagem para storage
+      // Upload da imagem para storage (pasta album-photos — adiciona, não substitui)
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folder", "album-photos");
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
       const uploadData = await uploadRes.json();
-      if (uploadData.error) { toast.error(uploadData.error); setUploadingPhoto(false); return; }
+      if (uploadData.error) {
+        toast.error(uploadData.error);
+        setUploadingPhoto(false);
+        if (photoInputRef.current) photoInputRef.current.value = "";
+        return;
+      }
 
-      // Salvar no banco
+      // Salvar no banco como NOVA linha (as fotos antigas permanecem)
       const saveRes = await fetch("/api/profile-photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: uploadData.url, storagePath: uploadData.path, caption: "" }),
+        body: JSON.stringify({
+          url: uploadData.url,
+          storagePath: uploadData.path,
+          caption: "",
+        }),
       });
       const saveData = await saveRes.json();
       if (saveData.photo) {
-        setPhotos((prev) => [saveData.photo, ...prev]);
-        toast.success("Foto adicionada!");
+        // Prepende sem remover as existentes
+        setPhotos((prev) => {
+          if (prev.some((p) => p.id === saveData.photo.id)) return prev;
+          return [saveData.photo, ...prev];
+        });
+        toast.success("Foto adicionada ao álbum!");
       } else {
         toast.error(saveData.error || "Erro ao salvar foto");
       }
@@ -121,7 +134,6 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       toast.error("Erro ao enviar foto");
     }
     setUploadingPhoto(false);
-    // Reset input
     if (photoInputRef.current) photoInputRef.current.value = "";
   };
 

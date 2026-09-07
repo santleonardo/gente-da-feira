@@ -2,7 +2,7 @@
 // API de fotos do perfil (galeria permanente)
 // SEC-009: privacy check for private profiles
 // REL-006: Delete atômico via rpc_delete_profile_photo
-// LIGHT / FREE: POST (criar) desabilitado no beta
+// POST: adiciona foto ao álbum (não substitui as existentes; limite MAX_ALBUM_PHOTOS)
 // PERF-002: paginação cursor-based (keyset), mesmo padrão de /api/posts
 //
 // Parâmetros GET:
@@ -22,6 +22,7 @@ import { isBlocked } from "@/lib/block-check";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { stripStoragePaths } from "@/lib/privacy-filter";
+import { validateMediaUrl, validateStoragePath, extractStoragePathFromUrl } from "@/lib/storage-security";
 import { safeErrorResponse } from "@/lib/safe-error";
 
 const DEFAULT_PAGE_SIZE = 24;
@@ -108,12 +109,114 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(_req: NextRequest) {
-  // Light / Supabase Free: álbum de fotos do perfil desabilitado no beta
-  return NextResponse.json(
-    { error: "Álbum de fotos do perfil está desabilitado nesta versão beta." },
-    { status: 403 }
-  );
+const MAX_ALBUM_PHOTOS = 20;
+
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+    const blocked = await rateLimitByRule(req, "photos:create", user.id);
+    if (blocked) return blocked;
+
+    const idemBlock = await idempotencyGate(req, user.id);
+    if (idemBlock) return idemBlock;
+
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Corpo inválido" }, { status: 400 });
+    }
+
+    const rawUrl = typeof body.url === "string" ? body.url.trim() : "";
+    const rawPath = typeof body.storagePath === "string" ? body.storagePath.trim() : "";
+    const captionRaw = typeof body.caption === "string" ? body.caption : "";
+    const caption =
+      captionRaw.replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 200) || null;
+
+    if (!rawUrl) {
+      return NextResponse.json({ error: "URL da foto é obrigatória" }, { status: 400 });
+    }
+
+    // Só aceita imagens do nosso storage, no bucket de fotos, com ownership do usuário
+    const cleanedUrl = validateMediaUrl(rawUrl, {
+      allowedBuckets: new Set(["post-photos", "post-images"]),
+      requireUserId: user.id,
+    });
+    if (!cleanedUrl) {
+      return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
+    }
+
+    // Path interno para deleção futura — validado ou derivado da URL
+    let storagePath: string | null = null;
+    if (rawPath) {
+      storagePath = validateStoragePath(rawPath, user.id);
+    }
+    if (!storagePath) {
+      const extracted = extractStoragePathFromUrl(cleanedUrl, new Set(["post-photos", "post-images"]));
+      if (extracted && extracted.path.startsWith(user.id + "/")) {
+        storagePath = extracted.path;
+      }
+    }
+
+    // Conta fotos atuais — adiciona, nunca substitui
+    const { count, error: countError } = await supabase
+      .from("profile_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if (countError) throw countError;
+
+    if ((count ?? 0) >= MAX_ALBUM_PHOTOS) {
+      return NextResponse.json(
+        {
+          error: `Limite de ${MAX_ALBUM_PHOTOS} fotos atingido. Remova uma para adicionar outra.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { data: photo, error: insertError } = await supabase
+      .from("profile_photos")
+      .insert({
+        user_id: user.id,
+        url: cleanedUrl,
+        storage_path: storagePath,
+        caption,
+      })
+      .select("id, user_id, url, caption, created_at")
+      .single();
+
+    if (insertError) {
+      console.error("[profile-photos POST] insert failed:", {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+      });
+      // Unique violation would mean schema only allows 1 photo — surface clearly
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          { error: "Não foi possível adicionar a foto (conflito no banco). Contate o suporte." },
+          { status: 409 }
+        );
+      }
+      throw insertError;
+    }
+
+    const formatted = {
+      ...photo,
+      reactions: [],
+      comment_count: 0,
+    };
+
+    const responseData = { photo: formatted };
+    await idempotencyStore(req, responseData);
+    return NextResponse.json(responseData);
+  } catch (error: any) {
+    await idempotencyFail(req);
+    const { message, status } = safeErrorResponse(error, 500, "[profile-photos POST]");
+    return NextResponse.json({ error: message }, { status });
+  }
 }
 
 // DELETE /api/profile-photos?id=xxx

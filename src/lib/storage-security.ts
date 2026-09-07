@@ -41,7 +41,7 @@ export const BUCKET_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
  * Impede path traversal via parâmetro `folder` do cliente.
  */
 export const UPLOAD_FOLDER_WHITELIST: Record<string, Set<string>> = {
-  "post-photos": new Set(["posts", "video-thumbs"]),
+  "post-photos": new Set(["posts", "video-thumbs", "album-photos"]),
   "post-videos": new Set(["posts"]),
   "post-audios": new Set(["posts", "chat", "album-audios", "rooms"]),
   "profile-videos": new Set(["album-videos"]),
