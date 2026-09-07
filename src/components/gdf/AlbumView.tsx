@@ -30,7 +30,7 @@ const MAX_VIDEO_DURATION = 30; // segundos
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 
 export function AlbumView({ embedded }: { embedded?: boolean }) {
-  const { profile, setProfileSubView } = useStore();
+  const { profile, setProfileSubView, updateProfile } = useStore();
 
   const [photos, setPhotos] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
@@ -48,6 +48,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
   const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [settingAvatar, setSettingAvatar] = useState(false);
 
   // Video player
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
@@ -288,6 +289,29 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
     const m = Math.floor(seconds / 60);
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+
+  const handleSetAsProfilePhoto = async (url: string) => {
+    if (!profile || settingAvatar) return;
+    setSettingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("userId", profile.id);
+      formData.append("imageUrl", url);
+      const res = await fetch("/api/users/avatar", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.avatar_url) {
+        updateProfile({ avatar_url: data.avatar_url });
+        toast.success("Foto de perfil atualizada!");
+      } else {
+        toast.error(data.error || "Não foi possível definir a foto de perfil");
+      }
+    } catch {
+      toast.error("Erro ao definir foto de perfil");
+    } finally {
+      setSettingAvatar(false);
+    }
   };
 
   if (!profile) return null;
@@ -636,6 +660,8 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
           photos={viewerPhotos}
           initialIndex={viewerIndex}
           onClose={() => setViewerOpen(false)}
+          onSetAsProfilePhoto={handleSetAsProfilePhoto}
+          setAsProfileLoading={settingAvatar}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { X, User } from "lucide-react";
 
 // ── Fullscreen API (com fallbacks de prefixo pra navegadores mais antigos) ──
 // Em iOS Safari a API não existe pra elementos comuns (só pra <video>), então
@@ -58,10 +58,15 @@ export function PhotoViewer({
   photos,
   initialIndex,
   onClose,
+  onSetAsProfilePhoto,
+  setAsProfileLoading = false,
 }: {
   photos: string[];
   initialIndex: number;
   onClose: () => void;
+  /** Quando informado, mostra botão "Usar como foto de perfil" no slide */
+  onSetAsProfilePhoto?: (url: string) => void;
+  setAsProfileLoading?: boolean;
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const touchStartX = useRef<number | null>(null);
@@ -224,18 +229,43 @@ export function PhotoViewer({
         </div>
       )}
 
-      {/* Fechar — canto inferior, longe do botão de fechar do perfil (que fica no topo) */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
-        aria-label="Fechar"
+      {/* Ações inferiores: definir como perfil + fechar */}
+      <div
+        className="absolute inset-x-0 z-10 flex items-center justify-between gap-2 px-3"
+        style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <X className="h-5 w-5" />
-      </button>
+        {onSetAsProfilePhoto ? (
+          <button
+            type="button"
+            disabled={setAsProfileLoading}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetAsProfilePhoto(photos[currentIndex]);
+            }}
+            className="flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-2.5 text-sm font-medium text-white backdrop-blur-sm hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg disabled:opacity-60 disabled:pointer-events-none"
+            aria-label="Usar como foto de perfil"
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">
+              {setAsProfileLoading ? "Definindo…" : "Foto de perfil"}
+            </span>
+          </button>
+        ) : (
+          <div />
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#f7f75e] hover:text-[#1A1A1A] transition-colors shadow-lg"
+          aria-label="Fechar"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -18,41 +18,87 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const imageUrl = (formData.get("imageUrl") as string | null)?.trim() || null;
     const userId = formData.get("userId") as string | null;
 
-    if (!file) return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
-    if (!userId || userId !== user.id) return NextResponse.json({ error: "ID do usuário inválido" }, { status: 400 });
-    if (file.size > 2 * 1024 * 1024) return NextResponse.json({ error: "Arquivo muito grande (máx 2MB)" }, { status: 400 });
+    if (!userId || userId !== user.id) {
+      return NextResponse.json({ error: "ID do usuário inválido" }, { status: 400 });
+    }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedTypes.includes(file.type)) return NextResponse.json({ error: "Tipo de arquivo não suportado (use JPG, PNG, WebP ou GIF)" }, { status: 400 });
+    let inputBuffer: Buffer;
+    let mimeType: string;
+
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        return NextResponse.json({ error: "Arquivo muito grande (máx 2MB)" }, { status: 400 });
+      }
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          { error: "Tipo de arquivo não suportado (use JPG, PNG, WebP ou GIF)" },
+          { status: 400 }
+        );
+      }
+      inputBuffer = Buffer.from(await file.arrayBuffer());
+      mimeType = file.type;
+    } else if (imageUrl) {
+      // Definir avatar a partir de uma foto já existente (álbum / post)
+      let parsed: URL;
+      try {
+        parsed = new URL(imageUrl);
+      } catch {
+        return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
+      }
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
+      }
+
+      const imgRes = await fetch(imageUrl, {
+        headers: { Accept: "image/*" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!imgRes.ok) {
+        return NextResponse.json({ error: "Não foi possível baixar a imagem" }, { status: 400 });
+      }
+      const contentType = (imgRes.headers.get("content-type") || "").split(";")[0].trim();
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      // Alguns CDNs não enviam content-type confiável — tentamos mesmo assim
+      const ab = await imgRes.arrayBuffer();
+      if (ab.byteLength > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: "Imagem muito grande (máx 5MB)" }, { status: 400 });
+      }
+      inputBuffer = Buffer.from(ab);
+      mimeType = allowedTypes.includes(contentType) ? contentType : "image/jpeg";
+    } else {
+      return NextResponse.json({ error: "Arquivo ou imageUrl não enviado" }, { status: 400 });
+    }
 
     const admin = createAdminClient();
 
     // Remove EXIF/GPS, corrige orientação e padroniza tamanho máximo de 512px
-    const inputBuffer = Buffer.from(await file.arrayBuffer());
     const { buffer: sanitizedBuffer, contentType, ext } = await sanitizeImage(
       inputBuffer,
-      file.type,
+      mimeType,
       { maxWidth: 512, maxHeight: 512 }
     );
 
     const path = `${userId}/avatar.${ext}`;
 
     // REL-006: Upload storage + update DB com compensação.
-    // 1. Upload para storage (pode falhar — retorna erro)
-    // 2. Update profile avatar_url (pode falhar — compensação: remove do storage)
-    const { error: uploadError } = await admin.storage.from("avatars").upload(path, sanitizedBuffer, { contentType, cacheControl: "31536000", upsert: true });
+    const { error: uploadError } = await admin.storage
+      .from("avatars")
+      .upload(path, sanitizedBuffer, { contentType, cacheControl: "31536000", upsert: true });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = admin.storage.from("avatars").getPublicUrl(path);
     const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-    const { error: updateError } = await admin.from("profiles").update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() }).eq("id", userId);
+    const { error: updateError } = await admin
+      .from("profiles")
+      .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+      .eq("id", userId);
 
     if (updateError) {
-      // REL-006: Compensação — remover do storage se DB falhou
-      // Previne arquivo órfão no storage sem referência no perfil
       console.error("[avatar-upload] DB update falhou, compensando storage:", updateError.message);
       admin.storage.from("avatars").remove([path]).catch(() => {});
       throw updateError;
