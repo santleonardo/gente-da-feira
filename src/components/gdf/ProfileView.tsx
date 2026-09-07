@@ -65,10 +65,7 @@ const SettingsView = dynamic(
   () => import("./SettingsView").then((m) => ({ default: m.SettingsView })),
   { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
 );
-const AlbumView = dynamic(
-  () => import("./AlbumView").then((m) => ({ default: m.AlbumView })),
-  { ssr: false, loading: () => <div className="h-40 rounded-xl bg-black/[0.04] animate-pulse" /> }
-);
+import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { createClient } from "@/lib/supabase/client";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -465,6 +462,9 @@ export function ProfileView() {
   const [uploading, setUploading] = useState(false);
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  // Fotos do álbum exibidas junto com a foto de perfil no slide do hero
+  // (a antiga aba "Fotografia" foi removida; as mídias agora aparecem aqui).
+  const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
 
   // ═══════ Follow list dialog state ═══════
   const [showFollowingDialog, setShowFollowingDialog] = useState(false);
@@ -473,7 +473,7 @@ export function ProfileView() {
   const [followListLoading, setFollowListLoading] = useState(false);
 
   // ═══════ Tab state ═══════
-  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "album" | "sobre">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "sobre">("posts");
 
   // ═══════ Composer state ═══════
   const [postStyle, setPostStyle] = useState<PostStyle>({
@@ -787,6 +787,14 @@ export function ProfileView() {
       .catch(() => {});
 
     fetchMyPosts();
+
+    // Fotos do álbum para o slide do hero (junto com a foto de perfil)
+    fetch(`/api/profile-photos?userId=${profile.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.photos)) setHeroPhotos(data.photos.map((p: any) => p.url));
+      })
+      .catch(() => {});
   }, [profile]);
 
   const fetchMyPosts = () => {
@@ -1215,17 +1223,14 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
-              <UserAvatar
+              <ProfileHeroSlider
                 user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                photos={heroPhotos}
+                editable
+                uploading={uploading}
+                onEditAvatar={() => avatarInputRef.current?.click()}
                 className="h-24 w-24 sm:h-28 sm:w-28 ring-[5px] ring-[#F9F8F6] shadow-md"
               />
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={uploading}
-                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
-              >
-                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-              </button>
               <input
                 ref={avatarInputRef}
                 type="file"
@@ -1322,7 +1327,6 @@ export function ProfileView() {
         <div className="flex gap-0 overflow-x-auto overscroll-x-contain custom-scrollbar -mx-0 px-1 sm:px-0 scrollbar-none" style={{WebkitOverflowScrolling: "touch"}}>
           {[
             { id: "posts" as const, label: "Entradas" },
-            { id: "album" as const, label: "Fotografia" },
             { id: "sobre" as const, label: "Sobre" },
             { id: "postar" as const, label: "Escrever" },
             { id: "config" as const, label: "Config" },
@@ -1478,11 +1482,6 @@ export function ProfileView() {
               </button>
             </div>
           )}
-        </div>
-
-        {/* ─── ABA: FOTOGRAFIA ─── */}
-        <div style={{ display: activeTab === "album" ? "block" : "none" }}>
-          <AlbumView />
         </div>
 
                 {/* ─── ABA: ESCREVER (composer) ─── */}

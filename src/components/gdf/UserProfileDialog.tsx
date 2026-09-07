@@ -5,8 +5,9 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Camera, Flag } from "lucide-react";
+import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, MoreVertical, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
@@ -220,21 +221,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [postsLoading, setPostsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "album" | "sobre">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "followers" | "following" | "sobre">("posts");
   const [followList, setFollowList] = useState<any[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
-  const [albumPhotos, setAlbumPhotos] = useState<any[]>([]);
-  const [albumVideos, setAlbumVideos] = useState<any[]>([]);
-  const [albumLoading, setAlbumLoading] = useState(false);
-  // PERF-002: paginação do álbum (fotos e vídeos têm cursores independentes)
-  const [albumLoadingMore, setAlbumLoadingMore] = useState(false);
-  const [photosCursor, setPhotosCursor] = useState<string | null>(null);
-  const [photosHasMore, setPhotosHasMore] = useState(false);
-  const [videosCursor, setVideosCursor] = useState<string | null>(null);
-  const [videosHasMore, setVideosHasMore] = useState(false);
-  const albumLoadMoreRef = useRef<HTMLDivElement | null>(null);
-  const albumLoadingMoreRefFlag = useRef(false);
+  // Fotos do álbum, exibidas junto com a foto de perfil no slide do hero
+  // (a antiga aba "Fotografia"/"Álbum" foi removida).
+  const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
   const [postsVisibleCount, setPostsVisibleCount] = useState(8);
 
   // Photo viewer state
@@ -289,12 +282,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setActiveTab("posts");
     setPostsVisibleCount(8);
     setUserPosts([]);
-    setAlbumPhotos([]);
-    setAlbumVideos([]);
-    setPhotosCursor(null);
-    setPhotosHasMore(false);
-    setVideosCursor(null);
-    setVideosHasMore(false);
+    setHeroPhotos([]);
     setFollowList([]);
     setViewerOpen(false);
 
@@ -370,35 +358,24 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     };
   }, [userId, open]);
 
-  // Álbum sob demanda — só quando a aba Fotografia é aberta
-  // PERF-002: primeira página apenas; o resto vem por scroll infinito (loadMoreAlbum)
+  // Fotos do álbum para o slide do hero (junto com a foto de perfil).
+  // Carregadas assim que o perfil abre — não dependem mais de uma aba.
   useEffect(() => {
-    if (!userId || !open || activeTab !== "album") return;
-    if (albumPhotos.length > 0 || albumVideos.length > 0) return;
+    if (!userId || !open) return;
 
     const ac = new AbortController();
     let cancelled = false;
-    setAlbumLoading(true);
 
     (async () => {
       try {
-        const [pRes, vRes] = await Promise.all([
-          fetch(`/api/profile-photos?userId=${userId}`, { signal: ac.signal }),
-          fetch(`/api/profile-videos?userId=${userId}`, { signal: ac.signal }),
-        ]);
+        const res = await fetch(`/api/profile-photos?userId=${userId}`, { signal: ac.signal });
         if (cancelled) return;
-        const [pData, vData] = await Promise.all([pRes.json(), vRes.json()]);
-        if (cancelled) return;
-        if (pData.photos) setAlbumPhotos(pData.photos);
-        setPhotosCursor(pData.nextCursor ?? null);
-        setPhotosHasMore(pData.hasMore ?? false);
-        if (vData.videos) setAlbumVideos(vData.videos);
-        setVideosCursor(vData.nextCursor ?? null);
-        setVideosHasMore(vData.hasMore ?? false);
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.photos)) {
+          setHeroPhotos(data.photos.map((p: any) => p.url));
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") return;
-      } finally {
-        if (!cancelled) setAlbumLoading(false);
       }
     })();
 
@@ -406,61 +383,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
       cancelled = true;
       ac.abort();
     };
-  }, [userId, open, activeTab, albumPhotos.length, albumVideos.length]);
-
-  // PERF-002: busca a próxima página de fotos e/ou vídeos (o que ainda tiver mais)
-  const loadMoreAlbum = useCallback(async () => {
-    if (!userId || albumLoadingMoreRefFlag.current) return;
-    if (!photosHasMore && !videosHasMore) return;
-    albumLoadingMoreRefFlag.current = true;
-    setAlbumLoadingMore(true);
-    try {
-      const requests: Promise<void>[] = [];
-      if (photosHasMore) {
-        requests.push(
-          fetch(`/api/profile-photos?userId=${userId}&cursor=${encodeURIComponent(photosCursor || "")}`)
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.photos) setAlbumPhotos((prev) => [...prev, ...data.photos]);
-              setPhotosCursor(data.nextCursor ?? null);
-              setPhotosHasMore(data.hasMore ?? false);
-            })
-        );
-      }
-      if (videosHasMore) {
-        requests.push(
-          fetch(`/api/profile-videos?userId=${userId}&cursor=${encodeURIComponent(videosCursor || "")}`)
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.videos) setAlbumVideos((prev) => [...prev, ...data.videos]);
-              setVideosCursor(data.nextCursor ?? null);
-              setVideosHasMore(data.hasMore ?? false);
-            })
-        );
-      }
-      await Promise.all(requests);
-    } catch {
-      /* silencioso — tenta de novo no próximo scroll */
-    } finally {
-      albumLoadingMoreRefFlag.current = false;
-      setAlbumLoadingMore(false);
-    }
-  }, [userId, photosHasMore, videosHasMore, photosCursor, videosCursor]);
-
-  // Scroll infinito do álbum — carrega mais ao aproximar do fim da lista
-  useEffect(() => {
-    if (activeTab !== "album") return;
-    const el = albumLoadMoreRef.current;
-    if (!el || (!photosHasMore && !videosHasMore)) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMoreAlbum();
-      },
-      { rootMargin: typeof window !== "undefined" && window.innerWidth < 640 ? "200px 0px" : "400px 0px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [activeTab, photosHasMore, videosHasMore, loadMoreAlbum]);
+  }, [userId, open]);
 
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
@@ -550,16 +473,15 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const canSeeFollowers = isOwnProfile || !privacyInfo.hide_followers;
   const canSeeNeighborhood = isOwnProfile || !privacyInfo.hide_neighborhood;
 
-  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "album" | "sobre"; label: string }> = [
+  const visibleTabs: Array<{ id: "posts" | "followers" | "following" | "sobre"; label: string }> = [
     { id: "posts", label: "Posts" },
     { id: "sobre", label: "Sobre" },
   ];
   if (canSeeFollowers) visibleTabs.push({ id: "followers", label: "Seguidores" });
   if (canSeeFollowing) visibleTabs.push({ id: "following", label: "Seguindo" });
-  visibleTabs.push({ id: "album", label: "Álbum" });
 
   useEffect(() => {
-    if (activeTab !== "posts" && activeTab !== "album" && activeTab !== "sobre" && !visibleTabs.find(t => t.id === activeTab)) setActiveTab("posts");
+    if (activeTab !== "posts" && activeTab !== "sobre" && !visibleTabs.find(t => t.id === activeTab)) setActiveTab("posts");
   }, [canSeeFollowers, canSeeFollowing]);
 
   const renderFollowButton = () => {
@@ -738,17 +660,18 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-5 flex justify-center">
-                  <div className="relative inline-flex">
-                    <UserAvatar
-                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] ring-8 ring-[#F9F8F6] shadow-xl"
-                    />
-                    {(isRestricted || isBlocked) && (
-                      <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                        <Lock className="h-4 w-4" />
-                      </div>
-                    )}
-                  </div>
+                  <ProfileHeroSlider
+                    user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                    photos={isRestricted ? [] : heroPhotos}
+                    className="h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] ring-8 ring-[#F9F8F6] shadow-xl"
+                    overlay={
+                      (isRestricted || isBlocked) && (
+                        <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                          <Lock className="h-4 w-4" />
+                        </div>
+                      )
+                    }
+                  />
                 </div>
 
                 <p className="mt-4 text-sm text-[#4A4A4A]">
@@ -815,17 +738,18 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="relative">
-                    <UserAvatar
-                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-20 w-20 sm:h-24 sm:w-24 ring-[5px] ring-[#F9F8F6] shadow-md"
-                    />
-                    {(isRestricted || isBlocked) && (
-                      <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                        <Lock className="h-3.5 w-3.5" />
-                      </div>
-                    )}
-                  </div>
+                  <ProfileHeroSlider
+                    user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                    photos={isRestricted ? [] : heroPhotos}
+                    className="h-20 w-20 sm:h-24 sm:w-24 ring-[5px] ring-[#F9F8F6] shadow-md"
+                    overlay={
+                      (isRestricted || isBlocked) && (
+                        <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                          <Lock className="h-3.5 w-3.5" />
+                        </div>
+                      )
+                    }
+                  />
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 sm:gap-2 pb-1 flex-wrap justify-end max-w-[55%]">
@@ -960,7 +884,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             ? "text-[#1A1A1A]"
                             : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
                       >
-                        {tab.id === "posts" ? "Entradas" : tab.id === "album" ? "Fotografia" : tab.id === "sobre" ? "Sobre" : tab.label}
+                        {tab.id === "posts" ? "Entradas" : tab.id === "sobre" ? "Sobre" : tab.label}
                         {activeTab === tab.id && (
                           <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D96C4A] rounded-full" />
                         )}
@@ -1274,83 +1198,6 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             </div>
                           </button>
                         ))}
-                      </div>
-                    )
-                  )}
-
-                  {/* Álbum / Fotografia */}
-                  {activeTab === "album" && (
-                    albumLoading ? (
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[1, 2, 3, 4, 5, 6].map((i) => (
-                          <div key={i} className="aspect-square rounded-sm bg-black/5 animate-pulse" />
-                        ))}
-                      </div>
-                    ) : albumPhotos.length === 0 && albumVideos.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <Camera className="h-8 w-8 text-black/10 mx-auto mb-2" />
-                        <p className="text-sm text-[#4A4A4A]/60">Nenhuma foto ou vídeo no álbum</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {albumPhotos.length > 0 && (
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
-                              Fotos ({albumPhotos.length})
-                            </p>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {albumPhotos.map((photo: any) => (
-                                <button
-                                  key={photo.id}
-                                  className="aspect-square overflow-hidden rounded-sm bg-black/5 group"
-                                  onClick={() =>
-                                    openPhotoViewer(
-                                      albumPhotos.map((p: any) => p.url),
-                                      albumPhotos.findIndex((p: any) => p.id === photo.id)
-                                    )
-                                  }
-                                >
-                                  <img
-                                    src={photo.url}
-                                    alt=""
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    loading="lazy"
-                                    decoding="async"
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {albumVideos.length > 0 && (
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-3">
-                              Vídeos ({albumVideos.length})
-                            </p>
-                            <div className="space-y-2">
-                              {albumVideos.map((video: any) => (
-                                <div key={video.id} className="relative rounded-sm overflow-hidden bg-black">
-                                  <video
-                                    src={video.url}
-                                    className="w-full max-h-48 object-contain"
-                                    playsInline
-                                    preload="metadata"
-                                    controls
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Sentinela do scroll infinito — dispara loadMoreAlbum ao entrar na viewport */}
-                        {(photosHasMore || videosHasMore) && (
-                          <div ref={albumLoadMoreRef} className="flex justify-center py-4">
-                            {albumLoadingMore && (
-                              <Loader2 className="h-5 w-5 animate-spin text-[#4A4A4A]/40" />
-                            )}
-                          </div>
-                        )}
                       </div>
                     )
                   )}
