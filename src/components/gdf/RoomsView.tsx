@@ -3105,81 +3105,159 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Gravação de áudio com overlay ═══════
-  const startAudioRecording = async () => {
-    setAttachMenuOpen(false);
+  /**
+   * CRÍTICO (Safari/iOS): getUserMedia DEVE ser invocado de forma síncrona
+   * no mesmo call stack do clique — sem setState/await antes.
+   */
+  const startAudioRecording = () => {
+    if (isRecordingAudio || mediaRecorderRef.current) return;
 
-    // Sem suporte no navegador (ex.: contexto não-seguro/HTTP, ou API ausente)
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      toast.error("Microfone só funciona em HTTPS (ou localhost).");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error("Este navegador não expõe o microfone. Abra no Chrome/Safari (não no app embutido).");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
       toast.error("Gravação de áudio não é suportada neste navegador.");
       return;
     }
 
+    // 1) Invoca getUserMedia AGORA (gesto do usuário ainda ativo)
+    let streamPromise: Promise<MediaStream>;
     try {
-      // Alguns navegadores in-app (Instagram/WhatsApp/TikTok webview) nunca
-      // resolvem nem rejeitam getUserMedia — sem timeout, o clique "trava"
-      // sem nenhum feedback. Forçamos um limite de tempo explícito.
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: true }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("getUserMedia_timeout")), 8000)
-        ),
-      ]);
-      mediaStreamRef.current = stream;
+      streamPromise = navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    } catch (err: any) {
+      console.error("[getUserMedia sync]", err);
+      toast.error("Não foi possível iniciar o microfone.");
+      return;
+    }
 
-      let mimeType = "audio/webm";
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/webm;codecs=opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/mp4";
+    const timed = Promise.race([
+      streamPromise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("getUserMedia_timeout")), 12000)
+      ),
+    ]);
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+    setAttachMenuOpen(false);
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
+    timed
+      .then((stream) => {
+        mediaStreamRef.current = stream;
 
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.includes("mp4") ? "m4a" : "webm";
-        const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: mimeType });
+        const candidates = [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/aac",
+          "audio/ogg;codecs=opus",
+        ];
+        let mimeType: string | undefined;
+        for (const c of candidates) {
+          try {
+            if (MediaRecorder.isTypeSupported(c)) {
+              mimeType = c;
+              break;
+            }
+          } catch {
+            /* ignore */
+          }
+        }
 
+        let mediaRecorder: MediaRecorder;
+        try {
+          mediaRecorder = mimeType
+            ? new MediaRecorder(stream, { mimeType })
+            : new MediaRecorder(stream);
+        } catch {
+          mediaRecorder = new MediaRecorder(stream);
+        }
+        const effectiveMime = (mediaRecorder.mimeType || mimeType || "audio/webm").split(";")[0];
+
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+        mediaRecorder.onerror = () => {
+          toast.error("Erro na gravação.");
+          cancelAudioRecording();
+        };
+        mediaRecorder.onstop = () => {
+          try {
+            const blob = new Blob(audioChunksRef.current, { type: effectiveMime });
+            const isMp4 = /mp4|aac|m4a/i.test(effectiveMime);
+            const ext = isMp4 ? "m4a" : effectiveMime.includes("ogg") ? "ogg" : "webm";
+            const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: effectiveMime });
+
+            if (mediaStreamRef.current) {
+              mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+              mediaStreamRef.current = null;
+            }
+            mediaRecorderRef.current = null;
+            setIsRecordingAudio(false);
+            setIsPausedRecording(false);
+
+            if (blob.size < 256) {
+              toast.error("Áudio muito curto. Grave pelo menos 1 segundo.");
+              return;
+            }
+            openMediaPreview(file, "audio");
+          } catch (e) {
+            console.error("[audio onstop]", e);
+            toast.error("Falha ao processar o áudio.");
+            setIsRecordingAudio(false);
+          }
+        };
+
+        mediaRecorder.start(200);
+        setIsRecordingAudio(true);
+        setIsPausedRecording(false);
+        setRecordingSeconds(0);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingSeconds((prev) =>
+            prev + 1 >= MAX_AUDIO_DURATION ? MAX_AUDIO_DURATION : prev + 1
+          );
+        }, 1000);
+      })
+      .catch((err: any) => {
+        console.error("[startAudioRecording]", err);
         if (mediaStreamRef.current) {
           mediaStreamRef.current.getTracks().forEach((t) => t.stop());
           mediaStreamRef.current = null;
         }
         mediaRecorderRef.current = null;
-
         setIsRecordingAudio(false);
-        setIsPausedRecording(false);
-        openMediaPreview(file, "audio");
-      };
 
-      mediaRecorder.start(1000);
-      setIsRecordingAudio(true);
-      setRecordingSeconds(0);
-
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => {
-          if (prev + 1 >= MAX_AUDIO_DURATION) {
-            return MAX_AUDIO_DURATION;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    } catch (err: any) {
-      console.error("[startAudioRecording]", err);
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-        mediaStreamRef.current = null;
-      }
-      if (err?.message === "getUserMedia_timeout") {
-        toast.error(
-          "Não foi possível acessar o microfone. Se você abriu este link dentro de outro app (Instagram, WhatsApp, TikTok), abra no navegador (Safari/Chrome) e tente de novo."
-        );
-      } else {
-        toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
-      }
-    }
+        const name = err?.name || "";
+        const msg = String(err?.message || "");
+        if (msg === "getUserMedia_timeout") {
+          toast.error(
+            "Microfone não respondeu. Use Chrome/Safari fora do Instagram/WhatsApp e permita o microfone."
+          );
+        } else if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+          toast.error("Permissão de microfone negada. Libere nas configurações do site.");
+        } else if (name === "NotFoundError") {
+          toast.error("Nenhum microfone encontrado.");
+        } else if (name === "NotReadableError") {
+          toast.error("Microfone em uso por outro app.");
+        } else if (name === "SecurityError") {
+          toast.error("Microfone bloqueado — use HTTPS.");
+        } else {
+          toast.error("Não foi possível acessar o microfone.");
+        }
+      });
   };
 
   const stopAudioRecording = () => {
@@ -3187,8 +3265,31 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    const rec = mediaRecorderRef.current;
+    if (!rec || rec.state === "inactive") return;
+    try {
+      if (rec.state === "paused") {
+        try {
+          rec.resume();
+        } catch {
+          /* ignore */
+        }
+      }
+      try {
+        rec.requestData();
+      } catch {
+        /* ignore */
+      }
+      rec.stop();
+    } catch (e) {
+      console.error("[stopAudioRecording]", e);
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      setIsRecordingAudio(false);
+      setIsPausedRecording(false);
     }
   };
 
@@ -4140,6 +4241,21 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
 
             {!sendingMedia && (
               <div className="flex items-end gap-1.5 sm:gap-2 max-w-3xl mx-auto w-full min-w-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startAudioRecording();
+                  }}
+                  disabled={isRecordingAudio || sendingMedia}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A] transition-colors disabled:opacity-40 self-end"
+                  title="Gravar áudio"
+                  aria-label="Gravar áudio"
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+
                 {/* Anexar — abre action sheet */}
                 <div className="relative self-end" ref={attachMenuRef}>
                   <button
@@ -4353,8 +4469,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 <button
                   key={item.label}
                   type="button"
-                  onClick={() => {
-                    setAttachMenuOpen(false);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     item.action();
                   }}
                   className="flex flex-col items-center gap-2 rounded-2xl bg-[#EFEDE8]/50 py-4 px-2 active:scale-95 transition-transform hover:bg-[#1A1A1A]/[0.05]"
