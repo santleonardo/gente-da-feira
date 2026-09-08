@@ -7,6 +7,7 @@ import { safeErrorResponse } from "@/lib/safe-error";
 import { validateText } from "@/lib/text-validation";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
+import { sanitizePostStyle, isMeaningfulPostStyle } from "@/lib/post-style";
 
 // SEC-009: Author profile columns with neighborhood (filtered post-query)
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -139,14 +140,14 @@ export async function PATCH(
       }
     }
 
-    // Light: estilos / post-it / rich desabilitados — ignora postStyle do client
     const updateData: Record<string, any> = {};
     if (content !== undefined) {
       updateData.content = sanitizeRichContent(content?.trim() || "");
     }
-    // Se o client mandar postStyle, força null (não aceita estilos novos)
+    // Aceita estilos com whitelist (ALLOWED_POST_FONTS)
     if (postStyle !== undefined) {
-      updateData.post_style = null;
+      const sanitizedStyle = sanitizePostStyle(postStyle);
+      updateData.post_style = isMeaningfulPostStyle(sanitizedStyle) ? sanitizedStyle : null;
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -28,6 +28,7 @@ import {
 } from "@/lib/privacy-filter";
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
+import { sanitizePostStyle, isMeaningfulPostStyle } from "@/lib/post-style";
 import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
@@ -302,7 +303,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: textCheck.error }, { status: 400 });
     }
 
-    // Light: posts rich / post-it / estilos desabilitados (post_style sempre null)
+    // Estilos do editor — whitelist em sanitizePostStyle (ALLOWED_POST_FONTS)
+    const sanitizedStyle = sanitizePostStyle(postStyle);
+    const styleToStore = isMeaningfulPostStyle(sanitizedStyle) ? sanitizedStyle : null;
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
     let expiresAt: string | null = null;
@@ -367,7 +370,7 @@ export async function POST(req: NextRequest) {
       visibility: validVisibility,
       expires_at: expiresAt,
       shared_post_id: validSharedPostId,
-      post_style: null,
+      post_style: styleToStore,
       post_type: "simple",
     };
 
