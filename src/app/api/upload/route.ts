@@ -17,6 +17,8 @@ import {
   MAX_VIDEO_THUMB_BYTES,
   STORAGE_FEED_MAX_BYTES,
   STORAGE_ALBUM_MAX_BYTES,
+  FEED_COMPRESS,
+  ALBUM_COMPRESS,
 } from "@/lib/upload-limits";
 
 const ALLOWED_IMAGE_TYPES = [
@@ -98,17 +100,21 @@ export async function POST(req: NextRequest) {
           }
         : isFeedPhoto
           ? {
-              maxWidth: 1280,
-              maxHeight: 1280,
+              maxWidth: FEED_COMPRESS.maxWidth,
+              maxHeight: FEED_COMPRESS.maxHeight,
               preferWebP: true,
+              // Feed: WebP prioritário (CPU); AVIF só se cliente já enviou avif
               preferAvif: false,
-              quality: 78,
+              quality: Math.round(FEED_COMPRESS.quality * 100),
               maxBytes: STORAGE_FEED_MAX_BYTES,
             }
           : {
+              maxWidth: ALBUM_COMPRESS.maxWidth,
+              maxHeight: ALBUM_COMPRESS.maxHeight,
               preferWebP: true,
-              preferAvif: false,
-              quality: 80,
+              // Álbum permanente: compara WebP vs AVIF e guarda o menor
+              preferAvif: true,
+              quality: Math.round(ALBUM_COMPRESS.quality * 100),
               maxBytes: STORAGE_ALBUM_MAX_BYTES,
             }
     );
