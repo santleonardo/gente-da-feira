@@ -60,7 +60,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
     }
 
-    let isValidType = ALLOWED_TYPES.includes(file.type);
+    // MediaRecorder pode enviar "audio/webm;codecs=opus" — normaliza base type
+    const baseType = (file.type || "").split(";")[0].trim().toLowerCase();
+    let isValidType =
+      (!!file.type && (ALLOWED_TYPES.includes(file.type) || ALLOWED_TYPES.includes(baseType)));
+
     if (!isValidType) {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       isValidType = ALLOWED_EXTENSIONS.includes(ext);
@@ -84,7 +88,9 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
     const buffer = Buffer.from(await file.arrayBuffer());
-    const contentType = file.type || `audio/${ext === "mp3" ? "mpeg" : ext}`;
+    const contentType =
+      (file.type || "").split(";")[0].trim() ||
+      `audio/${ext === "mp3" ? "mpeg" : ext === "m4a" ? "mp4" : ext}`;
 
     const { error } = await admin.storage.from("post-audios").upload(path, buffer, {
       contentType,
