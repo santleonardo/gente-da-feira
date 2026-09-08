@@ -682,6 +682,42 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync edits/deletes from PostDetailDialog and posts created from Perfil → Escrever
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const post = (e as CustomEvent).detail?.post;
+      if (!post?.id) return;
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id
+            ? { ...p, ...post, comment_count: post.comment_count ?? p.comment_count }
+            : p
+        )
+      );
+    };
+    const onDeleted = (e: Event) => {
+      const postId = (e as CustomEvent).detail?.postId;
+      if (!postId) return;
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    };
+    const onCreated = (e: Event) => {
+      const post = (e as CustomEvent).detail?.post;
+      if (!post?.id) return;
+      setPosts((prev) => {
+        if (prev.some((p) => p.id === post.id)) return prev;
+        return [{ ...post, comment_count: post.comment_count || 0 }, ...prev];
+      });
+    };
+    window.addEventListener("postUpdated", onUpdated);
+    window.addEventListener("postDeleted", onDeleted);
+    window.addEventListener("postCreated", onCreated);
+    return () => {
+      window.removeEventListener("postUpdated", onUpdated);
+      window.removeEventListener("postDeleted", onDeleted);
+      window.removeEventListener("postCreated", onCreated);
+    };
+  }, []);
+
   // Página menor = 1º paint mais rápido; scroll infinito completa o resto
   const FEED_PAGE_SIZE = 12;
   const loadMoreRef = useRef<HTMLDivElement | null>(null);

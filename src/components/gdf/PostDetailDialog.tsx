@@ -25,6 +25,8 @@ import {
   Globe,
   Pencil,
   Flag,
+  Bold,
+  Italic,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -541,10 +543,12 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const [viewerOpen, setViewerOpen] = useState(false);
   const [expirationLabel, setExpirationLabel] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState("");
+  const [editContent, setEditContent] = useState(""); // plain text for length / empty checks
   const [wasEdited, setWasEdited] = useState(false);
+  const [editActiveFormats, setEditActiveFormats] = useState({ bold: false, italic: false });
   const commentInputRef = useRef<HTMLInputElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
+  const editEditorRef = useRef<HTMLDivElement>(null);
 
   // Sync post prop to local state
   useEffect(() => {
@@ -593,8 +597,36 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
       setIsEditing(false);
       setEditContent("");
       setWasEdited(false);
+      setEditActiveFormats({ bold: false, italic: false });
+      if (editEditorRef.current) editEditorRef.current.innerHTML = "";
     }
   }, [open]);
+
+  // When entering edit mode, seed contentEditable with existing HTML (or plain text)
+  useEffect(() => {
+    if (!isEditing || !editEditorRef.current) return;
+    const raw = localPost?.content || "";
+    if (isHTMLContent(raw)) {
+      editEditorRef.current.innerHTML = sanitizeHTMLSync(raw);
+    } else {
+      editEditorRef.current.innerHTML = raw
+        ? raw
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br>")
+        : "";
+    }
+    setEditContent(editEditorRef.current.innerText || "");
+    const el = editEditorRef.current;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, [isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const navigateToProfile = (uid: string) => {
     onOpenChange(false);
@@ -682,23 +714,76 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     setIsEditing(true);
   };
 
+  /** Build content to send: keep HTML when the editor has formatting; plain text otherwise. */
+  const getEditPayloadContent = (): string => {
+    const el = editEditorRef.current;
+    if (!el) return editContent.trim();
+    const html = (el.innerHTML || "").trim();
+    const plain = (el.innerText || "").trim();
+    if (!plain) return "";
+    const looksRich = /<(h[1-6]|b|strong|i|em|u|ul|ol|li|blockquote|p|div|br|a|hr)\b/i.test(html);
+    return looksRich ? html : plain;
+  };
+
+  const syncEditPlainFromEditor = () => {
+    if (!editEditorRef.current) return;
+    const plain = editEditorRef.current.innerText || "";
+    setEditContent(plain.slice(0, TEXT_LIMITS.post + 50));
+    setEditActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+    });
+  };
+
+  const handleEditBold = () => {
+    document.execCommand("bold");
+    editEditorRef.current?.focus();
+    syncEditPlainFromEditor();
+  };
+
+  const handleEditItalic = () => {
+    document.execCommand("italic");
+    editEditorRef.current?.focus();
+    syncEditPlainFromEditor();
+  };
+
   const handleSaveEdit = async () => {
-    // Permite conteúdo vazio se o post tem mídia
-    const hasMedia = (localPost?.image_urls && localPost.image_urls.length > 0) || !!localPost?.video_url || !!localPost?.audio_url;
+    const hasMedia =
+      (localPost?.image_urls && localPost.image_urls.length > 0) ||
+      !!localPost?.video_url ||
+      !!localPost?.audio_url;
     if (!localPost) return;
-    if (!editContent.trim() && !hasMedia) return;
+
+    const payloadContent = getEditPayloadContent();
+    const plain = (editEditorRef.current?.innerText || editContent || "").trim();
+    if (!plain && !hasMedia) return;
+
+    const textCheck = validateText(plain, "post", { hasMedia });
+    if (!textCheck.ok) {
+      toast.error(textCheck.error || "Texto inválido");
+      return;
+    }
+
     try {
       const res = await fetch(`/api/posts/${localPost.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: editContent.trim() }),
+        body: JSON.stringify({ content: payloadContent }),
       });
       const data = await res.json();
       if (data.post) {
-        setLocalPost({ ...localPost, content: editContent.trim() || "" });
+        const updated = {
+          ...localPost,
+          ...data.post,
+          content: data.post.content ?? payloadContent,
+        };
+        setLocalPost(updated);
         setIsEditing(false);
         setWasEdited(true);
         toast.success("Post editado");
+        window.dispatchEvent(
+          new CustomEvent("postUpdated", { detail: { post: updated } })
+        );
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -710,6 +795,8 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditContent("");
+    setEditActiveFormats({ bold: false, italic: false });
+    if (editEditorRef.current) editEditorRef.current.innerHTML = "";
   };
 
   const handleDelete = async () => {
@@ -717,8 +804,13 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     try {
       await fetch(`/api/posts?id=${localPost.id}`, { method: "DELETE" });
       toast.success("Post excluído");
+      window.dispatchEvent(
+        new CustomEvent("postDeleted", { detail: { postId: localPost.id } })
+      );
       onOpenChange(false);
-    } catch { toast.error("Erro ao excluir"); }
+    } catch {
+      toast.error("Erro ao excluir");
+    }
   };
 
   const handleRepost = async (repostPost: PostWithAuthor) => {
@@ -836,18 +928,90 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                   {/* Content with clickable links and mentions */}
                   {isEditing ? (
                     <div className="mt-1.5">
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value.slice(0, 500))}
-                        className="w-full resize-none rounded-xl border border-primary/20 bg-white/80 p-2.5 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#0A4D5C]/30"
-                        rows={3}
-                        autoFocus
+                      <div className="mb-1.5 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={handleEditBold}
+                          className={`rounded-lg p-1.5 transition-colors ${
+                            editActiveFormats.bold
+                              ? "bg-primary/15 text-primary"
+                              : "text-primary/50 hover:bg-primary/[0.06]"
+                          }`}
+                          title="Negrito"
+                          aria-label="Negrito"
+                        >
+                          <Bold className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={handleEditItalic}
+                          className={`rounded-lg p-1.5 transition-colors ${
+                            editActiveFormats.italic
+                              ? "bg-primary/15 text-primary"
+                              : "text-primary/50 hover:bg-primary/[0.06]"
+                          }`}
+                          title="Itálico"
+                          aria-label="Itálico"
+                        >
+                          <Italic className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div
+                        ref={editEditorRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        role="textbox"
+                        aria-multiline="true"
+                        aria-label="Editar post"
+                        className="post-content editor-content min-h-[72px] max-h-[240px] overflow-y-auto w-full rounded-xl border border-primary/20 bg-white/80 p-2.5 text-sm leading-relaxed text-card-foreground outline-none focus:ring-1 focus:ring-[#0A4D5C]/30 empty:before:content-[attr(data-placeholder)] empty:before:text-primary/35 empty:before:pointer-events-none"
+                        data-placeholder="Edite seu post…"
+                        onInput={syncEditPlainFromEditor}
+                        onKeyUp={syncEditPlainFromEditor}
+                        onMouseUp={syncEditPlainFromEditor}
+                        onPaste={(e) => {
+                          const pasted = e.clipboardData?.getData("text/plain");
+                          if (pasted == null) return;
+                          e.preventDefault();
+                          document.execCommand("insertText", false, pasted);
+                          syncEditPlainFromEditor();
+                        }}
                       />
                       <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-[10px] text-primary/40">{editContent.length}/500</span>
+                        <span
+                          className={`text-[10px] ${
+                            editContent.trim().length > TEXT_LIMITS.post
+                              ? "text-red-500"
+                              : "text-primary/40"
+                          }`}
+                        >
+                          {editContent.trim().length}/{TEXT_LIMITS.post}
+                        </span>
                         <div className="flex gap-1.5">
-                          <button onClick={handleCancelEdit} className="rounded-full px-3 py-1 text-xs text-primary/50 hover:bg-primary/[0.04] transition-colors">Cancelar</button>
-                          <button onClick={handleSaveEdit} disabled={!editContent.trim() && !((localPost?.image_urls && localPost.image_urls.length > 0) || localPost?.video_url || localPost?.audio_url)} className="rounded-full px-3 py-1 text-xs bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40">Salvar</button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="rounded-full px-3 py-1 text-xs text-primary/50 hover:bg-primary/[0.04] transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveEdit}
+                            disabled={
+                              (editContent.trim().length > TEXT_LIMITS.post) ||
+                              (!editContent.trim() &&
+                                !(
+                                  (localPost?.image_urls && localPost.image_urls.length > 0) ||
+                                  localPost?.video_url ||
+                                  localPost?.audio_url
+                                ))
+                            }
+                            className="rounded-full px-3 py-1 text-xs bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40"
+                          >
+                            Salvar
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -915,8 +1079,8 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     </>
                   )}
 
-                  {/* Caption — text below media for media posts */}
-                  {!isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
+                  {/* Caption — text below media for media posts (hidden while editing) */}
+                  {!isEditing && !isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
                     <div className="px-1 sm:px-1.5 mt-2">
                       <FormattedContent
                         className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"

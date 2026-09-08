@@ -826,6 +826,26 @@ export function ProfileView() {
       .catch(() => {});
   };
 
+  // Sync edits/deletes made in PostDetailDialog into "Meus posts"
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const post = (e as CustomEvent).detail?.post;
+      if (!post?.id) return;
+      setMyPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...post } : p)));
+    };
+    const onDeleted = (e: Event) => {
+      const postId = (e as CustomEvent).detail?.postId;
+      if (!postId) return;
+      setMyPosts((prev) => prev.filter((p) => p.id !== postId));
+    };
+    window.addEventListener("postUpdated", onUpdated);
+    window.addEventListener("postDeleted", onDeleted);
+    return () => {
+      window.removeEventListener("postUpdated", onUpdated);
+      window.removeEventListener("postDeleted", onDeleted);
+    };
+  }, []);
+
   // Abre uma sala listada em "Salas criadas" (mesmo objeto de /api/rooms,
   // já com isMember/canJoin — no próprio perfil isso normalmente é o
   // criador, então abre o chat direto).
@@ -1239,6 +1259,9 @@ export function ProfileView() {
         toast.success("Post publicado!");
         fetchMyPosts();
         setActiveTab("posts");
+        window.dispatchEvent(
+          new CustomEvent("postCreated", { detail: { post: data.post } })
+        );
       } else if (data.error) {
         toast.error(data.error);
       }
