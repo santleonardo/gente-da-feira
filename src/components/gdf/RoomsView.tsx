@@ -53,6 +53,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { compressImageForChat, getExtensionForBlob } from "@/lib/image-compression";
+import {
+  BULLETIN_CATEGORIES,
+  BULLETIN_CATEGORY_META,
+  type BulletinCategory,
+} from "@/lib/bulletin-categories";
 
 const ROOM_ICONS = [
   "💬", "🏠", "🎮", "⚽", "🎵", "📸", "🎬", "📚",
@@ -2097,6 +2102,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [bulletinLinksDraft, setBulletinLinksDraft] = useState<
     { url: string; label: string }[]
   >([]);
+  const [bulletinCategoryDraft, setBulletinCategoryDraft] = useState<BulletinCategory | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Mídia no chat ──
@@ -2511,6 +2517,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           has_password: data.room.has_password,
           bulletin: data.room.bulletin ?? currentRoom.bulletin ?? null,
           bulletin_links: data.room.bulletin_links ?? currentRoom.bulletin_links ?? [],
+          bulletin_category: data.room.bulletin_category ?? currentRoom.bulletin_category ?? null,
         };
         // Evita re-render em loop se nada mudou
         const same =
@@ -2521,6 +2528,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           currentRoom.memberCount === updated.memberCount &&
           currentRoom.has_password === updated.has_password &&
           (currentRoom.bulletin ?? null) === (updated.bulletin ?? null) &&
+          (currentRoom.bulletin_category ?? null) === (updated.bulletin_category ?? null) &&
           JSON.stringify(currentRoom.bulletin_links ?? []) === JSON.stringify(updated.bulletin_links ?? []);
         if (!same) setSelectedRoom(updated);
       }
@@ -3548,7 +3556,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 >
                   <Megaphone className="h-4 w-4" /> Mural de avisos
                   {room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ? (
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#D96C4A]" />
+                    <span
+                      className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                        room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
+                          ? BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].dotClass
+                          : "bg-[#D96C4A]"
+                      }`}
+                    />
                   ) : null}
                 </DropdownMenuItem>
                 {isCreator && (
@@ -4707,6 +4721,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
               <Megaphone className="h-4 w-4 text-[#D96C4A]" /> Mural de avisos
+              {!bulletinEditing && room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory] ? (
+                <span
+                  className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-sans font-semibold ${
+                    BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].chipClass
+                  }`}
+                >
+                  {BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].label}
+                </span>
+              ) : null}
             </DialogTitle>
             <DialogDescription className="text-xs text-[#4A4A4A]/70">
               Avisos e anúncios permanentes desta sala
@@ -4715,6 +4738,30 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           <div className="px-5 py-4 space-y-3 max-h-[min(28rem,70dvh)] overflow-y-auto">
             {bulletinEditing && isCreator ? (
               <>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-[#4A4A4A]/70">Categoria (opcional)</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BULLETIN_CATEGORIES.map((cat) => {
+                      const meta = BULLETIN_CATEGORY_META[cat];
+                      const selected = bulletinCategoryDraft === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          disabled={bulletinSaving}
+                          onClick={() => setBulletinCategoryDraft(selected ? null : cat)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                            selected
+                              ? meta.chipClass
+                              : "border-black/10 bg-white text-[#4A4A4A]/60 hover:bg-[#F9F8F6]"
+                          }`}
+                        >
+                          {meta.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Textarea
                   value={bulletinDraft}
                   onChange={(e) => setBulletinDraft(e.target.value.slice(0, 2000))}
@@ -4810,6 +4857,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             }))
                           : []
                       );
+                      setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
                       setBulletinEditing(false);
                     }}
                     disabled={bulletinSaving}
@@ -4845,6 +4893,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           body: JSON.stringify({
                             bulletin: bulletinDraft.trim(),
                             bulletin_links: linksToSave,
+                            bulletin_category: bulletinCategoryDraft,
                           }),
                         });
                         const data = await res.json();
@@ -4853,7 +4902,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         } else {
                           const next = (data.room?.bulletin ?? bulletinDraft.trim()) || null;
                           const nextLinks = data.room?.bulletin_links ?? linksToSave;
-                          setSelectedRoom({ ...room, bulletin: next, bulletin_links: nextLinks });
+                          const nextCategory =
+                            data.room?.bulletin_category !== undefined
+                              ? data.room.bulletin_category
+                              : bulletinCategoryDraft;
+                          setSelectedRoom({
+                            ...room,
+                            bulletin: next,
+                            bulletin_links: nextLinks,
+                            bulletin_category: nextCategory,
+                          });
                           setBulletinDraft(String(next || ""));
                           setBulletinLinksDraft(
                             (nextLinks || []).map((l: any) => ({
@@ -4861,6 +4919,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                               label: String(l?.label || ""),
                             }))
                           );
+                          setBulletinCategoryDraft(nextCategory || null);
                           setBulletinEditing(false);
                           toast.success(
                             next || (nextLinks && nextLinks.length)
@@ -4939,6 +4998,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         }))
                       : []
                   );
+                  setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
                   setBulletinEditing(true);
                 }}
               >
