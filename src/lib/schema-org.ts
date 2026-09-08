@@ -14,7 +14,7 @@
  *  - https://developers.google.com/search/docs/appearance/structured-data
  */
 
-import { getSiteUrl, SITE_DESCRIPTION_SHORT, SITE_NAME } from "@/lib/site";
+import { getSiteUrl, SITE_DESCRIPTION_SHORT, SITE_NAME, GITHUB_REPO_URL } from "@/lib/site";
 
 export type JsonLd = Record<string, unknown>;
 
@@ -294,6 +294,7 @@ export function buildSiteJsonLd(): { jsonLd: JsonLd; validation: SchemaValidatio
           "@type": "ImageObject",
           url: logoUrl,
         },
+        sameAs: [GITHUB_REPO_URL],
       },
     ],
   };
