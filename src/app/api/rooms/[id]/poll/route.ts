@@ -4,6 +4,8 @@ import { canReadRoomMessages, isRoomModeratorOrAbove } from "@/lib/room-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { sanitizePlainText } from "@/lib/sanitize";
+import { isReadOnlyMode } from "@/lib/feature-flags";
 
 // ============================================================
 // Enquete no Mural de avisos ("Vamos abrir sábado?")
@@ -164,6 +166,7 @@ export async function POST(
       typeof body.expiresInHours === "number" && body.expiresInHours > 0
         ? Math.min(body.expiresInHours, 24 * 30)
         : null;
+    const announceInRoom = body.announceInRoom !== false; // padrão: anuncia
 
     if (question.length < 3 || question.length > 300) {
       await idempotencyFail(req);
@@ -265,8 +268,31 @@ export async function POST(
       .select("id, poll_id, label, position")
       .eq("poll_id", poll.id);
 
+    // Publica um anúncio da enquete no chat da sala (best-effort — se
+    // falhar, a enquete continua criada normalmente, só sem o anúncio).
+    let announced = false;
+    if (announceInRoom && !isReadOnlyMode()) {
+      try {
+        const optionsList = options.map((label) => `• ${label}`).join("\n");
+        const announceText = sanitizePlainText(
+          `📊 Nova enquete no mural: "${question}"\n${optionsList}\n\nToque em ⋮ → Enquete para votar.`
+        );
+        const { error: msgErr } = await supabase.from("messages").insert({
+          sender_id: user.id,
+          room_id: roomId,
+          target_type: "room",
+          content: announceText,
+        });
+        announced = !msgErr;
+        if (msgErr) console.error("[rooms/poll POST announce]", msgErr.message);
+      } catch (announceError) {
+        console.error("[rooms/poll POST announce]", announceError);
+      }
+    }
+
     const responseData = {
       poll: buildPollPayload(poll as PollRow, (savedOptions || []) as OptionRow[], [], user.id),
+      announced,
     };
 
     await idempotencyStore(req, responseData);
