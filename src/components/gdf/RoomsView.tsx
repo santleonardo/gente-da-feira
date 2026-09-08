@@ -25,7 +25,7 @@ import {
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
-  Reply, SmilePlus, Megaphone, Pencil,
+  Reply, SmilePlus, Megaphone, Pencil, Link2, ExternalLink,
 } from "lucide-react";
 
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
@@ -2094,6 +2094,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [bulletinDraft, setBulletinDraft] = useState("");
   const [bulletinEditing, setBulletinEditing] = useState(false);
   const [bulletinSaving, setBulletinSaving] = useState(false);
+  const [bulletinLinksDraft, setBulletinLinksDraft] = useState<
+    { url: string; label: string }[]
+  >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Mídia no chat ──
@@ -2507,6 +2510,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           memberCount: data.room.memberCount,
           has_password: data.room.has_password,
           bulletin: data.room.bulletin ?? currentRoom.bulletin ?? null,
+          bulletin_links: data.room.bulletin_links ?? currentRoom.bulletin_links ?? [],
         };
         // Evita re-render em loop se nada mudou
         const same =
@@ -2516,7 +2520,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           currentRoom.canJoin === updated.canJoin &&
           currentRoom.memberCount === updated.memberCount &&
           currentRoom.has_password === updated.has_password &&
-          (currentRoom.bulletin ?? null) === (updated.bulletin ?? null);
+          (currentRoom.bulletin ?? null) === (updated.bulletin ?? null) &&
+          JSON.stringify(currentRoom.bulletin_links ?? []) === JSON.stringify(updated.bulletin_links ?? []);
         if (!same) setSelectedRoom(updated);
       }
     } catch {
@@ -3542,7 +3547,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   className="gap-2"
                 >
                   <Megaphone className="h-4 w-4" /> Mural de avisos
-                  {room.bulletin ? (
+                  {room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ? (
                     <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#D96C4A]" />
                   ) : null}
                 </DropdownMenuItem>
@@ -4721,66 +4726,191 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <span className="text-[11px] text-[#4A4A4A]/50">
                     {bulletinDraft.length}/2000
                   </span>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => {
-                        setBulletinDraft(String(room.bulletin || ""));
-                        setBulletinEditing(false);
-                      }}
-                      disabled={bulletinSaving}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="rounded-full gap-1.5"
-                      disabled={bulletinSaving}
-                      onClick={async () => {
-                        setBulletinSaving(true);
-                        try {
-                          const res = await fetch(`/api/rooms/${room.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ bulletin: bulletinDraft.trim() }),
-                          });
-                          const data = await res.json();
-                          if (!res.ok) {
-                            toast.error(data.error || "Erro ao salvar mural");
-                          } else {
-                            const next = (data.room?.bulletin ?? bulletinDraft.trim()) || null;
-                            setSelectedRoom({ ...room, bulletin: next });
-                            setBulletinDraft(String(next || ""));
-                            setBulletinEditing(false);
-                            toast.success(
-                              next ? "Mural de avisos atualizado" : "Mural de avisos limpo"
-                            );
-                          }
-                        } catch {
-                          toast.error("Erro ao salvar mural");
-                        } finally {
-                          setBulletinSaving(false);
+                </div>
+
+                {/* Links do mural — até 3 */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-[#4A4A4A]/70">
+                      <Link2 className="h-3.5 w-3.5" /> Links ({bulletinLinksDraft.length}/3)
+                    </span>
+                    {bulletinLinksDraft.length < 3 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 rounded-full gap-1 text-xs text-[#D96C4A] hover:text-[#D96C4A] hover:bg-[#D96C4A]/10"
+                        onClick={() =>
+                          setBulletinLinksDraft((prev) => [...prev, { url: "", label: "" }])
                         }
-                      }}
-                    >
-                      {bulletinSaving ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : null}
-                      Salvar
-                    </Button>
+                        disabled={bulletinSaving}
+                      >
+                        <Plus className="h-3 w-3" /> Adicionar link
+                      </Button>
+                    )}
                   </div>
+                  {bulletinLinksDraft.map((link, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-1.5 rounded-xl border border-black/10 bg-[#F9F8F6] p-2"
+                    >
+                      <div className="flex-1 space-y-1.5">
+                        <Input
+                          value={link.url}
+                          onChange={(e) =>
+                            setBulletinLinksDraft((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, url: e.target.value.slice(0, 500) } : l))
+                            )
+                          }
+                          placeholder="https://…"
+                          className="h-8 rounded-lg border-black/10 bg-white text-xs"
+                          disabled={bulletinSaving}
+                        />
+                        <Input
+                          value={link.label}
+                          onChange={(e) =>
+                            setBulletinLinksDraft((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, label: e.target.value.slice(0, 40) } : l))
+                            )
+                          }
+                          placeholder="Título do link (opcional)"
+                          className="h-8 rounded-lg border-black/10 bg-white text-xs"
+                          disabled={bulletinSaving}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 rounded-full text-[#4A4A4A]/50 hover:text-red-500 hover:bg-red-500/10"
+                        onClick={() =>
+                          setBulletinLinksDraft((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        disabled={bulletinSaving}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => {
+                      setBulletinDraft(String(room.bulletin || ""));
+                      setBulletinLinksDraft(
+                        Array.isArray(room.bulletin_links)
+                          ? room.bulletin_links.map((l: any) => ({
+                              url: String(l?.url || ""),
+                              label: String(l?.label || ""),
+                            }))
+                          : []
+                      );
+                      setBulletinEditing(false);
+                    }}
+                    disabled={bulletinSaving}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-full gap-1.5"
+                    disabled={bulletinSaving}
+                    onClick={async () => {
+                      const linksToSave = bulletinLinksDraft
+                        .map((l) => ({ url: l.url.trim(), label: l.label.trim() }))
+                        .filter((l) => l.url);
+                      const invalid = linksToSave.find((l) => {
+                        try {
+                          const u = new URL(l.url);
+                          return !["http:", "https:"].includes(u.protocol);
+                        } catch {
+                          return true;
+                        }
+                      });
+                      if (invalid) {
+                        toast.error("Verifique se os links do mural começam com http:// ou https://");
+                        return;
+                      }
+                      setBulletinSaving(true);
+                      try {
+                        const res = await fetch(`/api/rooms/${room.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            bulletin: bulletinDraft.trim(),
+                            bulletin_links: linksToSave,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          toast.error(data.error || "Erro ao salvar mural");
+                        } else {
+                          const next = (data.room?.bulletin ?? bulletinDraft.trim()) || null;
+                          const nextLinks = data.room?.bulletin_links ?? linksToSave;
+                          setSelectedRoom({ ...room, bulletin: next, bulletin_links: nextLinks });
+                          setBulletinDraft(String(next || ""));
+                          setBulletinLinksDraft(
+                            (nextLinks || []).map((l: any) => ({
+                              url: String(l?.url || ""),
+                              label: String(l?.label || ""),
+                            }))
+                          );
+                          setBulletinEditing(false);
+                          toast.success(
+                            next || (nextLinks && nextLinks.length)
+                              ? "Mural de avisos atualizado"
+                              : "Mural de avisos limpo"
+                          );
+                        }
+                      } catch {
+                        toast.error("Erro ao salvar mural");
+                      } finally {
+                        setBulletinSaving(false);
+                      }
+                    }}
+                  >
+                    {bulletinSaving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    Salvar
+                  </Button>
                 </div>
               </>
-            ) : room.bulletin ? (
-              <div className="rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-4">
-                <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap break-words leading-relaxed">
-                  {room.bulletin}
-                </p>
-              </div>
+            ) : room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ? (
+              <>
+                {room.bulletin ? (
+                  <div className="rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-4">
+                    <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap break-words leading-relaxed">
+                      {room.bulletin}
+                    </p>
+                  </div>
+                ) : null}
+                {Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0 && (
+                  <div className="space-y-2">
+                    {room.bulletin_links.map((link: any, idx: number) => (
+                      <a
+                        key={idx}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white p-3 text-sm text-[#1A1A1A] hover:border-[#D96C4A]/40 hover:bg-[#D96C4A]/5 transition-colors"
+                      >
+                        <Link2 className="h-3.5 w-3.5 shrink-0 text-[#D96C4A]" />
+                        <span className="flex-1 truncate font-medium">
+                          {link.label || link.url}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[#4A4A4A]/40" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="py-8 text-center">
                 <Megaphone className="h-8 w-8 text-black/10 mx-auto mb-2" />
@@ -4801,11 +4931,21 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 className="rounded-full gap-1.5"
                 onClick={() => {
                   setBulletinDraft(String(room.bulletin || ""));
+                  setBulletinLinksDraft(
+                    Array.isArray(room.bulletin_links)
+                      ? room.bulletin_links.map((l: any) => ({
+                          url: String(l?.url || ""),
+                          label: String(l?.label || ""),
+                        }))
+                      : []
+                  );
                   setBulletinEditing(true);
                 }}
               >
                 <Pencil className="h-3.5 w-3.5" />
-                {room.bulletin ? "Editar aviso" : "Escrever aviso"}
+                {room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0)
+                  ? "Editar aviso"
+                  : "Escrever aviso"}
               </Button>
             </div>
           )}
