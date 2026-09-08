@@ -21,7 +21,7 @@ import {
 import {
   ArrowLeft, Users, Plus, LogOut, UserPlus, UserCheck,
   ChevronUp, ChevronDown, X, MoreVertical, Hash, Crown, Shield,
-  Camera, Video, Mic, StopCircle, ImagePlus, Music,
+  Mic, StopCircle, Music, // Camera, Video, ImagePlus: voltam junto com os botões de foto/vídeo (ver Anexar)
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
@@ -4308,12 +4308,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-black/[0.08] bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
             <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#4A4A4A]/30" />
             <p className="px-4 pt-3 pb-2 text-sm font-semibold">Anexar</p>
-            <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+            <div className="grid grid-cols-2 gap-2 px-4 pb-2">
               {[
-                { label: "Câmera", icon: Camera, action: () => cameraPhotoRef.current?.click() },
-                { label: "Galeria", icon: ImagePlus, action: () => galleryPhotoRef.current?.click() },
-                { label: "Filmar", icon: Video, action: () => cameraVideoRef.current?.click() },
-                { label: "Vídeo", icon: Video, action: () => videoFileRef.current?.click() },
+                // TEMPORARIAMENTE OCULTOS (2026-09-08): reativar após validar em produção.
+                // Foto: bug de pasta (post-photos) corrigido em storage-security.ts,
+                // mas ainda não testado com banco real — reative quando confirmar que
+                // o envio de foto na sala está funcionando.
+                // { label: "Câmera", icon: Camera, action: () => cameraPhotoRef.current?.click() },
+                // { label: "Galeria", icon: ImagePlus, action: () => galleryPhotoRef.current?.click() },
+                // Vídeo: desabilitado de propósito no backend (/api/upload/video retorna 403,
+                // versão beta/plano gratuito do Supabase). Reative os botões só depois de
+                // reativar o upload de vídeo no backend.
+                // { label: "Filmar", icon: Video, action: () => cameraVideoRef.current?.click() },
+                // { label: "Vídeo", icon: Video, action: () => videoFileRef.current?.click() },
                 { label: "Áudio", icon: Mic, action: () => { if (!isRecordingAudio) startAudioRecording(); } },
                 { label: "Arquivo áudio", icon: Music, action: () => audioFileRef.current?.click() },
               ].map((item) => (
