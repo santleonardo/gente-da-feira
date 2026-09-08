@@ -26,8 +26,10 @@ import {
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
   Reply, SmilePlus, Megaphone, Pencil, Link2, ExternalLink, MessageCircle,
-  Vote, CheckCircle2, XCircle,
+  Vote, CheckCircle2, XCircle, CalendarDays,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
 const MAX_POLL_OPTIONS = 6;
@@ -2132,6 +2134,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [bulletinExpiresAtDraft, setBulletinExpiresAtDraft] = useState<string | null>(null);
   const [bulletinContactPhoneDraft, setBulletinContactPhoneDraft] = useState("");
   const [bulletinContactLabelDraft, setBulletinContactLabelDraft] = useState("");
+  const [showBulletinCalendar, setShowBulletinCalendar] = useState(false);
 
   // ── Enquete no mural ("Vamos abrir sábado?") ──
   const [showPoll, setShowPoll] = useState(false);
@@ -4894,7 +4897,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         open={showBulletin}
         onOpenChange={(open) => {
           setShowBulletin(open);
-          if (!open) setBulletinEditing(false);
+          if (!open) {
+            setBulletinEditing(false);
+            setShowBulletinCalendar(false);
+          }
         }}
       >
         <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
@@ -4979,7 +4985,36 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         {opt.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      disabled={bulletinSaving}
+                      onClick={() => setShowBulletinCalendar((prev) => !prev)}
+                      className={cn(
+                        "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                        showBulletinCalendar
+                          ? "border-[#D96C4A]/30 bg-[#D96C4A]/10 text-[#D96C4A]"
+                          : "border-black/10 bg-white text-[#4A4A4A]/60 hover:bg-[#F9F8F6]"
+                      )}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5" /> Escolher data
+                    </button>
                   </div>
+
+                  {showBulletinCalendar && (
+                    <div className="pt-1">
+                      <Calendar
+                        selected={bulletinExpiresAtDraft ? new Date(bulletinExpiresAtDraft) : null}
+                        onSelect={(date) => {
+                          // Expira ao final do dia escolhido
+                          const expiresAt = new Date(date);
+                          expiresAt.setHours(23, 59, 59, 999);
+                          setBulletinExpiresAtDraft(expiresAt.toISOString());
+                          setShowBulletinCalendar(false);
+                        }}
+                      />
+                    </div>
+                  )}
+
                   {bulletinExpiresAtDraft ? (
                     <div className="flex items-center gap-1.5 text-[11px] text-[#4A4A4A]/60">
                       <span>
