@@ -3105,12 +3105,33 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Gravação de áudio com overlay ═══════
+  /** Escolhe MIME suportado; Safari/iOS costuma rejeitar webm e aceitar mp4 (ou default). */
+  const pickAudioRecorderMime = (): string | undefined => {
+    if (typeof MediaRecorder === "undefined") return undefined;
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/aac",
+      "audio/ogg;codecs=opus",
+      "audio/ogg",
+    ];
+    for (const c of candidates) {
+      try {
+        if (MediaRecorder.isTypeSupported(c)) return c;
+      } catch {
+        /* ignore */
+      }
+    }
+    return undefined; // deixa o browser escolher
+  };
+
   const startAudioRecording = async () => {
     setAttachMenuOpen(false);
 
     // Sem suporte no navegador (ex.: contexto não-seguro/HTTP, ou API ausente)
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      toast.error("Gravação de áudio não é suportada neste navegador.");
+      toast.error("Gravação de áudio não é suportada neste navegador. Use HTTPS e Chrome/Safari.");
       return;
     }
 
@@ -3119,43 +3140,82 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       // resolvem nem rejeitam getUserMedia — sem timeout, o clique "trava"
       // sem nenhum feedback. Forçamos um limite de tempo explícito.
       const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: true }),
+        navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("getUserMedia_timeout")), 8000)
         ),
       ]);
       mediaStreamRef.current = stream;
 
-      let mimeType = "audio/webm";
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/webm;codecs=opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/mp4";
+      const mimeType = pickAudioRecorderMime();
+      // Sem mimeType forçado quando nenhum candidato é suportado (Safari antigo)
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+      } catch (e) {
+        // Último recurso: sem opções
+        mediaRecorder = new MediaRecorder(stream);
+      }
+      const effectiveMime =
+        mediaRecorder.mimeType || mimeType || "audio/webm";
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onerror = () => {
+        toast.error("Erro na gravação de áudio.");
+        cancelAudioRecording();
       };
 
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.includes("mp4") ? "m4a" : "webm";
-        const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: mimeType });
+        try {
+          const blobType = effectiveMime.split(";")[0] || "audio/webm";
+          const blob = new Blob(audioChunksRef.current, { type: blobType });
+          const isMp4 = /mp4|aac|m4a/i.test(blobType);
+          const ext = isMp4 ? "m4a" : blobType.includes("ogg") ? "ogg" : "webm";
+          const file = new File([blob], `audio_${Date.now()}.${ext}`, {
+            type: blobType,
+          });
 
-        if (mediaStreamRef.current) {
-          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
-          mediaStreamRef.current = null;
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+            mediaStreamRef.current = null;
+          }
+          mediaRecorderRef.current = null;
+
+          setIsRecordingAudio(false);
+          setIsPausedRecording(false);
+
+          // Gravação muito curta / sem dados → não envia lixo
+          if (blob.size < 256) {
+            toast.error("Áudio muito curto. Segure por pelo menos 1 segundo.");
+            return;
+          }
+          openMediaPreview(file, "audio");
+        } catch (err) {
+          console.error("[audio onstop]", err);
+          toast.error("Falha ao processar o áudio gravado.");
+          setIsRecordingAudio(false);
+          setIsPausedRecording(false);
         }
-        mediaRecorderRef.current = null;
-
-        setIsRecordingAudio(false);
-        setIsPausedRecording(false);
-        openMediaPreview(file, "audio");
       };
 
-      mediaRecorder.start(1000);
+      // timeslice 250ms: garante chunks mesmo se o usuário parar antes de 1s
+      mediaRecorder.start(250);
       setIsRecordingAudio(true);
+      setIsPausedRecording(false);
       setRecordingSeconds(0);
 
       recordingTimerRef.current = setInterval(() => {
@@ -3172,10 +3232,22 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         mediaStreamRef.current.getTracks().forEach((t) => t.stop());
         mediaStreamRef.current = null;
       }
-      if (err?.message === "getUserMedia_timeout") {
+      mediaRecorderRef.current = null;
+      setIsRecordingAudio(false);
+      const name = err?.name || "";
+      const msg = String(err?.message || "");
+      if (msg === "getUserMedia_timeout") {
         toast.error(
           "Não foi possível acessar o microfone. Se você abriu este link dentro de outro app (Instagram, WhatsApp, TikTok), abra no navegador (Safari/Chrome) e tente de novo."
         );
+      } else if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        toast.error("Permissão de microfone negada. Libere o microfone nas configurações do navegador.");
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        toast.error("Nenhum microfone encontrado neste dispositivo.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        toast.error("Microfone em uso por outro app. Feche-o e tente de novo.");
+      } else if (name === "SecurityError") {
+        toast.error("Microfone bloqueado neste contexto. Use HTTPS.");
       } else {
         toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
       }
@@ -3187,8 +3259,29 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      try {
+        // Garante último chunk antes do stop (Safari/Chrome)
+        if (rec.state === "recording") {
+          try {
+            rec.requestData();
+          } catch {
+            /* ignore */
+          }
+        }
+        rec.stop();
+      } catch (e) {
+        console.error("[stopAudioRecording]", e);
+        // Fallback: limpa stream mesmo se stop falhar
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          mediaStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        setIsRecordingAudio(false);
+        setIsPausedRecording(false);
+      }
     }
   };
 
@@ -3221,25 +3314,36 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   const togglePauseRecording = () => {
-    if (!mediaRecorderRef.current) return;
-    if (isPausedRecording) {
-      mediaRecorderRef.current.resume();
-      setIsPausedRecording(false);
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => {
-          if (prev + 1 >= MAX_AUDIO_DURATION) {
-            return MAX_AUDIO_DURATION;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    } else {
-      mediaRecorderRef.current.pause();
-      setIsPausedRecording(true);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
+    const rec = mediaRecorderRef.current;
+    if (!rec) return;
+    try {
+      if (isPausedRecording) {
+        if (typeof rec.resume === "function") rec.resume();
+        setIsPausedRecording(false);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingSeconds((prev) => {
+            if (prev + 1 >= MAX_AUDIO_DURATION) {
+              return MAX_AUDIO_DURATION;
+            }
+            return prev + 1;
+          });
+        }, 1000);
+      } else {
+        if (typeof rec.pause !== "function") {
+          toast.error("Pausar gravação não é suportado neste navegador.");
+          return;
+        }
+        rec.pause();
+        setIsPausedRecording(true);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
       }
+    } catch (e) {
+      console.error("[togglePauseRecording]", e);
+      toast.error("Não foi possível pausar/continuar a gravação.");
     }
   };
 
