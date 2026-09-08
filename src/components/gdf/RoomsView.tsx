@@ -2103,6 +2103,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     { url: string; label: string }[]
   >([]);
   const [bulletinCategoryDraft, setBulletinCategoryDraft] = useState<BulletinCategory | null>(null);
+  const [bulletinExpiresAtDraft, setBulletinExpiresAtDraft] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Mídia no chat ──
@@ -2148,6 +2149,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const myRole = room.myRole || currentMember?.role || "member";
   const isAdmin = myRole === "creator" || myRole === "moderator";
   const isCreator = myRole === "creator";
+
+  // Mural de avisos — considera vencido se bulletin_expires_at já passou
+  const bulletinExpired = Boolean(
+    room.bulletin_expires_at && new Date(room.bulletin_expires_at).getTime() <= Date.now()
+  );
+  const bulletinHasContent = Boolean(
+    room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0)
+  );
+  const bulletinActive = bulletinHasContent && !bulletinExpired;
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -2518,6 +2528,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           bulletin: data.room.bulletin ?? currentRoom.bulletin ?? null,
           bulletin_links: data.room.bulletin_links ?? currentRoom.bulletin_links ?? [],
           bulletin_category: data.room.bulletin_category ?? currentRoom.bulletin_category ?? null,
+          bulletin_expires_at: data.room.bulletin_expires_at ?? currentRoom.bulletin_expires_at ?? null,
         };
         // Evita re-render em loop se nada mudou
         const same =
@@ -2529,6 +2540,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           currentRoom.has_password === updated.has_password &&
           (currentRoom.bulletin ?? null) === (updated.bulletin ?? null) &&
           (currentRoom.bulletin_category ?? null) === (updated.bulletin_category ?? null) &&
+          (currentRoom.bulletin_expires_at ?? null) === (updated.bulletin_expires_at ?? null) &&
           JSON.stringify(currentRoom.bulletin_links ?? []) === JSON.stringify(updated.bulletin_links ?? []);
         if (!same) setSelectedRoom(updated);
       }
@@ -3555,7 +3567,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   className="gap-2"
                 >
                   <Megaphone className="h-4 w-4" /> Mural de avisos
-                  {room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ? (
+                  {bulletinActive ? (
                     <span
                       className={`ml-auto h-1.5 w-1.5 rounded-full ${
                         room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
@@ -4721,7 +4733,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
               <Megaphone className="h-4 w-4 text-[#D96C4A]" /> Mural de avisos
-              {!bulletinEditing && room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory] ? (
+              {!bulletinEditing && !bulletinExpired && room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory] ? (
                 <span
                   className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-sans font-semibold ${
                     BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].chipClass
@@ -4736,7 +4748,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             </DialogDescription>
           </DialogHeader>
           <div className="px-5 py-4 space-y-3 max-h-[min(28rem,70dvh)] overflow-y-auto">
-            {bulletinEditing && isCreator ? (
+            {bulletinEditing && isAdmin ? (
               <>
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium text-[#4A4A4A]/70">Categoria (opcional)</span>
@@ -4773,6 +4785,57 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <span className="text-[11px] text-[#4A4A4A]/50">
                     {bulletinDraft.length}/2000
                   </span>
+                </div>
+
+                {/* Validade do aviso */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-[#4A4A4A]/70">Validade (opcional)</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "1 dia", days: 1 },
+                      { label: "3 dias", days: 3 },
+                      { label: "7 dias", days: 7 },
+                      { label: "30 dias", days: 30 },
+                    ].map((opt) => (
+                      <button
+                        key={opt.days}
+                        type="button"
+                        disabled={bulletinSaving}
+                        onClick={() =>
+                          setBulletinExpiresAtDraft(
+                            new Date(Date.now() + opt.days * 24 * 60 * 60 * 1000).toISOString()
+                          )
+                        }
+                        className="rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-[#4A4A4A]/60 transition-colors hover:bg-[#F9F8F6]"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {bulletinExpiresAtDraft ? (
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#4A4A4A]/60">
+                      <span>
+                        Expira em{" "}
+                        {new Date(bulletinExpiresAtDraft).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={bulletinSaving}
+                        onClick={() => setBulletinExpiresAtDraft(null)}
+                        className="text-[#D96C4A] hover:underline"
+                      >
+                        Remover validade
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-[#4A4A4A]/40">Sem validade — fica até você editar de novo.</p>
+                  )}
                 </div>
 
                 {/* Links do mural — até 3 */}
@@ -4858,6 +4921,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           : []
                       );
                       setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
+                      setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
                       setBulletinEditing(false);
                     }}
                     disabled={bulletinSaving}
@@ -4894,6 +4958,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             bulletin: bulletinDraft.trim(),
                             bulletin_links: linksToSave,
                             bulletin_category: bulletinCategoryDraft,
+                            bulletin_expires_at: bulletinExpiresAtDraft,
                           }),
                         });
                         const data = await res.json();
@@ -4906,11 +4971,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             data.room?.bulletin_category !== undefined
                               ? data.room.bulletin_category
                               : bulletinCategoryDraft;
+                          const nextExpiresAt =
+                            data.room?.bulletin_expires_at !== undefined
+                              ? data.room.bulletin_expires_at
+                              : bulletinExpiresAtDraft;
                           setSelectedRoom({
                             ...room,
                             bulletin: next,
                             bulletin_links: nextLinks,
                             bulletin_category: nextCategory,
+                            bulletin_expires_at: nextExpiresAt,
                           });
                           setBulletinDraft(String(next || ""));
                           setBulletinLinksDraft(
@@ -4920,6 +4990,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             }))
                           );
                           setBulletinCategoryDraft(nextCategory || null);
+                          setBulletinExpiresAtDraft(nextExpiresAt || null);
                           setBulletinEditing(false);
                           toast.success(
                             next || (nextLinks && nextLinks.length)
@@ -4941,7 +5012,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   </Button>
                 </div>
               </>
-            ) : room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ? (
+            ) : bulletinHasContent && !bulletinExpired ? (
               <>
                 {room.bulletin ? (
                   <div className="rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-4">
@@ -4973,16 +5044,20 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             ) : (
               <div className="py-8 text-center">
                 <Megaphone className="h-8 w-8 text-black/10 mx-auto mb-2" />
-                <p className="font-serif text-base text-[#4A4A4A]/50">Nenhum aviso no mural</p>
+                <p className="font-serif text-base text-[#4A4A4A]/50">
+                  {bulletinExpired ? "O aviso do mural venceu" : "Nenhum aviso no mural"}
+                </p>
                 <p className="text-xs text-[#4A4A4A]/40 mt-1">
-                  {isCreator
-                    ? "Clique em Editar para publicar o primeiro aviso."
-                    : "O criador da sala ainda não publicou avisos."}
+                  {isAdmin
+                    ? bulletinExpired
+                      ? "Clique em Editar para renovar a validade ou escrever um novo aviso."
+                      : "Clique em Editar para publicar o primeiro aviso."
+                    : "O criador ou um moderador ainda não publicou avisos."}
                 </p>
               </div>
             )}
           </div>
-          {isCreator && !bulletinEditing && (
+          {isAdmin && !bulletinEditing && (
             <div className="px-5 pb-5 pt-1 flex justify-end border-t border-black/5">
               <Button
                 type="button"
@@ -4999,13 +5074,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       : []
                   );
                   setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
+                  setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
                   setBulletinEditing(true);
                 }}
               >
                 <Pencil className="h-3.5 w-3.5" />
-                {room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0)
-                  ? "Editar aviso"
-                  : "Escrever aviso"}
+                {bulletinHasContent ? "Editar aviso" : "Escrever aviso"}
               </Button>
             </div>
           )}
