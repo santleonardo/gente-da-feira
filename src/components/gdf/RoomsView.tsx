@@ -2144,6 +2144,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [pollQuestionDraft, setPollQuestionDraft] = useState("");
   const [pollOptionsDraft, setPollOptionsDraft] = useState<string[]>(["", ""]);
   const [pollExpiresInHoursDraft, setPollExpiresInHoursDraft] = useState<number | null>(null);
+  const [pollAnnounceDraft, setPollAnnounceDraft] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -2230,6 +2231,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     setPollQuestionDraft("");
     setPollOptionsDraft(["", ""]);
     setPollExpiresInHoursDraft(null);
+    setPollAnnounceDraft(true);
     setPollCreating(true);
   }, []);
 
@@ -2253,6 +2255,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           question,
           options,
           expiresInHours: pollExpiresInHoursDraft,
+          announceInRoom: pollAnnounceDraft,
         }),
       });
       const data = await res.json();
@@ -2261,14 +2264,16 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       } else {
         setPoll(data.poll);
         setPollCreating(false);
-        toast.success("Enquete publicada no mural");
+        toast.success(
+          data.announced ? "Enquete publicada no mural e anunciada na sala" : "Enquete publicada no mural"
+        );
       }
     } catch {
       toast.error("Erro ao criar enquete");
     } finally {
       setPollSaving(false);
     }
-  }, [room.id, pollQuestionDraft, pollOptionsDraft, pollExpiresInHoursDraft]);
+  }, [room.id, pollQuestionDraft, pollOptionsDraft, pollExpiresInHoursDraft, pollAnnounceDraft]);
 
   const handleVotePoll = useCallback(
     async (optionId: string) => {
@@ -5452,6 +5457,20 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       ? "Encerra sozinha após esse prazo."
                       : "Sem duração — fica aberta até você encerrar."}
                   </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-[#EFEDE8]/50 p-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">Anunciar na sala</Label>
+                    <p className="text-xs text-[#4A4A4A]">
+                      Publica a enquete como mensagem no chat, além do mural
+                    </p>
+                  </div>
+                  <Switch
+                    checked={pollAnnounceDraft}
+                    onCheckedChange={setPollAnnounceDraft}
+                    disabled={pollSaving}
+                  />
                 </div>
               </>
             ) : poll ? (
