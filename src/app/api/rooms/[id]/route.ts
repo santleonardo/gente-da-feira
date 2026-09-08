@@ -28,7 +28,7 @@ export async function GET(
     const { data: _room, error } = await supabase
       .from("rooms")
       .select(`
-        id, name, slug, icon, description, type, rules, bulletin,
+        id, name, slug, icon, description, type, rules, bulletin, bulletin_links,
         is_active, is_open, max_members, member_count, has_password,
         created_at, created_by,
         creator:profiles!rooms_created_by_fkey(id, display_name, username, avatar_url)
@@ -157,7 +157,7 @@ export async function DELETE(
 // PATCH /api/rooms/[id]
 // Criador: rules, bulletin, description, is_open, password (definir/trocar/remover)
 // Moderador: rules, description, is_open (sem senha)
-// bulletin (mural de avisos): somente criador
+// bulletin e bulletin_links (mural de avisos, até 3 links): somente criador
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -200,7 +200,7 @@ export async function PATCH(
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
     }
 
-    const { sanitizePlainText, sanitizeShortText } = await import("@/lib/sanitize");
+    const { sanitizePlainText, sanitizeShortText, sanitizeMediaUrl } = await import("@/lib/sanitize");
     const updateData: Record<string, unknown> = {};
 
     if (body.rules !== undefined) {
@@ -224,6 +224,47 @@ export async function PATCH(
           ? sanitizePlainText(body.bulletin.trim()).slice(0, 2000)
           : "";
       updateData.bulletin = bulletin || null;
+    }
+
+    // Links do mural de avisos — até 3, somente o criador pode editar
+    if (body.bulletin_links !== undefined) {
+      if (!isCreator) {
+        return NextResponse.json(
+          { error: "Apenas o criador da sala pode editar o mural de avisos" },
+          { status: 403 }
+        );
+      }
+      if (!Array.isArray(body.bulletin_links)) {
+        return NextResponse.json(
+          { error: "bulletin_links deve ser uma lista" },
+          { status: 400 }
+        );
+      }
+      if (body.bulletin_links.length > 3) {
+        return NextResponse.json(
+          { error: "No máximo 3 links no mural" },
+          { status: 400 }
+        );
+      }
+      const bulletinLinks: { url: string; label: string | null }[] = [];
+      for (const raw of body.bulletin_links) {
+        if (!raw || typeof raw !== "object") continue;
+        const rawUrl = typeof (raw as any).url === "string" ? (raw as any).url.trim() : "";
+        if (!rawUrl) continue;
+        const url = sanitizeMediaUrl(rawUrl);
+        if (!url) {
+          return NextResponse.json(
+            { error: "Um dos links do mural é inválido" },
+            { status: 400 }
+          );
+        }
+        const label =
+          typeof (raw as any).label === "string"
+            ? sanitizeShortText((raw as any).label.trim(), 40)
+            : "";
+        bulletinLinks.push({ url, label: label || null });
+      }
+      updateData.bulletin_links = bulletinLinks;
     }
 
     if (body.description !== undefined) {
@@ -280,7 +321,7 @@ export async function PATCH(
       .from("rooms")
       .update(updateData)
       .eq("id", roomId)
-      .select("id, name, slug, icon, description, type, rules, bulletin, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
+      .select("id, name, slug, icon, description, type, rules, bulletin, bulletin_links, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
       .single();
 
     if (error) {
