@@ -1,0 +1,623 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft,
+  Shield,
+  Lock,
+  EyeOff,
+  MapPin,
+  UserCheck,
+  UserX,
+  Bell,
+  Mic,
+  Video,
+  Users,
+  Ban,
+  Trash2,
+  Loader2,
+  FileText,
+  ChevronRight,
+  Flag,
+} from "lucide-react";
+import { UserAvatar } from "./UserAvatar";
+import { AccountSection } from "./AccountSection";
+import { toast } from "sonner";
+import dynamic from "next/dynamic";
+
+// PERF: TermsDialog usa react-markdown + remark-gfm, carregado sob demanda
+// apenas quando o usuário abre "Termos de Uso" ou "Política de Privacidade".
+const TermsDialog = dynamic(
+  () => import("@/components/TermsDialog").then((m) => ({ default: m.TermsDialog }))
+);
+
+export function SettingsView({ embedded }: { embedded?: boolean }) {
+  const { profile, updateProfile, setProfileSubView } = useStore();
+  const [isPrivate, setIsPrivate] = useState(profile?.is_private || false);
+  const [hideFollowing, setHideFollowing] = useState(profile?.hide_following || false);
+  const [hideFollowers, setHideFollowers] = useState(profile?.hide_followers || false);
+  const [hideNeighborhood, setHideNeighborhood] = useState(profile?.hide_neighborhood || false);
+  const [approveFollowers, setApproveFollowers] = useState(profile?.approve_followers || false);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+
+  const [showFollowersDialog, setShowFollowersDialog] = useState(false);
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [removingFollowerId, setRemovingFollowerId] = useState<string | null>(null);
+
+  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(false);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [termsSection, setTermsSection] = useState<"privacy" | undefined>(undefined);
+
+  useEffect(() => {
+    if (profile) {
+      setIsPrivate(profile.is_private || false);
+      setHideFollowing(profile.hide_following || false);
+      setHideFollowers(profile.hide_followers || false);
+      setHideNeighborhood(profile.hide_neighborhood || false);
+      setApproveFollowers(profile.approve_followers || false);
+    }
+  }, [profile?.is_private, profile?.hide_following, profile?.hide_followers, profile?.hide_neighborhood, profile?.approve_followers]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const fetchRequests = () => {
+      fetch("/api/follows/requests")
+        .then((r) => r.json())
+        .then((data) => { if (data.requests) setPendingRequests(data.requests); })
+        .catch(() => {});
+    };
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 30000);
+    return () => clearInterval(interval);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((data) => { if (data.notifications) setNotifications(data.notifications); })
+      .catch(() => {});
+  }, [profile]);
+
+  const handlePrivacyChange = async (
+    field: "is_private" | "hide_following" | "hide_followers" | "hide_neighborhood" | "approve_followers",
+    value: boolean
+  ) => {
+    if (!profile) return;
+    setPrivacyLoading(true);
+    if (field === "is_private") setIsPrivate(value);
+    if (field === "hide_following") setHideFollowing(value);
+    if (field === "hide_followers") setHideFollowers(value);
+    if (field === "hide_neighborhood") setHideNeighborhood(value);
+    if (field === "approve_followers") setApproveFollowers(value);
+
+    try {
+      const res = await fetch(`/api/users/${profile.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      const data = await res.json();
+      if (data.user) {
+        updateProfile(data.user);
+        const messages: Record<string, { on: string; off: string }> = {
+          is_private:         { on: "Perfil agora é privado",                              off: "Perfil agora é público" },
+          hide_following:     { on: "Lista de seguindo oculta",                            off: "Lista de seguindo visível" },
+          hide_followers:     { on: "Lista de seguidores oculta",                          off: "Lista de seguidores visível" },
+          hide_neighborhood:  { on: "Bairro oculto no perfil público",                     off: "Bairro visível no perfil público" },
+          approve_followers:  { on: "Aprovação de seguidores ativada",                     off: "Solicitações pendentes foram aceitas automaticamente" },
+        };
+        const msg = messages[field];
+        toast.success(value ? msg.on : msg.off);
+        if (field === "approve_followers" && !value) setPendingRequests([]);
+      } else {
+        if (field === "is_private") setIsPrivate(!value);
+        if (field === "hide_following") setHideFollowing(!value);
+        if (field === "hide_followers") setHideFollowers(!value);
+        if (field === "hide_neighborhood") setHideNeighborhood(!value);
+        if (field === "approve_followers") setApproveFollowers(!value);
+        toast.error("Erro ao atualizar privacidade");
+      }
+    } catch {
+      if (field === "is_private") setIsPrivate(!value);
+      if (field === "hide_following") setHideFollowing(!value);
+      if (field === "hide_followers") setHideFollowers(!value);
+      if (field === "hide_neighborhood") setHideNeighborhood(!value);
+      if (field === "approve_followers") setApproveFollowers(!value);
+      toast.error("Erro ao atualizar privacidade");
+    }
+    setPrivacyLoading(false);
+  };
+
+  const handleRequestAction = async (requestId: string, action: "accept" | "reject") => {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch("/api/follows/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, action }),
+      });
+      const data = await res.json();
+      if (data.accepted) {
+        setPendingRequests((prev) => prev.filter((r: any) => r.id !== requestId));
+        toast.success("Solicitação aceita!");
+      } else if (data.rejected) {
+        setPendingRequests((prev) => prev.filter((r: any) => r.id !== requestId));
+        toast.success("Solicitação rejeitada");
+      } else {
+        toast.error(data.error || "Erro ao processar solicitação");
+      }
+    } catch {
+      toast.error("Erro ao processar solicitação");
+    }
+    setRequestsLoading(false);
+  };
+
+  const openFollowersDialog = async () => {
+    if (!profile) return;
+    setShowFollowersDialog(true);
+    setFollowersLoading(true);
+    try {
+      const res = await fetch(`/api/follows?userId=${profile.id}`);
+      const data = await res.json();
+      if (data.followers) setFollowers(data.followers.map((f: any) => f.follower).filter(Boolean));
+    } catch {
+      setFollowers([]);
+    }
+    setFollowersLoading(false);
+  };
+
+  const handleRemoveFollower = async (followerId: string) => {
+    setRemovingFollowerId(followerId);
+    try {
+      const res = await fetch(`/api/follows?followerId=${followerId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.removed) {
+        setFollowers((prev) => prev.filter((f: any) => f.id !== followerId));
+        toast.success("Seguidor removido");
+      } else {
+        toast.error(data.error || "Erro ao remover seguidor");
+      }
+    } catch {
+      toast.error("Erro ao remover seguidor");
+    }
+    setRemovingFollowerId(null);
+  };
+
+  const openBlockedDialog = async () => {
+    if (!profile) return;
+    setShowBlockedDialog(true);
+    setBlockedLoading(true);
+    try {
+      const res = await fetch("/api/blocks");
+      const data = await res.json();
+      if (data.blocks) {
+        setBlockedUsers(data.blocks.map((b: any) => ({ ...b.blocked, blockId: b.id })).filter((u: any) => u.id));
+      }
+    } catch {
+      setBlockedUsers([]);
+    }
+    setBlockedLoading(false);
+  };
+
+  const handleUnblock = async (targetId: string) => {
+    setUnblockingId(targetId);
+    try {
+      const res = await fetch("/api/blocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: targetId }),
+      });
+      const data = await res.json();
+      if (data.blocked === false) {
+        setBlockedUsers((prev) => prev.filter((u: any) => u.id !== targetId));
+        toast.success("Usuário desbloqueado");
+      } else {
+        toast.error(data.error || "Erro ao desbloquear");
+      }
+    } catch {
+      toast.error("Erro ao desbloquear");
+    }
+    setUnblockingId(null);
+  };
+
+  const requestPermission = async (type: "notifications" | "microphone" | "camera") => {
+    try {
+      if (type === "notifications") {
+        const result = await Notification.requestPermission();
+        if (result === "granted") toast.success("Notificações ativadas!");
+        else toast.error("Permissão de notificação negada");
+      } else if (type === "microphone") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());
+        toast.success("Microfone permitido!");
+      } else if (type === "camera") {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach((t) => t.stop());
+        toast.success("Câmera permitida!");
+      }
+    } catch {
+      toast.error(`Permissão de ${type === "microphone" ? "microfone" : type === "camera" ? "câmera" : "notificação"} negada`);
+    }
+  };
+
+  if (!profile) return null;
+
+  return (
+    <div className="settings-blog space-y-7 w-full max-w-full min-w-0">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap');
+        .settings-blog {
+          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+        }
+        .settings-blog .font-serif {
+          font-family: "Playfair Display", ui-serif, Georgia, serif;
+        }
+      `}</style>
+      {!embedded && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setProfileSubView("profile")}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h2 className="font-serif text-2xl font-medium tracking-tight text-[#1A1A1A]">Configurações</h2>
+        </div>
+      )}
+
+      {/* PRIVACIDADE */}
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Privacidade</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Perfil privado</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Quem não te segue não verá seus posts e informações</p>
+              </div>
+              <Switch checked={isPrivate} onCheckedChange={(v) => handlePrivacyChange("is_private", v)} disabled={privacyLoading} />
+            </div>
+            <div className="border-t" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Aprovar seguidores</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Quem quiser te seguir precisará da sua aprovação</p>
+              </div>
+              <Switch checked={approveFollowers} onCheckedChange={(v) => handlePrivacyChange("approve_followers", v)} disabled={privacyLoading} />
+            </div>
+            <div className="border-t" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Esconder seguindo</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Ninguém verá quem você está seguindo</p>
+              </div>
+              <Switch checked={hideFollowing} onCheckedChange={(v) => handlePrivacyChange("hide_following", v)} disabled={privacyLoading} />
+            </div>
+            <div className="border-t" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Esconder seguidores</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Ninguém verá sua lista de seguidores</p>
+              </div>
+              <Switch checked={hideFollowers} onCheckedChange={(v) => handlePrivacyChange("hide_followers", v)} disabled={privacyLoading} />
+            </div>
+            <div className="border-t" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Esconder bairro</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Seu bairro não aparecerá no seu perfil público</p>
+              </div>
+              <Switch checked={hideNeighborhood} onCheckedChange={(v) => handlePrivacyChange("hide_neighborhood", v)} disabled={privacyLoading} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SOLICITAÇÕES PENDENTES */}
+      {approveFollowers && pendingRequests.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <UserCheck className="h-4 w-4 text-[#D96C4A]" />
+              <h3 className="text-sm font-semibold">Solicitações para seguir</h3>
+              <Badge variant="secondary" className="text-[10px] px-1.5">{pendingRequests.length}</Badge>
+            </div>
+            <div className="space-y-2">
+              {pendingRequests.map((req: any) => (
+                <div key={req.id} className="flex items-center gap-3 rounded-lg border p-2.5">
+                  <UserAvatar
+                    user={{ id: req.follower?.id || req.follower_id, display_name: req.follower?.display_name || "?", avatar_url: req.follower?.avatar_url }}
+                    className="h-10 w-10"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{req.follower?.display_name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">@{req.follower?.username}</p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="default" onClick={() => handleRequestAction(req.id, "accept")} disabled={requestsLoading} className="h-7 px-2.5 gap-1 text-[11px]">
+                      <UserCheck className="h-3 w-3" /> Aceitar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleRequestAction(req.id, "reject")} disabled={requestsLoading} className="h-7 px-2.5 gap-1 text-[11px]">
+                      <UserX className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* GERENCIAR */}
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="text-sm font-semibold">Gerenciar</h3>
+          </div>
+          <div className="space-y-2">
+            <Button variant="outline" size="sm" onClick={openFollowersDialog} className="w-full justify-start gap-2">
+              <UserX className="h-4 w-4" /> Remover seguidores
+            </Button>
+            <Button variant="outline" size="sm" onClick={openBlockedDialog} className="w-full justify-start gap-2">
+              <Ban className="h-4 w-4" /> Usuários bloqueados
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* NOTIFICAÇÕES RECENTES */}
+      {notifications.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="h-4 w-4 text-[#D96C4A]" />
+              <h3 className="font-serif text-base font-medium text-[#1A1A1A]">Notificações recentes</h3>
+            </div>
+            <div className="space-y-2">
+              {notifications.slice(0, 5).map((notif: any) => {
+                const notifText: Record<string, string> = {
+                  follow:          "começou a te seguir",
+                  mention:         "te mencionou",
+                  follow_request:  "solicitou te seguir",
+                  follow_accepted: "aceitou sua solicitação",
+                  reaction:        "reagiu ao seu post",
+                  comment:         "comentou no seu post",
+                  report_new:      "enviou uma nova denúncia — abra o Painel de moderação",
+                  moderation_suspend:   "sua conta foi suspensa pela moderação",
+                  moderation_unsuspend: "sua suspensão foi encerrada",
+                  moderation_ban:       "sua conta foi banida pela moderação",
+                  moderation_unban:     "o banimento da sua conta foi removido",
+                };
+                return (
+                  <div key={notif.id} className={`flex items-center gap-3 rounded-lg border p-2.5 ${!notif.is_read ? "bg-primary/5 border-primary/20" : ""}`}>
+                    <UserAvatar
+                      user={{ id: notif.actor?.id || "", display_name: notif.actor?.display_name || "?", avatar_url: notif.actor?.avatar }}
+                      className="h-8 w-8"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        <span className="font-medium">{notif.actor?.display_name}</span>{" "}
+                        <span className="text-muted-foreground">{notifText[notif.type] || notif.type}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(notif.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                      </p>
+                    </div>
+                    {!notif.is_read && <div className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PERMISSÕES DO DISPOSITIVO */}
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="text-sm font-semibold">Permissões do dispositivo</h3>
+          </div>
+          <div className="space-y-2">
+            <Button variant="outline" size="sm" onClick={() => requestPermission("notifications")} className="w-full justify-start gap-2">
+              <Bell className="h-4 w-4" /> Notificações
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => requestPermission("microphone")} className="w-full justify-start gap-2">
+              <Mic className="h-4 w-4" /> Microfone
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => requestPermission("camera")} className="w-full justify-start gap-2">
+              <Video className="h-4 w-4" /> Câmera
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PAINEL DE MODERAÇÃO — apenas para moderadores (UX-024) */}
+      {profile?.is_moderator && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Flag className="h-4 w-4 text-red-500" />
+              <h3 className="text-sm font-semibold">Moderação</h3>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setProfileSubView("moderation")}
+              className="w-full justify-start gap-2"
+            >
+              <Flag className="h-4 w-4" /> Painel de denúncias
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CONTA */}
+      <AccountSection />
+
+      {/* TERMOS DE USO */}
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-4 w-4 text-[#D96C4A]" />
+            <h3 className="text-sm font-semibold">Legal</h3>
+          </div>
+          <button
+            onClick={() => { setTermsSection(undefined); setTermsOpen(true); }}
+            className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Termos de Uso</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => { setTermsSection("privacy"); setTermsOpen(true); }}
+            className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Política de Privacidade</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* DIALOG: TERMOS DE USO / POLÍTICA DE PRIVACIDADE (documento único, mesma fonte usada no cadastro) */}
+      <TermsDialog
+        open={termsOpen}
+        onOpenChange={setTermsOpen}
+        initialSection={termsSection}
+      />
+
+      {/* DIALOG: REMOVER SEGUIDORES */}
+      <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
+            <DialogTitle className="flex items-center gap-2">
+              <UserX className="h-4 w-4" /> Remover seguidores
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto px-2 py-2">
+            {followersLoading ? (
+              <div className="space-y-2 py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-2.5 animate-pulse">
+                    <div className="h-8 w-8 rounded-full bg-muted" />
+                    <div className="h-3 w-24 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : followers.length === 0 ? (
+              <div className="py-8 text-center">
+                <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Nenhum seguidor</p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {followers.map((u: any) => (
+                  <div key={u.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                    <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-8 w-8" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{u.display_name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">@{u.username}</div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleRemoveFollower(u.id)} disabled={removingFollowerId === u.id} className="h-7 px-2 text-muted-foreground hover:text-destructive">
+                      {removingFollowerId === u.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: USUÁRIOS BLOQUEADOS */}
+      <Dialog open={showBlockedDialog} onOpenChange={setShowBlockedDialog}>
+        <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-4 w-4" /> Usuários bloqueados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[min(28rem,70dvh)] overflow-y-auto px-2 py-2">
+            {blockedLoading ? (
+              <div className="space-y-2 py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-2.5 animate-pulse">
+                    <div className="h-8 w-8 rounded-full bg-muted" />
+                    <div className="h-3 w-24 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : blockedUsers.length === 0 ? (
+              <div className="py-8 text-center">
+                <Ban className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Nenhum usuário bloqueado</p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {blockedUsers.map((u: any) => (
+                  <div key={u.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                    <UserAvatar user={{ id: u.id, display_name: u.display_name, avatar_url: u.avatar_url }} className="h-8 w-8" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{u.display_name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">@{u.username}</div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleUnblock(u.id)} disabled={unblockingId === u.id} className="h-7 px-2.5 text-[11px]">
+                      {unblockingId === u.id ? <Loader2 className="h-3 w-3.5 animate-spin" /> : "Desbloquear"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
