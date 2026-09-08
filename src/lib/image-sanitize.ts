@@ -61,6 +61,77 @@ async function encodeWebPBest(
   return buffer;
 }
 
+async function encodeAvifBest(
+  base: sharp.Sharp,
+  quality: number,
+  maxBytes?: number
+): Promise<Buffer> {
+  const encode = (q: number) =>
+    base
+      .clone()
+      .avif({
+        quality: Math.round(Math.min(Math.max(q, 35), 80)),
+        effort: 4, // 0–9; 4 ok em serverless
+        chromaSubsampling: "4:2:0",
+      })
+      .toBuffer();
+
+  let q = Math.min(quality, 70);
+  let buffer = await encode(q);
+
+  if (!maxBytes || buffer.length <= maxBytes) return buffer;
+
+  for (const next of [q - 8, q - 16, q - 24, 45, 38]) {
+    if (next >= q) continue;
+    q = Math.max(35, next);
+    buffer = await encode(q);
+    if (buffer.length <= maxBytes) return buffer;
+  }
+
+  return buffer;
+}
+
+/**
+ * Escolhe o menor entre WebP e AVIF (quando ambos ok), respeitando maxBytes.
+ */
+async function pickBestModern(
+  img: sharp.Sharp,
+  quality: number,
+  maxBytes: number | undefined,
+  tryAvif: boolean,
+  tryWebP: boolean
+): Promise<SanitizedImage | null> {
+  const candidates: SanitizedImage[] = [];
+
+  if (tryWebP) {
+    try {
+      const buffer = await encodeWebPBest(img, quality, maxBytes);
+      candidates.push({ buffer, contentType: "image/webp", ext: "webp" });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (tryAvif) {
+    try {
+      const buffer = await encodeAvifBest(img, quality, maxBytes);
+      candidates.push({ buffer, contentType: "image/avif", ext: "avif" });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  // Preferir o que cabe no orçamento; entre esses, o menor
+  const under = maxBytes
+    ? candidates.filter((c) => c.buffer.length <= maxBytes)
+    : candidates;
+  const pool = under.length > 0 ? under : candidates;
+  pool.sort((a, b) => a.buffer.length - b.buffer.length);
+  return pool[0];
+}
+
 export async function sanitizeImage(
   input: Buffer,
   mimeType: string,
@@ -99,42 +170,16 @@ export async function sanitizeImage(
 
   const q = quality ?? 78;
 
-  // AVIF só se pedido explicitamente
-  if (preferAvif && !preferWebP) {
-    try {
-      const buffer = await img
-        .avif({
-          quality: Math.min(Math.max(q, 40), 80),
-          effort: 4,
-        })
-        .toBuffer();
-      return { buffer, contentType: "image/avif", ext: "avif" };
-    } catch {
-      // cai para WebP
-    }
-  }
+  // WebP e/ou AVIF — escolhe o menor que cabe em maxBytes
+  const tryWebP = preferWebP || preferAvif || mimeType === "image/webp" || mimeType === "image/avif" || mimeType === "image/png" || mimeType === "image/jpeg";
+  const tryAvif = preferAvif || mimeType === "image/avif";
 
-  // WebP (caminho principal)
-  if (preferWebP || preferAvif || mimeType === "image/webp" || mimeType === "image/avif") {
-    try {
-      const buffer = await encodeWebPBest(img, q, maxBytes);
-      return { buffer, contentType: "image/webp", ext: "webp" };
-    } catch {
-      // JPEG fallback
-    }
-  }
-
-  if (preferAvif) {
-    try {
-      const buffer = await img
-        .avif({
-          quality: Math.min(Math.max(q, 40), 80),
-          effort: 4,
-        })
-        .toBuffer();
-      return { buffer, contentType: "image/avif", ext: "avif" };
-    } catch {
-      /* jpeg */
+  if (tryWebP || tryAvif) {
+    const best = await pickBestModern(img, q, maxBytes, tryAvif, tryWebP);
+    if (best) {
+      if (!maxBytes || best.buffer.length <= maxBytes) return best;
+      // Ainda acima do teto: devolve o menor mesmo assim (melhor que JPEG enorme)
+      return best;
     }
   }
 

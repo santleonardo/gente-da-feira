@@ -46,6 +46,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+import { compressImageForChat, getExtensionForBlob } from "@/lib/image-compression";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -2716,14 +2717,26 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     setSendingMedia(false);
   };
 
-  const uploadChatMedia = (
+  const uploadChatMedia = async (
     file: File,
     type: "image" | "video" | "audio",
     onProgress?: (pct: number) => void
   ): Promise<string | null> => {
+    let fileToSend: Blob | File = file;
+    let filename = file.name;
+    if (type === "image") {
+      try {
+        fileToSend = await compressImageForChat(file);
+        filename = `chat.${getExtensionForBlob(fileToSend)}`;
+      } catch (e) {
+        console.error("[uploadChatMedia compress]", e);
+        toast.error("Falha ao comprimir a imagem.");
+        return null;
+      }
+    }
     return new Promise((resolve) => {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToSend, filename);
       formData.append("folder", "chat");
       const endpoint =
         type === "image"

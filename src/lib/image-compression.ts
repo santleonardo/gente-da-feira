@@ -25,14 +25,14 @@ interface CompressionOptions {
 }
 
 const DEFAULT_OPTIONS: CompressionOptions = {
-  maxWidth: 1280,
-  maxHeight: 1280,
-  quality: 0.78,
-  maxSizeKB: 220,
+  maxWidth: 1080,
+  maxHeight: 1080,
+  quality: 0.72,
+  maxSizeKB: 120,
   preferAvif: false,
 };
 
-/** Feed / posts: lado ≤1280, alvo ~180KB em WebP */
+/** Feed / posts / chat: lado ≤1080, alvo ~120KB WebP */
 export const FEED_IMAGE_OPTIONS: CompressionOptions = {
   maxWidth: CLIENT_UPLOAD_LIMITS.feedCompress.maxWidth,
   maxHeight: CLIENT_UPLOAD_LIMITS.feedCompress.maxHeight,
@@ -41,12 +41,31 @@ export const FEED_IMAGE_OPTIONS: CompressionOptions = {
   preferAvif: false,
 };
 
+/** Álbum permanente: um pouco mais qualidade */
+export const ALBUM_IMAGE_OPTIONS: CompressionOptions = {
+  maxWidth: CLIENT_UPLOAD_LIMITS.albumCompress.maxWidth,
+  maxHeight: CLIENT_UPLOAD_LIMITS.albumCompress.maxHeight,
+  quality: CLIENT_UPLOAD_LIMITS.albumCompress.quality,
+  maxSizeKB: CLIENT_UPLOAD_LIMITS.albumCompress.maxSizeKB,
+  // Álbum permanente: tenta AVIF (menor) e cai para WebP
+  preferAvif: true,
+};
+
 /** Avatar / thumbs menores */
 export const THUMB_IMAGE_OPTIONS: CompressionOptions = {
-  maxWidth: 640,
-  maxHeight: 640,
-  quality: 0.75,
-  maxSizeKB: 80,
+  maxWidth: CLIENT_UPLOAD_LIMITS.avatarCompress.maxWidth,
+  maxHeight: CLIENT_UPLOAD_LIMITS.avatarCompress.maxHeight,
+  quality: CLIENT_UPLOAD_LIMITS.avatarCompress.quality,
+  maxSizeKB: CLIENT_UPLOAD_LIMITS.avatarCompress.maxSizeKB,
+  preferAvif: false,
+};
+
+/** DM / salas */
+export const CHAT_IMAGE_OPTIONS: CompressionOptions = {
+  maxWidth: CLIENT_UPLOAD_LIMITS.chatCompress.maxWidth,
+  maxHeight: CLIENT_UPLOAD_LIMITS.chatCompress.maxHeight,
+  quality: CLIENT_UPLOAD_LIMITS.chatCompress.quality,
+  maxSizeKB: CLIENT_UPLOAD_LIMITS.chatCompress.maxSizeKB,
   preferAvif: false,
 };
 
@@ -137,13 +156,26 @@ export function validateImageFile(file: File): string | null {
 }
 
 async function pickOutputType(preferAvif: boolean): Promise<EncodeMime> {
-  // WebP primeiro (melhor custo/benefício em fotos de feed no mobile)
-  if (await detectWebPSupport()) {
-    if (preferAvif && (await detectAvifSupport())) return "image/avif";
-    return "image/webp";
-  }
-  if (preferAvif && (await detectAvifSupport())) return "image/avif";
+  const webp = await detectWebPSupport();
+  const avif = preferAvif && (await detectAvifSupport());
+  // preferAvif → tenta AVIF; senão WebP (rápido no mobile)
+  if (avif) return "image/avif";
+  if (webp) return "image/webp";
   return "image/jpeg";
+}
+
+/** Lista de formatos a tentar (melhor → fallback). */
+async function candidateTypes(preferAvif: boolean): Promise<EncodeMime[]> {
+  const out: EncodeMime[] = [];
+  const webp = await detectWebPSupport();
+  const avif = await detectAvifSupport();
+  if (preferAvif && avif) out.push("image/avif");
+  if (webp) out.push("image/webp");
+  if (preferAvif && avif && !out.includes("image/avif")) out.push("image/avif");
+  if (!out.includes("image/webp") && webp) out.push("image/webp");
+  out.push("image/jpeg");
+  // unique preserve order
+  return [...new Set(out)];
 }
 
 function toBlob(
@@ -171,8 +203,9 @@ async function encodeWithinBudget(
   initialQuality: number
 ): Promise<Blob | null> {
   const maxBytes = maxSizeKB * 1024;
-  let lo = type === "image/webp" ? 0.42 : 0.35;
-  let hi = Math.min(Math.max(initialQuality, 0.5), 0.92);
+  // AVIF costuma precisar de qualidade um pouco menor que WebP no canvas
+  let lo = type === "image/avif" ? 0.28 : type === "image/webp" ? 0.42 : 0.35;
+  let hi = Math.min(Math.max(initialQuality, 0.5), type === "image/avif" ? 0.75 : 0.92);
   let best: Blob | null = null;
 
   // Tentativa na qualidade alta primeiro
@@ -254,40 +287,43 @@ export async function compressImage(
 
   try {
     const img = await loadImage(objectUrl);
-    const outputType = await pickOutputType(!!opts.preferAvif);
+    const types = await candidateTypes(!!opts.preferAvif);
+    const maxBytes = maxSizeKB * 1024;
 
-    // Tentativa 1: dimensões alvo
-    let canvas = drawScaled(img, maxWidth, maxHeight);
-    let blob = await encodeWithinBudget(canvas, outputType, maxSizeKB, quality);
+    let best: Blob | null = null;
 
-    // Tentativa 2: se ainda grande, reduz lado e re-encoda WebP
-    if (blob && blob.size > maxSizeKB * 1024) {
-      const scaleSteps = [0.85, 0.72, 0.6];
-      for (const s of scaleSteps) {
-        const mw = Math.round(maxWidth * s);
-        const mh = Math.round(maxHeight * s);
-        canvas = drawScaled(img, mw, mh);
-        const candidate = await encodeWithinBudget(
-          canvas,
-          outputType === "image/avif" ? "image/webp" : outputType,
-          maxSizeKB,
-          Math.min(quality, 0.72)
-        );
-        if (candidate && (!blob || candidate.size < blob.size)) {
-          blob = candidate;
+    for (const outputType of types) {
+      let canvas = drawScaled(img, maxWidth, maxHeight);
+      let blob = await encodeWithinBudget(canvas, outputType, maxSizeKB, quality);
+
+      // Se ainda grande: reduz lado
+      if (blob && blob.size > maxBytes) {
+        for (const s of [0.85, 0.72, 0.6, 0.5]) {
+          const mw = Math.round(maxWidth * s);
+          const mh = Math.round(maxHeight * s);
+          canvas = drawScaled(img, mw, mh);
+          const candidate = await encodeWithinBudget(
+            canvas,
+            outputType,
+            maxSizeKB,
+            Math.min(quality, outputType === "image/avif" ? 0.55 : 0.72)
+          );
+          if (candidate && (!blob || candidate.size < blob.size)) blob = candidate;
+          if (blob && blob.size <= maxBytes) break;
         }
-        if (blob && blob.size <= maxSizeKB * 1024) break;
+      }
+
+      if (blob && (!best || blob.size < best.size)) {
+        best = blob;
+      }
+      // Já cabe no orçamento com formato moderno — pode parar
+      if (best && best.size <= maxBytes && (outputType === "image/avif" || outputType === "image/webp")) {
+        break;
       }
     }
 
-    // Fallback de tipo se WebP/AVIF falhou
-    if (!blob) {
-      canvas = drawScaled(img, maxWidth, maxHeight);
-      blob = await encodeWithinBudget(canvas, "image/jpeg", maxSizeKB, 0.7);
-    }
-
-    if (!blob) throw new Error("Erro ao comprimir imagem");
-    return blob;
+    if (!best) throw new Error("Erro ao comprimir imagem");
+    return best;
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
@@ -296,6 +332,16 @@ export async function compressImage(
 /** Atalho do feed com preset FEED_IMAGE_OPTIONS */
 export async function compressImageForFeed(file: File): Promise<Blob> {
   return compressImage(file, FEED_IMAGE_OPTIONS);
+}
+
+/** Álbum permanente */
+export async function compressImageForAlbum(file: File): Promise<Blob> {
+  return compressImage(file, ALBUM_IMAGE_OPTIONS);
+}
+
+/** Chat (DM / salas) */
+export async function compressImageForChat(file: File): Promise<Blob> {
+  return compressImage(file, CHAT_IMAGE_OPTIONS);
 }
 
 export function getExtensionForBlob(blob: Blob): string {
@@ -328,4 +374,16 @@ export function revokePreviewUrl(url: string | null | undefined): void {
   } catch {
     /* ignore */
   }
+}
+
+
+/** Quais encoders o browser expõe via canvas.toBlob */
+export async function getSupportedImageEncoders(): Promise<{
+  webp: boolean;
+  avif: boolean;
+}> {
+  return {
+    webp: await detectWebPSupport(),
+    avif: await detectAvifSupport(),
+  };
 }

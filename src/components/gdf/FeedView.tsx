@@ -54,6 +54,7 @@ import {
   revokePreviewUrl,
   getExtensionForBlob,
 } from "@/lib/image-compression";
+import { CLIENT_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
 import { ALLOWED_POST_FONTS } from "@/lib/post-style";
 
@@ -61,7 +62,7 @@ import { ALLOWED_POST_FONTS } from "@/lib/post-style";
 // Constantes — Light / Supabase Free
 // ═══════════════════════════════════════════════════════════
 const MAX_PHOTOS_PER_POST = 1;
-const MAX_ACTIVE_MEDIA_POSTS = 2;
+const MAX_ACTIVE_MEDIA_POSTS = CLIENT_UPLOAD_LIMITS.maxActiveMediaPosts;
 const MAX_VIDEO_POSTS_PER_12H = 0; // desabilitado
 const MAX_VIDEO_DURATION = 0;
 const MAX_AUDIO_DURATION = 0;

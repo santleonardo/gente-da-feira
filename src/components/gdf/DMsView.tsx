@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { compressImage, validateImageFile, getExtensionForBlob } from "@/lib/image-compression";
+import { compressImage, compressImageForChat, validateImageFile, getExtensionForBlob, CHAT_IMAGE_OPTIONS } from "@/lib/image-compression";
 
 const MAX_AUDIO_DURATION = 60;
 const MAX_VIDEO_DURATION = 60;
@@ -528,7 +528,7 @@ function DMChat({ conversation, onBack, openUserProfile }: { conversation: any; 
           toast.info("Comprimindo imagem...");
         }
         try {
-          const compressed = await compressImage(file, { maxSizeKB: 900 });
+          const compressed = await compressImageForChat(file);
           fileToUpload = new File([compressed], file.name.replace(/\.\w+$/, `.${getExtensionForBlob(compressed)}`), { type: compressed.type });
         } catch {
           toast.error("Erro ao comprimir imagem");

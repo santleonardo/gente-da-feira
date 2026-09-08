@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
+import { clearImageCache, getImageCacheStats, formatCacheSize } from "@/lib/image-cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -77,6 +78,27 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
       setApproveFollowers(profile.approve_followers || false);
     }
   }, [profile?.is_private, profile?.hide_following, profile?.hide_followers, profile?.hide_neighborhood, profile?.approve_followers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await getImageCacheStats();
+        if (cancelled) return;
+        const el = document.getElementById("gdf-image-cache-stats");
+        if (el) {
+          el.textContent = s.supported
+            ? `${s.entries} imagens · ~${formatCacheSize(s.approxBytes)}`
+            : "Cache não suportado neste navegador";
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
@@ -473,6 +495,36 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
         </CardContent>
       </Card>
 
+      {/* CACHE LOCAL DE IMAGENS */}
+      <Card className="border-black/[0.08] bg-white/80 shadow-sm rounded-2xl">
+        <CardContent className="pt-6 space-y-3">
+          <h3 className="text-sm font-semibold text-[#1A1A1A]">Cache de imagens</h3>
+          <p className="text-xs text-[#4A4A4A] leading-relaxed">
+            Fotos do feed e do álbum ficam guardadas neste aparelho para abrir mais rápido e gastar menos dados.
+          </p>
+          <p className="text-xs text-[#4A4A4A]" id="gdf-image-cache-stats">Calculando…</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={async () => {
+              await clearImageCache();
+              const s = await getImageCacheStats();
+              const el = document.getElementById("gdf-image-cache-stats");
+              if (el) {
+                el.textContent = s.supported
+                  ? `${s.entries} imagens · ~${formatCacheSize(s.approxBytes)}`
+                  : "Cache não suportado neste navegador";
+              }
+              toast.success("Cache de imagens limpo");
+            }}
+          >
+            Limpar cache de imagens
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* PAINEL DE MODERAÇÃO — apenas para moderadores (UX-024) */}
       {profile?.is_moderator && (
         <Card>
@@ -481,6 +533,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
               <Flag className="h-4 w-4 text-red-500" />
               <h3 className="text-sm font-semibold">Moderação</h3>
             </div>
+
             <Button
               variant="outline"
               size="sm"

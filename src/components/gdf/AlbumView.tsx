@@ -24,11 +24,13 @@ import { PhotoViewer } from "./PhotoViewer";
 import { toast } from "sonner";
 import {
   compressImage,
+  compressImageForAlbum,
   validateImageFile,
   getExtensionForBlob,
-  FEED_IMAGE_OPTIONS,
+  ALBUM_IMAGE_OPTIONS,
 } from "@/lib/image-compression";
 import { CLIENT_UPLOAD_LIMITS } from "@/lib/upload-limits";
+import { prefetchImages } from "@/lib/image-cache";
 
 // ═══════ Regras do álbum ═══════
 const MAX_PHOTOS = CLIENT_UPLOAD_LIMITS.maxAlbumPhotos;
@@ -85,7 +87,14 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
       ]);
       const photosData = await photosRes.json();
       const videosData = await videosRes.json();
-      if (photosData.photos) setPhotos(photosData.photos);
+      if (photosData.photos) {
+        setPhotos(photosData.photos);
+        // Cache local das URLs do álbum (abre mais rápido na próxima visita)
+        const urls = (photosData.photos as { url?: string }[])
+          .map((ph) => ph.url)
+          .filter((u): u is string => !!u);
+        if (urls.length) void prefetchImages(urls);
+      }
       if (videosData.videos) setVideos(videosData.videos);
     } catch { /* silent */ }
     setLoading(false);
@@ -111,7 +120,7 @@ export function AlbumView({ embedded }: { embedded?: boolean }) {
     setUploadingPhoto(true);
     try {
       // Comprime no celular (galeria 2–12 MB → ~180 KB) antes do upload
-      const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
+      const compressed = await compressImageForAlbum(file);
       const formData = new FormData();
       formData.append(
         "file",
