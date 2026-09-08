@@ -60,7 +60,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
     }
 
-    // MediaRecorder: "audio/webm;codecs=opus" ou type vazio — normaliza
     const baseType = (file.type || "").split(";")[0].trim().toLowerCase();
     let isValidType =
       !!file.type &&
