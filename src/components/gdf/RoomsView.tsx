@@ -3107,8 +3107,23 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   // ═══════ Gravação de áudio com overlay ═══════
   const startAudioRecording = async () => {
     setAttachMenuOpen(false);
+
+    // Sem suporte no navegador (ex.: contexto não-seguro/HTTP, ou API ausente)
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Gravação de áudio não é suportada neste navegador.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Alguns navegadores in-app (Instagram/WhatsApp/TikTok webview) nunca
+      // resolvem nem rejeitam getUserMedia — sem timeout, o clique "trava"
+      // sem nenhum feedback. Forçamos um limite de tempo explícito.
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ audio: true }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("getUserMedia_timeout")), 8000)
+        ),
+      ]);
       mediaStreamRef.current = stream;
 
       let mimeType = "audio/webm";
@@ -3151,8 +3166,19 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           return prev + 1;
         });
       }, 1000);
-    } catch {
-      toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
+    } catch (err: any) {
+      console.error("[startAudioRecording]", err);
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      if (err?.message === "getUserMedia_timeout") {
+        toast.error(
+          "Não foi possível acessar o microfone. Se você abriu este link dentro de outro app (Instagram, WhatsApp, TikTok), abra no navegador (Safari/Chrome) e tente de novo."
+        );
+      } else {
+        toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
+      }
     }
   };
 
