@@ -64,5 +64,10 @@
     "./src/app/globals.css",
     "./src/app/**/layout.tsx",
     "./src/app/**/page.tsx"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/santleonardo/gente-da-feira.git"
+  },
+  "homepage": "https://www.gentedafeira.com"
 }

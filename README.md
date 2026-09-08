@@ -1,3 +1,12 @@
+# Gente da Feira
+
+Rede social de bairro em Feira de Santana.
+
+- **Site:** https://www.gentedafeira.com/
+- **Repositório:** https://github.com/santleonardo/gente-da-feira
+
+---
+
 # ClimaGDF — Bot de clima + alertas para Gente da Feira
 
 Pacote pronto para integrar:
