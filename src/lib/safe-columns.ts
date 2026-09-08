@@ -83,6 +83,7 @@ export const ROOM_SAFE_COLUMNS = [
   "bulletin_links",
   "bulletin_category",
   "bulletin_expires_at",
+  "bulletin_contact",
   "is_active",
   "is_open",
   "max_members",

@@ -25,7 +25,7 @@ import {
   Play, Pause, Volume2, Loader2, Send, Lock, Ban,
   Eye, EyeOff, ShieldAlert, Settings, Search, UserX,
   DoorOpen, DoorClosed, KeyRound, Trash2, AlertTriangle, Flag,
-  Reply, SmilePlus, Megaphone, Pencil, Link2, ExternalLink,
+  Reply, SmilePlus, Megaphone, Pencil, Link2, ExternalLink, MessageCircle,
 } from "lucide-react";
 
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
@@ -58,6 +58,7 @@ import {
   BULLETIN_CATEGORY_META,
   type BulletinCategory,
 } from "@/lib/bulletin-categories";
+import { formatPhoneDisplay, buildWhatsAppLink } from "@/lib/phone-utils";
 
 const ROOM_ICONS = [
   "💬", "🏠", "🎮", "⚽", "🎵", "📸", "🎬", "📚",
@@ -2104,6 +2105,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   >([]);
   const [bulletinCategoryDraft, setBulletinCategoryDraft] = useState<BulletinCategory | null>(null);
   const [bulletinExpiresAtDraft, setBulletinExpiresAtDraft] = useState<string | null>(null);
+  const [bulletinContactPhoneDraft, setBulletinContactPhoneDraft] = useState("");
+  const [bulletinContactLabelDraft, setBulletinContactLabelDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Mídia no chat ──
@@ -2155,7 +2158,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     room.bulletin_expires_at && new Date(room.bulletin_expires_at).getTime() <= Date.now()
   );
   const bulletinHasContent = Boolean(
-    room.bulletin || (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0)
+    room.bulletin ||
+      (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ||
+      room.bulletin_contact?.phone
   );
   const bulletinActive = bulletinHasContent && !bulletinExpired;
 
@@ -2529,6 +2534,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           bulletin_links: data.room.bulletin_links ?? currentRoom.bulletin_links ?? [],
           bulletin_category: data.room.bulletin_category ?? currentRoom.bulletin_category ?? null,
           bulletin_expires_at: data.room.bulletin_expires_at ?? currentRoom.bulletin_expires_at ?? null,
+          bulletin_contact: data.room.bulletin_contact ?? currentRoom.bulletin_contact ?? null,
         };
         // Evita re-render em loop se nada mudou
         const same =
@@ -2541,6 +2547,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           (currentRoom.bulletin ?? null) === (updated.bulletin ?? null) &&
           (currentRoom.bulletin_category ?? null) === (updated.bulletin_category ?? null) &&
           (currentRoom.bulletin_expires_at ?? null) === (updated.bulletin_expires_at ?? null) &&
+          JSON.stringify(currentRoom.bulletin_contact ?? null) === JSON.stringify(updated.bulletin_contact ?? null) &&
           JSON.stringify(currentRoom.bulletin_links ?? []) === JSON.stringify(updated.bulletin_links ?? []);
         if (!same) setSelectedRoom(updated);
       }
@@ -4904,6 +4911,37 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   ))}
                 </div>
 
+                {/* Contato rápido — WhatsApp/telefone */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-[#4A4A4A]/70">
+                    <MessageCircle className="h-3.5 w-3.5" /> Contato rápido (opcional)
+                  </span>
+                  <div className="rounded-xl border border-black/10 bg-[#F9F8F6] p-2 space-y-1.5">
+                    <Input
+                      value={bulletinContactPhoneDraft}
+                      onChange={(e) =>
+                        setBulletinContactPhoneDraft(e.target.value.slice(0, 30))
+                      }
+                      placeholder="WhatsApp/telefone — ex: (75) 9xxxx-xxxx"
+                      inputMode="tel"
+                      className="h-8 rounded-lg border-black/10 bg-white text-xs"
+                      disabled={bulletinSaving}
+                    />
+                    <Input
+                      value={bulletinContactLabelDraft}
+                      onChange={(e) =>
+                        setBulletinContactLabelDraft(e.target.value.slice(0, 40))
+                      }
+                      placeholder='Texto do botão (opcional) — ex: "Peça encomenda"'
+                      className="h-8 rounded-lg border-black/10 bg-white text-xs"
+                      disabled={bulletinSaving}
+                    />
+                    <p className="text-[11px] text-[#4A4A4A]/40">
+                      Informe o DDI + DDD, ex: 55 75 9xxxx-xxxx.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <Button
                     type="button"
@@ -4922,6 +4960,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       );
                       setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
                       setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
+                      setBulletinContactPhoneDraft(room.bulletin_contact?.phone || "");
+                      setBulletinContactLabelDraft(room.bulletin_contact?.label || "");
                       setBulletinEditing(false);
                     }}
                     disabled={bulletinSaving}
@@ -4949,6 +4989,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         toast.error("Verifique se os links do mural começam com http:// ou https://");
                         return;
                       }
+                      const phoneTrim = bulletinContactPhoneDraft.trim();
+                      if (phoneTrim && phoneTrim.replace(/[^\d]/g, "").length < 8) {
+                        toast.error("Telefone de contato inválido — inclua DDI e DDD");
+                        return;
+                      }
+                      const contactToSave = phoneTrim
+                        ? { phone: phoneTrim, label: bulletinContactLabelDraft.trim() }
+                        : null;
                       setBulletinSaving(true);
                       try {
                         const res = await fetch(`/api/rooms/${room.id}`, {
@@ -4959,6 +5007,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             bulletin_links: linksToSave,
                             bulletin_category: bulletinCategoryDraft,
                             bulletin_expires_at: bulletinExpiresAtDraft,
+                            bulletin_contact: contactToSave,
                           }),
                         });
                         const data = await res.json();
@@ -4975,12 +5024,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                             data.room?.bulletin_expires_at !== undefined
                               ? data.room.bulletin_expires_at
                               : bulletinExpiresAtDraft;
+                          const nextContact =
+                            data.room?.bulletin_contact !== undefined
+                              ? data.room.bulletin_contact
+                              : contactToSave;
                           setSelectedRoom({
                             ...room,
                             bulletin: next,
                             bulletin_links: nextLinks,
                             bulletin_category: nextCategory,
                             bulletin_expires_at: nextExpiresAt,
+                            bulletin_contact: nextContact,
                           });
                           setBulletinDraft(String(next || ""));
                           setBulletinLinksDraft(
@@ -4991,9 +5045,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           );
                           setBulletinCategoryDraft(nextCategory || null);
                           setBulletinExpiresAtDraft(nextExpiresAt || null);
+                          setBulletinContactPhoneDraft(nextContact?.phone || "");
+                          setBulletinContactLabelDraft(nextContact?.label || "");
                           setBulletinEditing(false);
                           toast.success(
-                            next || (nextLinks && nextLinks.length)
+                            next || (nextLinks && nextLinks.length) || nextContact
                               ? "Mural de avisos atualizado"
                               : "Mural de avisos limpo"
                           );
@@ -5021,6 +5077,25 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     </p>
                   </div>
                 ) : null}
+                {room.bulletin_contact?.phone && (
+                  <a
+                    href={buildWhatsAppLink(room.bulletin_contact.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-xl border border-[#25D366]/25 bg-[#25D366]/10 p-3 text-sm text-[#1A1A1A] hover:bg-[#25D366]/15 transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4 shrink-0 text-[#1DA851]" />
+                    <span className="flex-1">
+                      <span className="block font-medium">
+                        {room.bulletin_contact.label || "Fale com o responsável"}
+                      </span>
+                      <span className="block text-xs text-[#4A4A4A]/60">
+                        {formatPhoneDisplay(room.bulletin_contact.phone)}
+                      </span>
+                    </span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[#4A4A4A]/40" />
+                  </a>
+                )}
                 {Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0 && (
                   <div className="space-y-2">
                     {room.bulletin_links.map((link: any, idx: number) => (
@@ -5075,6 +5150,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   );
                   setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
                   setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
+                  setBulletinContactPhoneDraft(room.bulletin_contact?.phone || "");
+                  setBulletinContactLabelDraft(room.bulletin_contact?.label || "");
                   setBulletinEditing(true);
                 }}
               >
