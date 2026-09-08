@@ -46,13 +46,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-import { compressImageForChat, getExtensionForBlob } from "@/lib/image-compression";
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { compressImageForChat, getExtensionForBlob } from "@/lib/image-compression";
 
 const ROOM_ICONS = [
   "💬", "🏠", "🎮", "⚽", "🎵", "📸", "🎬", "📚",
