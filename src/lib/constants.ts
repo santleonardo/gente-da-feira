@@ -101,7 +101,7 @@ Versão 1.0 — Elaborada em 16 de junho de 2026
 
 ## 1. Sobre estes Termos
 
-Estes Termos de Uso ("Termos") regulam o acesso e o uso da rede social **Gente da Feira** ("Plataforma", "Gente da Feira", "nós"), um aplicativo voltado à conexão entre moradores dos bairros de Feira de Santana (BA), operado por **[NOME COMPLETO DO RESPONSÁVEL]**, CPF nº **[000.000.000-00]**, residente em **[ENDEREÇO COMPLETO]** ("Operador(a)", "Eu").
+Estes Termos de Uso ("Termos") regulam o acesso e o uso da rede social **Gente da Feira** ("Plataforma", "Gente da Feira", "nós"), um aplicativo voltado à conexão entre moradores dos bairros de Feira de Santana (BA), operado por **Leonardo de Sant Anna Almeida**, CPF nº **034.190.095-85**, residente em Feira de Santana, Bahia ("Operador(a)", "Eu"). E-mail: **santannaleonardo@hotmail.com**.
 
 Ao criar uma conta ou utilizar qualquer funcionalidade da Plataforma, você ("Usuário", "você") declara que leu, compreendeu e concorda integralmente com estes Termos e com a Política de Privacidade aqui descrita (Seção 10). Caso não concorde, você não deve se cadastrar nem utilizar a Gente da Feira.
 
@@ -334,7 +334,7 @@ Estes Termos são regidos pela legislação brasileira. Fica eleito o foro da co
 
 Dúvidas, solicitações sobre dados pessoais (LGPD), denúncias de conteúdo ou de contas de menores de idade podem ser enviadas para:
 
-**E-mail:** [e-mail de contato/privacidade — ex.: privacidade@gentedafeira.app]
+**E-mail:** santannaleonardo@hotmail.com
 
 ---
 
