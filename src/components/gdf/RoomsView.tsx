@@ -3743,7 +3743,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={openPollDialog} className="gap-2">
-                  <Vote className="h-4 w-4" /> Enquete
+                  <Vote className="h-4 w-4" /> Enquete/Anúncio
                 </DropdownMenuItem>
                 {isCreator && (
                   <>
@@ -5335,7 +5335,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
-              <Vote className="h-4 w-4 text-[#D96C4A]" /> Enquete
+              <Vote className="h-4 w-4 text-[#D96C4A]" /> Enquete/Anúncio
               {poll && !pollCreating ? (
                 <span
                   className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-sans font-semibold ${
