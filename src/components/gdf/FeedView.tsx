@@ -55,6 +55,7 @@ import {
   getExtensionForBlob,
 } from "@/lib/image-compression";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
+import { ALLOWED_POST_FONTS } from "@/lib/post-style";
 
 // ═══════════════════════════════════════════════════════════
 // Constantes — Light / Supabase Free
@@ -109,7 +110,7 @@ const POST_IT_COLORS_HEX = [
   { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db" },
 ] as const;
 
-const EDITOR_FONTS = ["Nunito","Quicksand","Poppins","Inter","Comfortaa","Montserrat","Lato","Raleway","DM Sans","Work Sans"] as const;
+const EDITOR_FONTS = ALLOWED_POST_FONTS;
 
 // ═══════════════════════════════════════════════════════════
 // FormattedText helpers
@@ -680,42 +681,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       previewUrls.forEach((url) => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Sync edits/deletes from PostDetailDialog and posts created from Perfil → Escrever
-  useEffect(() => {
-    const onUpdated = (e: Event) => {
-      const post = (e as CustomEvent).detail?.post;
-      if (!post?.id) return;
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id
-            ? { ...p, ...post, comment_count: post.comment_count ?? p.comment_count }
-            : p
-        )
-      );
-    };
-    const onDeleted = (e: Event) => {
-      const postId = (e as CustomEvent).detail?.postId;
-      if (!postId) return;
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-    };
-    const onCreated = (e: Event) => {
-      const post = (e as CustomEvent).detail?.post;
-      if (!post?.id) return;
-      setPosts((prev) => {
-        if (prev.some((p) => p.id === post.id)) return prev;
-        return [{ ...post, comment_count: post.comment_count || 0 }, ...prev];
-      });
-    };
-    window.addEventListener("postUpdated", onUpdated);
-    window.addEventListener("postDeleted", onDeleted);
-    window.addEventListener("postCreated", onCreated);
-    return () => {
-      window.removeEventListener("postUpdated", onUpdated);
-      window.removeEventListener("postDeleted", onDeleted);
-      window.removeEventListener("postCreated", onCreated);
-    };
   }, []);
 
   // Página menor = 1º paint mais rápido; scroll infinito completa o resto
@@ -1752,7 +1717,7 @@ const PostThread = memo(function PostThread({
                   fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
                   fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
                   textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                  color: "#1A1A1A",
+                  color: (hasPostStyle && post.post_style!.fontColor) ? post.post_style!.fontColor : "#1A1A1A",
                 }}
               />
             )}
@@ -1798,7 +1763,7 @@ const PostThread = memo(function PostThread({
                     fontWeight:  hasPostStyle && post.post_style!.bold      ? 700                                      : undefined,
                     fontStyle:   hasPostStyle && post.post_style!.italic    ? "italic"                                 : undefined,
                     textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment as any        : undefined,
-                    color: "#1A1A1A",
+                    color: (hasPostStyle && post.post_style!.fontColor) ? post.post_style!.fontColor : "#1A1A1A",
                   }}
                 />
               </div>
