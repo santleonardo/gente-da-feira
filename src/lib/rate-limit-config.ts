@@ -71,6 +71,12 @@ const rules: RateLimitRule[] = [
   { key: "rooms:toggle",     limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
   { key: "rooms:update",     limit: 15,  windowMs: 60_000,  methods: ["PATCH"],  byUser: true  },
 
+  // ── Enquete no mural (MEDIUM) ─────────────────────────────────────
+  { key: "rooms:poll:get",    limit: 60, windowMs: 60_000, methods: ["GET"],   byUser: true  },
+  { key: "rooms:poll:create", limit: 8,  windowMs: 60_000, methods: ["POST"],  byUser: true  },
+  { key: "rooms:poll:close",  limit: 20, windowMs: 60_000, methods: ["PATCH"], byUser: true  },
+  { key: "rooms:poll:vote",   limit: 30, windowMs: 60_000, methods: ["POST"],  byUser: true  },
+
   // ── Follows (HIGH) ────────────────────────────────────────────────
   { key: "follows:list",     limit: 30,  windowMs: 60_000,  methods: ["GET"],    byUser: true  },
   { key: "follows:toggle",   limit: 20,  windowMs: 60_000,  methods: ["POST"],   byUser: true  },
