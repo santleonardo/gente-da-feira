@@ -28,7 +28,7 @@ export async function GET(
     const { data: _room, error } = await supabase
       .from("rooms")
       .select(`
-        id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category,
+        id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at,
         is_active, is_open, max_members, member_count, has_password,
         created_at, created_by,
         creator:profiles!rooms_created_by_fkey(id, display_name, username, avatar_url)
@@ -157,7 +157,7 @@ export async function DELETE(
 // PATCH /api/rooms/[id]
 // Criador: rules, bulletin, description, is_open, password (definir/trocar/remover)
 // Moderador: rules, description, is_open (sem senha)
-// bulletin, bulletin_links (até 3) e bulletin_category (mural de avisos): somente criador
+// bulletin, bulletin_links (até 3), bulletin_category e bulletin_expires_at (mural de avisos): criador ou moderador
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -212,11 +212,11 @@ export async function PATCH(
       updateData.rules = rules || null;
     }
 
-    // Mural de avisos — somente o criador pode editar
+    // Mural de avisos — criador ou moderador podem editar
     if (body.bulletin !== undefined) {
-      if (!isCreator) {
+      if (!isMod) {
         return NextResponse.json(
-          { error: "Apenas o criador da sala pode editar o mural de avisos" },
+          { error: "Apenas criador ou moderador podem editar o mural de avisos" },
           { status: 403 }
         );
       }
@@ -227,11 +227,11 @@ export async function PATCH(
       updateData.bulletin = bulletin || null;
     }
 
-    // Categoria/etiqueta do mural — somente o criador pode editar
+    // Categoria/etiqueta do mural — criador ou moderador podem editar
     if (body.bulletin_category !== undefined) {
-      if (!isCreator) {
+      if (!isMod) {
         return NextResponse.json(
-          { error: "Apenas o criador da sala pode editar o mural de avisos" },
+          { error: "Apenas criador ou moderador podem editar o mural de avisos" },
           { status: 403 }
         );
       }
@@ -247,11 +247,38 @@ export async function PATCH(
       }
     }
 
-    // Links do mural de avisos — até 3, somente o criador pode editar
-    if (body.bulletin_links !== undefined) {
-      if (!isCreator) {
+    // Validade do mural (data em que o aviso expira) — criador ou moderador
+    if (body.bulletin_expires_at !== undefined) {
+      if (!isMod) {
         return NextResponse.json(
-          { error: "Apenas o criador da sala pode editar o mural de avisos" },
+          { error: "Apenas criador ou moderador podem editar o mural de avisos" },
+          { status: 403 }
+        );
+      }
+      if (body.bulletin_expires_at === null) {
+        updateData.bulletin_expires_at = null;
+      } else if (typeof body.bulletin_expires_at === "string") {
+        const parsed = new Date(body.bulletin_expires_at);
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json(
+            { error: "Data de validade do mural inválida" },
+            { status: 400 }
+          );
+        }
+        updateData.bulletin_expires_at = parsed.toISOString();
+      } else {
+        return NextResponse.json(
+          { error: "Data de validade do mural inválida" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Links do mural de avisos — até 3, criador ou moderador podem editar
+    if (body.bulletin_links !== undefined) {
+      if (!isMod) {
+        return NextResponse.json(
+          { error: "Apenas criador ou moderador podem editar o mural de avisos" },
           { status: 403 }
         );
       }
@@ -342,7 +369,7 @@ export async function PATCH(
       .from("rooms")
       .update(updateData)
       .eq("id", roomId)
-      .select("id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
+      .select("id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
       .single();
 
     if (error) {
