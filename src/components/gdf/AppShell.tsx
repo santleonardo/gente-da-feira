@@ -187,12 +187,12 @@ export function AppShell() {
   const [transitionKey, setTransitionKey] = useState("feed");
   const [isPending, startTransition] = useTransition();
 
-  // Banner do admin (mensagem para todos)
-  const [adminBanner, setAdminBanner] = useState<{
-    id: string;
-    message: string;
-  } | null>(null);
-  const [bannerHidden, setBannerHidden] = useState(false);
+  // Banners do admin (mensagens para todos) — todos os ativos aparecem,
+  // um novo não faz o anterior sumir; cada usuário pode esconder o seu.
+  const [adminBanners, setAdminBanners] = useState<
+    { id: string; message: string }[]
+  >([]);
+  const [hiddenBannerIds, setHiddenBannerIds] = useState<string[]>([]);
 
   // ── Online/offline listener ──────────────────────────────
   useEffect(() => {
@@ -330,21 +330,18 @@ export function AppShell() {
       fetch("/api/banners")
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
-          if (cancelled || !data?.banner?.id) {
-            if (!cancelled) {
-              setAdminBanner(null);
-              setBannerHidden(false);
-            }
-            return;
-          }
-          const hidden = getHiddenBannerIds();
-          setAdminBanner({ id: data.banner.id, message: data.banner.message });
-          setBannerHidden(hidden.includes(data.banner.id));
+          if (cancelled) return;
+          const list = Array.isArray(data?.banners) ? data.banners : [];
+          setAdminBanners(
+            list
+              .filter((b: any) => b?.id && typeof b?.message === "string")
+              .map((b: any) => ({ id: b.id, message: b.message }))
+          );
+          setHiddenBannerIds(getHiddenBannerIds());
         })
         .catch(() => {
           if (!cancelled) {
-            setAdminBanner(null);
-            setBannerHidden(false);
+            setAdminBanners([]);
           }
         });
     };
@@ -357,10 +354,9 @@ export function AppShell() {
     };
   }, [profile]);
 
-  const handleHideBanner = () => {
-    if (!adminBanner) return;
-    hideBannerId(adminBanner.id);
-    setBannerHidden(true);
+  const handleHideBanner = (id: string) => {
+    hideBannerId(id);
+    setHiddenBannerIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   };
 
   // ── Loading ──────────────────────────────────────────────
@@ -466,20 +462,21 @@ export function AppShell() {
     });
   };
 
-  const showAdminBanner = !!adminBanner && !bannerHidden;
-  // Altura aproximada dos banners fixos no topo (para offset do header/main)
-  const topOffsetClass =
-    !isOnline && showAdminBanner
-      ? "top-14"
-      : !isOnline || showAdminBanner
-        ? "top-7"
-        : "top-0";
-  const mainOffsetClass =
-    !isOnline && showAdminBanner
-      ? "mt-14 md:mt-0"
-      : !isOnline || showAdminBanner
-        ? "mt-7 md:mt-0"
-        : "";
+  const visibleAdminBanners = adminBanners.filter(
+    (b) => !hiddenBannerIds.includes(b.id)
+  );
+  // Altura aproximada de cada faixa fixa no topo (offline + um por aviso
+  // ativo), usada para empurrar o header/conteúdo para baixo. Cada linha
+  // ocupa ~1.75rem (equivalente ao antigo "top-7"/"h-7").
+  const ROW_REM = 1.75;
+  const totalRows = (!isOnline ? 1 : 0) + visibleAdminBanners.length;
+  const topOffsetRem = totalRows * ROW_REM;
+  // CSS var usada pelo header (sticky, desktop) e pelo main (mobile, sem
+  // header visível), com "md:mt-0" cancelando a margem extra no desktop
+  // já que o header sticky reserva o espaço sozinho ali.
+  const bannerOffsetVars = {
+    "--gdf-banner-offset": `${topOffsetRem}rem`,
+  } as React.CSSProperties;
 
   return (
     <div
@@ -487,6 +484,7 @@ export function AppShell() {
         "gdf-shell flex w-full max-w-[100vw] flex-col overflow-x-hidden bg-[#F9F8F6] min-w-0",
         inChat ? "h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden" : "min-h-screen"
       )}
+      style={bannerOffsetVars}
     >
       <GdfEditorialStyles />
 
@@ -498,20 +496,19 @@ export function AppShell() {
         </div>
       )}
 
-      {/* ── Banner do admin ────────────────────────────────── */}
-      {showAdminBanner && (
+      {/* ── Banners do admin — todos os avisos ativos, empilhados ── */}
+      {visibleAdminBanners.map((banner, index) => (
         <div
-          className={cn(
-            "fixed left-0 right-0 z-50 flex items-start gap-2 bg-[#1A1A1A] px-3 py-2 text-xs font-medium text-white shadow-sm",
-            !isOnline ? "top-7" : "top-0"
-          )}
+          key={banner.id}
+          className="fixed left-0 right-0 z-50 flex items-start gap-2 bg-[#1A1A1A] px-3 py-2 text-xs font-medium text-white shadow-sm"
+          style={{ top: `${((!isOnline ? 1 : 0) + index) * ROW_REM}rem` }}
         >
           <p className="flex-1 text-center leading-snug whitespace-pre-wrap break-words">
-            {adminBanner.message}
+            {banner.message}
           </p>
           <button
             type="button"
-            onClick={handleHideBanner}
+            onClick={() => handleHideBanner(banner.id)}
             className="shrink-0 rounded-md p-1 hover:bg-white/15 active:scale-95"
             title="Esconder"
             aria-label="Esconder banner"
@@ -519,14 +516,13 @@ export function AppShell() {
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
-      )}
+      ))}
 
       {/* ── Header desktop — masthead editorial com trilho alinhado ao conteúdo ── */}
       <header
         className={cn(
-          "sticky z-40 border-b border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl",
-          inChat ? "hidden" : "hidden md:block",
-          topOffsetClass
+          "sticky z-40 border-b border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-xl top-[var(--gdf-banner-offset)]",
+          inChat ? "hidden" : "hidden md:block"
         )}
       >
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 lg:px-8 py-3.5">
@@ -592,7 +588,7 @@ export function AppShell() {
           inChat
             ? "flex flex-col pb-0 overflow-hidden"
             : "mobile-main-pad",
-          !inChat && mainOffsetClass
+          !inChat && "mt-[var(--gdf-banner-offset)] md:mt-0"
         )}
       >
         <div
