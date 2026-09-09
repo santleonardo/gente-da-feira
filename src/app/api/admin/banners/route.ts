@@ -4,12 +4,19 @@ import { isModerator } from "@/lib/report-auth";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
 
+const MAX_ACTIVE_BANNERS = 10;
+
 /**
  * GET  /api/admin/banners — lista banners (ativos e recentes)
- * POST /api/admin/banners — cria um novo banner ativo
+ * POST /api/admin/banners — cria um novo banner ativo (NÃO desativa os anteriores)
  * DELETE /api/admin/banners?id= — remove (hard delete) um banner
  *
  * Acesso: is_moderator === true
+ *
+ * POST body:
+ *   message: string (1–500)
+ *   deactivate_others?: boolean — SOMENTE se true desativa os demais.
+ *     Padrão: false. Avisos anteriores permanecem visíveis.
  */
 
 export async function GET(req: NextRequest) {
@@ -37,7 +44,14 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ banners: banners || [] });
+    const list = banners || [];
+    const activeCount = list.filter((b) => b.is_active).length;
+
+    return NextResponse.json({
+      banners: list,
+      activeCount,
+      maxActive: MAX_ACTIVE_BANNERS,
+    });
   } catch (error) {
     const { message, status } = safeErrorResponse(
       error,
@@ -76,15 +90,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Por padrão, banners anteriores permanecem ativos (todos aparecem
-    // para os usuários até serem removidos manualmente). Só desativa os
-    // outros se o admin pedir explicitamente (deactivate_others: true).
+    // SOMENTE se o admin pedir explicitamente (checkbox no painel).
+    // Por padrão os avisos antigos CONTINUAM ativos e visíveis.
     const deactivateOthers = body.deactivate_others === true;
+
     if (deactivateOthers) {
       await supabase
         .from("app_banners")
         .update({ is_active: false })
         .eq("is_active", true);
+    } else {
+      const { count, error: countErr } = await supabase
+        .from("app_banners")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true);
+      if (countErr) throw countErr;
+      if ((count ?? 0) >= MAX_ACTIVE_BANNERS) {
+        return NextResponse.json(
+          {
+            error: `Limite de ${MAX_ACTIVE_BANNERS} avisos ativos. Apague algum no painel antes de criar outro (os antigos não somem sozinhos).`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const { data: banner, error } = await supabase

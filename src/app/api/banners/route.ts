@@ -3,12 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { safeErrorResponse } from "@/lib/safe-error";
 
+const MAX_ACTIVE_BANNERS = 10;
+
 /**
  * GET /api/banners
- * Retorna todos os banners ativos para o app (mais recentes primeiro).
- * Todos os avisos ativos aparecem — nenhum some quando um novo é postado;
- * cada usuário pode esconder individualmente pelo lado do cliente.
- * Qualquer usuário autenticado pode ler.
+ * Retorna até 10 banners ativos (mais recentes primeiro).
+ * Todos permanecem até o admin apagar — criar um novo NÃO remove os antigos.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -28,11 +28,15 @@ export async function GET(req: NextRequest) {
       .select("id, message, created_at")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(MAX_ACTIVE_BANNERS);
 
     if (error) throw error;
 
-    return NextResponse.json({ banners: banners || [] });
+    const list = banners || [];
+    return NextResponse.json({
+      banners: list,
+      banner: list[0] || null, // compat
+    });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[banners GET]");
     return NextResponse.json({ error: message }, { status });
