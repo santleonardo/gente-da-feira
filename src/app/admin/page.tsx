@@ -122,8 +122,6 @@ export default function AdminPanelPage() {
   const [bannerMessage, setBannerMessage] = useState("");
   const [sendingBanner, setSendingBanner] = useState(false);
   const [bannerActionId, setBannerActionId] = useState<string | null>(null);
-  /** Se true, desativa todos os avisos anteriores ao publicar. Padrão: false (mantém os 10). */
-  const [replacePreviousBanners, setReplacePreviousBanners] = useState(false);
 
   // "Na cidade" — cards editoriais manuais
   const [cityUpdates, setCityUpdates] = useState<AdminCityUpdate[]>([]);
@@ -396,11 +394,7 @@ export default function AdminPanelPage() {
       const res = await fetch("/api/admin/banners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: msg,
-          // false = mantém avisos antigos; true só se o admin marcar o checkbox
-          deactivate_others: replacePreviousBanners === true,
-        }),
+        body: JSON.stringify({ message: msg }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -408,7 +402,29 @@ export default function AdminPanelPage() {
         return;
       }
       setBannerMessage("");
-      setReplacePreviousBanners(false);
+      await fetchBanners();
+    } catch {
+      alert("Erro de rede");
+    } finally {
+      setSendingBanner(false);
+    }
+  };
+
+  const reactivateAllBanners = async () => {
+    if (!confirm("Reativar os 10 avisos mais recentes? Útil se algum sumiu ao publicar outro.")) return;
+    setSendingBanner(true);
+    try {
+      const res = await fetch("/api/admin/banners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactivateAll: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao reativar");
+        return;
+      }
+      alert(`Reativados: ${data.reactivated ?? 0}`);
       await fetchBanners();
     } catch {
       alert("Erro de rede");
@@ -855,13 +871,12 @@ export default function AdminPanelPage() {
           <>
             <div style={styles.sectionHead}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
-                Avisos para todos os usuários
+                Banner para todos os usuários
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "#666" }}>
-                Até 10 avisos ativos ao mesmo tempo. Publicar um novo{" "}
-                <strong>não remove</strong> os anteriores — eles continuam no
-                topo do app até você apagar aqui. O usuário só esconde
-                localmente no próprio aparelho.
+                Envie uma mensagem que aparece no topo do app para todos. O
+                usuário só pode esconder localmente; quem apaga é o admin aqui no
+                painel.
               </p>
             </div>
 
@@ -903,31 +918,6 @@ export default function AdminPanelPage() {
                   fontFamily: "inherit",
                 }}
               />
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                  marginTop: 12,
-                  fontSize: 13,
-                  color: "rgba(26,27,37,.75)",
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={replacePreviousBanners}
-                  onChange={(e) => setReplacePreviousBanners(e.target.checked)}
-                  style={{ marginTop: 2 }}
-                />
-                <span>
-                  Substituir avisos anteriores (desativa os que já estão ativos).
-                  <span style={{ display: "block", fontSize: 12, color: "rgba(26,27,37,.45)", marginTop: 2 }}>
-                    Deixe desmarcado para manter todos os avisos (até 10).
-                  </span>
-                </span>
-              </label>
               <div
                 style={{
                   display: "flex",
@@ -940,8 +930,6 @@ export default function AdminPanelPage() {
               >
                 <span style={{ fontSize: 12, color: "rgba(26,27,37,.4)" }}>
                   {bannerMessage.trim().length}/500
-                  {" · "}
-                  {banners.filter((b) => b.is_active).length}/10 ativos
                 </span>
                 <button
                   type="button"
@@ -959,7 +947,26 @@ export default function AdminPanelPage() {
                 </button>
               </div>
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "#888" }}>
-                Ao enviar, o banner fica ativo junto com os anteriores. Todos aparecem para os usuários até serem apagados.
+                Ao enviar, o aviso fica ativo junto com os anteriores (até 10). Nada some sozinho — só se você apagar.
+                {" "}
+                <button
+                  type="button"
+                  onClick={reactivateAllBanners}
+                  disabled={sendingBanner}
+                  style={{
+                    marginLeft: 8,
+                    background: "none",
+                    border: "none",
+                    color: "#5B5BD6",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    padding: 0,
+                    textDecoration: "underline",
+                  }}
+                >
+                  Reativar os que sumiram
+                </button>
               </p>
             </div>
 

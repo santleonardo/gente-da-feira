@@ -7,16 +7,10 @@ import { safeErrorResponse } from "@/lib/safe-error";
 const MAX_ACTIVE_BANNERS = 10;
 
 /**
- * GET  /api/admin/banners — lista banners (ativos e recentes)
- * POST /api/admin/banners — cria um novo banner ativo (NÃO desativa os anteriores)
- * DELETE /api/admin/banners?id= — remove (hard delete) um banner
- *
- * Acesso: is_moderator === true
- *
- * POST body:
- *   message: string (1–500)
- *   deactivate_others?: boolean — SOMENTE se true desativa os demais.
- *     Padrão: false. Avisos anteriores permanecem visíveis.
+ * GET  /api/admin/banners
+ * POST /api/admin/banners — cria aviso; NUNCA desativa os anteriores
+ * DELETE /api/admin/banners?id=
+ * PATCH /api/admin/banners — reativa avisos
  */
 
 export async function GET(req: NextRequest) {
@@ -45,11 +39,9 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     const list = banners || [];
-    const activeCount = list.filter((b) => b.is_active).length;
-
     return NextResponse.json({
       banners: list,
-      activeCount,
+      activeCount: list.filter((b) => b.is_active).length,
       maxActive: MAX_ACTIVE_BANNERS,
     });
   } catch (error) {
@@ -90,29 +82,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // SOMENTE se o admin pedir explicitamente (checkbox no painel).
-    // Por padrão os avisos antigos CONTINUAM ativos e visíveis.
-    const deactivateOthers = body.deactivate_others === true;
+    // NUNCA desativa avisos anteriores. Só saem com DELETE ou PATCH.
 
-    if (deactivateOthers) {
-      await supabase
-        .from("app_banners")
-        .update({ is_active: false })
-        .eq("is_active", true);
-    } else {
-      const { count, error: countErr } = await supabase
-        .from("app_banners")
-        .select("id", { count: "exact", head: true })
-        .eq("is_active", true);
-      if (countErr) throw countErr;
-      if ((count ?? 0) >= MAX_ACTIVE_BANNERS) {
-        return NextResponse.json(
-          {
-            error: `Limite de ${MAX_ACTIVE_BANNERS} avisos ativos. Apague algum no painel antes de criar outro (os antigos não somem sozinhos).`,
-          },
-          { status: 409 }
-        );
-      }
+    const { count, error: countErr } = await supabase
+      .from("app_banners")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true);
+    if (countErr) throw countErr;
+
+    if ((count ?? 0) >= MAX_ACTIVE_BANNERS) {
+      return NextResponse.json(
+        {
+          error: `Já existem ${MAX_ACTIVE_BANNERS} avisos ativos. Apague um no painel para liberar espaço. Os antigos NÃO são removidos automaticamente.`,
+        },
+        { status: 409 }
+      );
     }
 
     const { data: banner, error } = await supabase
@@ -133,6 +117,65 @@ export async function POST(req: NextRequest) {
       error,
       500,
       "[admin/banners POST]"
+    );
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const blocked = await rateLimitByRule(req, "admin:reports:list", user.id);
+    if (blocked) return blocked;
+
+    if (!(await isModerator(supabase, user.id))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+
+    if (body.reactivateAll === true) {
+      const { data: recent, error: listErr } = await supabase
+        .from("app_banners")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(MAX_ACTIVE_BANNERS);
+      if (listErr) throw listErr;
+      const ids = (recent || []).map((r) => r.id);
+      if (ids.length === 0) {
+        return NextResponse.json({ ok: true, reactivated: 0 });
+      }
+      const { error: updErr } = await supabase
+        .from("app_banners")
+        .update({ is_active: true })
+        .in("id", ids);
+      if (updErr) throw updErr;
+      return NextResponse.json({ ok: true, reactivated: ids.length });
+    }
+
+    const id = typeof body.id === "string" ? body.id : "";
+    if (!id) {
+      return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
+    }
+    const isActive = body.is_active === true;
+    const { error } = await supabase
+      .from("app_banners")
+      .update({ is_active: isActive })
+      .eq("id", id);
+    if (error) throw error;
+    return NextResponse.json({ ok: true, id, is_active: isActive });
+  } catch (error) {
+    const { message, status } = safeErrorResponse(
+      error,
+      500,
+      "[admin/banners PATCH]"
     );
     return NextResponse.json({ error: message }, { status });
   }
@@ -161,7 +204,6 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { error } = await supabase.from("app_banners").delete().eq("id", id);
-
     if (error) throw error;
 
     return NextResponse.json({ ok: true });

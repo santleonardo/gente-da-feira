@@ -6,9 +6,7 @@ import { safeErrorResponse } from "@/lib/safe-error";
 const MAX_ACTIVE_BANNERS = 10;
 
 /**
- * GET /api/banners
- * Retorna até 10 banners ativos (mais recentes primeiro).
- * Todos permanecem até o admin apagar — criar um novo NÃO remove os antigos.
+ * GET /api/banners — até 10 avisos ativos. Criar um novo NÃO remove os antigos.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -35,7 +33,7 @@ export async function GET(req: NextRequest) {
     const list = banners || [];
     return NextResponse.json({
       banners: list,
-      banner: list[0] || null, // compat
+      banner: list[0] || null,
     });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[banners GET]");
