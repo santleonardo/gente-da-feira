@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -2751,6 +2751,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     }
   }, [room.id, isAdmin]);
 
+  const staffMembers = useMemo(
+    () =>
+      members
+        .filter((m: any) => m.role === "creator" || m.role === "moderator")
+        .sort((a: any, b: any) => (a.role === "creator" ? -1 : b.role === "creator" ? 1 : 0)),
+    [members]
+  );
+
   const openStaffRoom = useCallback(() => {
     if (!isAdmin) return;
     setShowStaffRoom(true);
@@ -5216,32 +5224,62 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       
       {/* ═══════ Mini-sala da equipe (criador + moderadores) ═══════ */}
       {showStaffRoom && isAdmin && (
-        <div className="fixed inset-0 z-[65] flex flex-col bg-[#0F1419]">
-          <div className="shrink-0 border-b border-white/10 bg-[#151B22] text-white">
+        <div className="fixed inset-0 z-[65] flex flex-col bg-[#F9F8F6]">
+          <div className="shrink-0 border-b border-black/[0.08] bg-white text-[#1A1A1A]">
             <div className="flex items-center gap-3 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
               <button
                 type="button"
                 onClick={() => setShowStaffRoom(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 active:scale-95"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A]/[0.06] hover:bg-[#1A1A1A]/10 active:scale-95"
                 aria-label="Fechar sala da equipe"
               >
                 <X className="h-5 w-5" />
               </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-emerald-400" />
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-400/90">
+                  <Shield className="h-4 w-4 text-emerald-600" />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                     Privado · equipe
                   </p>
                 </div>
                 <h2 className="truncate font-serif text-lg font-medium leading-tight">
                   {room.name}
                 </h2>
-                <p className="text-[11px] text-white/45">
+                <p className="text-[11px] text-[#4A4A4A]">
                   Só criador e moderadores veem esta mini-sala
                 </p>
               </div>
             </div>
+
+            {/* Lista de mods da sala */}
+            {staffMembers.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto px-3 pb-3 sm:px-4">
+                {staffMembers.map((m: any) => (
+                  <div
+                    key={m.id || m.user_id}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#EFEDE8] py-1 pl-1 pr-2.5"
+                  >
+                    <UserAvatar
+                      user={{
+                        id: m.profile?.id || m.user_id,
+                        display_name: m.profile?.display_name || "?",
+                        avatar_url: m.profile?.avatar_url,
+                      }}
+                      className="h-5 w-5"
+                    />
+                    <span className="max-w-[9rem] truncate text-xs font-medium text-[#1A1A1A]">
+                      {m.profile?.display_name || m.profile?.username || "Usuário"}
+                    </span>
+                    <Shield
+                      className={cn(
+                        "h-3 w-3 shrink-0",
+                        m.role === "creator" ? "text-amber-500" : "text-blue-500"
+                      )}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div
@@ -5250,15 +5288,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           >
             {staffLoading ? (
               <div className="flex justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#1A1A1A]/30" />
               </div>
             ) : staffMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5">
-                  <Shield className="h-6 w-6 text-white/25" />
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EFEDE8]">
+                  <Shield className="h-6 w-6 text-[#4A4A4A]/50" />
                 </div>
-                <p className="font-serif text-lg text-white/50">Sala da equipe vazia</p>
-                <p className="mt-1 max-w-xs text-sm text-white/35">
+                <p className="font-serif text-lg text-[#1A1A1A]/60">Sala da equipe vazia</p>
+                <p className="mt-1 max-w-xs text-sm text-[#4A4A4A]">
                   Combinem moderação, avisos e decisões aqui — membros comuns não entram.
                 </p>
               </div>
@@ -5277,11 +5315,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                         "max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm",
                         mine
                           ? "rounded-br-md bg-emerald-600 text-white"
-                          : "rounded-bl-md bg-[#1C2430] text-white/95 ring-1 ring-white/8"
+                          : "rounded-bl-md bg-white text-[#1A1A1A] ring-1 ring-black/[0.06]"
                       )}
                     >
                       {!mine && (
-                        <p className="mb-0.5 text-[11px] font-semibold text-emerald-400/90">
+                        <p className="mb-0.5 text-[11px] font-semibold text-emerald-700">
                           {name}
                         </p>
                       )}
@@ -5291,7 +5329,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                       <p
                         className={cn(
                           "mt-1 text-right text-[10px]",
-                          mine ? "text-white/60" : "text-white/35"
+                          mine ? "text-white/60" : "text-[#4A4A4A]/70"
                         )}
                       >
                         {m.created_at
@@ -5310,7 +5348,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             )}
           </div>
 
-          <div className="shrink-0 border-t border-white/10 bg-[#151B22] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          <div className="shrink-0 border-t border-black/[0.08] bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
             <div className="flex items-end gap-2">
               <textarea
                 value={staffInput}
@@ -5323,7 +5361,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 }}
                 placeholder="Mensagem só para a equipe…"
                 rows={1}
-                className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-[#0F1419] px-3.5 py-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-black/[0.08] bg-[#F9F8F6] px-3.5 py-3 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
               />
               <button
                 type="button"
