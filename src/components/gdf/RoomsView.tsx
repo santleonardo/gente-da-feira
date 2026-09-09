@@ -4777,25 +4777,6 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <Mic className="h-5 w-5" />
                 </button>
 
-                {/* Anexar — abre action sheet */}
-                <div className="relative self-end" ref={attachMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setAttachMenuOpen(true)}
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${attachMenuOpen ? "bg-[#1A1A1A] text-white" : "text-[#4A4A4A] hover:bg-[#1A1A1A]/[0.05] hover:text-[#1A1A1A]"}`}
-                    title="Anexar mídia"
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
-
-                  {/* Hidden inputs */}
-                  <input ref={cameraPhotoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={handleCameraPhotoCapture} className="hidden" />
-                  <input ref={galleryPhotoRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleGalleryPhotoSelect} className="hidden" />
-                  <input ref={cameraVideoRef} type="file" accept="video/*" capture="environment" onChange={handleCameraVideoCapture} className="hidden" />
-                  <input ref={videoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoFileSelect} className="hidden" />
-                  <input ref={audioFileRef} type="file" accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a" onChange={handleAudioFileSelect} className="hidden" />
-                </div>
-
                 {/* Coluna input: reply bar + menções + campo */}
                 <div className="flex-1 relative min-w-0">
                   {/* Barra de resposta (quote) */}
@@ -4963,57 +4944,6 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </>
         ) : null}
       </div>
-
-      {/* ═══════ Action sheet: anexos ═══════ */}
-      {attachMenuOpen && (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-          <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={() => setAttachMenuOpen(false)} />
-          <div className="relative z-10 mx-auto w-full max-w-lg rounded-t-3xl border border-black/[0.08] bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] animate-in slide-in-from-bottom-4 duration-200">
-            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-[#4A4A4A]/30" />
-            <p className="px-4 pt-3 pb-2 text-sm font-semibold">Anexar</p>
-            <div className="grid grid-cols-2 gap-2 px-4 pb-2">
-              {[
-                // TEMPORARIAMENTE OCULTOS (2026-09-08): reativar após validar em produção.
-                // Foto: bug de pasta (post-photos) corrigido em storage-security.ts,
-                // mas ainda não testado com banco real — reative quando confirmar que
-                // o envio de foto na sala está funcionando.
-                // { label: "Câmera", icon: Camera, action: () => cameraPhotoRef.current?.click() },
-                // { label: "Galeria", icon: ImagePlus, action: () => galleryPhotoRef.current?.click() },
-                // Vídeo: desabilitado de propósito no backend (/api/upload/video retorna 403,
-                // versão beta/plano gratuito do Supabase). Reative os botões só depois de
-                // reativar o upload de vídeo no backend.
-                // { label: "Filmar", icon: Video, action: () => cameraVideoRef.current?.click() },
-                // { label: "Vídeo", icon: Video, action: () => videoFileRef.current?.click() },
-                { label: "Áudio", icon: Mic, action: () => { if (!isRecordingAudio) startAudioRecording(); } },
-                { label: "Arquivo áudio", icon: Music, action: () => audioFileRef.current?.click() },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    item.action();
-                  }}
-                  className="flex flex-col items-center gap-2 rounded-2xl bg-[#EFEDE8]/50 py-4 px-2 active:scale-95 transition-transform hover:bg-[#1A1A1A]/[0.05]"
-                >
-                  <item.icon className="h-6 w-6 text-[#1A1A1A]" />
-                  <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="px-4 pb-2">
-              <button
-                type="button"
-                onClick={() => setAttachMenuOpen(false)}
-                className="w-full h-12 rounded-2xl bg-[#EFEDE8] text-sm font-semibold"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══════ Action sheet: ações da mensagem (long-press) ═══════ */}
       {messageActionMsg && (
