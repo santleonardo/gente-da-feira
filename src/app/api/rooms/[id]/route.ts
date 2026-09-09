@@ -28,7 +28,7 @@ export async function GET(
     const { data: _room, error } = await supabase
       .from("rooms")
       .select(`
-        id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at,
+        id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at, bulletin_contact,
         is_active, is_open, max_members, member_count, has_password,
         created_at, created_by,
         creator:profiles!rooms_created_by_fkey(id, display_name, username, avatar_url)
@@ -315,6 +315,43 @@ export async function PATCH(
       updateData.bulletin_links = bulletinLinks;
     }
 
+    // Contato rápido (WhatsApp) do mural — criador ou moderador podem editar
+    if (body.bulletin_contact !== undefined) {
+      if (!isMod) {
+        return NextResponse.json(
+          { error: "Apenas criador ou moderador podem editar o mural de avisos" },
+          { status: 403 }
+        );
+      }
+      if (body.bulletin_contact === null) {
+        updateData.bulletin_contact = null;
+      } else if (typeof body.bulletin_contact === "object") {
+        const rawPhone =
+          typeof (body.bulletin_contact as any).phone === "string"
+            ? (body.bulletin_contact as any).phone
+            : "";
+        const { sanitizeWhatsAppPhone } = await import("@/lib/phone-utils");
+        const phone = sanitizeWhatsAppPhone(rawPhone);
+        if (!phone) {
+          return NextResponse.json(
+            { error: "Telefone de contato inválido — inclua DDI e DDD" },
+            { status: 400 }
+          );
+        }
+        const rawLabel =
+          typeof (body.bulletin_contact as any).label === "string"
+            ? (body.bulletin_contact as any).label.trim()
+            : "";
+        const label = sanitizeShortText(rawLabel, 40);
+        updateData.bulletin_contact = { phone, label: label || null };
+      } else {
+        return NextResponse.json(
+          { error: "Contato do mural inválido" },
+          { status: 400 }
+        );
+      }
+    }
+
     if (body.description !== undefined) {
       const description =
         typeof body.description === "string"
@@ -369,7 +406,7 @@ export async function PATCH(
       .from("rooms")
       .update(updateData)
       .eq("id", roomId)
-      .select("id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
+      .select("id, name, slug, icon, description, type, rules, bulletin, bulletin_links, bulletin_category, bulletin_expires_at, bulletin_contact, is_active, is_open, max_members, member_count, has_password, created_by, created_at, updated_at")
       .single();
 
     if (error) {
@@ -390,6 +427,11 @@ export async function PATCH(
         description: room.description,
         type: room.type,
         rules: room.rules,
+        bulletin: room.bulletin,
+        bulletin_links: room.bulletin_links,
+        bulletin_category: room.bulletin_category,
+        bulletin_expires_at: room.bulletin_expires_at,
+        bulletin_contact: room.bulletin_contact,
         is_active: room.is_active,
         is_open: room.is_open,
         max_members: room.max_members,
