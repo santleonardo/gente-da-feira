@@ -61,13 +61,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const totalRoots = totalRootsCount ?? 0;
     const totalPages = totalRoots > 0 ? Math.ceil(totalRoots / limit) : 0;
 
+    // Mesmo select string nas duas queries para o client tipado do Supabase
+    // não inferir tipos ParserError diferentes (indentação/whitespace).
+    const commentSelect = `id, content, created_at, author_id, parent_id, author:profiles(${AUTHOR_COLS})`;
+
     // Página de raízes (mais antigas primeiro, como antes)
     const { data: roots, error: rootsErr } = await supabase
       .from("comments")
-      .select(`
-        id, content, created_at, author_id, parent_id,
-        author:profiles(${AUTHOR_COLS})
-      `)
+      .select(commentSelect)
       .eq("post_id", postId)
       .eq("is_deleted", false)
       .is("parent_id", null)
@@ -76,27 +77,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (rootsErr) throw rootsErr;
 
-    const rootList = roots || [];
-    let allComments = rootList;
+    const rootList = (roots || []) as any[];
+    let allComments: any[] = rootList;
 
     if (rootList.length > 0) {
-      const rootIds = rootList.map((c: any) => c.id);
+      const rootIds = rootList.map((c) => c.id as string);
       const { data: replies, error: repliesErr } = await supabase
         .from("comments")
-        .select(`
-          id, content, created_at, author_id, parent_id,
-          author:profiles(${AUTHOR_COLS})
-        `)
+        .select(commentSelect)
         .eq("post_id", postId)
         .eq("is_deleted", false)
         .in("parent_id", rootIds)
         .order("created_at", { ascending: true });
       if (repliesErr) throw repliesErr;
-      allComments = [...rootList, ...(replies || [])];
+      allComments = [...rootList, ...((replies || []) as any[])];
     }
 
     // SEC-009: Filter neighborhood from comment authors
-    const authorIds = allComments.map((c: any) => c.author_id).filter(Boolean);
+    const authorIds = allComments.map((c) => c.author_id).filter(Boolean);
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
     const filtered = filterCommentAuthorsNeighborhood(allComments, hiddenNeighborhoodIds);
 
