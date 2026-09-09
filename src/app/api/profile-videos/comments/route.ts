@@ -42,14 +42,41 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Paginação: ?page=1&limit=20
+    const pageRaw = parseInt(searchParams.get("page") || "1", 10);
+    const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limit = Math.min(
+      Math.max(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 20, 1),
+      50
+    );
+    const offset = (page - 1) * limit;
+
+    const { count: totalCount, error: countErr } = await supabase
+      .from("profile_video_comments")
+      .select("id", { count: "exact", head: true })
+      .eq("video_id", videoId);
+    if (countErr) throw countErr;
+
+    const total = totalCount ?? 0;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
     const { data: comments, error } = await supabase
       .from("profile_video_comments")
       .select(`${COMMENT_COLUMNS}, author:profiles(${AUTHOR_COLS})`)
       .eq("video_id", videoId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return NextResponse.json({ comments: comments || [] });
+    return NextResponse.json({
+      comments: comments || [],
+      page,
+      limit,
+      total,
+      totalPages,
+      hasMore: page < totalPages,
+    });
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[profile-videos/comments GET]");
     return NextResponse.json({ error: message }, { status });

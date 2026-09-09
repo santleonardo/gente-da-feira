@@ -530,6 +530,11 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     closeMentions,
   } = useMentionAutocomplete();
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentHasMore, setCommentHasMore] = useState(false);
+  const [commentTotalRoots, setCommentTotalRoots] = useState(0);
+  const COMMENT_PAGE_SIZE = 15;
   const [submitting, setSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [showReactions, setShowReactions] = useState(false);
@@ -583,6 +588,9 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   useEffect(() => {
     if (!open) {
       setComments([]);
+      setCommentPage(1);
+      setCommentHasMore(false);
+      setCommentTotalRoots(0);
       setCommentInput("");
       setReplyTo(null);
       setShowReactions(false);
@@ -603,15 +611,46 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     }, 200);
   };
 
-  const fetchComments = async () => {
+  const fetchComments = async (opts?: { page?: number; append?: boolean }) => {
     if (!post) return;
-    setCommentsLoading(true);
+    const page = opts?.page ?? 1;
+    const append = opts?.append === true;
+    if (append) setCommentsLoadingMore(true);
+    else setCommentsLoading(true);
     try {
-      const res = await fetch(`/api/posts/${post.id}/comments`);
+      const qs = new URLSearchParams({
+        page: String(page),
+        limit: String(COMMENT_PAGE_SIZE),
+      });
+      const res = await fetch(`/api/posts/${post.id}/comments?${qs}`);
       const data = await res.json();
-      if (data.comments) setComments(data.comments);
+      if (Array.isArray(data.comments)) {
+        setComments((prev) => {
+          if (!append) return data.comments;
+          const seen = new Set(prev.map((c) => c.id));
+          const merged = [...prev];
+          for (const c of data.comments) {
+            if (!seen.has(c.id)) {
+              seen.add(c.id);
+              merged.push(c);
+            }
+          }
+          return merged;
+        });
+        setCommentPage(typeof data.page === "number" ? data.page : page);
+        setCommentHasMore(Boolean(data.hasMore));
+        setCommentTotalRoots(
+          typeof data.totalRoots === "number" ? data.totalRoots : 0
+        );
+      }
     } catch { /* silent */ }
-    setCommentsLoading(false);
+    if (append) setCommentsLoadingMore(false);
+    else setCommentsLoading(false);
+  };
+
+  const loadMoreComments = () => {
+    if (!commentHasMore || commentsLoadingMore || commentsLoading) return;
+    void fetchComments({ page: commentPage + 1, append: true });
   };
 
   const submitComment = async () => {
@@ -1067,6 +1106,22 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     ))}
                     {comments.length === 0 && (
                       <p className="text-xs text-primary/30 text-center py-2">Nenhum comentário ainda</p>
+                    )}
+                    {commentHasMore && (
+                      <button
+                        type="button"
+                        onClick={loadMoreComments}
+                        disabled={commentsLoadingMore}
+                        className="w-full py-1.5 text-[11px] font-medium text-[#D96C4A] hover:text-[#c15a3a] transition-colors disabled:opacity-50"
+                      >
+                        {commentsLoadingMore ? (
+                          <span className="inline-flex items-center gap-1.5 justify-center">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Carregando...
+                          </span>
+                        ) : (
+                          `Ver mais respostas${commentTotalRoots > 0 ? ` (${commentRoots.length} de ${commentTotalRoots})` : ""}`
+                        )}
+                      </button>
                     )}
                   </>
                 )}

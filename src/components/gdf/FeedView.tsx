@@ -1523,6 +1523,11 @@ const PostThread = memo(function PostThread({
   const [comments,        setComments]        = useState<Comment[]>([]);
   const [commentInput,    setCommentInput]    = useState("");
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
+  const [commentPage,     setCommentPage]     = useState(1);
+  const [commentHasMore,  setCommentHasMore]  = useState(false);
+  const [commentTotalRoots, setCommentTotalRoots] = useState(0);
+  const COMMENT_PAGE_SIZE = 15;
   const [submitting,      setSubmitting]      = useState(false);
   const [replyTo,         setReplyTo]         = useState<Comment | null>(null);
   const [showReactions,   setShowReactions]   = useState(false);
@@ -1602,29 +1607,75 @@ const PostThread = memo(function PostThread({
     return () => document.removeEventListener("mousedown", handler);
   }, [isShareOpen, setShareMenuOpen]);
 
-  const fetchComments = async () => {
-    setCommentsLoading(true);
+  const fetchComments = async (opts?: { page?: number; append?: boolean }) => {
+    const page = opts?.page ?? 1;
+    const append = opts?.append === true;
+    if (append) setCommentsLoadingMore(true);
+    else setCommentsLoading(true);
     try {
-      const res = await fetch(`/api/posts/${post.id}/comments`);
+      const qs = new URLSearchParams({
+        page: String(page),
+        limit: String(COMMENT_PAGE_SIZE),
+      });
+      const res = await fetch(`/api/posts/${post.id}/comments?${qs}`);
       const data = await res.json();
-      if (data.comments) setComments(data.comments);
+      if (Array.isArray(data.comments)) {
+        setComments((prev) => {
+          if (!append) return data.comments;
+          const seen = new Set(prev.map((c) => c.id));
+          const merged = [...prev];
+          for (const c of data.comments) {
+            if (!seen.has(c.id)) {
+              seen.add(c.id);
+              merged.push(c);
+            }
+          }
+          return merged;
+        });
+        setCommentPage(typeof data.page === "number" ? data.page : page);
+        setCommentHasMore(Boolean(data.hasMore));
+        setCommentTotalRoots(
+          typeof data.totalRoots === "number" ? data.totalRoots : 0
+        );
+      }
     } catch { /* silent */ }
-    setCommentsLoading(false);
+    if (append) setCommentsLoadingMore(false);
+    else setCommentsLoading(false);
+  };
+
+  const loadMoreComments = () => {
+    if (!commentHasMore || commentsLoadingMore || commentsLoading) return;
+    void fetchComments({ page: commentPage + 1, append: true });
   };
 
   const toggleComments = () => {
-    if (!showComments && comments.length === 0) fetchComments();
+    if (!showComments && comments.length === 0) {
+      setCommentPage(1);
+      void fetchComments({ page: 1 });
+    }
     setShowComments(!showComments);
   };
 
   const openAndFocus = () => {
-    if (!showComments) { if (comments.length === 0) fetchComments(); setShowComments(true); }
+    if (!showComments) {
+      if (comments.length === 0) {
+        setCommentPage(1);
+        void fetchComments({ page: 1 });
+      }
+      setShowComments(true);
+    }
     setTimeout(() => commentInputRef.current?.focus(), 100);
   };
 
   const handleReply = (comment: Comment) => {
     setReplyTo(comment);
-    if (!showComments) { if (comments.length === 0) fetchComments(); setShowComments(true); }
+    if (!showComments) {
+      if (comments.length === 0) {
+        setCommentPage(1);
+        void fetchComments({ page: 1 });
+      }
+      setShowComments(true);
+    }
     setTimeout(() => commentInputRef.current?.focus(), 100);
   };
 
@@ -1874,6 +1925,22 @@ const PostThread = memo(function PostThread({
                     onReply={handleReply} onDelete={deleteComment} onReaction={handleCommentReaction} openUserProfile={openUserProfile} />
                 ))}
                 {comments.length === 0 && <p className="text-xs text-[#1A1A1A]/30 text-center py-2">Nenhum comentário ainda</p>}
+                {commentHasMore && (
+                  <button
+                    type="button"
+                    onClick={loadMoreComments}
+                    disabled={commentsLoadingMore}
+                    className="w-full py-1.5 text-[11px] font-medium text-[#D96C4A] hover:text-[#c15a3a] transition-colors disabled:opacity-50"
+                  >
+                    {commentsLoadingMore ? (
+                      <span className="inline-flex items-center gap-1.5 justify-center">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Carregando...
+                      </span>
+                    ) : (
+                      `Ver mais respostas${commentTotalRoots > 0 ? ` (${commentRoots.length} de ${commentTotalRoots})` : ""}`
+                    )}
+                  </button>
+                )}
               </>
             )}
             <div className="flex items-center gap-1.5 mt-1.5">

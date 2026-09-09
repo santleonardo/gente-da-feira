@@ -27,10 +27,42 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Prevents comment leakage on followers-only / private posts.
     const visibility = await checkPostVisibility(supabase, postId, authUser?.id ?? null);
     if (!visibility.allowed) {
-      return NextResponse.json({ comments: [] });
+      return NextResponse.json({
+        comments: [],
+        page: 1,
+        limit: 15,
+        totalRoots: 0,
+        totalPages: 0,
+        hasMore: false,
+      });
     }
 
-    const { data: comments, error } = await supabase
+    // Paginação das respostas (raiz): ?page=1&limit=15
+    // Carrega raízes paginadas + todas as respostas (parent_id) dessas raízes.
+    const url = req.nextUrl;
+    const pageRaw = parseInt(url.searchParams.get("page") || "1", 10);
+    const limitRaw = parseInt(url.searchParams.get("limit") || "15", 10);
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limit = Math.min(
+      Math.max(Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 15, 1),
+      50
+    );
+    const offset = (page - 1) * limit;
+
+    // Total de comentários raiz (sem parent)
+    const { count: totalRootsCount, error: countErr } = await supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("post_id", postId)
+      .eq("is_deleted", false)
+      .is("parent_id", null);
+    if (countErr) throw countErr;
+
+    const totalRoots = totalRootsCount ?? 0;
+    const totalPages = totalRoots > 0 ? Math.ceil(totalRoots / limit) : 0;
+
+    // Página de raízes (mais antigas primeiro, como antes)
+    const { data: roots, error: rootsErr } = await supabase
       .from("comments")
       .select(`
         id, content, created_at, author_id, parent_id,
@@ -38,16 +70,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       `)
       .eq("post_id", postId)
       .eq("is_deleted", false)
-      .order("created_at", { ascending: true });
+      .is("parent_id", null)
+      .order("created_at", { ascending: true })
+      .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    if (rootsErr) throw rootsErr;
+
+    const rootList = roots || [];
+    let allComments = rootList;
+
+    if (rootList.length > 0) {
+      const rootIds = rootList.map((c: any) => c.id);
+      const { data: replies, error: repliesErr } = await supabase
+        .from("comments")
+        .select(`
+          id, content, created_at, author_id, parent_id,
+          author:profiles(${AUTHOR_COLS})
+        `)
+        .eq("post_id", postId)
+        .eq("is_deleted", false)
+        .in("parent_id", rootIds)
+        .order("created_at", { ascending: true });
+      if (repliesErr) throw repliesErr;
+      allComments = [...rootList, ...(replies || [])];
+    }
 
     // SEC-009: Filter neighborhood from comment authors
-    const authorIds = (comments || []).map((c: any) => c.author_id).filter(Boolean);
+    const authorIds = allComments.map((c: any) => c.author_id).filter(Boolean);
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(supabase, authorIds);
-    const filtered = filterCommentAuthorsNeighborhood(comments || [], hiddenNeighborhoodIds);
+    const filtered = filterCommentAuthorsNeighborhood(allComments, hiddenNeighborhoodIds);
 
-    return NextResponse.json({ comments: filtered });
+    return NextResponse.json({
+      comments: filtered,
+      page,
+      limit,
+      totalRoots,
+      totalPages,
+      hasMore: page < totalPages,
+    });
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[posts/comments GET]");
     return NextResponse.json({ error: message }, { status });
