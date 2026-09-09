@@ -394,7 +394,7 @@ export default function AdminPanelPage() {
       const res = await fetch("/api/admin/banners", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, deactivate_others: true }),
+        body: JSON.stringify({ message: msg }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -924,7 +924,7 @@ export default function AdminPanelPage() {
                 </button>
               </div>
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "#888" }}>
-                Ao enviar, o banner anterior ativo é desativado automaticamente.
+                Ao enviar, o banner fica ativo junto com os anteriores. Todos aparecem para os usuários até serem apagados.
               </p>
             </div>
 

@@ -76,8 +76,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Opcional: desativar banners anteriores para manter só um ativo
-    const deactivateOthers = body.deactivate_others !== false;
+    // Por padrão, banners anteriores permanecem ativos (todos aparecem
+    // para os usuários até serem removidos manualmente). Só desativa os
+    // outros se o admin pedir explicitamente (deactivate_others: true).
+    const deactivateOthers = body.deactivate_others === true;
     if (deactivateOthers) {
       await supabase
         .from("app_banners")

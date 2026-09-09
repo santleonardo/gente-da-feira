@@ -5,7 +5,9 @@ import { safeErrorResponse } from "@/lib/safe-error";
 
 /**
  * GET /api/banners
- * Retorna o banner ativo mais recente para o app.
+ * Retorna todos os banners ativos para o app (mais recentes primeiro).
+ * Todos os avisos ativos aparecem — nenhum some quando um novo é postado;
+ * cada usuário pode esconder individualmente pelo lado do cliente.
  * Qualquer usuário autenticado pode ler.
  */
 export async function GET(req: NextRequest) {
@@ -21,17 +23,16 @@ export async function GET(req: NextRequest) {
     const blocked = await rateLimitByRule(req, "notifications:list", user.id);
     if (blocked) return blocked;
 
-    const { data: banner, error } = await supabase
+    const { data: banners, error } = await supabase
       .from("app_banners")
       .select("id, message, created_at")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(20);
 
     if (error) throw error;
 
-    return NextResponse.json({ banner: banner || null });
+    return NextResponse.json({ banners: banners || [] });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[banners GET]");
     return NextResponse.json({ error: message }, { status });
