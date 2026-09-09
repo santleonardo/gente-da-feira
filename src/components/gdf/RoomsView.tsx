@@ -2126,6 +2126,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [showInvite, setShowInvite] = useState(false);
   const [showDeleteRoom, setShowDeleteRoom] = useState(false);
   const [showBulletin, setShowBulletin] = useState(false);
+  /** Página em tela cheia com todos os avisos + enquetes do mural */
+  const [showMuralPage, setShowMuralPage] = useState(false);
+  const [muralPageTab, setMuralPageTab] = useState<"avisos" | "enquetes">("avisos");
   const [bulletinDraft, setBulletinDraft] = useState("");
   const [bulletinEditing, setBulletinEditing] = useState(false);
   const [bulletinSaving, setBulletinSaving] = useState(false);
@@ -3899,25 +3902,33 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    setBulletinDraft(String(room.bulletin || ""));
-                    setBulletinEditing(false);
-                    setShowBulletin(true);
+                    void fetchAnnouncements();
+                    void fetchPoll();
+                    setMuralPageTab("avisos");
+                    setShowMuralPage(true);
                   }}
                   className="gap-2"
                 >
-                  <Megaphone className="h-4 w-4" /> Mural de avisos
-                  {bulletinActive ? (
-                    <span
-                      className={`ml-auto h-1.5 w-1.5 rounded-full ${
-                        room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
-                          ? BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].dotClass
-                          : "bg-[#D96C4A]"
-                      }`}
-                    />
+                  <Megaphone className="h-4 w-4" /> Mural (avisos e enquetes)
+                  {(bulletinActive || announcements.length > 0 || activePolls.length > 0) ? (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#D96C4A]" />
                   ) : null}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={openPollDialog} className="gap-2">
-                  <Vote className="h-4 w-4" /> Enquete/Anúncio
+                <DropdownMenuItem
+                  onClick={() => {
+                    void fetchAnnouncements();
+                    void fetchPoll();
+                    setMuralPageTab("enquetes");
+                    setShowMuralPage(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Vote className="h-4 w-4" /> Enquetes
+                  {activePolls.length > 0 ? (
+                    <span className="ml-auto rounded-full bg-[#0A4D5C]/15 px-1.5 text-[10px] font-bold text-[#0A4D5C]">
+                      {activePolls.length}
+                    </span>
+                  ) : null}
                 </DropdownMenuItem>
                 {isCreator && (
                   <>
@@ -3937,47 +3948,64 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         </div>
       </div>
 
-      {/* ═══════ Faixa de destaque: aviso ativo + enquetes ativas (sempre visível, sem precisar abrir o menu) ═══════ */}
-      {isMember && (bulletinActive || activePolls.length > 0) && (
-        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-black/[0.06] bg-white px-3 py-2 sm:px-4 [&::-webkit-scrollbar]:hidden">
-          {bulletinActive && (
-            <button
-              type="button"
-              onClick={() => {
-                setBulletinDraft(String(room.bulletin || ""));
-                setBulletinEditing(false);
-                setShowBulletin(true);
-              }}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80 max-w-[85vw] sm:max-w-xs ${
-                room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
-                  ? BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].chipClass
-                  : "bg-[#D96C4A]/10 text-[#D96C4A] border-[#D96C4A]/20"
-              }`}
-            >
-              <Megaphone className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                {room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
-                  ? `${BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].label}: `
-                  : ""}
-                {room.bulletin ? room.bulletin : "Ver aviso"}
+      {/* ═══════ Faixa do mural: toque abre página em tela cheia ═══════ */}
+      {isMember && (bulletinActive || activePolls.length > 0 || announcements.length > 0) && (
+        <button
+          type="button"
+          onClick={() => {
+            void fetchAnnouncements();
+            void fetchPoll();
+            setMuralPageTab(
+              announcements.length > 0 || bulletinActive ? "avisos" : "enquetes"
+            );
+            setShowMuralPage(true);
+          }}
+          className="group flex shrink-0 w-full items-center gap-3 border-b border-black/[0.06] bg-gradient-to-r from-[#1A1A1A] via-[#2A2420] to-[#1A1A1A] px-3 py-2.5 text-left transition active:opacity-90 sm:px-4"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+            <Megaphone className="h-4 w-4 text-[#F5E6D3]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#F5E6D3]/70">
+              Mural da sala
+            </p>
+            <p className="truncate text-sm font-medium text-white">
+              {announcements[0]?.body ||
+                (room.bulletin && !bulletinExpired ? room.bulletin : null) ||
+                activePolls[0]?.question ||
+                "Ver avisos e enquetes"}
+            </p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-white/55">
+              {(announcements.length > 0 || bulletinActive) && (
+                <span>
+                  {Math.max(announcements.length, bulletinActive ? 1 : 0)} aviso
+                  {Math.max(announcements.length, bulletinActive ? 1 : 0) !== 1 ? "s" : ""}
+                </span>
+              )}
+              {activePolls.length > 0 && (
+                <span>
+                  {activePolls.length} enquete{activePolls.length !== 1 ? "s" : ""}
+                  {activePolls[0]
+                    ? ` · ${activePolls[0].totalVotes} voto${activePolls[0].totalVotes !== 1 ? "s" : ""}`
+                    : ""}
+                </span>
+              )}
+              <span className="text-[#F5E6D3]/80 group-hover:underline">Abrir →</span>
+            </p>
+          </div>
+          <div className="flex shrink-0 -space-x-1.5">
+            {(announcements.length > 0 || bulletinActive) && (
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D96C4A] text-[10px] font-bold text-white ring-2 ring-[#1A1A1A]">
+                {Math.max(announcements.length, 1)}
               </span>
-            </button>
-          )}
-          {activePolls.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={openPollDialog}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#0A4D5C]/20 bg-[#0A4D5C]/10 px-3 py-1.5 text-xs font-medium text-[#0A4D5C] transition-colors hover:opacity-80 max-w-[85vw] sm:max-w-xs"
-            >
-              <Vote className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Enquete: {p.question}</span>
-              <span className="shrink-0 text-[#0A4D5C]/60">
-                · {p.totalVotes} {p.totalVotes === 1 ? "voto" : "votos"}
+            )}
+            {activePolls.length > 0 && (
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0A4D5C] text-[10px] font-bold text-white ring-2 ring-[#1A1A1A]">
+                {activePolls.length}
               </span>
-            </button>
-          ))}
-        </div>
+            )}
+          </div>
+        </button>
       )}
 
       {/* ═══════ Membros: bottom sheet (mobile-first) ═══════ */}
@@ -5102,6 +5130,319 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ═══════ Página em tela cheia: todos os avisos + enquetes ═══════ */}
+      {showMuralPage && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-[#F9F8F6]">
+          {/* Header */}
+          <div className="shrink-0 border-b border-black/[0.06] bg-[#1A1A1A] text-white">
+            <div className="flex items-center gap-3 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <button
+                type="button"
+                onClick={() => setShowMuralPage(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 active:scale-95"
+                aria-label="Fechar mural"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F5E6D3]/65">
+                  Mural
+                </p>
+                <h2 className="truncate font-serif text-xl font-medium leading-tight">
+                  {room.name}
+                </h2>
+              </div>
+              {isAdmin && (
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMuralPage(false);
+                      setBulletinDraft("");
+                      setBulletinLinksDraft([]);
+                      setBulletinCategoryDraft(null);
+                      setBulletinExpiresAtDraft(null);
+                      setBulletinContactPhoneDraft("");
+                      setBulletinContactLabelDraft("");
+                      setBulletinEditing(true);
+                      setShowBulletin(true);
+                    }}
+                    className="flex h-10 items-center gap-1.5 rounded-full bg-[#D96C4A] px-3 text-xs font-semibold text-white active:scale-95"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Aviso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMuralPage(false);
+                      startPollCreation();
+                      setShowPoll(true);
+                    }}
+                    className="flex h-10 items-center gap-1.5 rounded-full bg-[#0A4D5C] px-3 text-xs font-semibold text-white active:scale-95"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Enquete
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Tabs */}
+            <div className="flex px-4 gap-1 pb-3">
+              <button
+                type="button"
+                onClick={() => setMuralPageTab("avisos")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition",
+                  muralPageTab === "avisos"
+                    ? "bg-white text-[#1A1A1A]"
+                    : "bg-white/10 text-white/70 hover:bg-white/15"
+                )}
+              >
+                <Megaphone className="h-4 w-4" />
+                Avisos
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                    muralPageTab === "avisos"
+                      ? "bg-[#D96C4A]/15 text-[#D96C4A]"
+                      : "bg-white/10 text-white/60"
+                  )}
+                >
+                  {Math.max(announcements.length, bulletinActive ? 1 : 0)}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMuralPageTab("enquetes")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition",
+                  muralPageTab === "enquetes"
+                    ? "bg-white text-[#1A1A1A]"
+                    : "bg-white/10 text-white/70 hover:bg-white/15"
+                )}
+              >
+                <Vote className="h-4 w-4" />
+                Enquetes
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                    muralPageTab === "enquetes"
+                      ? "bg-[#0A4D5C]/15 text-[#0A4D5C]"
+                      : "bg-white/10 text-white/60"
+                  )}
+                >
+                  {activePolls.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Conteúdo */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            {muralPageTab === "avisos" ? (
+              announcementsLoading ? (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#4A4A4A]/35" />
+                </div>
+              ) : announcements.length > 0 ? (
+                <div className="mx-auto max-w-lg space-y-3">
+                  {announcements.map((a, idx) => (
+                    <article
+                      key={a.id}
+                      className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_3px_rgba(20,20,40,.04)]"
+                    >
+                      <div className="flex items-center gap-2 border-b border-black/[0.04] bg-[#FAF9F7] px-4 py-2.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#D96C4A]/12 text-[11px] font-bold text-[#D96C4A]">
+                          {idx + 1}
+                        </span>
+                        {a.category ? (
+                          <span className="rounded-full bg-[#D96C4A]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#D96C4A]">
+                            {a.category}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-[#4A4A4A]/45">Aviso</span>
+                        )}
+                        <span className="ml-auto text-[11px] text-[#4A4A4A]/40">
+                          {new Date(a.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div className="space-y-3 px-4 py-4">
+                        <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-[#1A1A1A]">
+                          {a.body}
+                        </p>
+                        {Array.isArray(a.links) && a.links.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            {a.links.map((link, i) => (
+                              <a
+                                key={i}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-[#F9F8F6] px-3 py-2 text-sm text-[#D96C4A] hover:bg-[#D96C4A]/5"
+                              >
+                                <Link2 className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate font-medium">{link.label || link.url}</span>
+                                <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        {a.contact?.phone && (
+                          <p className="rounded-xl bg-[#F9F8F6] px-3 py-2 text-sm text-[#4A4A4A]">
+                            <span className="font-medium text-[#1A1A1A]">Contato: </span>
+                            {a.contact.label ? `${a.contact.label} · ` : ""}
+                            {a.contact.phone}
+                          </p>
+                        )}
+                        {a.expires_at && (
+                          <p className="text-[11px] text-[#4A4A4A]/45">
+                            Válido até{" "}
+                            {new Date(a.expires_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <div className="flex justify-end border-t border-black/[0.04] px-3 py-2">
+                          <button
+                            type="button"
+                            disabled={announcementDeletingId === a.id}
+                            onClick={() => void handleDeleteAnnouncement(a.id)}
+                            className="rounded-full px-3 py-1.5 text-xs font-medium text-[#C1272D] hover:bg-[#C1272D]/8 disabled:opacity-50"
+                          >
+                            {announcementDeletingId === a.id ? "…" : "Apagar aviso"}
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : bulletinHasContent && !bulletinExpired ? (
+                <div className="mx-auto max-w-lg">
+                  <article className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_3px_rgba(20,20,40,.04)]">
+                    <div className="border-b border-black/[0.04] bg-[#FAF9F7] px-4 py-2.5 text-[11px] font-medium text-[#4A4A4A]/45">
+                      Aviso da sala
+                    </div>
+                    <p className="whitespace-pre-wrap break-words px-4 py-4 text-[15px] leading-relaxed text-[#1A1A1A]">
+                      {room.bulletin}
+                    </p>
+                  </article>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-black/[0.04]">
+                    <Megaphone className="h-6 w-6 text-black/20" />
+                  </div>
+                  <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhum aviso ainda</p>
+                  <p className="mt-1 max-w-xs text-sm text-[#4A4A4A]/40">
+                    {isAdmin
+                      ? "Publique o primeiro aviso pelo botão no topo."
+                      : "Quando houver avisos, eles aparecem aqui."}
+                  </p>
+                </div>
+              )
+            ) : pollLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-[#4A4A4A]/35" />
+              </div>
+            ) : activePolls.length > 0 ? (
+              <div className="mx-auto max-w-lg space-y-4">
+                {activePolls.map((p) => (
+                  <article
+                    key={p.id}
+                    className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_3px_rgba(20,20,40,.04)]"
+                  >
+                    <div className="flex items-start gap-3 border-b border-black/[0.04] bg-[#FAF9F7] px-4 py-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0A4D5C]/12">
+                        <Vote className="h-4 w-4 text-[#0A4D5C]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-semibold leading-snug text-[#1A1A1A]">
+                          {p.question}
+                        </p>
+                        <p className="mt-1 text-[11px] text-[#4A4A4A]/50">
+                          {p.totalVotes} {p.totalVotes === 1 ? "voto" : "votos"}
+                          {p.expiresAt
+                            ? ` · até ${new Date(p.expiresAt).toLocaleDateString("pt-BR")}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 px-4 py-3">
+                      {p.options.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          disabled={!p.isActive || pollVotingOptionId === opt.id}
+                          onClick={() => void handleVotePoll(p.id, opt.id)}
+                          className={cn(
+                            "relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition active:scale-[0.99]",
+                            opt.mine
+                              ? "border-[#0A4D5C]/35 bg-[#0A4D5C]/8"
+                              : "border-black/[0.06] bg-[#F9F8F6] hover:border-black/10"
+                          )}
+                        >
+                          <div
+                            className="pointer-events-none absolute inset-y-0 left-0 bg-[#0A4D5C]/12 transition-all"
+                            style={{ width: `${opt.percent}%` }}
+                          />
+                          <div className="relative flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-[#1A1A1A]">
+                              {opt.mine ? "✓ " : ""}
+                              {opt.label}
+                            </span>
+                            <span className="shrink-0 text-xs font-semibold text-[#0A4D5C]">
+                              {opt.percent}%
+                              <span className="ml-1 font-normal text-[#4A4A4A]/45">
+                                ({opt.count})
+                              </span>
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    {isAdmin && p.isActive && (
+                      <div className="flex justify-end border-t border-black/[0.04] px-3 py-2">
+                        <button
+                          type="button"
+                          disabled={pollClosingId === p.id}
+                          onClick={() => void handleClosePoll(p.id)}
+                          className="rounded-full px-3 py-1.5 text-xs font-medium text-[#C1272D] hover:bg-[#C1272D]/8 disabled:opacity-50"
+                        >
+                          {pollClosingId === p.id ? "…" : "Encerrar enquete"}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-black/[0.04]">
+                  <Vote className="h-6 w-6 text-black/20" />
+                </div>
+                <p className="font-serif text-lg text-[#4A4A4A]/50">Nenhuma enquete ativa</p>
+                <p className="mt-1 max-w-xs text-sm text-[#4A4A4A]/40">
+                  {isAdmin
+                    ? "Crie uma enquete pelo botão no topo."
+                    : "Quando houver enquetes, você vota por aqui."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
