@@ -5469,6 +5469,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </div>
             ) : pollCreating && isAdmin ? (
               <>
+                {poll && poll.isActive ? (
+                  <p className="rounded-lg bg-[#0A4D5C]/5 border border-[#0A4D5C]/15 px-3 py-2 text-xs text-[#0A4D5C]">
+                    Publicar esta enquete encerra automaticamente a enquete ativa atual.
+                  </p>
+                ) : null}
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium text-[#4A4A4A]/70">Pergunta</span>
                   <Textarea
@@ -5676,32 +5681,37 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     Publicar enquete
                   </Button>
                 </>
-              ) : poll && poll.isActive ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto rounded-full gap-1.5 text-[#C1272D] hover:text-[#C1272D] hover:bg-[#C1272D]/10"
-                  onClick={handleClosePoll}
-                  disabled={pollClosing}
-                >
-                  {pollClosing ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5" />
-                  )}
-                  Encerrar enquete
-                </Button>
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="ml-auto rounded-full gap-1.5"
-                  onClick={startPollCreation}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Nova enquete
-                </Button>
+                <>
+                  {poll && poll.isActive ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-full gap-1.5 text-[#C1272D] hover:text-[#C1272D] hover:bg-[#C1272D]/10"
+                      onClick={handleClosePoll}
+                      disabled={pollClosing}
+                    >
+                      {pollClosing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5" />
+                      )}
+                      Encerrar enquete
+                    </Button>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="ml-auto rounded-full gap-1.5"
+                    onClick={startPollCreation}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Nova enquete
+                  </Button>
+                </>
               )}
             </div>
           )}
