@@ -3899,11 +3899,11 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   return (
     <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-x-hidden bg-[#F9F8F6]">
       {/* Header — fixo no topo do chat */}
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-black/[0.08] px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F9F8F6]/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
-          <ArrowLeft className="h-5 w-5" />
+      <div className="flex shrink-0 items-center gap-2 border-b border-black/[0.08] px-2.5 sm:px-3 py-1.5 bg-[#F9F8F6]/95 backdrop-blur-md z-10 safe-area-pt min-w-0">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full hover:bg-[#1A1A1A]/[0.05] shrink-0">
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl shrink-0 ${room.type === "official" ? "bg-[#1A1A1A]/10 ring-1 ring-[#1A1A1A]/15" : "bg-[#F3F1ED]"}`}>
+        <div className={`flex h-8 w-8 items-center justify-center rounded-xl text-base shrink-0 ${room.type === "official" ? "bg-[#1A1A1A]/10 ring-1 ring-[#1A1A1A]/15" : "bg-[#F3F1ED]"}`}>
           <span>{room.icon}</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -3918,10 +3918,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               className="flex items-center gap-1.5 text-left"
               aria-label="Ver mural de avisos"
             >
-              <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
-              {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
-              {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-              {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+              <h3 className="text-sm font-bold leading-tight truncate">{room.name}</h3>
+              {room.type === "official" && <Crown className="h-3 w-3 text-[#1A1A1A] shrink-0" />}
+              {room.has_password && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
+              {room.is_open === false && <DoorClosed className="h-3 w-3 text-red-500 shrink-0" />}
               <span
                 className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                   room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
@@ -3932,13 +3932,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
-              <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
-              {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
-              {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-              {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+              <h3 className="text-sm font-bold leading-tight truncate">{room.name}</h3>
+              {room.type === "official" && <Crown className="h-3 w-3 text-[#1A1A1A] shrink-0" />}
+              {room.has_password && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
+              {room.is_open === false && <DoorClosed className="h-3 w-3 text-red-500 shrink-0" />}
             </div>
           )}
-          <p className="text-[11px] sm:text-xs text-[#4A4A4A] truncate">
+          <p className="text-[10px] leading-tight text-[#4A4A4A] truncate">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
             {isMember && onlineCount > 0 ? (
               <span className="text-emerald-600 dark:text-emerald-400">
@@ -3949,14 +3949,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             {room.description ? ` · ${room.description}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowMembers(!showMembers)}
-            className="gap-1.5 text-xs rounded-full px-3"
+            className="gap-1 text-xs rounded-full px-2 h-7"
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-3.5 w-3.5" />
             <span className="font-medium">{memberCount}</span>
             {isMember && onlineCount > 0 && (
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -3965,7 +3965,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           {isMember && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -4046,50 +4046,28 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             );
             setShowMuralPage(true);
           }}
-          className="group flex shrink-0 w-full items-center gap-3 border-b border-black/[0.06] bg-gradient-to-r from-[#1A1A1A] via-[#2A2420] to-[#1A1A1A] px-3 py-2.5 text-left transition active:opacity-90 sm:px-4"
+          className="group flex shrink-0 w-full items-center gap-2 border-b border-black/[0.06] bg-gradient-to-r from-[#1A1A1A] via-[#2A2420] to-[#1A1A1A] px-2.5 py-1 text-left transition active:opacity-90 sm:px-3"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-            <Megaphone className="h-4 w-4 text-[#F5E6D3]" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#F5E6D3]/70">
-              Mural da sala
-            </p>
-            <p className="truncate text-sm font-medium text-white">
-              {announcements[0]?.body ||
-                (room.bulletin && !bulletinExpired ? room.bulletin : null) ||
-                activePolls[0]?.question ||
-                "Ver avisos e enquetes"}
-            </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-white/55">
-              {(announcements.length > 0 || bulletinActive) && (
-                <span>
-                  {Math.max(announcements.length, bulletinActive ? 1 : 0)} aviso
-                  {Math.max(announcements.length, bulletinActive ? 1 : 0) !== 1 ? "s" : ""}
-                </span>
-              )}
-              {activePolls.length > 0 && (
-                <span>
-                  {activePolls.length} enquete{activePolls.length !== 1 ? "s" : ""}
-                  {activePolls[0]
-                    ? ` · ${activePolls[0].totalVotes} voto${activePolls[0].totalVotes !== 1 ? "s" : ""}`
-                    : ""}
-                </span>
-              )}
-              <span className="text-[#F5E6D3]/80 group-hover:underline">Abrir →</span>
-            </p>
-          </div>
-          <div className="flex shrink-0 -space-x-1.5">
+          <Megaphone className="h-3 w-3 shrink-0 text-[#F5E6D3]" />
+          <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-white">
+            <span className="text-[#F5E6D3]/70">Mural · </span>
+            {announcements[0]?.body ||
+              (room.bulletin && !bulletinExpired ? room.bulletin : null) ||
+              activePolls[0]?.question ||
+              "Ver avisos e enquetes"}
+          </p>
+          <div className="flex shrink-0 items-center gap-1">
             {(announcements.length > 0 || bulletinActive) && (
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D96C4A] text-[10px] font-bold text-white ring-2 ring-[#1A1A1A]">
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#D96C4A] px-1 text-[9px] font-bold text-white">
                 {Math.max(announcements.length, 1)}
               </span>
             )}
             {activePolls.length > 0 && (
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0A4D5C] text-[10px] font-bold text-white ring-2 ring-[#1A1A1A]">
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0A4D5C] px-1 text-[9px] font-bold text-white">
                 {activePolls.length}
               </span>
             )}
+            <span className="text-[10px] text-[#F5E6D3]/70 group-hover:underline">Abrir →</span>
           </div>
         </button>
       )}
