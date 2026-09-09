@@ -10,15 +10,23 @@ import { isReadOnlyMode } from "@/lib/feature-flags";
 // ============================================================
 // Enquete no Mural de avisos ("Vamos abrir sábado?")
 //
-// GET   /api/rooms/[id]/poll   → enquete atual da sala (se houver)
+// GET   /api/rooms/[id]/poll   → lista de enquetes da sala (mais novas primeiro)
 // POST  /api/rooms/[id]/poll   → cria enquete (admin only)
-// PATCH /api/rooms/[id]/poll   → encerra a enquete atual (admin only)
+// PATCH /api/rooms/[id]/poll   → encerra UMA enquete específica (admin only)
 //
-// Regra: só 1 enquete ativa por sala por vez (ver 20260908_room_polls.sql).
+// Regra: até MAX_ACTIVE_POLLS enquetes ativas por sala ao mesmo tempo.
+// Publicar uma nova enquete NÃO encerra as anteriores — cada uma some
+// só quando um admin/moderador a encerra (ou quando ela expira).
+// Ver 20260908_room_polls.sql e a migration que remove o índice de
+// "1 enquete ativa por sala".
 // ============================================================
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 6;
+/** Máximo de enquetes ativas (não encerradas, não vencidas) por sala ao mesmo tempo. */
+const MAX_ACTIVE_POLLS = 10;
+/** Quantas enquetes (ativas + encerradas) retornar no GET, mais novas primeiro. */
+const LIST_LIMIT = 30;
 
 type PollRow = {
   id: string;
@@ -95,37 +103,57 @@ export async function GET(
       return NextResponse.json({ error: auth.reason }, { status: 403 });
     }
 
-    const { data: poll, error: pollErr } = await supabase
+    const { data: polls, error: pollErr } = await supabase
       .from("room_polls")
       .select("id, room_id, question, created_by, is_closed, expires_at, closed_at, created_at")
       .eq("room_id", roomId)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(LIST_LIMIT);
 
     if (pollErr) {
       if (/room_polls|relation|does not exist/i.test(pollErr.message || "")) {
-        return NextResponse.json({ poll: null });
+        return NextResponse.json({ polls: [] });
       }
       throw pollErr;
     }
-    if (!poll) return NextResponse.json({ poll: null });
+    if (!polls || polls.length === 0) return NextResponse.json({ polls: [] });
 
+    const pollIds = polls.map((p) => p.id);
     const [{ data: options, error: optErr }, { data: votes, error: voteErr }] = await Promise.all([
       supabase
         .from("room_poll_options")
         .select("id, poll_id, label, position")
-        .eq("poll_id", poll.id),
+        .in("poll_id", pollIds),
       supabase
         .from("room_poll_votes")
-        .select("option_id, user_id")
-        .eq("poll_id", poll.id),
+        .select("option_id, poll_id, user_id")
+        .in("poll_id", pollIds),
     ]);
     if (optErr) throw optErr;
     if (voteErr) throw voteErr;
 
+    const optionsByPoll = new Map<string, OptionRow[]>();
+    for (const o of (options || []) as OptionRow[]) {
+      const list = optionsByPoll.get(o.poll_id) || [];
+      list.push(o);
+      optionsByPoll.set(o.poll_id, list);
+    }
+    const votesByPoll = new Map<string, VoteRow[]>();
+    for (const v of (votes || []) as (VoteRow & { poll_id: string })[]) {
+      const list = votesByPoll.get(v.poll_id) || [];
+      list.push(v);
+      votesByPoll.set(v.poll_id, list);
+    }
+
     return NextResponse.json({
-      poll: buildPollPayload(poll as PollRow, (options || []) as OptionRow[], (votes || []) as VoteRow[], user.id),
+      polls: (polls as PollRow[]).map((poll) =>
+        buildPollPayload(
+          poll,
+          optionsByPoll.get(poll.id) || [],
+          votesByPoll.get(poll.id) || [],
+          user.id
+        )
+      ),
     });
   } catch (error) {
     const { message, status } = safeErrorResponse(error, 500, "[rooms/poll GET]");
@@ -195,23 +223,29 @@ export async function POST(
       );
     }
 
-    // Só 1 enquete ativa por sala — publicar uma nova enquete substitui
-    // (encerra) a anterior automaticamente, sem exigir um encerramento manual.
-    const { data: existing, error: existingErr } = await supabase
+    // Até MAX_ACTIVE_POLLS enquetes ativas por vez — publicar uma nova NÃO
+    // encerra as anteriores. Um admin/moderador precisa encerrar manualmente
+    // (ou a enquete expira sozinha) para abrir espaço para outra.
+    const { data: activePolls, error: activeErr } = await supabase
       .from("room_polls")
-      .select("id, is_closed, expires_at")
+      .select("id, expires_at")
       .eq("room_id", roomId)
-      .eq("is_closed", false)
-      .maybeSingle();
-    if (existingErr && !/room_polls|relation|does not exist/i.test(existingErr.message || "")) {
-      throw existingErr;
+      .eq("is_closed", false);
+    if (activeErr && !/room_polls|relation|does not exist/i.test(activeErr.message || "")) {
+      throw activeErr;
     }
-
-    if (existing) {
-      await supabase
-        .from("room_polls")
-        .update({ is_closed: true, closed_at: new Date().toISOString() })
-        .eq("id", existing.id);
+    const now = Date.now();
+    const activeCount = (activePolls || []).filter(
+      (p) => !p.expires_at || new Date(p.expires_at).getTime() > now
+    ).length;
+    if (activeCount >= MAX_ACTIVE_POLLS) {
+      await idempotencyFail(req);
+      return NextResponse.json(
+        {
+          error: `Limite de ${MAX_ACTIVE_POLLS} enquetes ativas nesta sala. Encerre alguma para criar outra.`,
+        },
+        { status: 409 }
+      );
     }
 
     const expiresAt = expiresInHours
@@ -228,7 +262,10 @@ export async function POST(
       if (insertErr.code === "23505") {
         await idempotencyFail(req);
         return NextResponse.json(
-          { error: "Já existe uma enquete ativa nesta sala." },
+          {
+            error:
+              "O banco ainda tem a regra antiga de 1 enquete por sala. Rode a migration que remove o índice único de room_polls no Supabase.",
+          },
           { status: 409 }
         );
       }
@@ -314,15 +351,22 @@ export async function PATCH(
       return NextResponse.json({ error: auth.reason }, { status: 403 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const pollId = typeof body.pollId === "string" ? body.pollId : "";
+    if (!pollId) {
+      return NextResponse.json({ error: "pollId obrigatório" }, { status: 400 });
+    }
+
     const { data: existing, error: existingErr } = await supabase
       .from("room_polls")
       .select("id")
+      .eq("id", pollId)
       .eq("room_id", roomId)
       .eq("is_closed", false)
       .maybeSingle();
     if (existingErr) throw existingErr;
     if (!existing) {
-      return NextResponse.json({ error: "Não há enquete ativa nesta sala" }, { status: 404 });
+      return NextResponse.json({ error: "Enquete não encontrada ou já encerrada" }, { status: 404 });
     }
 
     const { error: updErr } = await supabase
