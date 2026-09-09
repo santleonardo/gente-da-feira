@@ -195,8 +195,8 @@ export async function POST(
       );
     }
 
-    // Só 1 enquete ativa por sala — se a última estiver expirada, encerra
-    // automaticamente para liberar espaço para a nova.
+    // Só 1 enquete ativa por sala — publicar uma nova enquete substitui
+    // (encerra) a anterior automaticamente, sem exigir um encerramento manual.
     const { data: existing, error: existingErr } = await supabase
       .from("room_polls")
       .select("id, is_closed, expires_at")
@@ -208,14 +208,6 @@ export async function POST(
     }
 
     if (existing) {
-      const expired = Boolean(existing.expires_at && new Date(existing.expires_at).getTime() <= Date.now());
-      if (!expired) {
-        await idempotencyFail(req);
-        return NextResponse.json(
-          { error: "Já existe uma enquete ativa nesta sala. Encerre-a antes de criar outra." },
-          { status: 409 }
-        );
-      }
       await supabase
         .from("room_polls")
         .update({ is_closed: true, closed_at: new Date().toISOString() })
