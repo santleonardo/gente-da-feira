@@ -2230,6 +2230,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     void fetchPoll();
   }, [fetchPoll]);
 
+  // Busca a enquete ao entrar na sala (sem abrir o diálogo), para poder
+  // exibir um destaque no topo quando houver uma enquete ativa.
+  useEffect(() => {
+    if (!isMember) return;
+    void fetchPoll();
+  }, [room.id, isMember, fetchPoll]);
+
   const startPollCreation = useCallback(() => {
     setPollQuestionDraft("");
     setPollOptionsDraft(["", ""]);
@@ -3680,12 +3687,37 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           <span>{room.icon}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
-            {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
-            {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-            {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
-          </div>
+          {bulletinActive ? (
+            <button
+              type="button"
+              onClick={() => {
+                setBulletinDraft(String(room.bulletin || ""));
+                setBulletinEditing(false);
+                setShowBulletin(true);
+              }}
+              className="flex items-center gap-1.5 text-left"
+              aria-label="Ver mural de avisos"
+            >
+              <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
+              {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
+              {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+              {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
+                    ? BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].dotClass
+                    : "bg-[#D96C4A]"
+                }`}
+              />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm sm:text-base font-bold truncate">{room.name}</h3>
+              {room.type === "official" && <Crown className="h-3.5 w-3.5 text-[#1A1A1A] shrink-0" />}
+              {room.has_password && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+              {room.is_open === false && <DoorClosed className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+            </div>
+          )}
           <p className="text-[11px] sm:text-xs text-[#4A4A4A] truncate">
             {memberCount} membro{memberCount !== 1 ? "s" : ""}
             {isMember && onlineCount > 0 ? (
@@ -3765,6 +3797,48 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           )}
         </div>
       </div>
+
+      {/* ═══════ Faixa de destaque: aviso ativo + enquete ativa (sempre visível, sem precisar abrir o menu) ═══════ */}
+      {isMember && (bulletinActive || (poll && poll.isActive)) && (
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-black/[0.06] bg-white px-3 py-2 sm:px-4 [&::-webkit-scrollbar]:hidden">
+          {bulletinActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setBulletinDraft(String(room.bulletin || ""));
+                setBulletinEditing(false);
+                setShowBulletin(true);
+              }}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80 max-w-[85vw] sm:max-w-xs ${
+                room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
+                  ? BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].chipClass
+                  : "bg-[#D96C4A]/10 text-[#D96C4A] border-[#D96C4A]/20"
+              }`}
+            >
+              <Megaphone className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {room.bulletin_category && BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory]
+                  ? `${BULLETIN_CATEGORY_META[room.bulletin_category as BulletinCategory].label}: `
+                  : ""}
+                {room.bulletin ? room.bulletin : "Ver aviso"}
+              </span>
+            </button>
+          )}
+          {poll && poll.isActive && (
+            <button
+              type="button"
+              onClick={openPollDialog}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#0A4D5C]/20 bg-[#0A4D5C]/10 px-3 py-1.5 text-xs font-medium text-[#0A4D5C] transition-colors hover:opacity-80 max-w-[85vw] sm:max-w-xs"
+            >
+              <Vote className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Enquete: {poll.question}</span>
+              <span className="shrink-0 text-[#0A4D5C]/60">
+                · {poll.totalVotes} {poll.totalVotes === 1 ? "voto" : "votos"}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ═══════ Membros: bottom sheet (mobile-first) ═══════ */}
       {showMembers && (
