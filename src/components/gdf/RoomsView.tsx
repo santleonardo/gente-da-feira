@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 
 const ROOM_REACTION_EMOJIS = ["👍", "❤️", "😂", "🔥", "😮", "😢"] as const;
 const MAX_POLL_OPTIONS = 6;
+/** Máximo de enquetes ativas ao mesmo tempo por sala (ver route.ts). */
+const MAX_ACTIVE_POLLS = 10;
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
 import { LazyImage } from "./LazyImage";
@@ -2136,13 +2138,14 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [bulletinContactLabelDraft, setBulletinContactLabelDraft] = useState("");
   const [showBulletinCalendar, setShowBulletinCalendar] = useState(false);
 
-  // ── Enquete no mural ("Vamos abrir sábado?") ──
+  // ── Enquetes no mural ("Vamos abrir sábado?") — várias podem ficar
+  // ativas ao mesmo tempo; uma nova não encerra as anteriores.
   const [showPoll, setShowPoll] = useState(false);
   const [pollLoading, setPollLoading] = useState(false);
-  const [poll, setPoll] = useState<RoomPoll | null>(null);
+  const [polls, setPolls] = useState<RoomPoll[]>([]);
   const [pollCreating, setPollCreating] = useState(false);
   const [pollSaving, setPollSaving] = useState(false);
-  const [pollClosing, setPollClosing] = useState(false);
+  const [pollClosingId, setPollClosingId] = useState<string | null>(null);
   const [pollVotingOptionId, setPollVotingOptionId] = useState<string | null>(null);
   const [pollQuestionDraft, setPollQuestionDraft] = useState("");
   const [pollOptionsDraft, setPollOptionsDraft] = useState<string[]>(["", ""]);
@@ -2206,6 +2209,9 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   );
   const bulletinActive = bulletinHasContent && !bulletinExpired;
 
+  // Enquetes com voto ativo primeiro; ativas antes de encerradas/vencidas.
+  const activePolls = polls.filter((p) => p.isActive);
+
   // ── Enquete no mural ──
   const fetchPoll = useCallback(async () => {
     setPollLoading(true);
@@ -2213,12 +2219,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       const res = await fetch(`/api/rooms/${room.id}/poll`);
       const data = await res.json();
       if (res.ok) {
-        setPoll(data.poll || null);
+        setPolls(Array.isArray(data.polls) ? data.polls : []);
       } else {
-        toast.error(data.error || "Erro ao carregar enquete");
+        toast.error(data.error || "Erro ao carregar enquetes");
       }
     } catch {
-      toast.error("Erro ao carregar enquete");
+      toast.error("Erro ao carregar enquetes");
     } finally {
       setPollLoading(false);
     }
@@ -2230,8 +2236,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
     void fetchPoll();
   }, [fetchPoll]);
 
-  // Busca a enquete ao entrar na sala (sem abrir o diálogo), para poder
-  // exibir um destaque no topo quando houver uma enquete ativa.
+  // Busca as enquetes ao entrar na sala (sem abrir o diálogo), para poder
+  // exibir um destaque no topo quando houver enquete(s) ativa(s).
   useEffect(() => {
     if (!isMember) return;
     void fetchPoll();
@@ -2272,7 +2278,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       if (!res.ok) {
         toast.error(data.error || "Erro ao criar enquete");
       } else {
-        setPoll(data.poll);
+        setPolls((prev) => [data.poll, ...prev]);
         setPollCreating(false);
         toast.success(
           data.announced ? "Enquete publicada no mural e anunciada na sala" : "Enquete publicada no mural"
@@ -2286,8 +2292,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   }, [room.id, pollQuestionDraft, pollOptionsDraft, pollExpiresInHoursDraft, pollAnnounceDraft]);
 
   const handleVotePoll = useCallback(
-    async (optionId: string) => {
-      if (!poll || !poll.isActive || pollVotingOptionId) return;
+    async (pollId: string, optionId: string) => {
+      if (pollVotingOptionId) return;
+      const targetPoll = polls.find((p) => p.id === pollId);
+      if (!targetPoll || !targetPoll.isActive) return;
       setPollVotingOptionId(optionId);
       try {
         const res = await fetch(`/api/rooms/${room.id}/poll/vote`, {
@@ -2299,10 +2307,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         if (!res.ok) {
           toast.error(data.error || "Erro ao votar");
         } else {
-          setPoll((prev) =>
-            prev
-              ? { ...prev, options: data.options, totalVotes: data.totalVotes, myVote: data.myVote }
-              : prev
+          setPolls((prev) =>
+            prev.map((p) =>
+              p.id === (data.pollId || pollId)
+                ? { ...p, options: data.options, totalVotes: data.totalVotes, myVote: data.myVote }
+                : p
+            )
           );
         }
       } catch {
@@ -2311,26 +2321,35 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         setPollVotingOptionId(null);
       }
     },
-    [room.id, poll, pollVotingOptionId]
+    [room.id, polls, pollVotingOptionId]
   );
 
-  const handleClosePoll = useCallback(async () => {
-    setPollClosing(true);
-    try {
-      const res = await fetch(`/api/rooms/${room.id}/poll`, { method: "PATCH" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Erro ao encerrar enquete");
-      } else {
-        setPoll((prev) => (prev ? { ...prev, isClosed: true, isActive: false } : prev));
-        toast.success("Enquete encerrada");
+  const handleClosePoll = useCallback(
+    async (pollId: string) => {
+      setPollClosingId(pollId);
+      try {
+        const res = await fetch(`/api/rooms/${room.id}/poll`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pollId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || "Erro ao encerrar enquete");
+        } else {
+          setPolls((prev) =>
+            prev.map((p) => (p.id === pollId ? { ...p, isClosed: true, isActive: false } : p))
+          );
+          toast.success("Enquete encerrada");
+        }
+      } catch {
+        toast.error("Erro ao encerrar enquete");
+      } finally {
+        setPollClosingId(null);
       }
-    } catch {
-      toast.error("Erro ao encerrar enquete");
-    } finally {
-      setPollClosing(false);
-    }
-  }, [room.id]);
+    },
+    [room.id]
+  );
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -3798,8 +3817,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         </div>
       </div>
 
-      {/* ═══════ Faixa de destaque: aviso ativo + enquete ativa (sempre visível, sem precisar abrir o menu) ═══════ */}
-      {isMember && (bulletinActive || (poll && poll.isActive)) && (
+      {/* ═══════ Faixa de destaque: aviso ativo + enquetes ativas (sempre visível, sem precisar abrir o menu) ═══════ */}
+      {isMember && (bulletinActive || activePolls.length > 0) && (
         <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-black/[0.06] bg-white px-3 py-2 sm:px-4 [&::-webkit-scrollbar]:hidden">
           {bulletinActive && (
             <button
@@ -3824,19 +3843,20 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </span>
             </button>
           )}
-          {poll && poll.isActive && (
+          {activePolls.map((p) => (
             <button
+              key={p.id}
               type="button"
               onClick={openPollDialog}
               className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#0A4D5C]/20 bg-[#0A4D5C]/10 px-3 py-1.5 text-xs font-medium text-[#0A4D5C] transition-colors hover:opacity-80 max-w-[85vw] sm:max-w-xs"
             >
               <Vote className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Enquete: {poll.question}</span>
+              <span className="truncate">Enquete: {p.question}</span>
               <span className="shrink-0 text-[#0A4D5C]/60">
-                · {poll.totalVotes} {poll.totalVotes === 1 ? "voto" : "votos"}
+                · {p.totalVotes} {p.totalVotes === 1 ? "voto" : "votos"}
               </span>
             </button>
-          )}
+          ))}
         </div>
       )}
 
@@ -5523,21 +5543,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         <DialogContent className="max-w-md rounded-2xl bg-white border border-black/10 p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-black/5">
             <DialogTitle className="flex items-center gap-2 font-serif text-xl">
-              <Vote className="h-4 w-4 text-[#D96C4A]" /> Enquete/Anúncio
-              {poll && !pollCreating ? (
-                <span
-                  className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-sans font-semibold ${
-                    poll.isActive
-                      ? "bg-[#2E8B57]/10 text-[#2E8B57] border-[#2E8B57]/20"
-                      : "bg-black/5 text-[#4A4A4A]/60 border-black/10"
-                  }`}
-                >
-                  {poll.isActive ? "Ativa" : poll.isExpired ? "Vencida" : "Encerrada"}
+              <Vote className="h-4 w-4 text-[#D96C4A]" /> Enquetes/Anúncios
+              {!pollCreating && polls.length > 0 ? (
+                <span className="ml-auto rounded-full border border-[#2E8B57]/20 bg-[#2E8B57]/10 px-2 py-0.5 text-[11px] font-sans font-semibold text-[#2E8B57]">
+                  {activePolls.length}/{MAX_ACTIVE_POLLS} ativas
                 </span>
               ) : null}
             </DialogTitle>
             <DialogDescription className="text-xs text-[#4A4A4A]/70">
-              Pergunte algo simples para os membros da sala votarem
+              Pergunte algo simples para os membros da sala votarem — todas ficam visíveis até serem encerradas
             </DialogDescription>
           </DialogHeader>
 
@@ -5548,11 +5562,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </div>
             ) : pollCreating && isAdmin ? (
               <>
-                {poll && poll.isActive ? (
-                  <p className="rounded-lg bg-[#0A4D5C]/5 border border-[#0A4D5C]/15 px-3 py-2 text-xs text-[#0A4D5C]">
-                    Publicar esta enquete encerra automaticamente a enquete ativa atual.
+                {activePolls.length >= MAX_ACTIVE_POLLS ? (
+                  <p className="rounded-lg bg-[#C1272D]/5 border border-[#C1272D]/15 px-3 py-2 text-xs text-[#C1272D]">
+                    Limite de {MAX_ACTIVE_POLLS} enquetes ativas atingido. Encerre alguma antes de publicar outra.
                   </p>
-                ) : null}
+                ) : (
+                  <p className="rounded-lg bg-[#0A4D5C]/5 border border-[#0A4D5C]/15 px-3 py-2 text-xs text-[#0A4D5C]">
+                    Esta enquete fica ativa junto com as outras — nenhuma é encerrada automaticamente.
+                  </p>
+                )}
                 <div className="space-y-1.5">
                   <span className="text-xs font-medium text-[#4A4A4A]/70">Pergunta</span>
                   <Textarea
@@ -5666,60 +5684,92 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   />
                 </div>
               </>
-            ) : poll ? (
-              <>
-                <p className="text-sm font-medium text-[#1A1A1A] leading-relaxed break-words">
-                  {poll.question}
-                </p>
-                <div className="space-y-2">
-                  {poll.options.map((opt) => {
-                    const isVoting = pollVotingOptionId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        disabled={!poll.isActive || Boolean(pollVotingOptionId)}
-                        onClick={() => handleVotePoll(opt.id)}
-                        className={`w-full text-left rounded-xl border p-3 transition-colors relative overflow-hidden ${
-                          opt.mine
-                            ? "border-[#D96C4A]/40 bg-[#D96C4A]/5"
-                            : "border-black/[0.08] bg-white hover:bg-[#F9F8F6]"
-                        } ${!poll.isActive ? "cursor-default" : "cursor-pointer"}`}
+            ) : polls.length > 0 ? (
+              <div className="space-y-4">
+                {polls.map((p) => (
+                  <div key={p.id} className="space-y-2 rounded-xl border border-black/[0.06] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium text-[#1A1A1A] leading-relaxed break-words">
+                        {p.question}
+                      </p>
+                      <span
+                        className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                          p.isActive
+                            ? "bg-[#2E8B57]/10 text-[#2E8B57] border-[#2E8B57]/20"
+                            : "bg-black/5 text-[#4A4A4A]/60 border-black/10"
+                        }`}
                       >
-                        <div
-                          className="absolute inset-y-0 left-0 bg-[#D96C4A]/10"
-                          style={{ width: `${opt.percent}%` }}
-                        />
-                        <div className="relative flex items-center gap-2">
-                          {opt.mine ? (
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#D96C4A]" />
+                        {p.isActive ? "Ativa" : p.isExpired ? "Vencida" : "Encerrada"}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {p.options.map((opt) => {
+                        const isVoting = pollVotingOptionId === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            disabled={!p.isActive || Boolean(pollVotingOptionId)}
+                            onClick={() => handleVotePoll(p.id, opt.id)}
+                            className={`w-full text-left rounded-xl border p-3 transition-colors relative overflow-hidden ${
+                              opt.mine
+                                ? "border-[#D96C4A]/40 bg-[#D96C4A]/5"
+                                : "border-black/[0.08] bg-white hover:bg-[#F9F8F6]"
+                            } ${!p.isActive ? "cursor-default" : "cursor-pointer"}`}
+                          >
+                            <div
+                              className="absolute inset-y-0 left-0 bg-[#D96C4A]/10"
+                              style={{ width: `${opt.percent}%` }}
+                            />
+                            <div className="relative flex items-center gap-2">
+                              {opt.mine ? (
+                                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#D96C4A]" />
+                              ) : (
+                                <span className="h-4 w-4 shrink-0 rounded-full border border-black/15" />
+                              )}
+                              <span className="flex-1 text-sm text-[#1A1A1A] break-words">
+                                {opt.label}
+                              </span>
+                              {isVoting ? (
+                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[#4A4A4A]/40" />
+                              ) : (
+                                <span className="text-xs font-semibold text-[#4A4A4A]/60 shrink-0">
+                                  {opt.percent}%
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-[#4A4A4A]/50">
+                        {p.totalVotes} {p.totalVotes === 1 ? "voto" : "votos"}
+                        {p.isActive
+                          ? " · toque numa opção para votar (ou trocar de opção)"
+                          : p.isExpired
+                            ? " · essa enquete venceu"
+                            : " · essa enquete foi encerrada"}
+                      </p>
+                      {isAdmin && p.isActive && (
+                        <button
+                          type="button"
+                          onClick={() => handleClosePoll(p.id)}
+                          disabled={pollClosingId === p.id}
+                          className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-[#C1272D] hover:opacity-80 disabled:opacity-50"
+                        >
+                          {pollClosingId === p.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <span className="h-4 w-4 shrink-0 rounded-full border border-black/15" />
+                            <XCircle className="h-3 w-3" />
                           )}
-                          <span className="flex-1 text-sm text-[#1A1A1A] break-words">
-                            {opt.label}
-                          </span>
-                          {isVoting ? (
-                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[#4A4A4A]/40" />
-                          ) : (
-                            <span className="text-xs font-semibold text-[#4A4A4A]/60 shrink-0">
-                              {opt.percent}%
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-[#4A4A4A]/50">
-                  {poll.totalVotes} {poll.totalVotes === 1 ? "voto" : "votos"}
-                  {poll.isActive
-                    ? " · toque numa opção para votar (ou trocar de opção)"
-                    : poll.isExpired
-                      ? " · essa enquete venceu"
-                      : " · essa enquete foi encerrada"}
-                </p>
-              </>
+                          Encerrar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="py-8 text-center">
                 <Vote className="h-8 w-8 text-black/10 mx-auto mb-2" />
@@ -5736,7 +5786,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
           </div>
 
           {isAdmin && !pollLoading && (
-            <div className="px-5 pb-5 pt-1 flex items-center justify-between gap-2 border-t border-black/5">
+            <div className="px-5 pb-5 pt-1 flex items-center justify-end gap-2 border-t border-black/5">
               {pollCreating ? (
                 <>
                   <Button
@@ -5753,7 +5803,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     type="button"
                     size="sm"
                     className="rounded-full gap-1.5"
-                    disabled={pollSaving}
+                    disabled={pollSaving || activePolls.length >= MAX_ACTIVE_POLLS}
                     onClick={handleCreatePoll}
                   >
                     {pollSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -5761,36 +5811,21 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   </Button>
                 </>
               ) : (
-                <>
-                  {poll && poll.isActive ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full gap-1.5 text-[#C1272D] hover:text-[#C1272D] hover:bg-[#C1272D]/10"
-                      onClick={handleClosePoll}
-                      disabled={pollClosing}
-                    >
-                      {pollClosing ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <XCircle className="h-3.5 w-3.5" />
-                      )}
-                      Encerrar enquete
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="ml-auto rounded-full gap-1.5"
-                    onClick={startPollCreation}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Nova enquete
-                  </Button>
-                </>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full gap-1.5"
+                  onClick={startPollCreation}
+                  disabled={activePolls.length >= MAX_ACTIVE_POLLS}
+                  title={
+                    activePolls.length >= MAX_ACTIVE_POLLS
+                      ? `Limite de ${MAX_ACTIVE_POLLS} enquetes ativas atingido`
+                      : undefined
+                  }
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Nova enquete
+                </Button>
               )}
             </div>
           )}
