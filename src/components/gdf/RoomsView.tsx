@@ -5340,6 +5340,32 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </>
             ) : bulletinHasContent && !bulletinExpired ? (
               <>
+                {isAdmin && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs font-medium text-[#4A4A4A]/60 hover:text-[#D96C4A] transition-colors"
+                      onClick={() => {
+                        setBulletinDraft(String(room.bulletin || ""));
+                        setBulletinLinksDraft(
+                          Array.isArray(room.bulletin_links)
+                            ? room.bulletin_links.map((l: any) => ({
+                                url: String(l?.url || ""),
+                                label: String(l?.label || ""),
+                              }))
+                            : []
+                        );
+                        setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
+                        setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
+                        setBulletinContactPhoneDraft(room.bulletin_contact?.phone || "");
+                        setBulletinContactLabelDraft(room.bulletin_contact?.label || "");
+                        setBulletinEditing(true);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" /> Editar este aviso
+                    </button>
+                  </div>
+                )}
                 {room.bulletin ? (
                   <div className="rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-4">
                     <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap break-words leading-relaxed">
@@ -5403,30 +5429,83 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
             )}
           </div>
           {isAdmin && !bulletinEditing && (
-            <div className="px-5 pb-5 pt-1 flex justify-end border-t border-black/5">
+            <div className="px-5 pb-5 pt-1 flex items-center justify-between gap-2 border-t border-black/5">
+              {bulletinActive ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full gap-1.5 text-[#C1272D] hover:text-[#C1272D] hover:bg-[#C1272D]/10"
+                  disabled={bulletinSaving}
+                  onClick={async () => {
+                    setBulletinSaving(true);
+                    try {
+                      const res = await fetch(`/api/rooms/${room.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          bulletin: "",
+                          bulletin_links: [],
+                          bulletin_category: null,
+                          bulletin_expires_at: null,
+                          bulletin_contact: null,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        toast.error(data.error || "Erro ao remover aviso");
+                      } else {
+                        setSelectedRoom({
+                          ...room,
+                          bulletin: null,
+                          bulletin_links: [],
+                          bulletin_category: null,
+                          bulletin_expires_at: null,
+                          bulletin_contact: null,
+                        });
+                        setBulletinDraft("");
+                        setBulletinLinksDraft([]);
+                        setBulletinCategoryDraft(null);
+                        setBulletinExpiresAtDraft(null);
+                        setBulletinContactPhoneDraft("");
+                        setBulletinContactLabelDraft("");
+                        toast.success("Aviso removido do mural");
+                      }
+                    } catch {
+                      toast.error("Erro ao remover aviso");
+                    } finally {
+                      setBulletinSaving(false);
+                    }
+                  }}
+                >
+                  {bulletinSaving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5" />
+                  )}
+                  Remover aviso
+                </Button>
+              ) : (
+                <span />
+              )}
               <Button
                 type="button"
                 size="sm"
-                className="rounded-full gap-1.5"
+                className="ml-auto rounded-full gap-1.5"
                 onClick={() => {
-                  setBulletinDraft(String(room.bulletin || ""));
-                  setBulletinLinksDraft(
-                    Array.isArray(room.bulletin_links)
-                      ? room.bulletin_links.map((l: any) => ({
-                          url: String(l?.url || ""),
-                          label: String(l?.label || ""),
-                        }))
-                      : []
-                  );
-                  setBulletinCategoryDraft((room.bulletin_category as BulletinCategory) || null);
-                  setBulletinExpiresAtDraft(room.bulletin_expires_at || null);
-                  setBulletinContactPhoneDraft(room.bulletin_contact?.phone || "");
-                  setBulletinContactLabelDraft(room.bulletin_contact?.label || "");
+                  // Sempre abre em branco — "Novo aviso" não reaproveita o
+                  // conteúdo do aviso atual, igual à "Nova enquete".
+                  setBulletinDraft("");
+                  setBulletinLinksDraft([]);
+                  setBulletinCategoryDraft(null);
+                  setBulletinExpiresAtDraft(null);
+                  setBulletinContactPhoneDraft("");
+                  setBulletinContactLabelDraft("");
                   setBulletinEditing(true);
                 }}
               >
-                <Pencil className="h-3.5 w-3.5" />
-                {bulletinHasContent ? "Editar aviso" : "Escrever aviso"}
+                <Plus className="h-3.5 w-3.5" />
+                Novo aviso
               </Button>
             </div>
           )}
