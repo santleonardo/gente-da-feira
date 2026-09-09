@@ -2128,6 +2128,13 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [showBulletin, setShowBulletin] = useState(false);
   /** Página em tela cheia com todos os avisos + enquetes do mural */
   const [showMuralPage, setShowMuralPage] = useState(false);
+  /** Mini-sala da equipe (só criador + moderadores) */
+  const [showStaffRoom, setShowStaffRoom] = useState(false);
+  const [staffMessages, setStaffMessages] = useState<any[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffInput, setStaffInput] = useState("");
+  const [staffSending, setStaffSending] = useState(false);
+  const staffScrollRef = useRef<HTMLDivElement>(null);
   const [muralPageTab, setMuralPageTab] = useState<"avisos" | "enquetes">("avisos");
   const [bulletinDraft, setBulletinDraft] = useState("");
   const [bulletinEditing, setBulletinEditing] = useState(false);
@@ -2721,6 +2728,69 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       fetchBannedMembers();
     }
   }, [showMembers, membersTab, isAdmin, fetchBannedMembers]);
+
+  const fetchStaffMessages = useCallback(async () => {
+    if (!isAdmin) return;
+    setStaffLoading(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/staff-messages?limit=50`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setStaffMessages(Array.isArray(data.messages) ? data.messages : []);
+        requestAnimationFrame(() => {
+          const el = staffScrollRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      } else if (res.status !== 403) {
+        toast.error(data.error || "Erro ao carregar sala da equipe");
+      }
+    } catch {
+      toast.error("Erro de rede");
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [room.id, isAdmin]);
+
+  const openStaffRoom = useCallback(() => {
+    if (!isAdmin) return;
+    setShowStaffRoom(true);
+    void fetchStaffMessages();
+  }, [isAdmin, fetchStaffMessages]);
+
+  const sendStaffMessage = useCallback(async () => {
+    const text = staffInput.trim();
+    if (!text || staffSending || !isAdmin) return;
+    setStaffSending(true);
+    setStaffInput("");
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/staff-messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Erro ao enviar");
+        setStaffInput(text);
+        return;
+      }
+      if (data.message) {
+        setStaffMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+        requestAnimationFrame(() => {
+          const el = staffScrollRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      }
+    } catch {
+      toast.error("Erro de rede");
+      setStaffInput(text);
+    } finally {
+      setStaffSending(false);
+    }
+  }, [staffInput, staffSending, isAdmin, room.id]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -3893,9 +3963,17 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {isAdmin && (
-                  <DropdownMenuItem onClick={() => setShowAdminPanel(true)} className="gap-2">
-                    <Settings className="h-4 w-4" /> Administração
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={openStaffRoom} className="gap-2">
+                      <Shield className="h-4 w-4" /> Sala da equipe
+                      <span className="ml-auto rounded-full bg-[#1A1A1A]/8 px-1.5 text-[10px] font-bold text-[#1A1A1A]/55">
+                        mods
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowAdminPanel(true)} className="gap-2">
+                      <Settings className="h-4 w-4" /> Administração
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuItem onClick={() => setShowInvite(true)} className="gap-2">
                   <UserPlus className="h-4 w-4" /> Convidar pessoa
@@ -5129,6 +5207,137 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   <Send className="h-6 w-6" />
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      
+      {/* ═══════ Mini-sala da equipe (criador + moderadores) ═══════ */}
+      {showStaffRoom && isAdmin && (
+        <div className="fixed inset-0 z-[65] flex flex-col bg-[#0F1419]">
+          <div className="shrink-0 border-b border-white/10 bg-[#151B22] text-white">
+            <div className="flex items-center gap-3 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
+              <button
+                type="button"
+                onClick={() => setShowStaffRoom(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 active:scale-95"
+                aria-label="Fechar sala da equipe"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-emerald-400" />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-400/90">
+                    Privado · equipe
+                  </p>
+                </div>
+                <h2 className="truncate font-serif text-lg font-medium leading-tight">
+                  {room.name}
+                </h2>
+                <p className="text-[11px] text-white/45">
+                  Só criador e moderadores veem esta mini-sala
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            ref={staffScrollRef}
+            className="flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4"
+          >
+            {staffLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+              </div>
+            ) : staffMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5">
+                  <Shield className="h-6 w-6 text-white/25" />
+                </div>
+                <p className="font-serif text-lg text-white/50">Sala da equipe vazia</p>
+                <p className="mt-1 max-w-xs text-sm text-white/35">
+                  Combinem moderação, avisos e decisões aqui — membros comuns não entram.
+                </p>
+              </div>
+            ) : (
+              staffMessages.map((m) => {
+                const mine = m.sender_id === profile?.id;
+                const name =
+                  m.sender?.display_name || m.sender?.username || "Moderador";
+                return (
+                  <div
+                    key={m.id}
+                    className={cn("flex", mine ? "justify-end" : "justify-start")}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm",
+                        mine
+                          ? "rounded-br-md bg-emerald-600 text-white"
+                          : "rounded-bl-md bg-[#1C2430] text-white/95 ring-1 ring-white/8"
+                      )}
+                    >
+                      {!mine && (
+                        <p className="mb-0.5 text-[11px] font-semibold text-emerald-400/90">
+                          {name}
+                        </p>
+                      )}
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                        {m.content}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-1 text-right text-[10px]",
+                          mine ? "text-white/60" : "text-white/35"
+                        )}
+                      >
+                        {m.created_at
+                          ? new Date(m.created_at).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="shrink-0 border-t border-white/10 bg-[#151B22] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+            <div className="flex items-end gap-2">
+              <textarea
+                value={staffInput}
+                onChange={(e) => setStaffInput(e.target.value.slice(0, 2000))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void sendStaffMessage();
+                  }
+                }}
+                placeholder="Mensagem só para a equipe…"
+                rows={1}
+                className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-[#0F1419] px-3.5 py-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+              />
+              <button
+                type="button"
+                disabled={staffSending || !staffInput.trim()}
+                onClick={() => void sendStaffMessage()}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white disabled:opacity-40 active:scale-95"
+                aria-label="Enviar"
+              >
+                {staffSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>
