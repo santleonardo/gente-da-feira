@@ -2138,6 +2138,22 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const [bulletinContactLabelDraft, setBulletinContactLabelDraft] = useState("");
   const [showBulletinCalendar, setShowBulletinCalendar] = useState(false);
 
+  // Avisos do mural (vários — até 10; publicar um NÃO apaga os outros)
+  type RoomAnnouncement = {
+    id: string;
+    body: string;
+    category: string | null;
+    links: { url: string; label: string | null }[] | null;
+    contact: { phone: string; label: string | null } | null;
+    expires_at: string | null;
+    is_active: boolean;
+    created_at: string;
+  };
+  const [announcements, setAnnouncements] = useState<RoomAnnouncement[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementCreating, setAnnouncementCreating] = useState(false);
+  const [announcementDeletingId, setAnnouncementDeletingId] = useState<string | null>(null);
+
   // ── Enquetes no mural ("Vamos abrir sábado?") — várias podem ficar
   // ativas ao mesmo tempo; uma nova não encerra as anteriores.
   const [showPoll, setShowPoll] = useState(false);
@@ -2198,6 +2214,109 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   const isAdmin = myRole === "creator" || myRole === "moderator";
   const isCreator = myRole === "creator";
 
+  const fetchAnnouncements = useCallback(async () => {
+    setAnnouncementsLoading(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/announcements`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.announcements)) {
+        setAnnouncements(data.announcements);
+      } else {
+        setAnnouncements([]);
+      }
+    } catch {
+      setAnnouncements([]);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  }, [room.id]);
+
+  useEffect(() => {
+    if (!isMember) return;
+    void fetchAnnouncements();
+  }, [room.id, isMember, fetchAnnouncements]);
+
+  const handleCreateAnnouncement = useCallback(async () => {
+    const body = bulletinDraft.trim();
+    if (!body) {
+      toast.error("Escreva o texto do aviso");
+      return;
+    }
+    setBulletinSaving(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/announcements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body,
+          category: bulletinCategoryDraft,
+          links: bulletinLinksDraft
+            .filter((l) => l.url.trim())
+            .map((l) => ({ url: l.url.trim(), label: l.label.trim() || null })),
+          contact: bulletinContactPhoneDraft.trim()
+            ? {
+                phone: bulletinContactPhoneDraft.trim(),
+                label: bulletinContactLabelDraft.trim() || null,
+              }
+            : null,
+          expires_at: bulletinExpiresAtDraft,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Erro ao publicar aviso");
+        return;
+      }
+      toast.success("Aviso publicado (os anteriores continuam no mural)");
+      setBulletinDraft("");
+      setBulletinLinksDraft([]);
+      setBulletinCategoryDraft(null);
+      setBulletinExpiresAtDraft(null);
+      setBulletinContactPhoneDraft("");
+      setBulletinContactLabelDraft("");
+      setAnnouncementCreating(false);
+      setBulletinEditing(false);
+      await fetchAnnouncements();
+    } catch {
+      toast.error("Erro de rede ao publicar aviso");
+    } finally {
+      setBulletinSaving(false);
+    }
+  }, [
+    room.id,
+    bulletinDraft,
+    bulletinCategoryDraft,
+    bulletinLinksDraft,
+    bulletinContactPhoneDraft,
+    bulletinContactLabelDraft,
+    bulletinExpiresAtDraft,
+    fetchAnnouncements,
+  ]);
+
+  const handleDeleteAnnouncement = useCallback(
+    async (id: string) => {
+      if (!confirm("Apagar este aviso do mural? Só some se você confirmar.")) return;
+      setAnnouncementDeletingId(id);
+      try {
+        const res = await fetch(`/api/rooms/${room.id}/announcements/${id}`, {
+          method: "DELETE",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data.error || "Erro ao apagar aviso");
+          return;
+        }
+        setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+        toast.success("Aviso removido");
+      } catch {
+        toast.error("Erro de rede");
+      } finally {
+        setAnnouncementDeletingId(null);
+      }
+    },
+    [room.id]
+  );
+
   // Mural de avisos — considera vencido se bulletin_expires_at já passou
   const bulletinExpired = Boolean(
     room.bulletin_expires_at && new Date(room.bulletin_expires_at).getTime() <= Date.now()
@@ -2207,7 +2326,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       (Array.isArray(room.bulletin_links) && room.bulletin_links.length > 0) ||
       room.bulletin_contact?.phone
   );
-  const bulletinActive = bulletinHasContent && !bulletinExpired;
+  const bulletinActive =
+    (bulletinHasContent && !bulletinExpired) || announcements.length > 0;
 
   // Enquetes com voto ativo primeiro; ativas antes de encerradas/vencidas.
   const activePolls = polls.filter((p) => p.isActive);
@@ -4991,9 +5111,12 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
         open={showBulletin}
         onOpenChange={(open) => {
           setShowBulletin(open);
-          if (!open) {
+          if (open) {
+            void fetchAnnouncements();
+          } else {
             setBulletinEditing(false);
             setShowBulletinCalendar(false);
+            setAnnouncementCreating(false);
           }
         }}
       >
@@ -5012,7 +5135,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
               ) : null}
             </DialogTitle>
             <DialogDescription className="text-xs text-[#4A4A4A]/70">
-              Avisos e anúncios permanentes desta sala
+              Até 10 avisos. Publicar um novo não apaga os anteriores — só some se você apagar.
+              {announcements.length > 0 ? ` (${announcements.length}/10)` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="px-5 py-4 space-y-3 max-h-[min(28rem,70dvh)] overflow-y-auto">
@@ -5262,103 +5386,81 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                     type="button"
                     size="sm"
                     className="rounded-full gap-1.5"
-                    disabled={bulletinSaving}
-                    onClick={async () => {
-                      const linksToSave = bulletinLinksDraft
-                        .map((l) => ({ url: l.url.trim(), label: l.label.trim() }))
-                        .filter((l) => l.url);
-                      const invalid = linksToSave.find((l) => {
-                        try {
-                          const u = new URL(l.url);
-                          return !["http:", "https:"].includes(u.protocol);
-                        } catch {
-                          return true;
-                        }
-                      });
-                      if (invalid) {
-                        toast.error("Verifique se os links do mural começam com http:// ou https://");
-                        return;
-                      }
-                      const phoneTrim = bulletinContactPhoneDraft.trim();
-                      if (phoneTrim && phoneTrim.replace(/[^\d]/g, "").length < 8) {
-                        toast.error("Telefone de contato inválido — inclua DDI e DDD");
-                        return;
-                      }
-                      const contactToSave = phoneTrim
-                        ? { phone: phoneTrim, label: bulletinContactLabelDraft.trim() }
-                        : null;
-                      setBulletinSaving(true);
-                      try {
-                        const res = await fetch(`/api/rooms/${room.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            bulletin: bulletinDraft.trim(),
-                            bulletin_links: linksToSave,
-                            bulletin_category: bulletinCategoryDraft,
-                            bulletin_expires_at: bulletinExpiresAtDraft,
-                            bulletin_contact: contactToSave,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) {
-                          toast.error(data.error || "Erro ao salvar mural");
-                        } else {
-                          const next = (data.room?.bulletin ?? bulletinDraft.trim()) || null;
-                          const nextLinks = data.room?.bulletin_links ?? linksToSave;
-                          const nextCategory =
-                            data.room?.bulletin_category !== undefined
-                              ? data.room.bulletin_category
-                              : bulletinCategoryDraft;
-                          const nextExpiresAt =
-                            data.room?.bulletin_expires_at !== undefined
-                              ? data.room.bulletin_expires_at
-                              : bulletinExpiresAtDraft;
-                          const nextContact =
-                            data.room?.bulletin_contact !== undefined
-                              ? data.room.bulletin_contact
-                              : contactToSave;
-                          setSelectedRoom({
-                            ...room,
-                            bulletin: next,
-                            bulletin_links: nextLinks,
-                            bulletin_category: nextCategory,
-                            bulletin_expires_at: nextExpiresAt,
-                            bulletin_contact: nextContact,
-                          });
-                          setBulletinDraft(String(next || ""));
-                          setBulletinLinksDraft(
-                            (nextLinks || []).map((l: any) => ({
-                              url: String(l?.url || ""),
-                              label: String(l?.label || ""),
-                            }))
-                          );
-                          setBulletinCategoryDraft(nextCategory || null);
-                          setBulletinExpiresAtDraft(nextExpiresAt || null);
-                          setBulletinContactPhoneDraft(nextContact?.phone || "");
-                          setBulletinContactLabelDraft(nextContact?.label || "");
-                          setBulletinEditing(false);
-                          toast.success(
-                            next || (nextLinks && nextLinks.length) || nextContact
-                              ? "Mural de avisos atualizado"
-                              : "Mural de avisos limpo"
-                          );
-                        }
-                      } catch {
-                        toast.error("Erro ao salvar mural");
-                      } finally {
-                        setBulletinSaving(false);
-                      }
-                    }}
+                    disabled={bulletinSaving || !bulletinDraft.trim()}
+                    onClick={() => void handleCreateAnnouncement()}
                   >
                     {bulletinSaving ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : null}
-                    Salvar
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    Publicar aviso
                   </Button>
                 </div>
               </>
-            ) : bulletinHasContent && !bulletinExpired ? (
+            ) : announcementsLoading ? (
+              <div className="py-10 flex justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-[#4A4A4A]/40" />
+              </div>
+            ) : announcements.length > 0 ? (
+              <div className="space-y-3">
+                {announcements.map((a) => (
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-black/10 bg-[#F9F8F6] p-3 space-y-2"
+                  >
+                    {a.category ? (
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[#D96C4A]">
+                        {a.category}
+                      </span>
+                    ) : null}
+                    <p className="text-sm whitespace-pre-wrap break-words text-[#1A1A1A]">
+                      {a.body}
+                    </p>
+                    {Array.isArray(a.links) && a.links.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {a.links.map((link, i) => (
+                          <a
+                            key={i}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-[#D96C4A] hover:underline"
+                          >
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{link.label || link.url}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                    {a.contact?.phone ? (
+                      <p className="text-xs text-[#4A4A4A]/70">
+                        Contato: {a.contact.label ? `${a.contact.label} · ` : ""}
+                        {a.contact.phone}
+                      </p>
+                    ) : null}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] text-[#4A4A4A]/40">
+                        {new Date(a.created_at).toLocaleString("pt-BR")}
+                        {a.expires_at
+                          ? ` · válido até ${new Date(a.expires_at).toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </span>
+                      {isAdmin ? (
+                        <button
+                          type="button"
+                          className="text-[11px] font-medium text-[#C1272D] hover:underline disabled:opacity-50"
+                          disabled={announcementDeletingId === a.id}
+                          onClick={() => void handleDeleteAnnouncement(a.id)}
+                        >
+                          {announcementDeletingId === a.id ? "…" : "Apagar"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (bulletinHasContent && !bulletinExpired) ? (
               <>
                 {isAdmin && (
                   <div className="flex justify-end">
@@ -5442,7 +5544,7 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                   {isAdmin
                     ? bulletinExpired
                       ? "Clique em Editar para renovar a validade ou escrever um novo aviso."
-                      : "Clique em Editar para publicar o primeiro aviso."
+                      : "Clique em Novo aviso para publicar o primeiro."
                     : "O criador ou um moderador ainda não publicou avisos."}
                 </p>
               </div>
