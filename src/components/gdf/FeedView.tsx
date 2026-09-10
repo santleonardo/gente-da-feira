@@ -1113,10 +1113,17 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 
   const handleDelete = useCallback(async (postId: string) => {
     try {
-      await fetch(`/api/posts?id=${postId}`, { method: "DELETE" });
+      const res = await fetch(`/api/posts?id=${postId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data as { error?: string }).error || "Erro ao excluir o post");
+        return;
+      }
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       toast.success("Post excluído");
-    } catch { toast.error("Erro ao excluir"); }
+    } catch {
+      toast.error("Erro ao excluir");
+    }
   }, []);
 
   const updateCommentCount = useCallback((postId: string, delta: number) => {

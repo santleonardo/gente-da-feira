@@ -20,7 +20,12 @@ import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
 import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent, sanitizeShortText } from "@/lib/sanitize";
-import { validateMediaUrl, validateMediaUrlArray, ALLOWED_BUCKETS } from "@/lib/storage-security";
+import {
+  validateMediaUrl,
+  validateMediaUrlArray,
+  ALLOWED_BUCKETS,
+  extractStoragePathFromUrl,
+} from "@/lib/storage-security";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
 import { redactDeletedSharedPost } from "@/lib/shared-post";
 import {
@@ -38,6 +43,7 @@ import {
   MAX_ACTIVE_MEDIA_POSTS,
   MEDIA_EXPIRATION_HOURS,
 } from "@/lib/upload-limits";
+import { safeErrorResponse } from "@/lib/safe-error";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -181,6 +187,69 @@ export async function GET(req: NextRequest) {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Junta todas as URLs de mídia de um post (fotos, vídeo, áudio). */
+function collectPostMediaUrls(post: {
+  image_urls?: string[] | null;
+  video_url?: string | null;
+  audio_url?: string | null;
+}): string[] {
+  const urls: string[] = [];
+  if (Array.isArray(post.image_urls)) {
+    for (const u of post.image_urls) {
+      if (typeof u === "string" && u) urls.push(u);
+    }
+  }
+  if (typeof post.video_url === "string" && post.video_url) urls.push(post.video_url);
+  if (typeof post.audio_url === "string" && post.audio_url) urls.push(post.audio_url);
+  return urls;
+}
+
+/**
+ * SEC-008: Remove arquivos de mídia do Supabase Storage.
+ * - Só age em buckets da whitelist ALLOWED_BUCKETS
+ * - Agrupa paths por bucket e remove em lote
+ * - Best-effort: erros são logados, não propagados
+ */
+async function removeMediaUrlsFromStorage(
+  admin: ReturnType<typeof createAdminClient>,
+  mediaUrls: string[],
+  logPrefix = "[posts storage cleanup]"
+): Promise<void> {
+  if (!mediaUrls || mediaUrls.length === 0) return;
+
+  const pathsByBucket = new Map<string, string[]>();
+
+  for (const url of mediaUrls) {
+    const parsed = extractStoragePathFromUrl(url, ALLOWED_BUCKETS);
+    if (!parsed) continue;
+    if (!ALLOWED_BUCKETS.has(parsed.bucket)) continue;
+
+    const list = pathsByBucket.get(parsed.bucket) ?? [];
+    // evita path duplicado no mesmo lote
+    if (!list.includes(parsed.path)) list.push(parsed.path);
+    pathsByBucket.set(parsed.bucket, list);
+  }
+
+  for (const [bucket, paths] of pathsByBucket) {
+    // Supabase Storage remove aceita arrays; particiona se muito grande
+    const CHUNK = 100;
+    for (let i = 0; i < paths.length; i += CHUNK) {
+      const chunk = paths.slice(i, i + CHUNK);
+      const { error: removeError } = await admin.storage.from(bucket).remove(chunk);
+      if (removeError) {
+        console.error(logPrefix, "falha ao limpar storage", bucket, chunk, removeError.message);
+      }
+    }
+  }
+}
+
+async function cleanupPostMedia(
+  admin: ReturnType<typeof createAdminClient>,
+  post: { image_urls?: string[] | null; video_url?: string | null; audio_url?: string | null }
+): Promise<void> {
+  await removeMediaUrlsFromStorage(admin, collectPostMediaUrls(post));
+}
+
 async function cleanupExpiredPosts() {
   try {
     const admin = createAdminClient();
@@ -198,33 +267,13 @@ async function cleanupExpiredPosts() {
     const expiredIds = expiredPosts.map((p: any) => p.id);
     await admin.from("posts").update({ is_deleted: true }).in("id", expiredIds);
 
+    // Limpa storage de forma síncrona neste job (await) para não perder
+    // arquivos se o runtime encerrar logo após o soft-delete.
     for (const post of expiredPosts) {
-      cleanupPostMedia(admin, post);
+      await cleanupPostMedia(admin, post);
     }
-  } catch { /* silent */ }
-}
-
-// SEC-008: Usa extractStoragePathFromUrl centralizado — cobre todos os buckets
-import { extractStoragePathFromUrl } from "@/lib/storage-security";
-import { safeErrorResponse } from "@/lib/safe-error";
-
-function cleanupPostMedia(admin: any, post: any) {
-  const IMAGE_BUCKETS = ["post-photos", "post-images"];
-  if (post.image_urls?.length > 0) {
-    for (const url of post.image_urls) {
-      const parsed = extractStoragePathFromUrl(url);
-      if (parsed && IMAGE_BUCKETS.includes(parsed.bucket)) {
-        admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
-      }
-    }
-  }
-  if (post.video_url) {
-    const parsed = extractStoragePathFromUrl(post.video_url);
-    if (parsed) admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
-  }
-  if (post.audio_url) {
-    const parsed = extractStoragePathFromUrl(post.audio_url);
-    if (parsed) admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+  } catch (err) {
+    console.error("[posts cleanupExpiredPosts]", err);
   }
 }
 
@@ -554,30 +603,19 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Limpeza de storage — best effort, mas agora com after() em vez de
-    // um IIFE solto. Sem after(), o runtime serverless pode congelar/
-    // reciclar a função assim que a resposta é enviada, e o cleanup
-    // nunca chega a rodar — deixando os arquivos de mídia acessíveis
-    // por URL direta mesmo com o post já marcado como deletado no banco.
-    // after() garante que este código roda até o fim antes do runtime
-    // liberar a função, sem atrasar a resposta ao cliente.
-    if (result.media_urls && result.media_urls.length > 0) {
-      const mediaUrls = result.media_urls;
+    // Limpeza de storage — best effort via after().
+    // Sem after(), o runtime serverless pode reciclar a função assim que
+    // a resposta é enviada e o cleanup nunca roda (arquivos ficam
+    // acessíveis por URL direta com o post já soft-deleted).
+    // after() garante execução até o fim sem atrasar a resposta ao cliente.
+    const mediaUrls = Array.isArray(result.media_urls) ? result.media_urls : [];
+    if (mediaUrls.length > 0) {
       after(async () => {
-        const admin = createAdminClient();
-        const pathsByBucket = new Map<string, string[]>();
-        for (const url of mediaUrls) {
-          const parsed = extractStoragePathFromUrl(url);
-          if (!parsed) continue;
-          const list = pathsByBucket.get(parsed.bucket) ?? [];
-          list.push(parsed.path);
-          pathsByBucket.set(parsed.bucket, list);
-        }
-        for (const [bucket, paths] of pathsByBucket) {
-          const { error: removeError } = await admin.storage.from(bucket).remove(paths);
-          if (removeError) {
-            console.error("[posts DELETE] falha ao limpar storage", bucket, paths, removeError.message);
-          }
+        try {
+          const admin = createAdminClient();
+          await removeMediaUrlsFromStorage(admin, mediaUrls, "[posts DELETE]");
+        } catch (err) {
+          console.error("[posts DELETE] erro inesperado na limpeza de storage", err);
         }
       });
     }

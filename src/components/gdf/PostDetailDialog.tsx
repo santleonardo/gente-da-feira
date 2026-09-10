@@ -754,10 +754,17 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const handleDelete = async () => {
     if (!localPost) return;
     try {
-      await fetch(`/api/posts?id=${localPost.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/posts?id=${localPost.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data as { error?: string }).error || "Erro ao excluir o post");
+        return;
+      }
       toast.success("Post excluído");
       onOpenChange(false);
-    } catch { toast.error("Erro ao excluir"); }
+    } catch {
+      toast.error("Erro ao excluir");
+    }
   };
 
   const handleRepost = async (repostPost: PostWithAuthor) => {
