@@ -67,6 +67,11 @@ const SettingsView = dynamic(
   { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
 );
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
+import {
+  NAME_BAND_THEMES,
+  resolveNameBandTheme,
+  type NameBandThemeId,
+} from "@/lib/name-band-theme";
 import { createClient } from "@/lib/supabase/client";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -1037,6 +1042,8 @@ export function ProfileView() {
   };
 
   // ═══════ Profile handlers ═══════
+  const nameBand = resolveNameBandTheme(profile?.theme);
+
   const handleSave = async () => {
     if (!profile) return;
     try {
@@ -1048,6 +1055,28 @@ export function ProfileView() {
       const data = await res.json();
       if (data.user) { updateProfile(data.user); toast.success("Perfil atualizado!"); }
     } catch { toast.error("Erro ao salvar"); }
+  };
+
+  const handleNameBandTheme = async (themeId: NameBandThemeId) => {
+    if (!profile || profile.theme === themeId) return;
+    // Otimista
+    updateProfile({ theme: themeId });
+    try {
+      const res = await fetch(`/api/users/${profile.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: themeId }),
+      });
+      const data = await res.json();
+      if (data.user) {
+        updateProfile(data.user);
+        toast.success("Cor da faixa atualizada");
+      } else {
+        toast.error(data.error || "Não foi possível salvar a cor");
+      }
+    } catch {
+      toast.error("Erro ao salvar a cor da faixa");
+    }
   };
 
   // Câmera do hero: troca a foto de perfil (estática, modo tradicional).
@@ -1398,15 +1427,54 @@ export function ProfileView() {
             </div>
 
             <div className="flex-1 min-w-0 pb-1">
-              {/* Faixa navy neutra — largura total do bloco ao lado da foto */}
-              <div className="flex w-full items-center gap-2.5 rounded-sm bg-[#1B2A4A] px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <span className="hidden sm:block h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-white/30" aria-hidden />
-                <h1 className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
+              {/* Faixa do nome — cor escolhida pelo usuário (profiles.theme) */}
+              <div
+                className="flex w-full items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                style={{ backgroundColor: nameBand.bg }}
+              >
+                <span
+                  className="hidden sm:block h-px w-5 shrink-0"
+                  style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
+                <h1
+                  className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
+                  style={{ color: nameBand.text }}
+                >
                   {profile?.display_name}
                 </h1>
-                {isPrivate && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
-                <span className="hidden sm:block h-px flex-1 min-w-[1rem] bg-gradient-to-l from-transparent to-white/30" aria-hidden />
+                {isPrivate && (
+                  <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
+                )}
+                <span
+                  className="hidden sm:block h-px flex-1 min-w-[1rem]"
+                  style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
               </div>
+
+              {/* Seletor de cor da faixa (7 opções) */}
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Cor da faixa do nome">
+                {NAME_BAND_THEMES.map((t) => {
+                  const selected = nameBand.id === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      title={t.label}
+                      aria-label={`Faixa ${t.label}`}
+                      aria-pressed={selected}
+                      onClick={() => handleNameBandTheme(t.id)}
+                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#1A1A1A]/40 ${
+                        selected ? "border-[#1A1A1A] scale-110 shadow-sm" : "border-white/80 shadow-sm"
+                      }`}
+                      style={{ backgroundColor: t.bg }}
+                    />
+                  );
+                })}
+                <span className="ml-1 text-[10px] text-[#4A4A4A]/55">Cor da faixa</span>
+              </div>
+
               <p className="text-sm text-[#4A4A4A] mt-2">
                 @{profile?.username}
                 {profile?.neighborhood && (

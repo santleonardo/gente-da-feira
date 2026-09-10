@@ -9,6 +9,7 @@ import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock
 import { UserAvatar } from "./UserAvatar";
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
+import { resolveNameBandTheme } from "@/lib/name-band-theme";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -523,6 +524,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const isOwnProfile = profile?.id === userId;
   const isBlocked = privacyInfo.isBlockedByViewer || privacyInfo.isBlockedByTarget;
   const isRestricted = (privacyInfo.isRestricted && !isOwnProfile) || isBlocked;
+  const nameBand = resolveNameBandTheme(userData?.theme);
   const canSeeFollowing = isOwnProfile || !privacyInfo.hide_following;
   const canSeeFollowers = isOwnProfile || !privacyInfo.hide_followers;
   const canSeeNeighborhood = isOwnProfile || !privacyInfo.hide_neighborhood;
@@ -709,18 +711,39 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
                 {/* Foto + faixa do nome na mesma largura */}
                 <div className="mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px]">
-                  {/* Faixa navy — largura total da foto */}
-                  <div className="flex w-full items-center justify-center gap-2 rounded-t-2xl bg-[#1B2A4A] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    <span className="h-px w-6 shrink-0 bg-gradient-to-r from-transparent to-white/35" aria-hidden />
-                    <h2 className="font-serif text-[22px] font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
+                  {/* Faixa colorida — largura total da foto */}
+                  <div
+                    className="flex w-full items-center justify-center gap-2 rounded-t-2xl px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
+                    <span
+                      className="h-px w-6 shrink-0"
+                      style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
+                      aria-hidden
+                    />
+                    <h2
+                      className="font-serif text-[22px] font-medium tracking-tight leading-tight break-words min-w-0"
+                      style={{ color: nameBand.text }}
+                    >
                       {userData.display_name}
                     </h2>
-                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
-                    <span className="h-px w-6 shrink-0 bg-gradient-to-l from-transparent to-white/35" aria-hidden />
+                    {privacyInfo.is_private && (
+                      <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
+                    )}
+                    <span
+                      className="h-px w-6 shrink-0"
+                      style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
+                      aria-hidden
+                    />
                   </div>
 
                   {/* Moldura — mesma largura da faixa */}
-                  <div className="relative aspect-square w-full rounded-b-2xl p-[4px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/80 to-[#1B2A4A] shadow-xl">
+                  <div
+                    className="relative aspect-square w-full rounded-b-2xl p-[4px] shadow-xl"
+                    style={{
+                      background: `linear-gradient(to bottom right, #1A1A1A, #1A1A1Acc, ${nameBand.bg})`,
+                    }}
+                  >
                     <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
                       <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
                         <UserAvatar
@@ -871,14 +894,30 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-4">
-                  {/* Faixa navy — largura total do bloco de texto (alinha ao visual da foto) */}
-                  <div className="flex w-full max-w-xl items-center gap-2.5 rounded-sm bg-[#1B2A4A] px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    <span className="h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-white/30" aria-hidden />
-                    <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
+                  {/* Faixa colorida — tema do perfil */}
+                  <div
+                    className="flex w-full max-w-xl items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
+                    <span
+                      className="h-px w-5 shrink-0"
+                      style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
+                      aria-hidden
+                    />
+                    <h2
+                      className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
+                      style={{ color: nameBand.text }}
+                    >
                       {userData.display_name}
                     </h2>
-                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
-                    <span className="h-px flex-1 min-w-[1rem] bg-gradient-to-l from-transparent to-white/30" aria-hidden />
+                    {privacyInfo.is_private && (
+                      <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
+                    )}
+                    <span
+                      className="h-px flex-1 min-w-[1rem]"
+                      style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
+                      aria-hidden
+                    />
                   </div>
                   <p className="text-sm text-[#4A4A4A] mt-2">
                     @{userData.username}
