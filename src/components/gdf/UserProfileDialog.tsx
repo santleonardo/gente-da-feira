@@ -985,26 +985,32 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               </div>
             </div>
 
-            {/* ═══════ TABS ═══════ */}
+            {/* ═══════ TABS — faixa colorida no título ativo ═══════ */}
             {!isRestricted && (
               <>
                 <nav className="bg-[#F9F8F6] border-b border-black/[0.06] w-full max-w-full overflow-x-hidden">
-                  <div className="flex gap-0 overflow-x-auto overscroll-x-contain px-1" style={{WebkitOverflowScrolling: "touch"}}>
-                    {visibleTabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`relative shrink-0 px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors
-                          ${activeTab === tab.id
-                            ? "text-[#1A1A1A]"
-                            : "text-[#4A4A4A]/70 hover:text-[#1A1A1A]"}`}
-                      >
-                        {tab.id === "posts" ? "Entradas" : tab.id === "sobre" ? "Sobre" : tab.label}
-                        {activeTab === tab.id && (
-                          <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D96C4A] rounded-full" />
-                        )}
-                      </button>
-                    ))}
+                  <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain px-1 py-2" style={{WebkitOverflowScrolling: "touch"}}>
+                    {visibleTabs.map((tab) => {
+                      const active = activeTab === tab.id;
+                      const label = tab.id === "posts" ? "Entradas" : tab.id === "sobre" ? "Sobre" : tab.label;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`relative shrink-0 rounded-xl px-3 sm:px-4 py-2 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap transition-all duration-200
+                            ${active
+                              ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                              : "text-[#4A4A4A]/70 hover:text-[#1A1A1A] hover:bg-black/[0.04]"}`}
+                          style={
+                            active
+                              ? { backgroundColor: nameBand.bg, color: nameBand.text }
+                              : undefined
+                          }
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </nav>
 
