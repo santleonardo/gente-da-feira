@@ -739,7 +739,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                   {/* Moldura — mesma cor da faixa */}
                   <div
-                    className="relative aspect-square w-full rounded-b-2xl p-[4px] shadow-xl transition-[background-color] duration-300"
+                    className="relative aspect-square w-full p-[4px] shadow-xl transition-[background-color] duration-300"
                     style={{ backgroundColor: nameBand.bg }}
                   >
                     <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
@@ -756,20 +756,27 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       </div>
                     </div>
                   </div>
+
+                  {/* Faixa do handle — integrada à foto, mesma largura e cor da faixa do nome */}
+                  <div
+                    className="flex w-full items-center justify-center gap-1.5 rounded-b-2xl px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
+                    <span className="text-[12.5px] font-medium tracking-wide" style={{ color: nameBand.text }}>
+                      @{userData.username}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Handle + bairro em chips */}
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
-                  <span className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-2.5 py-0.5 text-xs font-medium text-[#3A3A3A] shadow-sm">
-                    @{userData.username}
-                  </span>
-                  {canSeeNeighborhood && userData.neighborhood && (
+                {/* Bairro em chip (handle já está integrado à foto) */}
+                {canSeeNeighborhood && userData.neighborhood && (
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
                     <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-black/[0.03] px-2.5 py-0.5 text-xs text-[#4A4A4A]">
                       <MapPin className="h-3 w-3 shrink-0" />
                       {userData.neighborhood}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Cartão meta: tagline + contadores — minimalista, largura da foto */}
                 {(!isRestricted || userData.tagline) && (
