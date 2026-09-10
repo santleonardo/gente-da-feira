@@ -1449,9 +1449,6 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                     )
                   )}
 
-                  <p className="mt-8 text-[11px] text-[#4A4A4A]/40 text-center">
-                    Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-                  </p>
                 </div>
               </>
             )}
