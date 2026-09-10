@@ -5,6 +5,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { idempotencyGate, idempotencyStore, idempotencyFail } from "@/lib/idempotency";
 import { safeErrorResponse } from "@/lib/safe-error";
 import { MAX_IMAGE_UPLOAD_BYTES, MAX_IMAGE_UPLOAD_MB } from "@/lib/upload-limits";
+import { validateMediaUrl } from "@/lib/storage-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,17 +45,20 @@ export async function POST(req: NextRequest) {
       mimeType = file.type;
     } else if (imageUrl) {
       // Definir avatar a partir de uma foto já existente (álbum / post)
-      let parsed: URL;
-      try {
-        parsed = new URL(imageUrl);
-      } catch {
-        return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
-      }
-      if (!["http:", "https:"].includes(parsed.protocol)) {
+      //
+      // SEC: SSRF fix — imageUrl é fornecida pelo cliente. Sem esta
+      // validação, um atacante poderia fazer o servidor requisitar
+      // qualquer host (ex: metadata de nuvem, rede interna, serviços
+      // não expostos publicamente). validateMediaUrl() exige que a
+      // URL aponte para o próprio Supabase Storage do projeto (mesmo
+      // host de NEXT_PUBLIC_SUPABASE_URL) e para um bucket conhecido —
+      // mesma barreira já usada em outras rotas (SEC-008).
+      const safeImageUrl = validateMediaUrl(imageUrl);
+      if (!safeImageUrl) {
         return NextResponse.json({ error: "URL de imagem inválida" }, { status: 400 });
       }
 
-      const imgRes = await fetch(imageUrl, {
+      const imgRes = await fetch(safeImageUrl, {
         headers: { Accept: "image/*" },
         signal: AbortSignal.timeout(15000),
       });
