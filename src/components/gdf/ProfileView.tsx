@@ -1353,12 +1353,19 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
-              {/* Quadrado rounded-xl — mesmo tamanho/formato de antes do slide */}
-              <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04]">
-                <UserAvatar
-                  user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                  className="h-full w-full rounded-xl"
-                />
+              {/* Moldura elegante — dupla borda editorial */}
+              <div
+                className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl p-[3px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/75 to-[#D96C4A]/80 shadow-[0_6px_20px_rgba(26,26,26,0.12)]"
+                style={{ boxShadow: "0 6px 20px rgba(26,26,26,0.12), 0 0 0 1px rgba(26,26,26,0.06)" }}
+              >
+                <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
+                  <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
+                    <UserAvatar
+                      user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                      className="h-full w-full rounded-lg"
+                    />
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
@@ -1391,13 +1398,16 @@ export function ProfileView() {
             </div>
 
             <div className="flex-1 min-w-0 pb-1">
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Faixa elegante no nome */}
+              <div className="inline-flex max-w-full items-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/80 to-[#1A1A1A]/[0.04] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                <span className="hidden sm:block h-px w-4 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
                 <h1 className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                   {profile?.display_name}
                 </h1>
-                {isPrivate && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
+                {isPrivate && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
+                <span className="hidden sm:block h-px w-4 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
               </div>
-              <p className="text-sm text-[#4A4A4A] mt-1.5">
+              <p className="text-sm text-[#4A4A4A] mt-2">
                 @{profile?.username}
                 {profile?.neighborhood && (
                   <span className="inline-flex items-center gap-1 ml-2.5">

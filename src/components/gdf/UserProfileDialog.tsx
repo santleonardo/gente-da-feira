@@ -707,25 +707,34 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   As ações (seguir/mensagem/bloquear) ficam no menu do canto
                   superior esquerdo, não competindo com a foto. ---- */}
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
-                <div className="flex items-center justify-center gap-2 flex-wrap min-w-0">
-                  <h2 className="font-serif text-[26px] font-medium tracking-tight text-[#1A1A1A] leading-tight break-words">
+                {/* Faixa elegante no nome (topo) */}
+                <div className="mx-auto inline-flex max-w-full items-center justify-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/85 to-[#1A1A1A]/[0.04] px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                  <span className="h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
+                  <h2 className="font-serif text-[24px] sm:text-[26px] font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                     {userData.display_name}
                   </h2>
                   {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
+                  <span className="h-px w-5 shrink-0 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
                 </div>
 
                 <div className="mt-5 flex justify-center">
-                  {/* Tamanho e formato originais do hero (quadrado grande) */}
-                  <div className="relative h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] rounded-xl ring-8 ring-[#F9F8F6] shadow-xl overflow-hidden bg-black/[0.04]">
-                    <UserAvatar
-                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-full w-full rounded-xl"
-                    />
-                    {(isRestricted || isBlocked) && (
-                      <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                        <Lock className="h-4 w-4" />
+                  {/* Moldura elegante — tamanho original, formato quadrado */}
+                  <div
+                    className="relative h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] rounded-2xl p-[4px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/80 to-[#D96C4A]/75 shadow-xl"
+                  >
+                    <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
+                      <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
+                        <UserAvatar
+                          user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                          className="h-full w-full rounded-xl"
+                        />
+                        {(isRestricted || isBlocked) && (
+                          <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                            <Lock className="h-4 w-4" />
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
 
@@ -793,16 +802,21 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-xl ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04] shrink-0">
-                    <UserAvatar
-                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-full w-full rounded-xl"
-                    />
-                    {(isRestricted || isBlocked) && (
-                      <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                        <Lock className="h-3.5 w-3.5" />
+                  {/* Moldura elegante (desktop) */}
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl p-[3px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/75 to-[#D96C4A]/80 shadow-[0_6px_18px_rgba(26,26,26,0.12)]">
+                    <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
+                      <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
+                        <UserAvatar
+                          user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                          className="h-full w-full rounded-lg"
+                        />
+                        {(isRestricted || isBlocked) && (
+                          <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                            <Lock className="h-3.5 w-3.5" />
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -858,13 +872,16 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-4">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Faixa elegante no nome (desktop) */}
+                  <div className="inline-flex max-w-full items-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/80 to-[#1A1A1A]/[0.04] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                    <span className="h-px w-4 shrink-0 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
                     <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
                       {userData.display_name}
                     </h2>
-                    {privacyInfo.is_private && <Lock className="h-4 w-4 text-[#4A4A4A]/60" />}
+                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
+                    <span className="h-px w-4 shrink-0 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
                   </div>
-                  <p className="text-sm text-[#4A4A4A] mt-1">
+                  <p className="text-sm text-[#4A4A4A] mt-2">
                     @{userData.username}
                     {canSeeNeighborhood && userData.neighborhood && (
                       <span className="inline-flex items-center gap-1 ml-2.5">
