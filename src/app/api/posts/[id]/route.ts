@@ -8,6 +8,7 @@ import { validateText } from "@/lib/text-validation";
 import { filterPostsAuthorNeighborhood, batchFetchPrivacyFlags } from "@/lib/privacy-filter";
 import { checkPostVisibility } from "@/lib/content-visibility";
 import { sanitizePostStyle, isMeaningfulPostStyle } from "@/lib/post-style";
+import { redactDeletedSharedPost } from "@/lib/shared-post";
 
 // SEC-009: Author profile columns with neighborhood (filtered post-query)
 const AUTHOR_COLS = selectCols(AUTHOR_PROFILE_COLUMNS_FULL);
@@ -63,12 +64,7 @@ export async function GET(
       ...p,
       comment_count: p.comments?.[0]?.count || 0,
       comments: undefined,
-      shared_post:
-        p.shared_post && !Array.isArray(p.shared_post)
-          ? p.shared_post
-          : Array.isArray(p.shared_post)
-          ? p.shared_post[0]
-          : null,
+      shared_post: redactDeletedSharedPost(p.shared_post),
       postStyle: p.post_style || null,
     };
 
@@ -181,12 +177,7 @@ export async function PATCH(
       ...p,
       comment_count: p.comments?.[0]?.count || 0,
       comments: undefined,
-      shared_post:
-        p.shared_post && !Array.isArray(p.shared_post)
-          ? p.shared_post
-          : Array.isArray(p.shared_post)
-          ? p.shared_post[0]
-          : null,
+      shared_post: redactDeletedSharedPost(p.shared_post),
       postStyle: p.post_style || null,
     };
 

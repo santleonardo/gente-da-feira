@@ -14,7 +14,7 @@
 //   nextCursor é null quando não há mais posts.
 // ============================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getBlockedUserIds, isBlocked } from "@/lib/block-check";
 import { dispatchPushForNotification } from "@/lib/push-dispatch";
@@ -22,6 +22,7 @@ import { rateLimitByRule } from "@/lib/apply-rate-limit";
 import { sanitizeRichContent, sanitizeShortText } from "@/lib/sanitize";
 import { validateMediaUrl, validateMediaUrlArray, ALLOWED_BUCKETS } from "@/lib/storage-security";
 import { selectCols, AUTHOR_PROFILE_COLUMNS_FULL, POST_COLUMNS, SHARED_POST_COLUMNS } from "@/lib/safe-columns";
+import { redactDeletedSharedPost } from "@/lib/shared-post";
 import {
   filterPostsAuthorNeighborhood,
   batchFetchPrivacyFlags,
@@ -138,9 +139,7 @@ export async function GET(req: NextRequest) {
         ...p,
         comment_count: p.comments?.[0]?.count ?? 0,
         comments: undefined,
-        shared_post: Array.isArray(p.shared_post)
-          ? (p.shared_post[0] ?? null)
-          : (p.shared_post ?? null),
+        shared_post: redactDeletedSharedPost(p.shared_post),
       }))
       .filter((p: any) => {
         if (p.expires_at && p.expires_at < now) return false;
@@ -456,9 +455,7 @@ export async function POST(req: NextRequest) {
     // renderiza o box "Compartilhado de" com dados de fallback mesmo quando
     // o post não tem shared_post_id nenhum. (Mesmo tratamento do GET acima
     // e de posts/[id]/route.ts.)
-    p.shared_post = Array.isArray(p.shared_post)
-      ? (p.shared_post[0] ?? null)
-      : (p.shared_post ?? null);
+    p.shared_post = redactDeletedSharedPost(p.shared_post);
 
     // SEC-009: Filter neighborhood from the new post's author
     const { hiddenNeighborhoodIds } = await batchFetchPrivacyFlags(
@@ -557,17 +554,32 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Limpeza de storage (best effort) — após DB em estado consistente
+    // Limpeza de storage — best effort, mas agora com after() em vez de
+    // um IIFE solto. Sem after(), o runtime serverless pode congelar/
+    // reciclar a função assim que a resposta é enviada, e o cleanup
+    // nunca chega a rodar — deixando os arquivos de mídia acessíveis
+    // por URL direta mesmo com o post já marcado como deletado no banco.
+    // after() garante que este código roda até o fim antes do runtime
+    // liberar a função, sem atrasar a resposta ao cliente.
     if (result.media_urls && result.media_urls.length > 0) {
-      const admin = createAdminClient();
-      (async () => {
-        for (const url of result.media_urls!) {
+      const mediaUrls = result.media_urls;
+      after(async () => {
+        const admin = createAdminClient();
+        const pathsByBucket = new Map<string, string[]>();
+        for (const url of mediaUrls) {
           const parsed = extractStoragePathFromUrl(url);
-          if (parsed) {
-            admin.storage.from(parsed.bucket).remove([parsed.path]).catch(() => {});
+          if (!parsed) continue;
+          const list = pathsByBucket.get(parsed.bucket) ?? [];
+          list.push(parsed.path);
+          pathsByBucket.set(parsed.bucket, list);
+        }
+        for (const [bucket, paths] of pathsByBucket) {
+          const { error: removeError } = await admin.storage.from(bucket).remove(paths);
+          if (removeError) {
+            console.error("[posts DELETE] falha ao limpar storage", bucket, paths, removeError.message);
           }
         }
-      })();
+      });
     }
 
     return NextResponse.json({ success: true });
