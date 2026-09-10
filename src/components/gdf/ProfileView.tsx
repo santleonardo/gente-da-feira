@@ -1398,14 +1398,14 @@ export function ProfileView() {
             </div>
 
             <div className="flex-1 min-w-0 pb-1">
-              {/* Faixa elegante no nome */}
-              <div className="inline-flex max-w-full items-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/80 to-[#1A1A1A]/[0.04] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                <span className="hidden sm:block h-px w-4 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
-                <h1 className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
+              {/* Faixa navy neutra — largura total do bloco ao lado da foto */}
+              <div className="flex w-full items-center gap-2.5 rounded-sm bg-[#1B2A4A] px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <span className="hidden sm:block h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-white/30" aria-hidden />
+                <h1 className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
                   {profile?.display_name}
                 </h1>
-                {isPrivate && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
-                <span className="hidden sm:block h-px w-4 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
+                {isPrivate && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
+                <span className="hidden sm:block h-px flex-1 min-w-[1rem] bg-gradient-to-l from-transparent to-white/30" aria-hidden />
               </div>
               <p className="text-sm text-[#4A4A4A] mt-2">
                 @{profile?.username}

@@ -707,21 +707,20 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   As ações (seguir/mensagem/bloquear) ficam no menu do canto
                   superior esquerdo, não competindo com a foto. ---- */}
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
-                {/* Faixa elegante no nome (topo) */}
-                <div className="mx-auto inline-flex max-w-full items-center justify-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/85 to-[#1A1A1A]/[0.04] px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                  <span className="h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
-                  <h2 className="font-serif text-[24px] sm:text-[26px] font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
-                    {userData.display_name}
-                  </h2>
-                  {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
-                  <span className="h-px w-5 shrink-0 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
-                </div>
+                {/* Foto + faixa do nome na mesma largura */}
+                <div className="mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px]">
+                  {/* Faixa navy — largura total da foto */}
+                  <div className="flex w-full items-center justify-center gap-2 rounded-t-2xl bg-[#1B2A4A] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    <span className="h-px w-6 shrink-0 bg-gradient-to-r from-transparent to-white/35" aria-hidden />
+                    <h2 className="font-serif text-[22px] font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
+                      {userData.display_name}
+                    </h2>
+                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
+                    <span className="h-px w-6 shrink-0 bg-gradient-to-l from-transparent to-white/35" aria-hidden />
+                  </div>
 
-                <div className="mt-5 flex justify-center">
-                  {/* Moldura elegante — tamanho original, formato quadrado */}
-                  <div
-                    className="relative h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] rounded-2xl p-[4px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/80 to-[#D96C4A]/75 shadow-xl"
-                  >
+                  {/* Moldura — mesma largura da faixa */}
+                  <div className="relative aspect-square w-full rounded-b-2xl p-[4px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/80 to-[#1B2A4A] shadow-xl">
                     <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
                       <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
                         <UserAvatar
@@ -872,14 +871,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-4">
-                  {/* Faixa elegante no nome (desktop) */}
-                  <div className="inline-flex max-w-full items-center gap-2.5 rounded-sm border border-[#1A1A1A]/10 bg-gradient-to-r from-[#1A1A1A]/[0.04] via-white/80 to-[#1A1A1A]/[0.04] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                    <span className="h-px w-4 shrink-0 bg-gradient-to-r from-transparent to-[#1A1A1A]/35" aria-hidden />
-                    <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#1A1A1A] leading-tight break-words min-w-0">
+                  {/* Faixa navy — largura total do bloco de texto (alinha ao visual da foto) */}
+                  <div className="flex w-full max-w-xl items-center gap-2.5 rounded-sm bg-[#1B2A4A] px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                    <span className="h-px w-5 shrink-0 bg-gradient-to-r from-transparent to-white/30" aria-hidden />
+                    <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-[#F5F4F1] leading-tight break-words min-w-0">
                       {userData.display_name}
                     </h2>
-                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-[#4A4A4A]/60" />}
-                    <span className="h-px w-4 shrink-0 bg-gradient-to-l from-transparent to-[#1A1A1A]/35" aria-hidden />
+                    {privacyInfo.is_private && <Lock className="h-4 w-4 shrink-0 text-white/70" />}
+                    <span className="h-px flex-1 min-w-[1rem] bg-gradient-to-l from-transparent to-white/30" aria-hidden />
                   </div>
                   <p className="text-sm text-[#4A4A4A] mt-2">
                     @{userData.username}
