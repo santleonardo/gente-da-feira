@@ -2315,9 +2315,28 @@ export function ProfileView() {
 
             {/* 2) Bio / apresentação logo abaixo */}
             <div className="flex flex-col pt-1">
-              <h2 className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
-                Sobre {profile?.display_name?.split(" ")[0] || "mim"}
-              </h2>
+              {/* Faixa no título Sobre — mesma cor do tema do perfil */}
+              <div
+                className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                style={{ backgroundColor: nameBand.bg }}
+              >
+                <span
+                  className="h-px w-5 shrink-0"
+                  style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
+                <h2
+                  className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight leading-tight break-words min-w-0"
+                  style={{ color: nameBand.text }}
+                >
+                  Sobre {profile?.display_name?.split(" ")[0] || "mim"}
+                </h2>
+                <span
+                  className="h-px flex-1 min-w-[1rem]"
+                  style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
+              </div>
               {profile?.neighborhood && (
                 <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">
                   <MapPin className="h-3.5 w-3.5" />
