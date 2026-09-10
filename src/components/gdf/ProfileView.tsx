@@ -1050,7 +1050,7 @@ export function ProfileView() {
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim().slice(0, 50), bio: bio.trim().slice(0, 300), neighborhood }),
+        body: JSON.stringify({ name: name.trim().slice(0, 50), bio: bio.trim().slice(0, 500), neighborhood }),
       });
       const data = await res.json();
       if (data.user) { updateProfile(data.user); toast.success("Perfil atualizado!"); }
@@ -2360,13 +2360,14 @@ export function ProfileView() {
                 </label>
                 <Textarea
                   value={bio}
-                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                  onChange={(e) => setBio(e.target.value.slice(0, 500))}
                   placeholder="Escreva uma apresentação pessoal…"
                   rows={4}
+                  maxLength={500}
                   className="rounded-xl border-black/10 bg-white/70 text-[15px] leading-relaxed resize-none focus-visible:ring-[#D96C4A]/30"
                 />
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/300</span>
+                  <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/500</span>
                   <button
                     type="button"
                     onClick={handleSave}

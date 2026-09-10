@@ -105,7 +105,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     if (data.bio !== undefined) {
-      updates.bio = sanitizePlainText(String(data.bio)).slice(0, 300);
+      updates.bio = sanitizePlainText(String(data.bio)).slice(0, 500);
     }
 
     if (data.neighborhood !== undefined) {
