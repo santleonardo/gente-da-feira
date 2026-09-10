@@ -1774,7 +1774,16 @@ const PostThread = memo(function PostThread({
               />
             )}
 
-            {post.shared_post && !Array.isArray(post.shared_post) && (
+            {post.shared_post && !Array.isArray(post.shared_post) && (post.shared_post as any).removed && (
+              <div className="mt-2.5 rounded-2xl bg-[#1A1A1A]/[0.04] p-3 border border-[#1A1A1A]/8">
+                <div className="flex items-center gap-2">
+                  <Repeat2 className="h-3 w-3 text-[#1A1A1A]/30" />
+                  <span className="text-xs text-[#1A1A1A]/40 italic">Post original removido</span>
+                </div>
+              </div>
+            )}
+
+            {post.shared_post && !Array.isArray(post.shared_post) && !(post.shared_post as any).removed && (
               <div className="mt-2.5 rounded-2xl bg-[#1A1A1A]/[0.04] p-3 border border-[#1A1A1A]/8">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Repeat2 className="h-3 w-3 text-[#1A1A1A]/40" />

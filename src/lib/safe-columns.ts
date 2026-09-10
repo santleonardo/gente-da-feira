@@ -125,7 +125,14 @@ export const POST_COLUMNS = [
   "created_at",
 ] as const;
 
-/** SEC-009: Colunas para shared_post dentro de um post (subconjunto) */
+/**
+ * SEC-009 / SEC-011: Colunas para shared_post dentro de um post (subconjunto).
+ * Inclui `is_deleted` propositalmente — NÃO para expor ao cliente, mas para
+ * que redactDeletedSharedPost() (src/lib/shared-post.ts) possa detectar um
+ * post original deletado e substituir o conteúdo por um placeholder antes
+ * da resposta sair da API. Sem essa coluna aqui, é impossível diferenciar
+ * "post original ainda existe" de "post original foi deletado" no join.
+ */
 export const SHARED_POST_COLUMNS = [
   "id",
   "content",
@@ -133,6 +140,7 @@ export const SHARED_POST_COLUMNS = [
   "video_url",
   "audio_url",
   "created_at",
+  "is_deleted",
 ] as const;
 
 /** Helper: junta colunas em string para .select() */

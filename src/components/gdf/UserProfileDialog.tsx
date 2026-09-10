@@ -1084,7 +1084,16 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 </div>
                               )}
 
-                              {post.shared_post && !Array.isArray(post.shared_post) && (
+                              {post.shared_post && !Array.isArray(post.shared_post) && (post.shared_post as any).removed && (
+                                <div className="mt-4 rounded-lg border border-black/10 bg-white/60 p-3">
+                                  <div className="flex items-center gap-1.5 text-[11px] italic text-[#4A4A4A]/50">
+                                    <Repeat2 className="h-3 w-3" />
+                                    Post original removido
+                                  </div>
+                                </div>
+                              )}
+
+                              {post.shared_post && !Array.isArray(post.shared_post) && !(post.shared_post as any).removed && (
                                 <div className="mt-4 rounded-lg border border-black/10 bg-white/60 p-3">
                                   <div className="flex items-center gap-1.5 mb-1.5 text-[11px] uppercase tracking-wider text-[#4A4A4A]/70">
                                     <Repeat2 className="h-3 w-3" />
