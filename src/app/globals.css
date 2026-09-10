@@ -33,6 +33,22 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tokens de marca acessíveis (Tailwind: bg-gdf-paper, text-gdf-ink, …) */
+  --color-gdf-paper: var(--gdf-paper);
+  --color-gdf-ink: var(--gdf-ink);
+  --color-gdf-ink-muted: var(--gdf-ink-muted);
+  --color-gdf-ink-subtle: var(--gdf-ink-subtle);
+  --color-gdf-teal: var(--gdf-teal);
+  --color-gdf-teal-soft: var(--gdf-teal-soft);
+  --color-gdf-terracotta: var(--gdf-terracotta);
+  --color-gdf-terracotta-text: var(--gdf-terracotta-text);
+  --color-gdf-yellow: var(--gdf-yellow);
+  --color-gdf-success: var(--gdf-success);
+  --color-gdf-warning: var(--gdf-warning);
+  --color-gdf-danger: var(--gdf-danger);
+  --color-gdf-focus: var(--gdf-focus);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -52,49 +68,168 @@
 
 :root {
   --radius: 0.625rem;
-  /* ═══════ Gente da Feira — Paleta de cores ═══════ */
-  /* #0A4D5C (Teal profundo) → Primary              */
-  /* #f7f9fa (Branco suave)  → Background            */
-  /* #000305 (Quase preto)   → Foreground/Text       */
-  /* #f7f75e (Amarelo)       → Accent                */
-  /* #2EC4B6 (Teal vivo)     → Botão/Vivo            */
+
+  /*
+   * ═══════ Gente da Feira — Paletas acessíveis (WCAG 2.2 AA) ═══════
+   *
+   * Metas de contraste (texto normal ≥ 4.5:1; texto grande ≥ 3:1;
+   * componentes UI / gráficos ≥ 3:1):
+   *
+   *  gdf-ink (#1A1A1A)           sobre paper  → ~15.8:1  AAA
+   *  gdf-ink-muted (#3A3A3A)     sobre paper  → ~10.6:1  AAA
+   *  gdf-ink-subtle (#555555)    sobre paper  → ~7.0:1   AA
+   *  gdf-teal (#0A4D5C)          sobre paper  → ~8.2:1   AAA
+   *  gdf-teal-fg (#F7F9FA)       sobre teal   → ~8.2:1   AAA
+   *  gdf-terracotta-text (#A8482E) sobre paper → ~5.1:1  AA  (links/texto)
+   *  gdf-terracotta (#C45A3A)    decorativo / ícones grandes (≥ 3:1)
+   *  gdf-yellow (#E6E04A)        + ink         → ~12:1   AAA
+   *  gdf-danger (#C62828)        + branco      → ~6.5:1  AA
+   *  gdf-success (#1B6B4A)       + branco      → ~5.5:1  AA
+   */
+
+  /* ── Marca (use em UI editorial / hardcodes legados) ── */
+  --gdf-paper: #f9f8f6;
+  --gdf-ink: #1a1a1a;
+  --gdf-ink-muted: #3a3a3a;       /* preferir a #4A4A4A (melhor AA em texto pequeno) */
+  --gdf-ink-subtle: #555555;      /* legendas; ainda ≥ 4.5:1 em paper */
+  --gdf-teal: #0a4d5c;
+  --gdf-teal-soft: #0d5f71;       /* hover de primary */
+  --gdf-terracotta: #c45a3a;      /* destaque decorativo */
+  --gdf-terracotta-text: #a8482e; /* texto/link sobre fundo claro */
+  --gdf-yellow: #e6e04a;          /* accent (antes #f7f75e — um pouco mais escuro p/ bordas) */
+  --gdf-success: #1b6b4a;
+  --gdf-warning: #9a6b00;         /* texto de aviso sobre claro */
+  --gdf-danger: #c62828;
+  --gdf-focus: #0a4d5c;           /* anel de foco visível */
+
+  /* ── Semânticos (shadcn / Tailwind) ── */
   --background: #f7f9fa;
   --foreground: #000305;
   --card: #ffffff;
   --card-foreground: #000305;
   --popover: #ffffff;
   --popover-foreground: #000305;
-  --primary: #0A4D5C;
+  --primary: #0a4d5c;
   --primary-foreground: #f7f9fa;
   --secondary: #e0eef2;
-  --secondary-foreground: #0A4D5C;
-  --muted: #e0eef2;
-  --muted-foreground: #4a6370;
-  --accent: #f7f75e;
+  --secondary-foreground: #0a4d5c;
+  --muted: #e8f0f2;
+  --muted-foreground: #3d5560;    /* era #4a6370 — reforço AA em texto auxiliar */
+  --accent: #e6e04a;
   --accent-foreground: #000305;
-  --destructive: #ef4444;
+  --destructive: #c62828;         /* era #ef4444 — melhor contraste com branco */
   --destructive-foreground: #ffffff;
-  --border: #c8dde3;
-  --input: #c8dde3;
-  --ring: #0A4D5C;
-  --chart-1: #0A4D5C;
-  --chart-2: #f7f75e;
-  --chart-3: #2EC4B6;
-  --chart-4: #3dd9c6;
-  --chart-5: #f59e0b;
+  --border: #b7ced6;              /* um pouco mais escuro p/ UI ≥ 3:1 */
+  --input: #b7ced6;
+  --ring: #0a4d5c;
+  --chart-1: #0a4d5c;
+  --chart-2: #9a6b00;             /* amarelo escuro legível em gráficos */
+  --chart-3: #0d8a7c;             /* teal vivo ajustado */
+  --chart-4: #a8482e;
+  --chart-5: #1b6b4a;
   --sidebar: #eaf3f5;
   --sidebar-foreground: #000305;
-  --sidebar-primary: #0A4D5C;
+  --sidebar-primary: #0a4d5c;
   --sidebar-primary-foreground: #f7f9fa;
-  --sidebar-accent: #f7f75e;
+  --sidebar-accent: #e6e04a;
   --sidebar-accent-foreground: #000305;
-  --sidebar-border: #c8dde3;
-  --sidebar-ring: #0A4D5C;
+  --sidebar-border: #b7ced6;
+  --sidebar-ring: #0a4d5c;
+}
+
+/* ── Alto contraste (SO / preferência do usuário) ── */
+@media (prefers-contrast: more) {
+  :root {
+    --gdf-ink: #000000;
+    --gdf-ink-muted: #1a1a1a;
+    --gdf-ink-subtle: #2e2e2e;
+    --gdf-terracotta-text: #8f3a22;
+    --foreground: #000000;
+    --muted-foreground: #1a1a1a;
+    --border: #6a8a94;
+    --input: #6a8a94;
+    --ring: #000000;
+    --gdf-focus: #000000;
+    --destructive: #9b1c1c;
+  }
+}
+
+/* ── Movimento reduzido: não depende de cor, mas ajuda percepção ── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration: 0.01ms;
+  }
+}
+
+/* ── Dark editorial opcional (class="dark" no html) ── */
+.dark {
+  --gdf-paper: #121416;
+  --gdf-ink: #f2f1ee;
+  --gdf-ink-muted: #c8c6c1;
+  --gdf-ink-subtle: #a09e98;
+  --gdf-teal: #5eb8c9;
+  --gdf-teal-soft: #7ecadb;
+  --gdf-terracotta: #e08a6c;
+  --gdf-terracotta-text: #f0a58c;
+  --gdf-yellow: #e6e04a;
+  --gdf-success: #6bc49a;
+  --gdf-warning: #e0b84a;
+  --gdf-danger: #f07171;
+  --gdf-focus: #7ecadb;
+
+  --background: #0e1012;
+  --foreground: #f2f1ee;
+  --card: #181b1e;
+  --card-foreground: #f2f1ee;
+  --popover: #181b1e;
+  --popover-foreground: #f2f1ee;
+  --primary: #5eb8c9;
+  --primary-foreground: #0a1a1e;
+  --secondary: #1e2a2e;
+  --secondary-foreground: #d4eef2;
+  --muted: #1e2a2e;
+  --muted-foreground: #b0c0c6;
+  --accent: #e6e04a;
+  --accent-foreground: #0a0a0a;
+  --destructive: #f07171;
+  --destructive-foreground: #1a0505;
+  --border: #2e3a3e;
+  --input: #2e3a3e;
+  --ring: #7ecadb;
+  --chart-1: #5eb8c9;
+  --chart-2: #e6e04a;
+  --chart-3: #6bc49a;
+  --chart-4: #e08a6c;
+  --chart-5: #b0c0c6;
+  --sidebar: #14171a;
+  --sidebar-foreground: #f2f1ee;
+  --sidebar-primary: #5eb8c9;
+  --sidebar-primary-foreground: #0a1a1e;
+  --sidebar-accent: #e6e04a;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #2e3a3e;
+  --sidebar-ring: #7ecadb;
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  /* Foco visível acessível (teclado) — nunca remover outline sem substituto */
+  :focus-visible {
+    outline: 2px solid var(--gdf-focus);
+    outline-offset: 2px;
+  }
+
+  /* Links: contraste AA; sublinhado ajuda quem não distingue cor */
+  a:not([class]) {
+    color: var(--gdf-teal);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+  a:not([class]):hover {
+    color: var(--gdf-teal-soft);
   }
 
   html {
@@ -105,6 +240,12 @@
     text-size-adjust: 100%;
     /* Base legível: 15px — evita texto grande demais no mobile */
     font-size: 15px;
+    /* Suaviza cores em telas wide-gamut sem perder contraste */
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   @media (min-width: 768px) {
@@ -172,6 +313,36 @@
     min-width: 44px;
     min-height: 44px;
   }
+
+  /* ── Pares de cor acessíveis (prefira estes a hardcodes legados) ── */
+  .text-ink {
+    color: var(--gdf-ink);
+  }
+  .text-ink-muted {
+    color: var(--gdf-ink-muted);
+  }
+  .text-ink-subtle {
+    color: var(--gdf-ink-subtle);
+  }
+  .text-link-safe {
+    color: var(--gdf-terracotta-text);
+  }
+  .bg-paper {
+    background-color: var(--gdf-paper);
+  }
+  .bg-teal-safe {
+    background-color: var(--gdf-teal);
+    color: var(--primary-foreground);
+  }
+  .border-ui-safe {
+    border-color: var(--border);
+  }
+  /* Anel de foco utilitário (botões custom sem outline nativo) */
+  .focus-ring-a11y:focus-visible {
+    outline: 2px solid var(--gdf-focus);
+    outline-offset: 2px;
+  }
+
   /* Conteúdo principal mobile: não ultrapassa viewport */
   .mobile-shell {
     width: 100%;
