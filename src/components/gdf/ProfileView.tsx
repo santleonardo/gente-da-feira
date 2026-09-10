@@ -1059,7 +1059,17 @@ export function ProfileView() {
         }),
       });
       const data = await res.json();
-      if (data.user) { updateProfile(data.user); toast.success("Perfil atualizado!"); }
+      if (!res.ok) {
+        toast.error(data.error || "Erro ao salvar (rode o SQL da coluna headline no Supabase)");
+        return;
+      }
+      if (data.user) {
+        updateProfile(data.user);
+        if (data.user.headline !== undefined) setHeadline(data.user.headline || "");
+        toast.success("Perfil atualizado!");
+      } else {
+        toast.error(data.error || "Erro ao salvar");
+      }
     } catch { toast.error("Erro ao salvar"); }
   };
 

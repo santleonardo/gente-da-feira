@@ -90,8 +90,11 @@ export function filterProfileView(
   // Bio: visible to owner and followers (even if private profile)
   if (ctx.isOwnProfile || !isRestricted) {
     filteredProfile.bio = profile.bio || null;
+    // Profissão / adjetivo na faixa "Sobre Nome · …"
+    filteredProfile.headline = profile.headline || null;
   } else {
     filteredProfile.bio = null;
+    filteredProfile.headline = null;
   }
 
   // Neighborhood: controlled by hide_neighborhood flag
