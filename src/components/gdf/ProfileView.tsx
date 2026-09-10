@@ -1400,7 +1400,7 @@ export function ProfileView() {
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-            <div className="flex flex-col items-center w-24 sm:w-28 shrink-0 gap-3">
+            <div className="flex flex-col items-center self-start w-24 sm:w-28 max-w-24 sm:max-w-28 shrink-0 gap-3">
             <div className="relative shrink-0">
               {/* Moldura — mesma cor da faixa do nome */}
               <div
