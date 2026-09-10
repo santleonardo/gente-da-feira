@@ -347,15 +347,17 @@ function parseAndFilterAttrs(tagName: string, attrString: string): string[] {
 
     const attrName = attrString.slice(attrNameStart, i).toLowerCase();
 
-    // Bloquear atributos de evento (on*)
-    if (attrName.startsWith("on")) {
-      // Pular o valor do atributo
-      skipAttrValue(attrString, i);
-      continue;
-    }
-
     // Pular whitespace
     while (i < attrString.length && /\s/.test(attrString[i])) i++;
+
+    // Bloquear atributos de evento (on*) — descarta nome E valor por
+    // completo (inclusive aspas) para que os caracteres do payload
+    // nunca sejam reprocessados como se fossem um novo par
+    // nome=valor mais adiante na string.
+    if (attrName.startsWith("on")) {
+      i = skipAttrValue(attrString, i);
+      continue;
+    }
 
     // Verificar se tem = (valor)
     if (i < attrString.length && attrString[i] === "=") {
@@ -414,10 +416,38 @@ function parseAndFilterAttrs(tagName: string, attrString: string): string[] {
   return result;
 }
 
-function skipAttrValue(str: string, start: number): void {
-  // Esta função avança `start` — mas como não temos referência mutável,
-  // o chamador precisa lidar. Na prática, parseAndFilterAttrs já pula
-  // corretamente. Este é um placeholder de segurança.
+/**
+ * Pula por completo o valor de um atributo bloqueado (ex: onclick, onerror),
+ * a partir da posição logo após o nome do atributo (whitespace já consumido).
+ * Retorna o índice a partir do qual o parsing deve continuar.
+ *
+ * Cobre os 3 formatos possíveis:
+ *   attr="valor com espaços"   → pula até a aspa dupla de fechamento
+ *   attr='valor com espaços'   → pula até a aspa simples de fechamento
+ *   attr=valorSemAspas          → pula até whitespace ou '>'
+ *   attr (booleano, sem valor)  → não avança nada além do próprio nome
+ *
+ * Retornar o índice correto aqui é essencial: sem isso, o conteúdo do
+ * valor do atributo bloqueado seria reprocessado caractere a caractere
+ * pelo loop principal como se fossem novos atributos.
+ */
+function skipAttrValue(str: string, start: number): number {
+  let i = start;
+  if (str[i] !== "=") return i;
+  i++; // pula '='
+
+  while (i < str.length && /\s/.test(str[i])) i++;
+  if (i >= str.length) return i;
+
+  const quote = str[i];
+  if (quote === '"' || quote === "'") {
+    const end = str.indexOf(quote, i + 1);
+    return end === -1 ? str.length : end + 1;
+  }
+
+  // Valor sem aspas — termina em whitespace ou '>'
+  while (i < str.length && !/[\s>]/.test(str[i])) i++;
+  return i;
 }
 
 function isDangerousURL(url: string): boolean {
