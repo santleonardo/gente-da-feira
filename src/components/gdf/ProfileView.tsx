@@ -66,7 +66,7 @@ const SettingsView = dynamic(
   () => import("./SettingsView").then((m) => ({ default: m.SettingsView })),
   { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
 );
-import { PhotoGallery } from "./PhotoGallery";
+import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { createClient } from "@/lib/supabase/client";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -2224,8 +2224,24 @@ export function ProfileView() {
 
 {/* ─── ABA: SOBRE ─── */}
         <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
-          <article className="w-full max-w-full min-w-0 space-y-8 sm:space-y-10">
-            {/* Apresentação */}
+          <article className="w-full max-w-full min-w-0 space-y-6 sm:space-y-8">
+            {/* 1) Fotos em slide — primeira coisa visível */}
+            <div className="w-full max-w-lg mx-auto sm:mx-0">
+              <ProfileHeroSlider
+                user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                photos={heroPhotos}
+                includeAvatar={false}
+                framed
+                editable
+                uploading={uploading}
+                onAddPhoto={() => albumInputRef.current?.click()}
+                onSetAsProfilePhoto={handleSetAsProfilePhoto}
+                setAsProfileLoading={settingAvatar}
+                className="aspect-[4/5] w-full max-h-[min(72vh,520px)]"
+              />
+            </div>
+
+            {/* 2) Bio / apresentação logo abaixo */}
             <div className="flex flex-col pt-1">
               <h2 className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
                 Sobre {profile?.display_name?.split(" ")[0] || "mim"}
@@ -2296,18 +2312,6 @@ export function ProfileView() {
                 )}
               </p>
             </div>
-
-            {/* Galeria responsiva */}
-            <PhotoGallery
-              photos={heroPhotos}
-              title="Fotos"
-              editable
-              uploading={uploading}
-              onAddPhoto={() => albumInputRef.current?.click()}
-              onSetAsProfilePhoto={handleSetAsProfilePhoto}
-              setAsProfileLoading={settingAvatar}
-              emptyLabel="Nenhuma foto no álbum ainda"
-            />
           </article>
         </div>
 

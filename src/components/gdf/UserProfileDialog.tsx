@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag, ChevronRight } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoGallery } from "./PhotoGallery";
+import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
@@ -1142,7 +1142,26 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                   {/* Sobre */}
                   {activeTab === "sobre" && (
-                    <article className="pb-4 space-y-8">
+                    <article className="pb-4 space-y-6">
+                      {/* 1) Fotos em slide — primeiro */}
+                      {!isRestricted ? (
+                        <div className="w-full max-w-md mx-auto sm:mx-0">
+                          <ProfileHeroSlider
+                            user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                            photos={heroPhotos}
+                            includeAvatar={false}
+                            framed
+                            className="aspect-[4/5] w-full max-h-[min(70vh,480px)]"
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border-[3px] border-[#1A1A1A]/15 bg-black/[0.03] py-12 flex flex-col items-center justify-center gap-2">
+                          <Lock className="h-8 w-8 text-[#4A4A4A]/25" />
+                          <p className="text-sm text-[#4A4A4A]/50">Álbum indisponível</p>
+                        </div>
+                      )}
+
+                      {/* 2) Bio logo abaixo */}
                       <div className="flex flex-col min-w-0 w-full">
                         <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] mb-2">
                           Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
@@ -1182,20 +1201,6 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           )}
                         </p>
                       </div>
-
-                      {!isRestricted && (
-                        <PhotoGallery
-                          photos={heroPhotos}
-                          title="Fotos"
-                          emptyLabel="Nenhuma foto no álbum"
-                        />
-                      )}
-                      {isRestricted && (
-                        <div className="rounded-2xl border-[3px] border-[#1A1A1A]/15 bg-black/[0.03] py-12 flex flex-col items-center justify-center gap-2">
-                          <Lock className="h-8 w-8 text-[#4A4A4A]/25" />
-                          <p className="text-sm text-[#4A4A4A]/50">Álbum indisponível</p>
-                        </div>
-                      )}
                     </article>
                   )}
 
