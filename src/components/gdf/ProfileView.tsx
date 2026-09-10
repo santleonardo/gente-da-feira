@@ -1432,7 +1432,7 @@ export function ProfileView() {
             <div className="flex-1 min-w-0 pb-1">
               {/* Faixa do nome — cor escolhida pelo usuário (profiles.theme) */}
               <div
-                className="flex w-full items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: nameBand.bg }}
               >
                 <span
@@ -2317,7 +2317,7 @@ export function ProfileView() {
             <div className="flex flex-col pt-1">
               {/* Faixa no título Sobre — mesma cor do tema do perfil */}
               <div
-                className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: nameBand.bg }}
               >
                 <span

@@ -897,7 +897,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 <div className="mt-4">
                   {/* Faixa colorida — tema do perfil */}
                   <div
-                    className="flex w-full max-w-xl items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="flex w-full max-w-xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     style={{ backgroundColor: nameBand.bg }}
                   >
                     <span
@@ -1206,7 +1206,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       <div className="flex flex-col min-w-0 w-full">
                         {/* Faixa no título Sobre — mesma cor do tema do perfil */}
                         <div
-                          className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-sm px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                           style={{ backgroundColor: nameBand.bg }}
                         >
                           <span
