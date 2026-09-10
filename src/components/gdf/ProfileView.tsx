@@ -1608,7 +1608,7 @@ export function ProfileView() {
                 className={`relative shrink-0 rounded-xl px-3.5 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-all duration-200
                   ${active
                     ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    : "text-[#4A4A4A]/70 hover:text-[#1A1A1A] hover:bg-black/[0.04]"}`}
+                    : "border border-black/[0.08] bg-white/70 text-[#3A3A3A] shadow-sm hover:border-black/[0.14] hover:bg-white hover:text-[#1A1A1A] hover:shadow"}`}
                 style={
                   active
                     ? { backgroundColor: nameBand.bg, color: nameBand.text }
