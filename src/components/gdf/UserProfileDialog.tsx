@@ -715,18 +715,17 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-5 flex justify-center">
-                  <ProfileHeroSlider
-                    user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                    photos={isRestricted ? [] : heroPhotos}
-                    className="h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] ring-8 ring-[#F9F8F6] shadow-xl"
-                    overlay={
-                      (isRestricted || isBlocked) && (
-                        <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                          <Lock className="h-4 w-4" />
-                        </div>
-                      )
-                    }
-                  />
+                  <div className="relative h-[min(42vw,180px)] w-[min(42vw,180px)] max-h-[180px] max-w-[180px] rounded-full ring-8 ring-[#F9F8F6] shadow-xl overflow-hidden bg-black/[0.04]">
+                    <UserAvatar
+                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                      className="h-full w-full"
+                    />
+                    {(isRestricted || isBlocked) && (
+                      <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                        <Lock className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <p className="mt-4 text-sm text-[#4A4A4A]">
@@ -793,18 +792,17 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  <ProfileHeroSlider
-                    user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                    photos={isRestricted ? [] : heroPhotos}
-                    className="h-20 w-20 sm:h-24 sm:w-24 ring-[5px] ring-[#F9F8F6] shadow-md"
-                    overlay={
-                      (isRestricted || isBlocked) && (
-                        <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                          <Lock className="h-3.5 w-3.5" />
-                        </div>
-                      )
-                    }
-                  />
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04] shrink-0">
+                    <UserAvatar
+                      user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                      className="h-full w-full"
+                    />
+                    {(isRestricted || isBlocked) && (
+                      <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
+                        <Lock className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 sm:gap-2 pb-1 flex-wrap justify-end max-w-[55%]">
@@ -1130,22 +1128,20 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                     <article className="pb-4">
                       <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start min-w-0 w-full">
                         <div className="w-full sm:w-[40%] shrink-0">
-                          <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5">
-                            {userData.avatar_url ? (
-                              <img
-                                src={userData.avatar_url}
-                                alt={userData.display_name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10">
-                                <UserAvatar
-                                  user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                                  className="h-24 w-24"
-                                />
-                              </div>
-                            )}
-                          </div>
+                          {!isRestricted && (
+                            <ProfileHeroSlider
+                              user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                              photos={heroPhotos}
+                              includeAvatar={false}
+                              framed
+                              className="aspect-[4/5] w-full"
+                            />
+                          )}
+                          {isRestricted && (
+                            <div className="aspect-[4/5] overflow-hidden rounded-2xl border-[3px] border-[#1A1A1A]/90 bg-black/5 flex items-center justify-center">
+                              <Lock className="h-10 w-10 text-[#4A4A4A]/25" />
+                            </div>
+                          )}
                         </div>
                         <div className="w-full sm:w-[60%] flex flex-col">
                           <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] mb-2">

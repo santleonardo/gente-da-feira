@@ -456,7 +456,8 @@ export function ProfileView() {
   const [uploading, setUploading] = useState(false);
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  // Fotos do álbum exibidas junto com a foto de perfil no slide do hero
+  const albumInputRef = useRef<HTMLInputElement>(null);
+  // Fotos do álbum (slide na aba Sobre — foto de perfil no hero é estática)
   // (a antiga aba "Fotografia" foi removida; as mídias agora aparecem aqui).
   const [heroPhotos, setHeroPhotos] = useState<string[]>([]);
   const [settingAvatar, setSettingAvatar] = useState(false);
@@ -1049,7 +1050,38 @@ export function ProfileView() {
     } catch { toast.error("Erro ao salvar"); }
   };
 
-  // Câmera do hero: ADICIONA foto ao álbum (não apaga as anteriores).
+  // Câmera do hero: troca a foto de perfil (estática, modo tradicional).
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file, FEED_IMAGE_OPTIONS);
+      const formData = new FormData();
+      formData.append("file", compressed, `avatar.${getExtensionForBlob(compressed)}`);
+      formData.append("userId", profile.id);
+      const avRes = await fetch("/api/users/avatar", { method: "POST", body: formData });
+      const avData = await avRes.json();
+      if (avData.avatar_url) {
+        updateProfile({ avatar_url: avData.avatar_url });
+        toast.success("Foto de perfil atualizada!");
+      } else {
+        toast.error(avData.error || "Não foi possível atualizar a foto de perfil");
+      }
+    } catch {
+      toast.error("Erro ao enviar foto de perfil");
+    }
+    setUploading(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
+  // Aba Sobre: ADICIONA foto ao álbum (não substitui o avatar).
   // Se ainda não houver avatar, também define como foto de perfil.
   const handleAlbumPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1057,7 +1089,7 @@ export function ProfileView() {
     const validationError = validateImageFile(file);
     if (validationError) {
       toast.error(validationError);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
+      if (albumInputRef.current) albumInputRef.current.value = "";
       return;
     }
     if (heroPhotos.length >= CLIENT_UPLOAD_LIMITS.maxAlbumPhotos) {
@@ -1075,7 +1107,7 @@ export function ProfileView() {
       if (uploadData.error) {
         toast.error(uploadData.error);
         setUploading(false);
-        if (avatarInputRef.current) avatarInputRef.current.value = "";
+        if (albumInputRef.current) albumInputRef.current.value = "";
         return;
       }
 
@@ -1092,7 +1124,7 @@ export function ProfileView() {
       if (!saveData.photo) {
         toast.error(saveData.error || "Erro ao salvar foto no álbum");
         setUploading(false);
-        if (avatarInputRef.current) avatarInputRef.current.value = "";
+        if (albumInputRef.current) albumInputRef.current.value = "";
         return;
       }
 
@@ -1115,7 +1147,7 @@ export function ProfileView() {
       toast.error("Erro ao enviar foto");
     }
     setUploading(false);
-    if (avatarInputRef.current) avatarInputRef.current.value = "";
+    if (albumInputRef.current) albumInputRef.current.value = "";
   };
 
   const handleSetAsProfilePhoto = async (url: string) => {
@@ -1321,18 +1353,35 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
-              <ProfileHeroSlider
-                user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                photos={heroPhotos}
-                editable
-                uploading={uploading}
-                onAddPhoto={() => avatarInputRef.current?.click()}
-                onSetAsProfilePhoto={handleSetAsProfilePhoto}
-                setAsProfileLoading={settingAvatar}
-                className="h-24 w-24 sm:h-28 sm:w-28 ring-[5px] ring-[#F9F8F6] shadow-md"
-              />
+              <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-full ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04]">
+                <UserAvatar
+                  user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                  className="h-full w-full"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading}
+                title="Alterar foto de perfil"
+                aria-label="Alterar foto de perfil"
+                className="absolute -bottom-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5" />
+                )}
+              </button>
               <input
                 ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <input
+                ref={albumInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleAlbumPhotoUpload}
@@ -2166,33 +2215,22 @@ export function ProfileView() {
         <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
           <article className="w-full max-w-full min-w-0">
             <div className="flex flex-col md:flex-row gap-6 sm:gap-10 md:gap-14 items-start min-w-0">
-              {/* Foto grande */}
+              {/* Álbum de fotos — slide com borda + “usar como foto de perfil” */}
               <div className="w-full md:w-[42%] shrink-0">
-                <div className="aspect-[4/5] overflow-hidden rounded-sm bg-black/5 sticky top-24">
-                  {profile?.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt={profile.display_name || "Foto de perfil"}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10">
-                      <UserAvatar
-                        user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                        className="h-28 w-28"
-                      />
-                    </div>
-                  )}
+                <div className="sticky top-24">
+                  <ProfileHeroSlider
+                    user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                    photos={heroPhotos}
+                    includeAvatar={false}
+                    framed
+                    editable
+                    uploading={uploading}
+                    onAddPhoto={() => albumInputRef.current?.click()}
+                    onSetAsProfilePhoto={handleSetAsProfilePhoto}
+                    setAsProfileLoading={settingAvatar}
+                    className="aspect-[4/5] w-full"
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={uploading}
-                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-full border border-black/10 py-2 text-xs font-medium text-[#4A4A4A] hover:bg-black/5 transition-colors disabled:opacity-50"
-                >
-                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                  Alterar foto
-                </button>
               </div>
 
               {/* Texto longo */}

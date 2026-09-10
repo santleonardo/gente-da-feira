@@ -1,8 +1,8 @@
 "use client";
 
-// ProfileHeroSlider — avatar + fotos do álbum no hero do perfil.
-// Câmera = adicionar foto ao álbum (não substitui).
-// Em tela cheia: onSetAsProfilePhoto define o avatar.
+// ProfileHeroSlider — carrossel de fotos do álbum (aba Sobre).
+// Foto de perfil no hero é estática (UserAvatar); o slide fica em "Sobre".
+// Em tela cheia: onSetAsProfilePhoto define o avatar (quando editable).
 
 import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Camera, Loader2 } from "lucide-react";
@@ -12,11 +12,15 @@ import { LazyImage } from "./LazyImage";
 
 interface ProfileHeroSliderProps {
   user: { id: string; display_name: string; avatar_url?: string | null };
-  /** URLs das fotos do álbum (sem a foto de perfil). */
+  /** URLs das fotos do álbum. */
   photos: string[];
   className?: string;
   editable?: boolean;
   uploading?: boolean;
+  /** Se true, inclui a foto de perfil como primeiro slide (legado). Padrão: false. */
+  includeAvatar?: boolean;
+  /** Borda decorativa mais marcante (aba Sobre). */
+  framed?: boolean;
   /** Abre o seletor para ADICIONAR foto ao álbum. */
   onAddPhoto?: () => void;
   /** @deprecated use onAddPhoto — mantido só para compat transitória */
@@ -32,6 +36,8 @@ export function ProfileHeroSlider({
   className,
   editable,
   uploading,
+  includeAvatar = false,
+  framed = false,
   onAddPhoto,
   onEditAvatar,
   onSetAsProfilePhoto,
@@ -39,7 +45,7 @@ export function ProfileHeroSlider({
   overlay,
 }: ProfileHeroSliderProps) {
   const slides = [
-    { isAvatar: true as const, url: user.avatar_url || null },
+    ...(includeAvatar ? [{ isAvatar: true as const, url: user.avatar_url || null }] : []),
     ...photos.filter(Boolean).map((url) => ({ isAvatar: false as const, url })),
   ];
 
@@ -48,21 +54,67 @@ export function ProfileHeroSlider({
   const [viewerOpen, setViewerOpen] = useState(false);
 
   const multi = slides.length > 1;
-  const clampedIndex = Math.min(index, slides.length - 1);
-  const go = (dir: 1 | -1) => setIndex((i) => (i + dir + slides.length) % slides.length);
+  const clampedIndex = slides.length === 0 ? 0 : Math.min(index, slides.length - 1);
+  const go = (dir: 1 | -1) => {
+    if (slides.length === 0) return;
+    setIndex((i) => (i + dir + slides.length) % slides.length);
+  };
   const current = slides[clampedIndex];
 
   const viewablePhotos = slides.map((s) => s.url).filter((u): u is string => !!u);
-  const viewerIndex = current.url ? viewablePhotos.indexOf(current.url) : -1;
+  const viewerIndex = current?.url ? viewablePhotos.indexOf(current.url) : -1;
 
   const openPicker = onAddPhoto ?? onEditAvatar;
 
+  const frameClass = framed
+    ? "rounded-2xl border-[3px] border-[#1A1A1A]/90 shadow-[0_8px_28px_rgba(26,26,26,0.12),0_0_0_6px_rgba(249,248,246,1),0_0_0_7px_rgba(26,26,26,0.08)]"
+    : "rounded-xl";
+
+  if (slides.length === 0) {
+    return (
+      <div className="shrink-0 inline-flex flex-col items-center w-full">
+        <div
+          className={`relative overflow-hidden bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10 ${frameClass} ${className || ""}`}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <UserAvatar user={user} className="h-24 w-24 sm:h-28 sm:w-28 opacity-80" />
+          </div>
+          {overlay}
+          {editable && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openPicker?.();
+              }}
+              disabled={uploading}
+              title="Adicionar foto ao álbum"
+              aria-label="Adicionar foto ao álbum"
+              className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-[#1A1A1A] text-white shadow-md transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </div>
+        {editable && (
+          <p className="mt-3 max-w-xs text-center text-[11px] leading-tight text-[#4A4A4A]/55">
+            Adicione fotos ao álbum. Depois, abra em tela cheia para usar como foto de perfil.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="shrink-0 inline-flex flex-col items-center">
+    <div className="shrink-0 inline-flex flex-col items-center w-full">
       <div
-        className={`relative rounded-xl ${current.url ? "cursor-pointer" : ""} ${className || ""}`}
+        className={`relative ${current?.url ? "cursor-pointer" : ""} ${frameClass} ${className || ""}`}
         onClick={() => {
-          if (current.url) setViewerOpen(true);
+          if (current?.url) setViewerOpen(true);
         }}
         onTouchStart={(e) => {
           touchX.current = e.touches[0].clientX;
@@ -74,12 +126,12 @@ export function ProfileHeroSlider({
           touchX.current = null;
         }}
       >
-        <div className="absolute inset-0 overflow-hidden rounded-xl bg-black/[0.04]">
-          {current.isAvatar ? (
+        <div className={`absolute inset-0 overflow-hidden bg-black/[0.04] ${framed ? "rounded-[13px]" : "rounded-xl"}`}>
+          {current?.isAvatar ? (
             <UserAvatar user={user} className="h-full w-full" />
           ) : (
             <LazyImage
-              src={current.url || ""}
+              src={current?.url || ""}
               alt=""
               className="h-full w-full object-cover"
               wrapperClassName="h-full w-full"
@@ -97,9 +149,11 @@ export function ProfileHeroSlider({
                   go(-1);
                 }}
                 aria-label="Foto anterior"
-                className="absolute left-0 top-0 h-full w-1/3 flex items-center justify-start pl-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                className="absolute left-0 top-0 h-full w-1/3 flex items-center justify-start pl-2 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
               >
-                <ChevronLeft className="h-4 w-4 text-white drop-shadow-md" />
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
+                  <ChevronLeft className="h-4 w-4 text-white drop-shadow-md" />
+                </span>
               </button>
               <button
                 type="button"
@@ -108,9 +162,11 @@ export function ProfileHeroSlider({
                   go(1);
                 }}
                 aria-label="Próxima foto"
-                className="absolute right-0 top-0 h-full w-1/3 flex items-center justify-end pr-1.5 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                className="absolute right-0 top-0 h-full w-1/3 flex items-center justify-end pr-2 opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
               >
-                <ChevronRight className="h-4 w-4 text-white drop-shadow-md" />
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm">
+                  <ChevronRight className="h-4 w-4 text-white drop-shadow-md" />
+                </span>
               </button>
             </>
           )}
@@ -128,24 +184,27 @@ export function ProfileHeroSlider({
             disabled={uploading}
             title="Adicionar foto ao álbum"
             aria-label="Adicionar foto ao álbum"
-            className="absolute -bottom-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+            className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-[#1A1A1A] text-white shadow-md transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
           >
             {uploading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Camera className="h-3.5 w-3.5" />
+              <Camera className="h-4 w-4" />
             )}
           </button>
         )}
       </div>
 
       {multi && (
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-3 flex items-center gap-1.5">
           {slides.map((_, i) => (
-            <span
+            <button
               key={i}
+              type="button"
+              aria-label={`Foto ${i + 1}`}
+              onClick={() => setIndex(i)}
               className={`h-1.5 rounded-full transition-all duration-200 ${
-                i === clampedIndex ? "w-4 bg-[#1A1A1A]" : "w-1.5 bg-black/30"
+                i === clampedIndex ? "w-5 bg-[#1A1A1A]" : "w-1.5 bg-black/25 hover:bg-black/40"
               }`}
             />
           ))}
@@ -153,8 +212,8 @@ export function ProfileHeroSlider({
       )}
 
       {editable && (
-        <p className="mt-1.5 max-w-[9rem] text-center text-[10px] leading-tight text-[#4A4A4A]/55">
-          Toque na foto · use o botão amarelo para definir perfil
+        <p className="mt-2.5 max-w-xs text-center text-[11px] leading-tight text-[#4A4A4A]/55">
+          Toque na foto para tela cheia · use &quot;Usar como foto de perfil&quot; no visualizador
         </p>
       )}
 
