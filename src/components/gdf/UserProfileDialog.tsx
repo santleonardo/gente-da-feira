@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag, ChevronRight } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-import { ProfileHeroSlider } from "./ProfileHeroSlider";
+import { PhotoGallery } from "./PhotoGallery";
 import { PhotoViewer } from "./PhotoViewer";
 import { timeAgo } from "@/lib/constants";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
@@ -715,10 +715,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 </div>
 
                 <div className="mt-5 flex justify-center">
-                  <div className="relative h-[min(42vw,180px)] w-[min(42vw,180px)] max-h-[180px] max-w-[180px] rounded-full ring-8 ring-[#F9F8F6] shadow-xl overflow-hidden bg-black/[0.04]">
+                  {/* Tamanho e formato originais do hero (quadrado grande) */}
+                  <div className="relative h-[min(90vw,calc(100vw-2.5rem))] w-[min(90vw,calc(100vw-2.5rem))] max-h-[440px] max-w-[440px] rounded-xl ring-8 ring-[#F9F8F6] shadow-xl overflow-hidden bg-black/[0.04]">
                     <UserAvatar
                       user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-full w-full"
+                      className="h-full w-full rounded-xl"
                     />
                     {(isRestricted || isBlocked) && (
                       <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
@@ -792,10 +793,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04] shrink-0">
+                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-xl ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04] shrink-0">
                     <UserAvatar
                       user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                      className="h-full w-full"
+                      className="h-full w-full rounded-xl"
                     />
                     {(isRestricted || isBlocked) && (
                       <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
@@ -1125,64 +1126,60 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                   {/* Sobre */}
                   {activeTab === "sobre" && (
-                    <article className="pb-4">
-                      <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start min-w-0 w-full">
-                        <div className="w-full sm:w-[40%] shrink-0">
-                          {!isRestricted && (
-                            <ProfileHeroSlider
-                              user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                              photos={heroPhotos}
-                              includeAvatar={false}
-                              framed
-                              className="aspect-[4/5] w-full"
-                            />
-                          )}
-                          {isRestricted && (
-                            <div className="aspect-[4/5] overflow-hidden rounded-2xl border-[3px] border-[#1A1A1A]/90 bg-black/5 flex items-center justify-center">
-                              <Lock className="h-10 w-10 text-[#4A4A4A]/25" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="w-full sm:w-[60%] flex flex-col">
-                          <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] mb-2">
-                            Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
-                          </h3>
-                          {canSeeNeighborhood && userData.neighborhood && (
-                            <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {userData.neighborhood}
-                            </p>
-                          )}
-                          {userData.bio ? (
-                            <div className="space-y-4">
-                              <p
-                                className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
-                                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                              >
-                                {parseInlineContent(userData.bio, openUserProfileById)}
-                              </p>
-                              <p className="text-[#4A4A4A] leading-relaxed text-[14px]">
-                                Espaço pessoal de {userData.display_name} no Gente da Feira
-                                {userData.neighborhood ? ` · ${userData.neighborhood}` : ""}.
-                              </p>
-                            </div>
-                          ) : (
+                    <article className="pb-4 space-y-8">
+                      <div className="flex flex-col min-w-0 w-full">
+                        <h3 className="font-serif text-xl sm:text-2xl font-medium tracking-tight text-[#1A1A1A] mb-2">
+                          Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
+                        </h3>
+                        {canSeeNeighborhood && userData.neighborhood && (
+                          <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {userData.neighborhood}
+                          </p>
+                        )}
+                        {userData.bio ? (
+                          <div className="space-y-4 max-w-2xl">
                             <p
-                              className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed"
+                              className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
                               style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
                             >
-                              Este perfil ainda não escreveu uma apresentação.
+                              {parseInlineContent(userData.bio, openUserProfileById)}
                             </p>
-                          )}
-
-                          <p className="mt-8 text-[11px] text-[#4A4A4A]/40">
-                            @{userData.username}
-                            {userData.created_at && (
-                              <> · Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
-                            )}
+                            <p className="text-[#4A4A4A] leading-relaxed text-[14px]">
+                              Espaço pessoal de {userData.display_name} no Gente da Feira
+                              {userData.neighborhood ? ` · ${userData.neighborhood}` : ""}.
+                            </p>
+                          </div>
+                        ) : (
+                          <p
+                            className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed max-w-2xl"
+                            style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                          >
+                            Este perfil ainda não escreveu uma apresentação.
                           </p>
-                        </div>
+                        )}
+
+                        <p className="mt-6 text-[11px] text-[#4A4A4A]/40">
+                          @{userData.username}
+                          {userData.created_at && (
+                            <> · Entrou em {new Date(userData.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
+                          )}
+                        </p>
                       </div>
+
+                      {!isRestricted && (
+                        <PhotoGallery
+                          photos={heroPhotos}
+                          title="Fotos"
+                          emptyLabel="Nenhuma foto no álbum"
+                        />
+                      )}
+                      {isRestricted && (
+                        <div className="rounded-2xl border-[3px] border-[#1A1A1A]/15 bg-black/[0.03] py-12 flex flex-col items-center justify-center gap-2">
+                          <Lock className="h-8 w-8 text-[#4A4A4A]/25" />
+                          <p className="text-sm text-[#4A4A4A]/50">Álbum indisponível</p>
+                        </div>
+                      )}
                     </article>
                   )}
 

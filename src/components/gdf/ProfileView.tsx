@@ -66,7 +66,7 @@ const SettingsView = dynamic(
   () => import("./SettingsView").then((m) => ({ default: m.SettingsView })),
   { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
 );
-import { ProfileHeroSlider } from "./ProfileHeroSlider";
+import { PhotoGallery } from "./PhotoGallery";
 import { createClient } from "@/lib/supabase/client";
 import { parseInlineFormatting as parseInlineContent } from "@/lib/link-utils";
 import { toast } from "sonner";
@@ -1353,10 +1353,11 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
-              <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-full ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04]">
+              {/* Quadrado rounded-xl — mesmo tamanho/formato de antes do slide */}
+              <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl ring-[5px] ring-[#F9F8F6] shadow-md overflow-hidden bg-black/[0.04]">
                 <UserAvatar
                   user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                  className="h-full w-full"
+                  className="h-full w-full rounded-xl"
                 />
               </div>
               <button
@@ -2213,103 +2214,90 @@ export function ProfileView() {
 
 {/* ─── ABA: SOBRE ─── */}
         <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
-          <article className="w-full max-w-full min-w-0">
-            <div className="flex flex-col md:flex-row gap-6 sm:gap-10 md:gap-14 items-start min-w-0">
-              {/* Álbum de fotos — slide com borda + “usar como foto de perfil” */}
-              <div className="w-full md:w-[42%] shrink-0">
-                <div className="sticky top-24">
-                  <ProfileHeroSlider
-                    user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                    photos={heroPhotos}
-                    includeAvatar={false}
-                    framed
-                    editable
-                    uploading={uploading}
-                    onAddPhoto={() => albumInputRef.current?.click()}
-                    onSetAsProfilePhoto={handleSetAsProfilePhoto}
-                    setAsProfileLoading={settingAvatar}
-                    className="aspect-[4/5] w-full"
-                  />
-                </div>
-              </div>
-
-              {/* Texto longo */}
-              <div className="w-full md:w-[58%] flex flex-col pt-2 md:pt-0">
-                <h2 className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
-                  Sobre {profile?.display_name?.split(" ")[0] || "mim"}
-                </h2>
-                {profile?.neighborhood && (
-                  <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-6">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {profile.neighborhood}
-                  </p>
-                )}
-
-                {/* Bio em destaque */}
-                {profile?.bio ? (
-                  <div className="space-y-5">
-                    <p
-                      className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
-                      style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                    >
-                      {parseInlineContent(profile.bio, openUserProfileById)}
-                    </p>
-                    <div className="prose prose-stone max-w-none">
-                      <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
-                        Este é o espaço pessoal de {profile.display_name} no Gente da Feira —
-                        um canto para compartilhar reflexões, fotos e momentos do dia a dia
-                        {profile.neighborhood ? ` em ${profile.neighborhood}` : ""}.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p
-                      className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed"
-                      style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                    >
-                      Ainda não há uma apresentação escrita.
-                    </p>
-                    <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
-                      Use a bio do perfil para contar um pouco sobre você — o que te move,
-                      o que você observa na cidade, ou simplesmente uma nota sobre o seu dia.
-                    </p>
-                  </div>
-                )}
-
-                {/* Editor de bio inline */}
-                <div className="mt-8 pt-6 border-t border-black/[0.06]">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-2">
-                    Editar apresentação
-                  </label>
-                  <Textarea
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value.slice(0, 300))}
-                    placeholder="Escreva uma apresentação pessoal…"
-                    rows={4}
-                    className="rounded-xl border-black/10 bg-white/70 text-[15px] leading-relaxed resize-none focus-visible:ring-[#D96C4A]/30"
-                  />
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/300</span>
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#1A1A1A]/90 transition-colors"
-                    >
-                      Salvar
-                    </button>
-                  </div>
-                </div>
-
-                {/* Meta */}
-                <p className="mt-10 text-[11px] text-[#4A4A4A]/40">
-                  @{profile?.username}
-                  {profile?.created_at && (
-                    <> · No Gente da Feira desde {new Date(profile.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
-                  )}
+          <article className="w-full max-w-full min-w-0 space-y-8 sm:space-y-10">
+            {/* Apresentação */}
+            <div className="flex flex-col pt-1">
+              <h2 className="font-serif text-2xl sm:text-2xl md:text-3xl font-medium tracking-tight text-[#1A1A1A] mb-2 break-words">
+                Sobre {profile?.display_name?.split(" ")[0] || "mim"}
+              </h2>
+              {profile?.neighborhood && (
+                <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {profile.neighborhood}
                 </p>
+              )}
+
+              {profile?.bio ? (
+                <div className="space-y-4 max-w-2xl">
+                  <p
+                    className="text-lg sm:text-xl text-[#1A1A1A] leading-relaxed"
+                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                  >
+                    {parseInlineContent(profile.bio, openUserProfileById)}
+                  </p>
+                  <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
+                    Este é o espaço pessoal de {profile.display_name} no Gente da Feira —
+                    um canto para compartilhar reflexões, fotos e momentos do dia a dia
+                    {profile.neighborhood ? ` em ${profile.neighborhood}` : ""}.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-w-2xl">
+                  <p
+                    className="text-lg sm:text-xl text-[#4A4A4A]/50 leading-relaxed"
+                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                  >
+                    Ainda não há uma apresentação escrita.
+                  </p>
+                  <p className="text-[#4A4A4A] leading-relaxed text-[15px]">
+                    Use a bio do perfil para contar um pouco sobre você — o que te move,
+                    o que você observa na cidade, ou simplesmente uma nota sobre o seu dia.
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-black/[0.06] max-w-2xl">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-2">
+                  Editar apresentação
+                </label>
+                <Textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                  placeholder="Escreva uma apresentação pessoal…"
+                  rows={4}
+                  className="rounded-xl border-black/10 bg-white/70 text-[15px] leading-relaxed resize-none focus-visible:ring-[#D96C4A]/30"
+                />
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/300</span>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+                  >
+                    Salvar
+                  </button>
+                </div>
               </div>
+
+              <p className="mt-8 text-[11px] text-[#4A4A4A]/40">
+                @{profile?.username}
+                {profile?.created_at && (
+                  <> · No Gente da Feira desde {new Date(profile.created_at).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</>
+                )}
+              </p>
             </div>
+
+            {/* Galeria responsiva */}
+            <PhotoGallery
+              photos={heroPhotos}
+              title="Fotos"
+              editable
+              uploading={uploading}
+              onAddPhoto={() => albumInputRef.current?.click()}
+              onSetAsProfilePhoto={handleSetAsProfilePhoto}
+              setAsProfileLoading={settingAvatar}
+              emptyLabel="Nenhuma foto no álbum ainda"
+            />
           </article>
         </div>
 
