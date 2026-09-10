@@ -1178,7 +1178,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       `}</style>
 
       {/* ═══════ COMPOSER ═══════ */}
-      <div className="relative z-10 rounded-2xl bg-white p-3.5 sm:p-5 shadow-sm border border-black/[0.08] min-w-0 max-w-full overflow-x-hidden">
+      <div className={`relative z-10 rounded-2xl bg-white p-3.5 sm:p-5 shadow-sm border border-black/[0.08] min-w-0 max-w-full ${menuOpen ? "overflow-visible" : "overflow-x-hidden"}`}>
         <p className="mb-3 font-serif text-lg font-medium text-[#1A1A1A]">Nova publicação</p>
         <div className="flex items-start gap-3.5">
           <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-12 w-12 shrink-0" />
