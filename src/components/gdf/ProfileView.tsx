@@ -1382,10 +1382,13 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative shrink-0">
-              {/* Moldura elegante — dupla borda editorial */}
+              {/* Moldura — mesma cor da faixa do nome */}
               <div
-                className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl p-[3px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/75 to-[#D96C4A]/80 shadow-[0_6px_20px_rgba(26,26,26,0.12)]"
-                style={{ boxShadow: "0 6px 20px rgba(26,26,26,0.12), 0 0 0 1px rgba(26,26,26,0.06)" }}
+                className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl p-[3px] shadow-[0_6px_20px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
+                style={{
+                  backgroundColor: nameBand.bg,
+                  boxShadow: `0 6px 20px rgba(26,26,26,0.12), 0 0 0 1px ${nameBand.bg}33`,
+                }}
               >
                 <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
                   <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">

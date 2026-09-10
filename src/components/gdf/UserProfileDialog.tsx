@@ -737,12 +737,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                     />
                   </div>
 
-                  {/* Moldura — mesma largura da faixa */}
+                  {/* Moldura — mesma cor da faixa */}
                   <div
-                    className="relative aspect-square w-full rounded-b-2xl p-[4px] shadow-xl"
-                    style={{
-                      background: `linear-gradient(to bottom right, #1A1A1A, #1A1A1Acc, ${nameBand.bg})`,
-                    }}
+                    className="relative aspect-square w-full rounded-b-2xl p-[4px] shadow-xl transition-[background-color] duration-300"
+                    style={{ backgroundColor: nameBand.bg }}
                   >
                     <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
                       <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
@@ -824,8 +822,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  {/* Moldura elegante (desktop) */}
-                  <div className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl p-[3px] bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A]/75 to-[#D96C4A]/80 shadow-[0_6px_18px_rgba(26,26,26,0.12)]">
+                  {/* Moldura — mesma cor da faixa (desktop) */}
+                  <div
+                    className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl p-[3px] shadow-[0_6px_18px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
                     <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
                       <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
                         <UserAvatar

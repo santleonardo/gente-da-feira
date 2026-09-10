@@ -113,7 +113,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     if (data.theme !== undefined) {
-      updates.theme = String(data.theme).slice(0, 20);
+      // Cores da faixa do nome (whitelist de 7 opções)
+      const { sanitizeNameBandTheme } = await import("@/lib/name-band-theme");
+      updates.theme = sanitizeNameBandTheme(data.theme);
     }
 
     if (data.username !== undefined) {
