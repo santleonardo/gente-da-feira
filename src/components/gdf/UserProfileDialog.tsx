@@ -1204,13 +1204,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
                       {/* 2) Bio logo abaixo */}
                       <div className="flex flex-col min-w-0 w-full">
-                        {/* Faixa no título Sobre — mesma cor do tema do perfil */}
+                        {/* Faixa Sobre — nome + profissão/adjetivo opcional */}
                         <div
-                          className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          className="mb-3 flex w-full max-w-2xl flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                           style={{ backgroundColor: nameBand.bg }}
                         >
                           <span
-                            className="h-px w-5 shrink-0"
+                            className="hidden sm:block h-px w-5 shrink-0"
                             style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
                             aria-hidden
                           />
@@ -1219,9 +1219,15 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             style={{ color: nameBand.text }}
                           >
                             Sobre {userData.display_name?.split(" ")[0] || "este perfil"}
+                            {userData.headline?.trim() ? (
+                              <span className="font-normal opacity-90">
+                                {" · "}
+                                {userData.headline.trim()}
+                              </span>
+                            ) : null}
                           </h3>
                           <span
-                            className="h-px flex-1 min-w-[1rem]"
+                            className="hidden sm:block h-px flex-1 min-w-[1rem]"
                             style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
                             aria-hidden
                           />

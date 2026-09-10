@@ -453,6 +453,7 @@ export function ProfileView() {
   const { profile, logout, updateProfile, setProfileSubView, unreadNotifications } = useStore();
   const [name, setName] = useState(profile?.display_name || "");
   const [bio, setBio] = useState(profile?.bio || "");
+  const [headline, setHeadline] = useState(profile?.headline || "");
   const [neighborhood, setNeighborhood] = useState(profile?.neighborhood || "");
   const [postCount, setPostCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -1050,7 +1051,12 @@ export function ProfileView() {
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim().slice(0, 50), bio: bio.trim().slice(0, 500), neighborhood }),
+        body: JSON.stringify({
+          name: name.trim().slice(0, 50),
+          bio: bio.trim().slice(0, 500),
+          headline: headline.trim().slice(0, 40),
+          neighborhood,
+        }),
       });
       const data = await res.json();
       if (data.user) { updateProfile(data.user); toast.success("Perfil atualizado!"); }
@@ -2315,13 +2321,13 @@ export function ProfileView() {
 
             {/* 2) Bio / apresentação logo abaixo */}
             <div className="flex flex-col pt-1">
-              {/* Faixa no título Sobre — mesma cor do tema do perfil */}
+              {/* Faixa no título Sobre — nome + profissão/adjetivo opcional */}
               <div
-                className="mb-3 flex w-full max-w-2xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="mb-3 flex w-full max-w-2xl flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: nameBand.bg }}
               >
                 <span
-                  className="h-px w-5 shrink-0"
+                  className="hidden sm:block h-px w-5 shrink-0"
                   style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
                   aria-hidden
                 />
@@ -2330,12 +2336,42 @@ export function ProfileView() {
                   style={{ color: nameBand.text }}
                 >
                   Sobre {profile?.display_name?.split(" ")[0] || "mim"}
+                  {(profile?.headline || headline)?.trim() ? (
+                    <span className="font-normal opacity-90">
+                      {" · "}
+                      {(profile?.headline || headline).trim()}
+                    </span>
+                  ) : null}
                 </h2>
                 <span
-                  className="h-px flex-1 min-w-[1rem]"
+                  className="hidden sm:block h-px flex-1 min-w-[1rem]"
                   style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
                   aria-hidden
                 />
+              </div>
+              {/* Editar profissão / adjetivo (só no próprio perfil) */}
+              <div className="mb-5 max-w-2xl">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/60 mb-1.5">
+                  Profissão ou adjetivo (opcional)
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value.slice(0, 40))}
+                    placeholder="Ex.: Advogado, Artista, Curioso…"
+                    maxLength={40}
+                    className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
+                  >
+                    Salvar
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{headline.length}/40 · aparece na faixa acima</p>
               </div>
               {profile?.neighborhood && (
                 <p className="flex items-center gap-1.5 text-sm text-[#4A4A4A]/70 mb-5">

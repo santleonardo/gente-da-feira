@@ -6,6 +6,8 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   bio: string;
+  /** Profissão ou adjetivo curto na faixa "Sobre Nome · …" */
+  headline?: string | null;
   neighborhood: string | null;
   theme: string;
   created_at: string;

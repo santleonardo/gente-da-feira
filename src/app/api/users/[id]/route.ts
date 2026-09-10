@@ -108,6 +108,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       updates.bio = sanitizePlainText(String(data.bio)).slice(0, 500);
     }
 
+    if (data.headline !== undefined) {
+      // Profissão / adjetivo curto na faixa "Sobre Nome · …" (máx. 40)
+      const h = sanitizeShortText(String(data.headline || ""), 40);
+      updates.headline = h || null;
+    }
+
     if (data.neighborhood !== undefined) {
       updates.neighborhood = sanitizeShortText(data.neighborhood || "", 100) || null;
     }

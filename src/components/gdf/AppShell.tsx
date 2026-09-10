@@ -166,7 +166,7 @@ const tabs = [
 // SEC-013: Inclui deletion_requested_at e deletion_scheduled_at para LGPD
 // UX-024: Inclui is_moderator para exibir o acesso ao painel de moderação
 // Moderação global: is_banned / is_suspended
-const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator,is_banned,banned_reason,is_suspended,suspended_until,suspend_reason";
+const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,headline,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at,deletion_requested_at,deletion_scheduled_at,is_moderator,is_banned,banned_reason,is_suspended,suspended_until,suspend_reason";
 
 export function AppShell() {
   const { profile, tab, setTab, profileSubView, selectedRoom, selectedDM, setSelectedRoom, setSelectedDM, setProfile, logout, setDeletionPending, reportTarget } = useStore();
