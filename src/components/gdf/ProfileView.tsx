@@ -58,6 +58,7 @@ import {
   Link2,
   Minus,
   Highlighter,
+  Check,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -1046,8 +1047,21 @@ export function ProfileView() {
   // ═══════ Profile handlers ═══════
   const nameBand = resolveNameBandTheme(profile?.theme);
 
-  const handleSave = async () => {
+  // Indicador de salvamento por campo: "idle" | "saving" | "saved" | "error"
+  type FieldSaveKey = "tagline" | "headline" | "bio";
+  const [fieldSaveStatus, setFieldSaveStatus] = useState<Record<FieldSaveKey, "idle" | "saving" | "saved" | "error">>({
+    tagline: "idle",
+    headline: "idle",
+    bio: "idle",
+  });
+  const fieldSaveTimers = useRef<Partial<Record<FieldSaveKey, ReturnType<typeof setTimeout>>>>({});
+
+  const handleSave = async (field?: FieldSaveKey) => {
     if (!profile) return;
+    if (field) {
+      if (fieldSaveTimers.current[field]) clearTimeout(fieldSaveTimers.current[field]);
+      setFieldSaveStatus((s) => ({ ...s, [field]: "saving" }));
+    }
     try {
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PUT",
@@ -1063,6 +1077,7 @@ export function ProfileView() {
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || "Erro ao salvar (rode o SQL da coluna headline no Supabase)");
+        if (field) setFieldSaveStatus((s) => ({ ...s, [field]: "error" }));
         return;
       }
       if (data.user) {
@@ -1070,10 +1085,20 @@ export function ProfileView() {
         if (data.user.tagline !== undefined) setTagline(data.user.tagline || "");
         if (data.user.headline !== undefined) setHeadline(data.user.headline || "");
         toast.success("Perfil atualizado!");
+        if (field) {
+          setFieldSaveStatus((s) => ({ ...s, [field]: "saved" }));
+          fieldSaveTimers.current[field] = setTimeout(() => {
+            setFieldSaveStatus((s) => ({ ...s, [field]: "idle" }));
+          }, 2200);
+        }
       } else {
         toast.error(data.error || "Erro ao salvar");
+        if (field) setFieldSaveStatus((s) => ({ ...s, [field]: "error" }));
       }
-    } catch { toast.error("Erro ao salvar"); }
+    } catch {
+      toast.error("Erro ao salvar");
+      if (field) setFieldSaveStatus((s) => ({ ...s, [field]: "error" }));
+    }
   };
 
   const handleNameBandTheme = async (themeId: NameBandThemeId) => {
@@ -1565,10 +1590,22 @@ export function ProfileView() {
               />
               <button
                 type="button"
-                onClick={handleSave}
-                className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
+                onClick={() => handleSave("tagline")}
+                disabled={fieldSaveStatus.tagline === "saving"}
+                className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
+                  fieldSaveStatus.tagline === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                }`}
               >
-                Salvar
+                {fieldSaveStatus.tagline === "saving" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : fieldSaveStatus.tagline === "saved" ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Salvo
+                  </>
+                ) : (
+                  "Salvar"
+                )}
               </button>
             </div>
             <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{tagline.length}/100 · descrição curta · a bio longa fica em Sobre</p>
@@ -2407,10 +2444,22 @@ export function ProfileView() {
                   />
                   <button
                     type="button"
-                    onClick={handleSave}
-                    className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
+                    onClick={() => handleSave("headline")}
+                    disabled={fieldSaveStatus.headline === "saving"}
+                    className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
+                      fieldSaveStatus.headline === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                    }`}
                   >
-                    Salvar
+                    {fieldSaveStatus.headline === "saving" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : fieldSaveStatus.headline === "saved" ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Salvo
+                      </>
+                    ) : (
+                      "Salvar"
+                    )}
                   </button>
                 </div>
                 <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{headline.length}/40 · aparece na faixa acima</p>
@@ -2467,10 +2516,22 @@ export function ProfileView() {
                   <span className="text-[11px] text-[#4A4A4A]/50">{bio.length}/500</span>
                   <button
                     type="button"
-                    onClick={handleSave}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] text-white px-4 py-1.5 text-xs font-medium hover:bg-[#1A1A1A]/90 transition-colors"
+                    onClick={() => handleSave("bio")}
+                    disabled={fieldSaveStatus.bio === "saving"}
+                    className={`inline-flex items-center gap-1.5 rounded-full text-white px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-70 ${
+                      fieldSaveStatus.bio === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                    }`}
                   >
-                    Salvar
+                    {fieldSaveStatus.bio === "saving" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : fieldSaveStatus.bio === "saved" ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Salvo
+                      </>
+                    ) : (
+                      "Salvar"
+                    )}
                   </button>
                 </div>
               </div>
