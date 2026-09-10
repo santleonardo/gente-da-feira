@@ -1399,7 +1399,8 @@ export function ProfileView() {
       {/* ═══════ HERO DO PERFIL ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-5">
+            <div className="flex flex-col items-center w-24 sm:w-28 shrink-0 gap-3">
             <div className="relative shrink-0">
               {/* Moldura — mesma cor da faixa do nome */}
               <div
@@ -1446,6 +1447,45 @@ export function ProfileView() {
                 onChange={handleAlbumPhotoUpload}
                 className="hidden"
               />
+            </div>
+
+            {/* Descrição curta + contadores — minimalista, largura da foto */}
+            <div className="w-full flex flex-col items-center gap-2 text-center">
+              <p
+                className="text-[11px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3"
+                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+              >
+                {(profile?.tagline || tagline)?.trim()
+                  ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
+                  : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
+              </p>
+              <div className="w-full border-t border-black/[0.06] divide-y divide-black/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("posts")}
+                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                >
+                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
+                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openFollowDialog("following")}
+                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                >
+                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
+                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openFollowDialog("followers")}
+                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                >
+                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
+                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
+                </button>
+              </div>
+            </div>
             </div>
 
             <div className="flex-1 min-w-0 pb-1">
@@ -1512,75 +1552,26 @@ export function ProfileView() {
             </div>
           </div>
 
-          {/* Meta do perfil: tagline + stats num cartão único */}
-          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 overflow-hidden rounded-2xl border border-black/[0.07] bg-white/70 shadow-sm">
-            <div className="h-1 w-full" style={{ backgroundColor: nameBand.bg }} aria-hidden />
-            <div className="px-4 py-3.5 sm:px-5 sm:py-4">
-              {/* Tagline */}
-              <div className="min-w-0 break-words">
-                {(profile?.tagline || tagline)?.trim() ? (
-                  <p
-                    className="text-[15px] sm:text-base leading-relaxed text-[#3A3A3A]"
-                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                  >
-                    {parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)}
-                  </p>
-                ) : (
-                  <p
-                    className="text-[15px] sm:text-base text-[#4A4A4A]/45"
-                    style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                  >
-                    Sem descrição curta ainda…
-                  </p>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    value={tagline}
-                    onChange={(e) => setTagline(e.target.value.slice(0, 100))}
-                    placeholder="Descrição curta sob a foto (máx. 100 caracteres)"
-                    maxLength={100}
-                    className="min-w-0 flex-1 rounded-xl border border-black/10 bg-[#F9F8F6]/80 px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
-                  >
-                    Salvar
-                  </button>
-                </div>
-                <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{tagline.length}/100 · descrição curta · a bio longa fica em Sobre</p>
-              </div>
-
-              {/* Contadores em grade */}
-              <div className="mt-4 grid grid-cols-3 divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("posts")}
-                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
-                  <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">entradas</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openFollowDialog("following")}
-                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
-                  <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguindo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openFollowDialog("followers")}
-                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
-                  <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguidores</span>
-                </button>
-              </div>
+          {/* Editar descrição curta */}
+          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value.slice(0, 100))}
+                placeholder="Descrição curta sob a foto (máx. 100 caracteres)"
+                maxLength={100}
+                className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20"
+              />
+              <button
+                type="button"
+                onClick={handleSave}
+                className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
+              >
+                Salvar
+              </button>
             </div>
+            <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{tagline.length}/100 · descrição curta · a bio longa fica em Sobre</p>
           </div>
 
           {/* Ações rápidas */}
