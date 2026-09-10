@@ -453,6 +453,7 @@ export function ProfileView() {
   const { profile, logout, updateProfile, setProfileSubView, unreadNotifications } = useStore();
   const [name, setName] = useState(profile?.display_name || "");
   const [bio, setBio] = useState(profile?.bio || "");
+  const [tagline, setTagline] = useState(profile?.tagline || "");
   const [headline, setHeadline] = useState(profile?.headline || "");
   const [neighborhood, setNeighborhood] = useState(profile?.neighborhood || "");
   const [postCount, setPostCount] = useState(0);
@@ -1054,6 +1055,7 @@ export function ProfileView() {
         body: JSON.stringify({
           name: name.trim().slice(0, 50),
           bio: bio.trim().slice(0, 500),
+          tagline: tagline.trim().slice(0, 100),
           headline: headline.trim().slice(0, 40),
           neighborhood,
         }),
@@ -1065,6 +1067,7 @@ export function ProfileView() {
       }
       if (data.user) {
         updateProfile(data.user);
+        if (data.user.tagline !== undefined) setTagline(data.user.tagline || "");
         if (data.user.headline !== undefined) setHeadline(data.user.headline || "");
         toast.success("Perfil atualizado!");
       } else {
@@ -1506,23 +1509,41 @@ export function ProfileView() {
             </div>
           </div>
 
-          {/* Bio – serif clássica neutra */}
+          {/* Tagline – descrição curta sob a foto (máx. 100) */}
           <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 break-words">
-            {profile?.bio ? (
+            {(profile?.tagline || tagline)?.trim() ? (
               <p
                 className="text-base sm:text-[17px] leading-relaxed text-[#4A4A4A]"
                 style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
               >
-                {parseInlineContent(profile.bio, openUserProfileById)}
+                {parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)}
               </p>
             ) : (
               <p
                 className="text-base sm:text-[17px] text-[#4A4A4A]/50"
                 style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
               >
-                Sem bio ainda. Conte um pouco sobre você…
+                Sem descrição curta ainda…
               </p>
             )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value.slice(0, 100))}
+                placeholder="Descrição curta sob a foto (máx. 100 caracteres)"
+                maxLength={100}
+                className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20"
+              />
+              <button
+                type="button"
+                onClick={handleSave}
+                className="shrink-0 rounded-full bg-[#1A1A1A] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#1A1A1A]/90 transition-colors"
+              >
+                Salvar
+              </button>
+            </div>
+            <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{tagline.length}/100 · descrição curta · a bio longa fica em Sobre</p>
           </div>
 
           {/* Contadores discretos */}
@@ -2421,12 +2442,12 @@ export function ProfileView() {
 
               <div className="mt-8 pt-6 border-t border-black/[0.06] max-w-2xl">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A4A4A]/70 mb-2">
-                  Editar apresentação
+                  Bio completa (aba Sobre)
                 </label>
                 <Textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value.slice(0, 500))}
-                  placeholder="Escreva uma apresentação pessoal…"
+                  placeholder="Bio completa — até 500 caracteres…"
                   rows={4}
                   maxLength={500}
                   className="rounded-xl border-black/10 bg-white/70 text-[15px] leading-relaxed resize-none focus-visible:ring-[#D96C4A]/30"

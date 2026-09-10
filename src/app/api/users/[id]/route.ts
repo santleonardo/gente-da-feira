@@ -105,7 +105,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     if (data.bio !== undefined) {
+      // Bio longa — aba Sobre (máx. 500)
       updates.bio = sanitizePlainText(String(data.bio)).slice(0, 500);
+    }
+
+    if (data.tagline !== undefined) {
+      // Descrição curta sob a foto de perfil (máx. 100)
+      const tg = sanitizePlainText(String(data.tagline || "")).slice(0, 100);
+      updates.tagline = tg || null;
     }
 
     if (data.headline !== undefined) {

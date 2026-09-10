@@ -768,12 +768,12 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   )}
                 </p>
 
-                {userData.bio && !isRestricted && (
+                {userData.tagline && !isRestricted && (
                   <p
                     className="mt-3 text-[15px] leading-relaxed text-[#4A4A4A] max-w-sm mx-auto"
                     style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
                   >
-                    {parseInlineContent(userData.bio, openUserProfileById)}
+                    {parseInlineContent(userData.tagline, openUserProfileById)}
                   </p>
                 )}
 
@@ -931,13 +931,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </p>
                 </div>
 
-                {/* Bio – serif clássica neutra */}
-                {userData.bio && !isRestricted && (
+                {/* Tagline – descrição curta sob a foto */}
+                {userData.tagline && !isRestricted && (
                   <p
                     className="mt-4 text-base sm:text-[17px] leading-relaxed text-[#4A4A4A] max-w-xl"
                     style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
                   >
-                    {parseInlineContent(userData.bio, openUserProfileById)}
+                    {parseInlineContent(userData.tagline, openUserProfileById)}
                   </p>
                 )}
 

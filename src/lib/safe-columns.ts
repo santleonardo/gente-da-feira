@@ -18,6 +18,7 @@ export const PROFILE_SAFE_COLUMNS = [
   "display_name",
   "avatar_url",
   "bio",
+  "tagline",
   "headline",
   "neighborhood",
   "theme",

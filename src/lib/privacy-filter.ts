@@ -90,10 +90,12 @@ export function filterProfileView(
   // Bio: visible to owner and followers (even if private profile)
   if (ctx.isOwnProfile || !isRestricted) {
     filteredProfile.bio = profile.bio || null;
+    filteredProfile.tagline = profile.tagline || null;
     // Profissão / adjetivo na faixa "Sobre Nome · …"
     filteredProfile.headline = profile.headline || null;
   } else {
     filteredProfile.bio = null;
+    filteredProfile.tagline = null;
     filteredProfile.headline = null;
   }
 

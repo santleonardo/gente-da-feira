@@ -20,7 +20,7 @@ const TermsDialog = dynamic(
   () => import("@/components/TermsDialog").then((m) => ({ default: m.TermsDialog }))
 );
 
-const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,headline,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at";
+const PROFILE_SAFE_SELECT = "id,username,display_name,avatar_url,bio,tagline,headline,neighborhood,theme,is_private,hide_following,hide_followers,hide_neighborhood,approve_followers,created_at,updated_at";
 
 const SIGNUP_DISABLED = ["1", "true", "yes", "on"].includes(
   (process.env.NEXT_PUBLIC_KILL_SWITCH_SIGNUP || "").trim().toLowerCase()
