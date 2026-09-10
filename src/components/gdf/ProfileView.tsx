@@ -2303,6 +2303,7 @@ export function ProfileView() {
                 photos={heroPhotos}
                 includeAvatar={false}
                 framed
+                frameColor={nameBand.bg}
                 editable
                 uploading={uploading}
                 onAddPhoto={() => albumInputRef.current?.click()}

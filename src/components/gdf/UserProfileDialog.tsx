@@ -1191,6 +1191,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             photos={heroPhotos}
                             includeAvatar={false}
                             framed
+                            frameColor={nameBand.bg}
                             className="aspect-[4/5] w-full max-h-[min(70vh,480px)]"
                           />
                         </div>

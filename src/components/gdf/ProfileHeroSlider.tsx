@@ -21,6 +21,8 @@ interface ProfileHeroSliderProps {
   includeAvatar?: boolean;
   /** Borda decorativa mais marcante (aba Sobre). */
   framed?: boolean;
+  /** Cor da moldura (mesma da faixa / foto de perfil). */
+  frameColor?: string;
   /** Abre o seletor para ADICIONAR foto ao álbum. */
   onAddPhoto?: () => void;
   /** @deprecated use onAddPhoto — mantido só para compat transitória */
@@ -38,6 +40,7 @@ export function ProfileHeroSlider({
   uploading,
   includeAvatar = false,
   framed = false,
+  frameColor = "#1A1A1A",
   onAddPhoto,
   onEditAvatar,
   onSetAsProfilePhoto,
@@ -67,14 +70,22 @@ export function ProfileHeroSlider({
   const openPicker = onAddPhoto ?? onEditAvatar;
 
   const frameClass = framed
-    ? "rounded-2xl border-[3px] border-[#1A1A1A]/90 shadow-[0_8px_28px_rgba(26,26,26,0.12),0_0_0_6px_rgba(249,248,246,1),0_0_0_7px_rgba(26,26,26,0.08)]"
+    ? "rounded-2xl border-[3px] shadow-[0_8px_28px_rgba(26,26,26,0.12),0_0_0_6px_rgba(249,248,246,1)] transition-[border-color,box-shadow] duration-300"
     : "rounded-xl";
+
+  const frameStyle = framed
+    ? {
+        borderColor: frameColor,
+        boxShadow: `0 8px 28px rgba(26,26,26,0.12), 0 0 0 6px #F9F8F6, 0 0 0 7px ${frameColor}`,
+      }
+    : undefined;
 
   if (slides.length === 0) {
     return (
       <div className="shrink-0 inline-flex flex-col items-center w-full">
         <div
           className={`relative overflow-hidden bg-gradient-to-br from-[#0A4D5C]/10 to-[#D96C4A]/10 ${frameClass} ${className || ""}`}
+          style={frameStyle}
         >
           <div className="absolute inset-0 flex items-center justify-center">
             <UserAvatar user={user} className="h-24 w-24 sm:h-28 sm:w-28 opacity-80" />
@@ -113,6 +124,7 @@ export function ProfileHeroSlider({
     <div className="shrink-0 inline-flex flex-col items-center w-full">
       <div
         className={`relative ${current?.url ? "cursor-pointer" : ""} ${frameClass} ${className || ""}`}
+        style={frameStyle}
         onClick={() => {
           if (current?.url) setViewerOpen(true);
         }}
