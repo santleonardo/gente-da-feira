@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
@@ -504,6 +504,8 @@ export function ProfileView() {
   const styleMenuRef = useRef<HTMLDivElement>(null);
   const fontMenuRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  /** HTML do composer — preservado ao desmontar a aba Escrever */
+  const editorHtmlRef = useRef<string>("");
   const [editorExpanded, setEditorExpanded] = useState(false);
   const [textContent, setTextContent] = useState("");
   const [riskWarning, setRiskWarning] = useState<RiskAssessment | null>(null);
@@ -1091,7 +1093,25 @@ export function ProfileView() {
   };
 
   // ═══════ Profile handlers ═══════
-  const nameBand = resolveNameBandTheme(profile?.theme);
+  const nameBand = useMemo(() => resolveNameBandTheme(profile?.theme), [profile?.theme]);
+
+  // Preserva o rascunho do editor ao sair da aba Escrever (unmount)
+  useEffect(() => {
+    if (activeTab !== "postar" && editorRef.current) {
+      editorHtmlRef.current = editorRef.current.innerHTML;
+    }
+  }, [activeTab]);
+
+  // Restaura rascunho ao voltar para Escrever
+  useEffect(() => {
+    if (activeTab === "postar" && editorRef.current && editorHtmlRef.current) {
+      if (!editorRef.current.innerHTML.trim()) {
+        editorRef.current.innerHTML = editorHtmlRef.current;
+        setTextContent(editorRef.current.innerText || "");
+      }
+    }
+  }, [activeTab]);
+
 
   // Indicador de salvamento por campo: "idle" | "saving" | "saved" | "error"
   type FieldSaveKey = "tagline" | "headline" | "bio";
@@ -1391,6 +1411,7 @@ export function ProfileView() {
       }
       if (data.post) {
         if (editorRef.current) editorRef.current.innerHTML = "";
+        editorHtmlRef.current = "";
         setTextContent("");
         clearMedia();
         if (postDestination === "about") {
@@ -1502,12 +1523,12 @@ export function ProfileView() {
       {/* ═══════ HERO DO PERFIL ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-            <div className="flex flex-col items-center self-start w-24 sm:w-28 max-w-24 sm:max-w-28 shrink-0 gap-3">
+          {/* Mobile: coluna centrada · Desktop: foto à esquerda + info à direita */}
+          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-5 min-w-0">
+            {/* Foto de perfil */}
             <div className="relative shrink-0">
-              {/* Moldura — mesma cor da faixa do nome */}
               <div
-                className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-xl p-[3px] shadow-[0_6px_20px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
+                className="relative h-28 w-28 sm:h-28 sm:w-28 rounded-xl p-[3px] shadow-[0_6px_20px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
                 style={{
                   backgroundColor: nameBand.bg,
                   boxShadow: `0 6px 20px rgba(26,26,26,0.12), 0 0 0 1px ${nameBand.bg}33`,
@@ -1517,7 +1538,7 @@ export function ProfileView() {
                   <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
                     <UserAvatar
                       user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                      className="h-full w-full rounded-lg"
+                      className="h-full w-full rounded-lg text-2xl"
                     />
                   </div>
                 </div>
@@ -1528,7 +1549,7 @@ export function ProfileView() {
                 disabled={uploading}
                 title="Alterar foto de perfil"
                 aria-label="Alterar foto de perfil"
-                className="absolute -bottom-1 -right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+                className="absolute -bottom-1 -right-1 z-10 flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
               >
                 {uploading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1552,49 +1573,10 @@ export function ProfileView() {
               />
             </div>
 
-            {/* Descrição curta + contadores — minimalista, largura da foto */}
-            <div className="w-full flex flex-col items-center gap-2 text-center">
-              <p
-                className="text-[11px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3"
-                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-              >
-                {(profile?.tagline || tagline)?.trim()
-                  ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
-                  : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
-              </p>
-              <div className="w-full grid grid-cols-3 divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-[#F9F8F6]/90 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("posts")}
-                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
-                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openFollowDialog("following")}
-                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
-                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openFollowDialog("followers")}
-                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
-                >
-                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
-                  <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
-                </button>
-              </div>
-            </div>
-            </div>
-
-            <div className="flex-1 min-w-0 pb-1">
-              {/* Faixa do nome — cor escolhida pelo usuário (profiles.theme) */}
+            {/* Nome + handle + bairro */}
+            <div className="flex-1 w-full min-w-0 flex flex-col items-center sm:items-start text-center sm:text-left pb-1">
               <div
-                className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="flex w-full max-w-xl items-center justify-center sm:justify-start gap-2 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: nameBand.bg }}
               >
                 <span
@@ -1603,7 +1585,7 @@ export function ProfileView() {
                   aria-hidden
                 />
                 <h1
-                  className="font-serif text-xl sm:text-2xl md:text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
+                  className="font-serif text-xl sm:text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
                   style={{ color: nameBand.text }}
                 >
                   {profile?.display_name}
@@ -1618,8 +1600,7 @@ export function ProfileView() {
                 />
               </div>
 
-              {/* Seletor de cor da faixa (7 opções) */}
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Cor da faixa do nome">
+              <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5" role="group" aria-label="Cor da faixa do nome">
                 {NAME_BAND_THEMES.map((t) => {
                   const selected = nameBand.id === t.id;
                   return (
@@ -1640,8 +1621,7 @@ export function ProfileView() {
                 <span className="ml-1 text-[10px] text-[#4A4A4A]/55">Cor da faixa</span>
               </div>
 
-              {/* Handle + bairro — chips integrados */}
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
                 <span className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-2.5 py-0.5 text-xs font-medium text-[#3A3A3A] shadow-sm">
                   @{profile?.username}
                 </span>
@@ -1652,25 +1632,72 @@ export function ProfileView() {
                   </span>
                 )}
               </div>
+
+              {/* Tagline no desktop (ao lado da foto) */}
+              <p
+                className="hidden sm:block mt-3 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3 max-w-xl"
+                style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+              >
+                {(profile?.tagline || tagline)?.trim()
+                  ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
+                  : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
+              </p>
             </div>
           </div>
 
+          {/* Tagline mobile — largura total, abaixo da foto */}
+          <p
+            className="sm:hidden mt-4 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-4 text-center px-1"
+            style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+          >
+            {(profile?.tagline || tagline)?.trim()
+              ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
+              : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
+          </p>
+
+          {/* Contadores — sempre largura total, lado a lado */}
+          <div className="mt-4 w-full flex divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-white/70 overflow-hidden shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab("posts")}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 min-w-0 transition-colors hover:bg-black/[0.03]"
+            >
+              <span className="text-sm sm:text-base font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openFollowDialog("following")}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 min-w-0 transition-colors hover:bg-black/[0.03]"
+            >
+              <span className="text-sm sm:text-base font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openFollowDialog("followers")}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 min-w-0 transition-colors hover:bg-black/[0.03]"
+            >
+              <span className="text-sm sm:text-base font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
+            </button>
+          </div>
+
           {/* Editar descrição curta */}
-          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
+          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 w-full">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+              <Input
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value.slice(0, 100))}
-                placeholder="Descrição curta sob a foto (máx. 100 caracteres)"
+                placeholder="Descrição curta (até 100 caracteres)"
                 maxLength={100}
-                className="min-w-0 flex-1 rounded-xl border border-black/10 bg-white/70 px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#4A4A4A]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20"
+                className="flex-1 min-w-0 h-10 rounded-xl border-black/10 bg-white/80 text-sm"
               />
               <button
                 type="button"
                 onClick={() => handleSave("tagline")}
                 disabled={fieldSaveStatus.tagline === "saving"}
-                className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
+                className={`shrink-0 inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 sm:py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
                   fieldSaveStatus.tagline === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
                 }`}
               >
@@ -1690,18 +1717,18 @@ export function ProfileView() {
           </div>
 
           {/* Ações rápidas */}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <button
               type="button"
               onClick={() => setActiveTab("config")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
             >
               Configurações
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sair da conta
@@ -1712,8 +1739,8 @@ export function ProfileView() {
       </section>
 
       {/* ═══════ NAVEGAÇÃO EDITORIAL — faixa no título da aba ativa ═══════ */}
-      <nav className="sticky top-0 z-20 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-black/[0.06] w-full max-w-full overflow-x-hidden">
-        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain custom-scrollbar px-1 sm:px-0 py-2 scrollbar-none" style={{WebkitOverflowScrolling: "touch"}}>
+      <nav className="sticky top-0 z-20 bg-[#F9F8F6]/97 sm:bg-[#F9F8F6]/95 sm:backdrop-blur-md border-b border-black/[0.06] w-full max-w-full overflow-x-hidden -mx-0">
+        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain custom-scrollbar px-1 sm:px-0 py-2 scrollbar-none touch-pan-x" style={{WebkitOverflowScrolling: "touch"}}>
           {[
             { id: "posts" as const, label: "Entradas" },
             { id: "sobre" as const, label: "Sobre" },
@@ -1744,10 +1771,11 @@ export function ProfileView() {
       </nav>
 
       {/* ═══════ CONTEÚDO DAS ABAS ═══════ */}
-      <div className="w-full max-w-full min-w-0 px-1 sm:px-2 py-6 sm:py-8 mx-auto">
+      <div className="w-full max-w-full min-w-0 px-1 sm:px-2 py-6 sm:py-8 mx-auto pb-24 md:pb-8">
 
         {/* ─── ABA: ENTRADAS (posts estilo artigo) ─── */}
-        <div style={{ display: activeTab === "posts" ? "block" : "none" }}>
+        {activeTab === "posts" && (
+        <div>
           {myPosts.length > 0 ? (
             <div className="space-y-12">
               {myPosts.map((post: any, idx: number) => {
@@ -1760,7 +1788,7 @@ export function ProfileView() {
                 return (
                   <article
                     key={post.id}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_320px]"
                     onClick={(e) => {
                       const target = e.target as HTMLElement;
                       if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("audio") || target.closest("video")) return;
@@ -1878,9 +1906,11 @@ export function ProfileView() {
             </div>
           )}
         </div>
+        )}
 
                 {/* ─── ABA: ESCREVER (composer) ─── */}
-        <div style={{ display: activeTab === "postar" ? "block" : "none" }}>
+        {activeTab === "postar" && (
+        <div>
           <div
             className={
               editorExpanded
@@ -2498,9 +2528,11 @@ export function ProfileView() {
             </div>
           </div>
         </div>
+        )}
 
 {/* ─── ABA: SOBRE ─── */}
-        <div style={{ display: activeTab === "sobre" ? "block" : "none" }}>
+        {activeTab === "sobre" && (
+        <div>
           <article className="w-full max-w-full min-w-0 space-y-6 sm:space-y-8">
             {/* 1) Fotos em slide — primeira coisa visível */}
             <div className="w-full max-w-lg mx-auto sm:mx-0">
@@ -2769,9 +2801,11 @@ export function ProfileView() {
             </div>
           </article>
         </div>
+        )}
 
         {/* ─── ABA: SALAS ─── */}
-        <div style={{ display: activeTab === "salas" ? "block" : "none" }}>
+        {activeTab === "salas" && (
+        <div>
           {createdRoomsLoading && createdRooms.length === 0 ? (
             <div className="space-y-2 max-w-2xl">
               {[1, 2, 3].map((i) => (
@@ -2818,11 +2852,14 @@ export function ProfileView() {
             </div>
           )}
         </div>
+        )}
 
         {/* ─── ABA: CONFIG ─── */}
-        <div style={{ display: activeTab === "config" ? "block" : "none" }}>
+        {activeTab === "config" && (
+        <div>
           <SettingsView />
         </div>
+        )}
       </div>
 
       {/* ═══════ DIALOG: SEGUINDO ═══════ */}

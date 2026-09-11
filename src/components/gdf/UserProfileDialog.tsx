@@ -649,7 +649,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A]/80 text-white backdrop-blur-sm hover:bg-[#1A1A1A] transition-colors shadow-md"
+          className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A]/85 text-white hover:bg-[#1A1A1A] transition-colors shadow-md"
           aria-label="Fechar perfil"
         >
           <X className="h-5 w-5" />
@@ -667,7 +667,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-10 w-10 rounded-xl p-0 bg-[#1A1A1A]/80 text-white backdrop-blur-md ring-1 ring-inset ring-white/15 shadow-lg shadow-black/20 hover:bg-[#1A1A1A] hover:ring-white/25 active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:ring-[#D96C4A]/60"
+                  className="h-10 w-10 rounded-xl p-0 bg-[#1A1A1A]/85 text-white ring-1 ring-inset ring-white/15 shadow-lg shadow-black/20 hover:bg-[#1A1A1A] hover:ring-white/25 active:scale-95 transition-all duration-200 data-[state=open]:bg-[#1A1A1A] data-[state=open]:ring-[#D96C4A]/60"
                   aria-label="Ações do perfil"
                 >
                   <MenuIcon className="h-5 w-5" />
