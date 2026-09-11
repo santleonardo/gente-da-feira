@@ -9,18 +9,25 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Props públicas do LazyImage — mantém compatibilidade com:
+ * DMsView (wrapperClassName), FeedView (skeleton), hero (priority).
+ */
 export interface LazyImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "loading"> {
-  /** LCP / acima da dobra */
+  /** LCP / acima da dobra: eager + fetchPriority high */
   priority?: boolean;
   placeholderClassName?: string;
   /** Fade-in (desligado se priority) */
   fadeIn?: boolean;
-  /**
-   * Classe do wrapper em volta da img (ex.: DMsView).
-   * Compatível com o uso: wrapperClassName="max-w-full block"
-   */
+  /** Wrapper em volta da img (ex.: DMsView) */
   wrapperClassName?: string;
+  /**
+   * Quando true, mostra placeholder animado até a imagem carregar.
+   * FeedView usa `skeleton={false}` para desligar.
+   * Default: true (exceto se priority).
+   */
+  skeleton?: boolean;
 }
 
 export function LazyImage({
@@ -31,6 +38,7 @@ export function LazyImage({
   placeholderClassName,
   fadeIn = true,
   wrapperClassName,
+  skeleton,
   onLoad,
   onError,
   width,
@@ -38,6 +46,7 @@ export function LazyImage({
   sizes,
   ...rest
 }: LazyImageProps): ReactElement {
+  const showSkeleton = skeleton ?? (!priority && true);
   const useFade = fadeIn && !priority;
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -48,11 +57,13 @@ export function LazyImage({
     if (el?.complete && el.naturalWidth > 0) setLoaded(true);
   }, [src]);
 
+  // Sem src ou erro → placeholder
   if (!src || error) {
     const placeholder = (
       <div
         className={cn(
           "bg-black/[0.04] flex items-center justify-center",
+          showSkeleton && "animate-pulse",
           className,
           placeholderClassName
         )}
@@ -100,11 +111,26 @@ export function LazyImage({
     />
   );
 
-  if (wrapperClassName) {
-    return <span className={wrapperClassName}>{img}</span>;
-  }
+  // Skeleton atrás da imagem até carregar
+  const content =
+    showSkeleton && !loaded ? (
+      <span className={cn("relative inline-block", wrapperClassName)}>
+        <span
+          className={cn(
+            "absolute inset-0 bg-black/[0.04] animate-pulse rounded-[inherit]",
+            placeholderClassName
+          )}
+          aria-hidden
+        />
+        {img}
+      </span>
+    ) : wrapperClassName ? (
+      <span className={wrapperClassName}>{img}</span>
+    ) : (
+      img
+    );
 
-  return img;
+  return content as ReactElement;
 }
 
 /** Preload da imagem LCP (hero/avatar). */
