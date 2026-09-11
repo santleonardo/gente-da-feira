@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag, ChevronRight } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
+import { ProfileEditorialStyles } from "./ProfileEditorialStyles";
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
 import { resolveNameBandTheme } from "@/lib/name-band-theme";
@@ -720,28 +721,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             </DropdownMenu>
           </div>
         )}
+        <ProfileEditorialStyles />
 
-        <style>{`
-          .upd-blog {
-            font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-            --paper: #F9F8F6;
-            --ink: #1A1A1A;
-            --ink-light: #4A4A4A;
-            --accent: #D96C4A;
-            contain: layout style;
-          }
-          .upd-blog .font-serif {
-            font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-          }
-          .upd-blog .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
-          .upd-blog .post-content a:hover { color: #D96C4A; }
-          .upd-post-card {
-            content-visibility: auto;
-            contain-intrinsic-size: 280px;
-          }
-        `}</style>
-
-        {loading ? (
+{loading ? (
           <div className="upd-blog h-[100dvh] p-8 pt-16 space-y-5 overflow-y-auto">
             <div className="flex items-end gap-4">
               <div className="h-20 w-20 rounded-full bg-black/5 animate-pulse" />
@@ -849,7 +831,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Mobile: hero estilo "blog pessoal" ---- */}
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
                 {/* Foto + faixa do nome na mesma largura */}
-                <div className="mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px]">
+                <div className="upd-hero-photo">
                   {/* Faixa colorida — largura total da foto */}
                   <div
                     className="flex w-full items-center justify-center gap-2 rounded-t-2xl px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -923,7 +905,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                     </p>
                   )}
                   <div
-                    className="flex w-full divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden"
+                    className="profile-stats-row divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90"
                   >
                     <button
                       type="button"
@@ -1075,7 +1057,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       </p>
                     )}
                     <div
-                      className={`flex w-full divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${userData.tagline ? "mt-3" : ""}`}
+                      className={`profile-stats-row divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 ${userData.tagline ? "mt-3" : ""}`}
                     >
                       <button
                         type="button"

@@ -70,6 +70,7 @@ const SettingsView = dynamic(
   { ssr: false, loading: () => <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" /> }
 );
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
+import { ProfileEditorialStyles } from "./ProfileEditorialStyles";
 import {
   NAME_BAND_THEMES,
   resolveNameBandTheme,
@@ -1473,54 +1474,9 @@ export function ProfileView() {
 
   return (
     <div className="profile-blog w-full max-w-full min-w-0 overflow-x-hidden space-y-0 bg-[#F9F8F6]">
-      {/* Global styles for rendered post content + editor + blog typography */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
-        
-        .profile-blog {
-          --paper: #F9F8F6;
-          --ink: #1A1A1A;
-          --ink-light: #4A4A4A;
-          --accent: #D96C4A;
-          font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-        }
-        .profile-blog .font-serif {
-          font-family: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        }
-        
-        .editor-content h1, .post-content h1 {
-          font-family: "Playfair Display", ui-serif, Georgia, serif;
-          font-size: 1.65rem; font-weight: 500; line-height: 1.25; margin: 0.5em 0 0.25em; letter-spacing: -0.02em;
-        }
-        .editor-content h2, .post-content h2 {
-          font-family: "Playfair Display", ui-serif, Georgia, serif;
-          font-size: 1.3rem; font-weight: 500; line-height: 1.3; margin: 0.4em 0 0.2em;
-        }
-        .editor-content h3, .post-content h3 { font-size: 1.05rem; font-weight: 600; line-height: 1.3; margin: 0.3em 0 0.15em; }
-        .editor-content h4, .post-content h4 { font-size: 0.95rem; font-weight: 600; line-height: 1.3; }
-        .editor-content b, .editor-content strong, .post-content b, .post-content strong { font-weight: 700; }
-        .editor-content i, .editor-content em, .post-content i, .post-content em { font-style: italic; }
-        .editor-content u, .post-content u { text-decoration: underline; text-underline-offset: 2px; }
-        .editor-content s, .editor-content strike, .post-content s, .post-content strike { text-decoration: line-through; }
-        .editor-content a, .post-content a { color: #0A4D5C; text-decoration: underline; text-underline-offset: 2px; }
-        .editor-content a:hover, .post-content a:hover { color: #D96C4A; }
-        .editor-content ul, .post-content ul { list-style: disc; padding-left: 1.5em; margin: 0.4em 0; }
-        .editor-content ol, .post-content ol { list-style: decimal; padding-left: 1.5em; margin: 0.4em 0; }
-        .editor-content li, .post-content li { margin: 0.15em 0; }
-        .editor-content blockquote, .post-content blockquote {
-          border-left: 3px solid #D96C4A; padding-left: 0.9em; margin: 0.6em 0;
-          color: #4A4A4A; font-style: italic; font-family: "Playfair Display", ui-serif, Georgia, serif;
-        }
-        .editor-content pre, .post-content pre { background: #f3f4f6; border-radius: 8px; padding: 0.5em 0.75em; margin: 0.3em 0; overflow-x: auto; font-size: 0.85em; }
-        .editor-content code, .post-content code { background: #f3f4f6; border-radius: 4px; padding: 0.1em 0.3em; font-size: 0.9em; }
-        .editor-content hr, .post-content hr { border: none; border-top: 1px solid rgba(26,26,26,0.12); margin: 0.85em 0; }
-        .editor-content div, .post-content div { margin: 0; }
-        .editor-content p, .post-content p { margin: 0.35em 0; }
-        .profile-blog img, .profile-blog video { max-width: 100%; }
-        .profile-blog pre, .profile-blog code { max-width: 100%; overflow-x: auto; }
-      `}</style>
+      <ProfileEditorialStyles />
 
-      {/* ═══════ HERO DO PERFIL ═══════ */}
+{/* ═══════ HERO DO PERFIL ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           {/* Mobile: coluna centrada · Desktop: foto à esquerda + info à direita */}
@@ -1656,7 +1612,7 @@ export function ProfileView() {
           </p>
 
           {/* Contadores — sempre largura total, lado a lado */}
-          <div className="mt-4 w-full flex divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-white/70 overflow-hidden shadow-sm">
+          <div className="profile-stats-row mt-4 divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-white/70 shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab("posts")}
