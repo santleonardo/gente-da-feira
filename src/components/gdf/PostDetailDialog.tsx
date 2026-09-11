@@ -560,6 +560,21 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     if (post) setLocalPost({ ...post });
   }, [post]);
 
+  // Tela cheia: trava scroll do body + Escape fecha
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onOpenChange]);
+
   // Fetch comments on open
   useEffect(() => {
     if (!open || !post) return;
@@ -835,23 +850,32 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
 
   return (
     <>
-      {/* Full-screen dialog overlay */}
-      <div className="fixed inset-0 z-50 flex items-start justify-center bg-[#000305]/50 backdrop-blur-sm overflow-y-auto" onClick={() => onOpenChange(false)}>
-        <div
-          className="w-full max-w-lg mx-4 my-8 rounded-3xl bg-[#f7f9fa] shadow-2xl border border-primary/10 overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-primary/8">
-            <h3 className="text-sm font-semibold text-card-foreground">Post</h3>
-            <button onClick={() => onOpenChange(false)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
-              <X className="h-4 w-4 text-primary/60" />
+      {/* Post em tela cheia (feed, sobre, descobrir, perfil) */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Post em tela cheia"
+        className="fixed inset-0 z-50 flex flex-col bg-[#F9F8F6] text-card-foreground"
+        style={{ height: "100dvh", maxHeight: "100dvh" }}
+      >
+          {/* Header fixo */}
+          <div className="shrink-0 flex items-center justify-between gap-3 px-3 sm:px-5 py-3 border-b border-black/[0.06] bg-[#F9F8F6]/95 backdrop-blur-md pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-black/[0.05] transition-colors"
+              aria-label="Fechar post"
+            >
+              <X className="h-5 w-5 text-[#1A1A1A]/70" />
             </button>
+            <h3 className="text-sm font-semibold text-[#1A1A1A] tracking-tight">Post</h3>
+            <div className="w-10" aria-hidden />
           </div>
 
-          {/* Post content */}
-          <div className={`rounded-none ${cardBg} text-card-foreground overflow-hidden border border-primary/10`}>
-            <div className="p-4 sm:p-5">
+          {/* Conteúdo rolável */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
+          <div className={`${cardBg} text-card-foreground`}>
+            <div className="p-4 sm:p-6 max-w-2xl mx-auto w-full">
               {/* Header */}
               <div className="flex items-start gap-2.5">
                 <button onClick={() => localPost.author?.id && navigateToProfile(localPost.author.id)} className="shrink-0 group">
