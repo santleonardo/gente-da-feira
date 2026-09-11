@@ -982,145 +982,145 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
                     </div>
                   )}
 
-                  {/* Media */}
-                  {/* Media — full width for non-text-only */}
-                  {!isTextOnly && (hasPhotos || hasVideo || hasAudio) ? (
-                    <div className="-mx-3 sm:-mx-4 mt-1.5">
-                      {hasPhotos && <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />}
-                      {hasVideo && <VideoPlayer src={localPost.video_url!} />}
-                      {hasAudio && <AudioPlayer src={localPost.audio_url!} />}
-                    </div>
-                  ) : (
-                    <>
-                      {hasPhotos && <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />}
-                      {hasVideo && <VideoPlayer src={localPost.video_url!} />}
-                      {hasAudio && <AudioPlayer src={localPost.audio_url!} />}
-                    </>
-                  )}
-
-                  {/* Caption — text below media for media posts */}
-                  {!isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
-                    <div className="px-1 sm:px-1.5 mt-2">
-                      <FormattedContent
-                        className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
-                        content={localPost.content}
-                        openUserProfile={navigateToProfile}
-                        isMine={isOwnPost}
-                        linkClassName={linkClass}
-                        style={{
-                          fontFamily:  hasPostStyle && localPost.post_style!.font      ? `'${localPost.post_style!.font}', sans-serif` : undefined,
-                          fontWeight:  hasPostStyle && localPost.post_style!.bold      ? 700                                      : undefined,
-                          fontStyle:   hasPostStyle && localPost.post_style!.italic    ? "italic"                                 : undefined,
-                          textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment as any    : undefined,
-                          color: "var(--card-foreground)",
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Expiration */}
-                  {localPost.expires_at && expirationLabel && (
-                    <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold text-card-foreground bg-[#f7f75e] rounded-full px-2.5 py-1 w-fit">
-                      <Clock className="h-3 w-3" />
-                      <span>{expirationLabel}</span>
-                    </div>
-                  )}
-
-                  {/* Action bar */}
-                  <div className="mt-2 flex items-center gap-0.5">
-                    {/* Reactions */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowReactions(!showReactions)}
-                        className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-primary bg-primary/10 font-medium" : "text-primary/40 hover:bg-primary/[0.04] hover:text-primary"}`}
-                      >
-                        <Heart className="h-4 w-4" />
-                        {localPost.reactions?.length > 0 && <span>{localPost.reactions.length}</span>}
-                      </button>
-                      {showReactions && (
-                        <div className="absolute bottom-full left-0 mb-1.5 flex gap-0.5 rounded-2xl bg-[#f7f9fa] p-1.5 shadow-lg border border-primary/10 z-20">
-                          {REACTION_EMOJIS.map(({ type, emoji, label }) => {
-                            const isActive = localPost.reactions?.some((r) => r.user_id === profile?.id && r.type === type);
-                            return (
-                              <button
-                                key={type}
-                                onClick={() => handleReaction(type)}
-                                className={`rounded-xl p-1.5 text-lg transition-all hover:scale-125 ${isActive ? "bg-primary/10 ring-1 ring-[#0A4D5C]" : ""}`}
-                                title={label}
-                              >
-                                {emoji}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Reaction summary pills */}
-                    {reactionGroups.length > 0 && (
-                      <div className="flex gap-0.5 ml-0.5">
-                        {reactionGroups.slice(0, 3).map((g, i) => (
-                          <span key={i} className="inline-flex items-center gap-0.5 rounded-full bg-primary/[0.06] px-1.5 py-0.5 text-[10px]">
-                            {g.emoji} {g.count}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Comments */}
-                    <button
-                      onClick={() => commentInputRef.current?.focus()}
-                      className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary bg-primary/10 font-medium"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      {commentCount > 0 && <span>{commentCount}</span>}
-                    </button>
-
-                    {/* Share */}
-                    <div className="relative" ref={shareRef}>
-                      <button
-                        onClick={() => setShareMenuOpen(!shareMenuOpen)}
-                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/40 hover:bg-primary/[0.04] hover:text-primary transition-colors"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </button>
-                      {shareMenuOpen && (
-                        <ShareMenu post={localPost} onClose={() => setShareMenuOpen(false)} onRepost={(p) => { setRepostingPost(p); setRepostContent(""); }} />
-                      )}
-                    </div>
-
-                    {/* Edit (own posts) */}
-                    {isOwnPost && !isEditing && (
-                      <button
-                        onClick={handleEdit}
-                        className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-primary hover:bg-primary/[0.04] transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-
-                    {/* Delete (own posts) */}
-                    {isOwnPost && (
-                      <button
-                        onClick={handleDelete}
-                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-
-                    {/* Denunciar (posts de outros usuários) */}
-                    {!isOwnPost && (
-                      <button
-                        onClick={() => useStore.getState().openReportDialog({ targetType: "post", targetId: localPost.id })}
-                        title="Denunciar post"
-                        className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Flag className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
                 </div>
+              </div>
+
+              {/* Media — full-bleed, rendered as a sibling of the avatar row so it
+                  breaks out of the container's own p-4 sm:p-6 padding (matches
+                  FeedView.tsx). Previously this lived inside the "flex-1 min-w-0"
+                  column next to the avatar, so the negative margin only canceled
+                  that narrower column's box instead of the outer padding — the
+                  photo/video ended up shifted right and clipped on the left on
+                  mobile, i.e. "desalinhado". */}
+              {(hasPhotos || hasVideo || hasAudio) && (
+                <div className="-mx-4 sm:-mx-6 mt-1.5">
+                  {hasPhotos && <PhotoGrid photos={localPost.image_urls!} onPhotoClick={(index) => openPhotoViewer(localPost.image_urls || [], index)} />}
+                  {hasVideo && <VideoPlayer src={localPost.video_url!} />}
+                  {hasAudio && <AudioPlayer src={localPost.audio_url!} />}
+                </div>
+              )}
+
+              {/* Caption — text below media for media posts */}
+              {!isTextOnly && localPost.content && localPost.content.trim() && !isMediaPlaceholder(localPost.content) && (
+                <div className="px-1 sm:px-1.5 mt-2">
+                  <FormattedContent
+                    className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-card-foreground"
+                    content={localPost.content}
+                    openUserProfile={navigateToProfile}
+                    isMine={isOwnPost}
+                    linkClassName={linkClass}
+                    style={{
+                      fontFamily:  hasPostStyle && localPost.post_style!.font      ? `'${localPost.post_style!.font}', sans-serif` : undefined,
+                      fontWeight:  hasPostStyle && localPost.post_style!.bold      ? 700                                      : undefined,
+                      fontStyle:   hasPostStyle && localPost.post_style!.italic    ? "italic"                                 : undefined,
+                      textAlign:   hasPostStyle && localPost.post_style!.alignment ? localPost.post_style!.alignment as any    : undefined,
+                      color: "var(--card-foreground)",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Expiration */}
+              {localPost.expires_at && expirationLabel && (
+                <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold text-card-foreground bg-[#f7f75e] rounded-full px-2.5 py-1 w-fit">
+                  <Clock className="h-3 w-3" />
+                  <span>{expirationLabel}</span>
+                </div>
+              )}
+
+              {/* Action bar */}
+              <div className="mt-2 flex items-center gap-0.5">
+                {/* Reactions */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowReactions(!showReactions)}
+                    className={`flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-colors ${localPost.reactions?.some((r) => r.user_id === profile?.id) ? "text-primary bg-primary/10 font-medium" : "text-primary/40 hover:bg-primary/[0.04] hover:text-primary"}`}
+                  >
+                    <Heart className="h-4 w-4" />
+                    {localPost.reactions?.length > 0 && <span>{localPost.reactions.length}</span>}
+                  </button>
+                  {showReactions && (
+                    <div className="absolute bottom-full left-0 mb-1.5 flex gap-0.5 rounded-2xl bg-[#f7f9fa] p-1.5 shadow-lg border border-primary/10 z-20">
+                      {REACTION_EMOJIS.map(({ type, emoji, label }) => {
+                        const isActive = localPost.reactions?.some((r) => r.user_id === profile?.id && r.type === type);
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => handleReaction(type)}
+                            className={`rounded-xl p-1.5 text-lg transition-all hover:scale-125 ${isActive ? "bg-primary/10 ring-1 ring-[#0A4D5C]" : ""}`}
+                            title={label}
+                          >
+                            {emoji}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Reaction summary pills */}
+                {reactionGroups.length > 0 && (
+                  <div className="flex gap-0.5 ml-0.5">
+                    {reactionGroups.slice(0, 3).map((g, i) => (
+                      <span key={i} className="inline-flex items-center gap-0.5 rounded-full bg-primary/[0.06] px-1.5 py-0.5 text-[10px]">
+                        {g.emoji} {g.count}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Comments */}
+                <button
+                  onClick={() => commentInputRef.current?.focus()}
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary bg-primary/10 font-medium"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {commentCount > 0 && <span>{commentCount}</span>}
+                </button>
+
+                {/* Share */}
+                <div className="relative" ref={shareRef}>
+                  <button
+                    onClick={() => setShareMenuOpen(!shareMenuOpen)}
+                    className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/40 hover:bg-primary/[0.04] hover:text-primary transition-colors"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                  {shareMenuOpen && (
+                    <ShareMenu post={localPost} onClose={() => setShareMenuOpen(false)} onRepost={(p) => { setRepostingPost(p); setRepostContent(""); }} />
+                  )}
+                </div>
+
+                {/* Edit (own posts) */}
+                {isOwnPost && !isEditing && (
+                  <button
+                    onClick={handleEdit}
+                    className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-primary hover:bg-primary/[0.04] transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {/* Delete (own posts) */}
+                {isOwnPost && (
+                  <button
+                    onClick={handleDelete}
+                    className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {/* Denunciar (posts de outros usuários) */}
+                {!isOwnPost && (
+                  <button
+                    onClick={() => useStore.getState().openReportDialog({ targetType: "post", targetId: localPost.id })}
+                    title="Denunciar post"
+                    className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-primary/25 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <Flag className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Comments section - always expanded in detail view */}
