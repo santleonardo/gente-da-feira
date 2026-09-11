@@ -1215,6 +1215,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                     src={postPhotos[0]}
                                     alt=""
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                                    sizes="(max-width: 640px) 100vw, 560px"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       openPhotoViewer(postPhotos, 0);

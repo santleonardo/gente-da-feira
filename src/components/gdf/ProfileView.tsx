@@ -1769,6 +1769,7 @@ export function ProfileView() {
                           src={post.image_urls[0]}
                           alt=""
                           className="w-full h-full max-w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                          sizes="(max-width: 640px) 100vw, 672px"
                         />
                       </div>
                     )}
@@ -2384,7 +2385,7 @@ export function ProfileView() {
                 <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory">
                   {previewUrls.map((url, i) => (
                     <div key={url} className="relative shrink-0 snap-start">
-                      <LazyImage src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" priority />
+                      <LazyImage src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" fadeIn={false} />
                       <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">{i + 1}</span>
                       <button
                         type="button"

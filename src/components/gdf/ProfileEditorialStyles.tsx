@@ -32,7 +32,7 @@ const CSS = `
 .profile-blog img,.profile-blog video,.upd-blog img,.upd-blog video{max-width:100%;height:auto}
 .profile-blog pre,.profile-blog code{max-width:100%;overflow-x:auto}
 .upd-post-card,.profile-blog article.group{content-visibility:auto;contain-intrinsic-size:auto 280px}
-.upd-hero-photo{width:min(90vw,calc(100vw - 2.5rem));max-width:440px;margin-left:auto;margin-right:auto}
+.upd-hero-photo{width:min(90vw,calc(100vw - 2.5rem));max-width:440px;margin-left:auto;margin-right:auto}.upd-hero-photo .aspect-square{aspect-ratio:1/1}
 .profile-stats-row{display:flex;width:100%;min-width:0;overflow:hidden}
 .profile-stats-row>*{flex:1 1 0;min-width:0}
 @media (max-width:639px){.profile-blog .editor-content,.profile-blog .post-content{font-size:.95rem;line-height:1.55}}
