@@ -1383,7 +1383,12 @@ export function ProfileView() {
           postType: postDestination === "about" ? "about" : "simple",
         }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
       if (data.post) {
         if (editorRef.current) editorRef.current.innerHTML = "";
         setTextContent("");
@@ -1399,6 +1404,8 @@ export function ProfileView() {
         }
       } else if (data.error) {
         toast.error(data.error);
+      } else if (!res.ok) {
+        toast.error(`Não foi possível publicar (${res.status}). Tente de novo.`);
       }
     } catch { toast.error("Erro ao publicar"); }
     setPublishing(false);
