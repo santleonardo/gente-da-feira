@@ -467,6 +467,9 @@ export function ProfileView() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [aboutPosts, setAboutPosts] = useState<any[]>([]);
   const [aboutPostsLoading, setAboutPostsLoading] = useState(false);
+  const [aboutPostsLoadingMore, setAboutPostsLoadingMore] = useState(false);
+  const [aboutPostsHasMore, setAboutPostsHasMore] = useState(false);
+  const [aboutPostsCursor, setAboutPostsCursor] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const albumInputRef = useRef<HTMLInputElement>(null);
   // Fotos do álbum (slide na aba Sobre — foto de perfil no hero é estática)
@@ -833,16 +836,40 @@ export function ProfileView() {
       .catch(() => {});
   };
 
-  const fetchAboutPosts = () => {
+  const fetchAboutPosts = (opts?: { append?: boolean; cursor?: string | null }) => {
     if (!profile) return;
-    setAboutPostsLoading(true);
-    fetch(`/api/users/${profile.id}/posts?postType=about`)
+    const append = !!opts?.append;
+    const cursor = opts?.cursor ?? null;
+    if (append) setAboutPostsLoadingMore(true);
+    else setAboutPostsLoading(true);
+
+    const qs = new URLSearchParams({ postType: "about", limit: "8" });
+    if (cursor) qs.set("cursor", cursor);
+
+    fetch(`/api/users/${profile.id}/posts?${qs.toString()}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.posts) setAboutPosts(data.posts);
+        const list = Array.isArray(data.posts) ? data.posts : [];
+        setAboutPosts((prev) => (append ? [...prev, ...list] : list));
+        setAboutPostsCursor(data.nextCursor ?? null);
+        setAboutPostsHasMore(!!data.hasMore && !!data.nextCursor);
       })
-      .catch(() => {})
-      .finally(() => setAboutPostsLoading(false));
+      .catch(() => {
+        if (!append) {
+          setAboutPosts([]);
+          setAboutPostsCursor(null);
+          setAboutPostsHasMore(false);
+        }
+      })
+      .finally(() => {
+        if (append) setAboutPostsLoadingMore(false);
+        else setAboutPostsLoading(false);
+      });
+  };
+
+  const loadMoreAboutPosts = () => {
+    if (!aboutPostsHasMore || aboutPostsLoadingMore || !aboutPostsCursor) return;
+    fetchAboutPosts({ append: true, cursor: aboutPostsCursor });
   };
 
   // Abre uma sala listada em "Salas criadas" (mesmo objeto de /api/rooms,
@@ -2656,8 +2683,7 @@ export function ProfileView() {
                     {aboutPosts.map((post: any) => {
                       const title = getPostTitle(post);
                       const lines = htmlToLines(post.content || "");
-                      const excerpt = lines.split("
-").slice(1).join(" ").trim().slice(0, 160);
+                      const excerpt = lines.split("\n").slice(1).join(" ").trim().slice(0, 160);
                       return (
                         <li key={post.id}>
                           <button
@@ -2705,6 +2731,25 @@ export function ProfileView() {
                       );
                     })}
                   </ul>
+                )}
+                {aboutPostsHasMore && (
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={loadMoreAboutPosts}
+                      disabled={aboutPostsLoadingMore}
+                      className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium text-[#4A4A4A] hover:bg-black/[0.03] transition-colors disabled:opacity-60"
+                    >
+                      {aboutPostsLoadingMore ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Carregando…
+                        </>
+                      ) : (
+                        "Carregar mais notas"
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
 

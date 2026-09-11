@@ -235,6 +235,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
   const [aboutPosts, setAboutPosts] = useState<any[]>([]);
   const [aboutPostsLoading, setAboutPostsLoading] = useState(false);
+  const [aboutPostsLoadingMore, setAboutPostsLoadingMore] = useState(false);
+  const [aboutPostsHasMore, setAboutPostsHasMore] = useState(false);
+  const [aboutPostsCursor, setAboutPostsCursor] = useState<string | null>(null);
   const createdRoomsUserIdRef = useRef<string | null>(null);
 
   // Photo viewer state
@@ -290,6 +293,8 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setPostsVisibleCount(8);
     setUserPosts([]);
     setAboutPosts([]);
+    setAboutPostsCursor(null);
+    setAboutPostsHasMore(false);
     setHeroPhotos([]);
     setFollowList([]);
     setViewerOpen(false);
@@ -351,10 +356,14 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         const postsData = await postsRes.json();
         if (!cancelled && postsData.posts) setUserPosts(postsData.posts);
 
-        const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about`, { signal });
+        const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about&limit=8`, { signal });
         if (cancelled) return;
         const aboutData = await aboutRes.json();
-        if (!cancelled && aboutData.posts) setAboutPosts(aboutData.posts);
+        if (!cancelled) {
+          if (aboutData.posts) setAboutPosts(aboutData.posts);
+          setAboutPostsCursor(aboutData.nextCursor ?? null);
+          setAboutPostsHasMore(!!aboutData.hasMore && !!aboutData.nextCursor);
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") return;
       } finally {
@@ -485,9 +494,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             if (profileData.user) { setUserData(profileData.user); setPostCount(profileData.user._count?.posts || 0); }
             const postsRes = await fetch(`/api/users/${userId}/posts`);
             const postsData = await postsRes.json();
-            const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about`);
+            const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about&limit=8`);
             const aboutData = await aboutRes.json();
             if (aboutData.posts) setAboutPosts(aboutData.posts);
+            setAboutPostsCursor(aboutData.nextCursor ?? null);
+            setAboutPostsHasMore(!!aboutData.hasMore && !!aboutData.nextCursor);
             if (postsData.posts) setUserPosts(postsData.posts);
           }
         } else if (data.pending) {
@@ -542,6 +553,26 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setTimeout(() => {
       useStore.getState().setSelectedRoom(room);
     }, 200);
+  };
+
+  const loadMoreAboutPosts = () => {
+    if (!userId || !aboutPostsHasMore || aboutPostsLoadingMore || !aboutPostsCursor) return;
+    setAboutPostsLoadingMore(true);
+    const qs = new URLSearchParams({
+      postType: "about",
+      limit: "8",
+      cursor: aboutPostsCursor,
+    });
+    fetch(`/api/users/${userId}/posts?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data.posts) ? data.posts : [];
+        setAboutPosts((prev) => [...prev, ...list]);
+        setAboutPostsCursor(data.nextCursor ?? null);
+        setAboutPostsHasMore(!!data.hasMore && !!data.nextCursor);
+      })
+      .catch(() => {})
+      .finally(() => setAboutPostsLoadingMore(false));
   };
 
   const isOwnProfile = profile?.id === userId;
@@ -1412,6 +1443,25 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                                 );
                               })}
                             </ul>
+                            {aboutPostsHasMore && (
+                              <div className="mt-3 flex justify-center">
+                                <button
+                                  type="button"
+                                  onClick={loadMoreAboutPosts}
+                                  disabled={aboutPostsLoadingMore}
+                                  className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium text-[#4A4A4A] hover:bg-black/[0.03] transition-colors disabled:opacity-60"
+                                >
+                                  {aboutPostsLoadingMore ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      Carregando…
+                                    </>
+                                  ) : (
+                                    "Carregar mais notas"
+                                  )}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 
