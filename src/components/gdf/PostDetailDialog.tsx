@@ -42,11 +42,6 @@ import {
   insertMentionAtCursor,
 } from "@/lib/mention-autocomplete";
 import { sanitizeHTMLSync, sanitizeHTMLAsync } from "@/lib/sanitize";
-import {
-  requestElementFullscreen,
-  exitDocumentFullscreen,
-  isDocumentFullscreen,
-} from "@/lib/fullscreen";
 
 // ═══════════════════════════════════════════════════════════
 // HTML detection and sanitization helpers
@@ -560,7 +555,6 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
   const commentInputRef = useRef<HTMLInputElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const enteredFullscreen = useRef(false);
 
   // Sync post prop to local state
   useEffect(() => {
@@ -582,50 +576,14 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
     };
   }, [open, onOpenChange]);
 
-  // Tela cheia nativa (Fullscreen API) — mesmo comportamento do PhotoViewer,
-  // funciona em qualquer aparelho (celular, tablet, desktop).
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const el = containerRef.current;
-    if (el) {
-      requestElementFullscreen(el)
-        .then(() => {
-          if (cancelled) {
-            exitDocumentFullscreen().catch(() => {});
-            return;
-          }
-          enteredFullscreen.current = true;
-        })
-        .catch(() => {
-          // Fullscreen API pode ser indisponível/negada — o layout
-          // fixed inset-0 100dvh já cobre a tela inteira como fallback.
-        });
-    }
-    return () => {
-      cancelled = true;
-      enteredFullscreen.current = false;
-      exitDocumentFullscreen().catch(() => {});
-    };
-  }, [open]);
-
-  // Se o usuário sair da tela cheia nativa (ex.: gesto do sistema),
-  // fecha o dialog junto para não deixar estado inconsistente.
-  useEffect(() => {
-    if (!open) return;
-    const onFs = () => {
-      if (enteredFullscreen.current && !isDocumentFullscreen()) {
-        enteredFullscreen.current = false;
-        onOpenChange(false);
-      }
-    };
-    document.addEventListener("fullscreenchange", onFs);
-    document.addEventListener("webkitfullscreenchange", onFs);
-    return () => {
-      document.removeEventListener("fullscreenchange", onFs);
-      document.removeEventListener("webkitfullscreenchange", onFs);
-    };
-  }, [open, onOpenChange]);
+  // Nota: este dialog NÃO usa a Fullscreen API nativa do navegador
+  // (diferente do PhotoViewer). Ele tem header, comentários roláveis
+  // e um campo de texto que abre o teclado virtual — a Fullscreen API
+  // nesses casos causa bugs visuais em navegadores mobile (o elemento
+  // "fullscreen" pode renderizar deslocado para um canto, com o fundo
+  // do documento aparecendo nas bordas). O layout "fixed inset-0" com
+  // altura 100dvh abaixo já cobre a tela inteira de forma confiável,
+  // sem depender da API nativa.
 
   // Fetch comments on open
   useEffect(() => {
