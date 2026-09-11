@@ -3,39 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { X, User } from "lucide-react";
 import { LazyImage } from "./LazyImage";
-
-// ── Fullscreen API (fallbacks de prefixo) ──
-function requestElementFullscreen(el: HTMLElement): Promise<void> {
-  const anyEl = el as any;
-  const fn =
-    el.requestFullscreen?.bind(el) ||
-    anyEl.webkitRequestFullscreen?.bind(anyEl) ||
-    anyEl.msRequestFullscreen?.bind(anyEl);
-  return fn ? fn() : Promise.reject(new Error("Fullscreen API indisponível"));
-}
-
-function exitDocumentFullscreen(): Promise<void> {
-  const anyDoc = document as any;
-  const el =
-    document.fullscreenElement ||
-    anyDoc.webkitFullscreenElement ||
-    anyDoc.msFullscreenElement;
-  if (!el) return Promise.resolve();
-  const fn =
-    document.exitFullscreen?.bind(document) ||
-    anyDoc.webkitExitFullscreen?.bind(anyDoc) ||
-    anyDoc.msExitFullscreen?.bind(anyDoc);
-  return fn ? fn() : Promise.resolve();
-}
-
-function isDocumentFullscreen(): boolean {
-  const anyDoc = document as any;
-  return !!(
-    document.fullscreenElement ||
-    anyDoc.webkitFullscreenElement ||
-    anyDoc.msFullscreenElement
-  );
-}
+import {
+  requestElementFullscreen,
+  exitDocumentFullscreen,
+  isDocumentFullscreen,
+} from "@/lib/fullscreen";
 
 /** Botão circular translúcido (setas / fechar) */
 const iconBtn =
