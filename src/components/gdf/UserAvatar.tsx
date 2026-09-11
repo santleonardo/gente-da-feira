@@ -11,11 +11,12 @@ interface UserAvatarProps {
     avatar_url?: string | null;
   };
   className?: string;
+  /** Hero / acima da dobra — carrega com prioridade */
+  priority?: boolean;
 }
 
-export function UserAvatar({ user, className }: UserAvatarProps) {
+export function UserAvatar({ user, className, priority = false }: UserAvatarProps) {
   const src = user.avatar_url || null;
-  // Extrai tamanho de texto do className (ex.: text-3xl) para as iniciais
   const textSize =
     className
       ?.split(/\s+/)
@@ -23,7 +24,15 @@ export function UserAvatar({ user, className }: UserAvatarProps) {
 
   return (
     <Avatar className={cn("h-10 w-10", className)}>
-      {src && <AvatarImage src={src} alt={user.display_name} />}
+      {src && (
+        <AvatarImage
+          src={src}
+          alt={user.display_name}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          {...({ fetchPriority: priority ? "high" : "low" } as React.ImgHTMLAttributes<HTMLImageElement>)}
+        />
+      )}
       <AvatarFallback
         className={cn(
           getAvatarColor(user.id),

@@ -1,108 +1,82 @@
 "use client";
 
-import React, { useState, useCallback, memo } from "react";
+import { useState, useRef, useEffect, type ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-export type LazyImageProps = Omit<
-  React.ImgHTMLAttributes<HTMLImageElement>,
-  "loading" | "decoding"
-> & {
-  /** Carrega imediatamente (above-the-fold / LCP / lightbox atual) */
+export type LazyImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "loading"> & {
+  /** Acima da dobra: carrega com prioridade alta */
   priority?: boolean;
-  /** Placeholder com pulse até carregar (padrão: true) */
-  skeleton?: boolean;
-  /** Classe do wrapper quando skeleton=true */
-  wrapperClassName?: string;
+  /** Placeholder enquanto carrega (cor de fundo) */
+  placeholderClassName?: string;
+  /** Fade-in suave ao carregar */
+  fadeIn?: boolean;
 };
 
 /**
- * Imagem com lazy loading nativo + fade-in.
- * - loading="lazy" + decoding="async" por padrão
- * - priority → eager + fetchPriority high
- * - skeleton opcional enquanto baixa
+ * Imagem com lazy loading nativo + decoding async.
+ * - priority: usa loading="eager" e fetchPriority="high" (hero/avatar)
+ * - demais: loading="lazy", fetchPriority="low"
  */
-export const LazyImage = memo(function LazyImage({
+export function LazyImage({
   src,
   alt = "",
   className,
   priority = false,
-  skeleton = true,
-  wrapperClassName,
+  placeholderClassName,
+  fadeIn = true,
   onLoad,
   onError,
   ...rest
 }: LazyImageProps) {
   const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
 
-  const handleLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
+  // Se a imagem já estiver em cache, onLoad pode ter disparado antes do listener
+  useEffect(() => {
+    const el = ref.current;
+    if (el?.complete && el.naturalWidth > 0) {
       setLoaded(true);
-      onLoad?.(e);
-    },
-    [onLoad]
-  );
+    }
+  }, [src]);
 
-  const handleError = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      setFailed(true);
-      setLoaded(true);
-      onError?.(e);
-    },
-    [onError]
-  );
-
-  if (!src || failed) {
+  if (!src || error) {
     return (
-      <span
+      <div
         className={cn(
-          "inline-flex items-center justify-center bg-muted text-muted-foreground text-xs",
-          className
+          "bg-black/[0.04] flex items-center justify-center",
+          className,
+          placeholderClassName
         )}
         aria-hidden
       />
     );
   }
 
-  const img = (
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={ref}
       src={src}
       alt={alt}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
-      {...({
-        fetchPriority: priority ? "high" : "auto",
-      } as React.ImgHTMLAttributes<HTMLImageElement>)}
-      onLoad={handleLoad}
-      onError={handleError}
+      fetchPriority={priority ? "high" : "low"}
       className={cn(
-        className,
-        skeleton && "transition-opacity duration-300 ease-out",
-        skeleton && !loaded && "opacity-0",
-        skeleton && loaded && "opacity-100"
+        fadeIn && "transition-opacity duration-300",
+        fadeIn && !loaded && "opacity-0",
+        fadeIn && loaded && "opacity-100",
+        className
       )}
+      onLoad={(e) => {
+        setLoaded(true);
+        onLoad?.(e);
+      }}
+      onError={(e) => {
+        setError(true);
+        onError?.(e);
+      }}
       {...rest}
     />
   );
-
-  if (!skeleton) return img;
-
-  return (
-    <span
-      className={cn(
-        "relative block max-w-full overflow-hidden bg-black/[0.04]",
-        wrapperClassName
-      )}
-    >
-      {!loaded && (
-        <span
-          className="absolute inset-0 animate-pulse bg-black/[0.06] rounded-[inherit]"
-          aria-hidden
-        />
-      )}
-      {img}
-    </span>
-  );
-});
-
-export default LazyImage;
+}

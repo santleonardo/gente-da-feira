@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MapPin, UserPlus, UserMinus, MessageCircle, Users, Lock, Loader2, Clock, Menu as MenuIcon, Ban, ShieldBan, Play, Pause, Video, Mic, X, Repeat2, Flag, ChevronRight } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { ProfileEditorialStyles } from "./ProfileEditorialStyles";
+import { LazyImage } from "./LazyImage";
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { PhotoViewer } from "./PhotoViewer";
 import { resolveNameBandTheme } from "@/lib/name-band-theme";
@@ -752,6 +753,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <UserAvatar
                           user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
                           className="h-full w-full rounded-xl text-3xl"
+                          priority
                         />
                         <div className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/85 text-white shadow-sm">
                           <Lock className="h-3.5 w-3.5" />
@@ -868,6 +870,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <UserAvatar
                           user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
                           className="h-full w-full rounded-xl text-3xl"
+                          priority
                         />
                       </div>
                     </div>
@@ -951,6 +954,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <UserAvatar
                           user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
                           className="h-full w-full rounded-lg text-2xl"
+                          priority
                         />
                       </div>
                     </div>
@@ -1207,13 +1211,10 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                             >
                               {hasPhotos && (
                                 <div className="aspect-[16/10] overflow-hidden rounded-sm bg-black/5 mb-4">
-                                  <img
+                                  <LazyImage
                                     src={postPhotos[0]}
                                     alt=""
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-                                    loading="lazy"
-                                    decoding="async"
-                                    fetchPriority="low"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       openPhotoViewer(postPhotos, 0);

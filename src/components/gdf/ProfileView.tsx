@@ -71,6 +71,7 @@ const SettingsView = dynamic(
 );
 import { ProfileHeroSlider } from "./ProfileHeroSlider";
 import { ProfileEditorialStyles } from "./ProfileEditorialStyles";
+import { LazyImage } from "./LazyImage";
 import {
   NAME_BAND_THEMES,
   resolveNameBandTheme,
@@ -288,7 +289,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
   if (count === 1) {
     return (
       <button onClick={() => onPhotoClick?.(0)} className="mt-2.5 w-full overflow-hidden rounded-2xl shadow-lg">
-        <img src={photos[0]} alt="Foto do post" className="w-full max-h-72 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        <LazyImage src={photos[0]} alt="Foto do post" className="w-full max-h-72 object-cover hover:opacity-95 transition-opacity" />
       </button>
     );
   }
@@ -297,7 +298,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
         {photos.map((url, i) => (
           <button key={i} onClick={() => onPhotoClick?.(i)} className="overflow-hidden">
-            <img src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+            <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
           </button>
         ))}
       </div>
@@ -307,13 +308,13 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     return (
       <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
         <button onClick={() => onPhotoClick?.(0)} className="row-span-2 overflow-hidden">
-          <img src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <LazyImage src={photos[0]} alt="Foto 1" className="w-full h-full object-cover hover:opacity-95 transition-opacity" />
         </button>
         <button onClick={() => onPhotoClick?.(1)} className="overflow-hidden">
-          <img src={photos[1]} alt="Foto 2" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <LazyImage src={photos[1]} alt="Foto 2" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
         </button>
         <button onClick={() => onPhotoClick?.(2)} className="overflow-hidden">
-          <img src={photos[2]} alt="Foto 3" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <LazyImage src={photos[2]} alt="Foto 3" className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
         </button>
       </div>
     );
@@ -322,7 +323,7 @@ function PhotoGrid({ photos, onPhotoClick }: { photos: string[]; onPhotoClick?: 
     <div className="mt-2.5 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl shadow-lg">
       {photos.slice(0, 4).map((url, i) => (
         <button key={i} onClick={() => onPhotoClick?.(i)} className="relative overflow-hidden">
-          <img src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+          <LazyImage src={url} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover hover:opacity-95 transition-opacity" />
           {i === 3 && count > 4 && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#000305]/50 text-[#f7f9fa] font-bold text-lg">+{count - 4}</div>
           )}
@@ -1495,6 +1496,7 @@ export function ProfileView() {
                     <UserAvatar
                       user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
                       className="h-full w-full rounded-lg text-2xl"
+                      priority
                     />
                   </div>
                 </div>
@@ -1763,11 +1765,10 @@ export function ProfileView() {
                     {/* Featured image */}
                     {hasPhotos && (
                       <div className="aspect-[16/10] overflow-hidden rounded-sm bg-black/5 mb-5">
-                        <img
+                        <LazyImage
                           src={post.image_urls[0]}
                           alt=""
                           className="w-full h-full max-w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                          loading="lazy"
                         />
                       </div>
                     )}
@@ -2383,7 +2384,7 @@ export function ProfileView() {
                 <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory">
                   {previewUrls.map((url, i) => (
                     <div key={url} className="relative shrink-0 snap-start">
-                      <img src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" />
+                      <LazyImage src={url} alt="" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-black/10 bg-black/[0.03]" priority />
                       <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">{i + 1}</span>
                       <button
                         type="button"
