@@ -4,6 +4,7 @@ import {
   useState,
   useRef,
   useEffect,
+  type CSSProperties,
   type ImgHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -11,8 +12,11 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * LazyImage — FeedView (skeleton), DMsView (wrapperClassName), hero (priority),
- * fallback visual quando a imagem quebra ou src está vazio.
+ * LazyImage — carregamento otimizado + CWV.
+ *
+ * Compat: FeedView (skeleton), DMsView (wrapperClassName), hero (priority).
+ * Otimizações: lazy/eager, fetchPriority, decoding, sizes, aspect-ratio (CLS),
+ * fallback de erro, preload LCP (useLcpImagePreload).
  */
 export interface LazyImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "loading"> {
@@ -30,18 +34,19 @@ export interface LazyImageProps
    * Default: true quando não é priority
    */
   skeleton?: boolean;
-  /**
-   * URL alternativa se a imagem principal falhar (ex.: CDN mirror).
-   * Tenta uma vez; se também falhar, mostra o fallback visual.
-   */
+  /** URL alternativa se a principal falhar */
   fallbackSrc?: string | null;
-  /** Conteúdo customizado no lugar do ícone de imagem quebrada */
+  /** Conteúdo customizado no estado quebrado */
   fallback?: ReactNode;
-  /** Texto acessível do estado quebrado (default: alt ou "Imagem indisponível") */
+  /** Texto acessível do estado quebrado */
   fallbackLabel?: string;
+  /**
+   * Aspect ratio CSS (ex.: "16/10", "1") para reservar espaço e reduzir CLS.
+   * Alternativa a width+height quando a proporção é conhecida.
+   */
+  aspectRatio?: string | number;
 }
 
-/** Ícone minimalista de imagem quebrada (sem dependência externa). */
 function BrokenImageIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -63,6 +68,33 @@ function BrokenImageIcon({ className }: { className?: string }) {
   );
 }
 
+/** Detecta rede lenta (Save-Data ou effectiveType 2g/slow-2g). */
+function useSlowNetwork(): boolean {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const conn = (
+      navigator as Navigator & {
+        connection?: {
+          saveData?: boolean;
+          effectiveType?: string;
+          addEventListener?: (type: string, fn: () => void) => void;
+          removeEventListener?: (type: string, fn: () => void) => void;
+        };
+      }
+    ).connection;
+    if (!conn) return;
+    const update = () => {
+      const type = conn.effectiveType || "";
+      setSlow(!!conn.saveData || type === "slow-2g" || type === "2g");
+    };
+    update();
+    conn.addEventListener?.("change", update);
+    return () => conn.removeEventListener?.("change", update);
+  }, []);
+  return slow;
+}
+
 export function LazyImage({
   src,
   alt = "",
@@ -75,15 +107,18 @@ export function LazyImage({
   fallbackSrc,
   fallback,
   fallbackLabel,
+  aspectRatio,
   onLoad,
   onError,
   width,
   height,
   sizes,
+  style,
   ...rest
 }: LazyImageProps): ReactElement {
   const showSkeleton = skeleton !== undefined ? skeleton : !priority;
   const useFade = fadeIn && !priority;
+  const slowNetwork = useSlowNetwork();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [triedFallback, setTriedFallback] = useState(false);
@@ -92,7 +127,6 @@ export function LazyImage({
   );
   const ref = useRef<HTMLImageElement>(null);
 
-  // Reset quando a src original muda
   useEffect(() => {
     setLoaded(false);
     setError(false);
@@ -100,11 +134,27 @@ export function LazyImage({
     setCurrentSrc(src ? String(src) : null);
   }, [src]);
 
-  // Imagem já em cache
   useEffect(() => {
     const el = ref.current;
     if (el?.complete && el.naturalWidth > 0) setLoaded(true);
   }, [currentSrc]);
+
+  const boxStyle: CSSProperties = {
+    ...(style as CSSProperties),
+  };
+  if (aspectRatio != null) {
+    boxStyle.aspectRatio =
+      typeof aspectRatio === "number" ? String(aspectRatio) : aspectRatio;
+  } else if (width && height) {
+    boxStyle.aspectRatio = `${width} / ${height}`;
+  }
+
+  // sizes padrão: evita baixar versão desktop em mobile
+  const resolvedSizes =
+    sizes ??
+    (priority
+      ? "(max-width: 640px) 90vw, 440px"
+      : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 672px");
 
   const wrap = (node: ReactElement): ReactElement => {
     if (!wrapperClassName) return node;
@@ -113,7 +163,6 @@ export function LazyImage({
 
   const label = fallbackLabel || alt || "Imagem indisponível";
 
-  // Fallback visual: src vazio ou falha definitiva
   if (!currentSrc || error) {
     return wrap(
       <div
@@ -125,11 +174,7 @@ export function LazyImage({
           className,
           placeholderClassName
         )}
-        style={
-          width && height
-            ? { aspectRatio: `${width} / ${height}` }
-            : undefined
-        }
+        style={Object.keys(boxStyle).length ? boxStyle : undefined}
       >
         {fallback ?? (
           <>
@@ -143,6 +188,13 @@ export function LazyImage({
     );
   }
 
+  // Rede lenta + não-LCP: adia um pouco o decode para não competir com LCP
+  const decoding: "sync" | "async" = priority
+    ? "sync"
+    : slowNetwork
+      ? "async"
+      : "async";
+
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -151,23 +203,25 @@ export function LazyImage({
       alt={alt}
       width={width}
       height={height}
-      sizes={sizes}
+      sizes={resolvedSizes}
       loading={priority ? "eager" : "lazy"}
-      decoding={priority ? "sync" : "async"}
-      fetchPriority={priority ? "high" : "low"}
+      decoding={decoding}
+      fetchPriority={priority ? "high" : slowNetwork ? "low" : "low"}
+      // Dica ao browser: não bloquear render com imagens offscreen
       className={cn(
+        "max-w-full h-auto",
         useFade && "transition-opacity duration-300",
         useFade && !loaded && "opacity-0",
         useFade && loaded && "opacity-100",
         className
       )}
+      style={Object.keys(boxStyle).length ? boxStyle : style}
       onLoad={(e) => {
         setLoaded(true);
         setError(false);
         onLoad?.(e);
       }}
       onError={(e) => {
-        // 1ª falha → tenta fallbackSrc uma vez
         if (!triedFallback && fallbackSrc && fallbackSrc !== currentSrc) {
           setTriedFallback(true);
           setLoaded(false);
@@ -184,7 +238,13 @@ export function LazyImage({
 
   if (showSkeleton && !loaded) {
     return (
-      <span className={cn("relative inline-block max-w-full", wrapperClassName)}>
+      <span
+        className={cn(
+          "relative inline-block max-w-full overflow-hidden",
+          wrapperClassName
+        )}
+        style={Object.keys(boxStyle).length ? boxStyle : undefined}
+      >
         <span
           className={cn(
             "absolute inset-0 bg-black/[0.04] animate-pulse rounded-[inherit] pointer-events-none",
@@ -200,7 +260,10 @@ export function LazyImage({
   return wrap(img);
 }
 
-/** Preload da imagem LCP (hero/avatar). */
+/**
+ * Preload da imagem LCP (hero/avatar) o mais cedo possível.
+ * Chamar no componente do hero: useLcpImagePreload(avatarUrl)
+ */
 export function useLcpImagePreload(src: string | null | undefined): void {
   useEffect(() => {
     if (!src || typeof document === "undefined") return;
