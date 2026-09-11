@@ -59,6 +59,8 @@ import {
   Minus,
   Highlighter,
   Check,
+  BookOpen,
+  Newspaper,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -463,6 +465,8 @@ export function ProfileView() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [aboutPosts, setAboutPosts] = useState<any[]>([]);
+  const [aboutPostsLoading, setAboutPostsLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const albumInputRef = useRef<HTMLInputElement>(null);
   // Fotos do álbum (slide na aba Sobre — foto de perfil no hero é estática)
@@ -655,6 +659,8 @@ export function ProfileView() {
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [visibility, setVisibility] = useState<"public" | "followers">("public");
+  /** Destino da publicação: "feed" (entradas) ou "about" (blog interno da aba Sobre) */
+  const [postDestination, setPostDestination] = useState<"feed" | "about">("feed");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const mediaMenuRef = useRef<HTMLDivElement>(null);
 
@@ -794,6 +800,7 @@ export function ProfileView() {
       .catch(() => {});
 
     fetchMyPosts();
+    fetchAboutPosts();
 
     // Fotos do álbum para o slide do hero (junto com a foto de perfil)
     fetch(`/api/profile-photos?userId=${profile.id}`)
@@ -824,6 +831,18 @@ export function ProfileView() {
         if (data.posts) setMyPosts(data.posts);
       })
       .catch(() => {});
+  };
+
+  const fetchAboutPosts = () => {
+    if (!profile) return;
+    setAboutPostsLoading(true);
+    fetch(`/api/users/${profile.id}/posts?postType=about`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.posts) setAboutPosts(data.posts);
+      })
+      .catch(() => {})
+      .finally(() => setAboutPostsLoading(false));
   };
 
   // Abre uma sala listada em "Salas criadas" (mesmo objeto de /api/rooms,
@@ -1334,7 +1353,7 @@ export function ProfileView() {
             postItColor: typeof postStyle.postItColor === "number" ? postStyle.postItColor : 10,
             fontColor: postStyle.fontColor || null,
           },
-          postType: "simple",
+          postType: postDestination === "about" ? "about" : "simple",
         }),
       });
       const data = await res.json();
@@ -1342,9 +1361,15 @@ export function ProfileView() {
         if (editorRef.current) editorRef.current.innerHTML = "";
         setTextContent("");
         clearMedia();
-        toast.success("Post publicado!");
-        fetchMyPosts();
-        setActiveTab("posts");
+        if (postDestination === "about") {
+          toast.success("Publicado em Sobre!");
+          fetchAboutPosts();
+          setActiveTab("sobre");
+        } else {
+          toast.success("Post publicado!");
+          fetchMyPosts();
+          setActiveTab("posts");
+        }
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -2295,6 +2320,29 @@ export function ProfileView() {
 
               <button
                 type="button"
+                onClick={() => setPostDestination((d) => (d === "feed" ? "about" : "feed"))}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                  postDestination === "about"
+                    ? "border-[#D96C4A]/40 bg-[#D96C4A]/10 text-[#D96C4A]"
+                    : "border-black/10 text-[#4A4A4A] hover:bg-black/5"
+                }`}
+                title={postDestination === "about" ? "Só aparece na aba Sobre (blog interno)" : "Aparece no feed e em Entradas"}
+              >
+                {postDestination === "about" ? (
+                  <>
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Em Sobre
+                  </>
+                ) : (
+                  <>
+                    <Newspaper className="h-3.5 w-3.5" />
+                    No feed
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setVisibility((v) => (v === "public" ? "followers" : "public"))}
                 className="flex items-center gap-1.5 rounded-full border border-black/10 px-3 py-1.5 text-xs text-[#4A4A4A] hover:bg-black/5 transition-colors"
               >
@@ -2573,6 +2621,91 @@ export function ProfileView() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Blog interno — posts publicados em Sobre */}
+              <div className="mt-10 pt-6 border-t border-black/[0.06]">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <h3 className="font-serif text-lg font-medium text-[#1A1A1A] flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-[#D96C4A]" />
+                    Notas em Sobre
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostDestination("about");
+                      setActiveTab("postar");
+                    }}
+                    className="text-xs font-medium text-[#D96C4A] hover:underline"
+                  >
+                    Escrever nota
+                  </button>
+                </div>
+                {aboutPostsLoading && aboutPosts.length === 0 ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-20 rounded-xl bg-black/[0.04] animate-pulse" />
+                    ))}
+                  </div>
+                ) : aboutPosts.length === 0 ? (
+                  <p className="text-sm text-[#4A4A4A]/55 py-4">
+                    Nenhuma nota ainda. Use <strong>Escrever → Em Sobre</strong> para publicar textos que aparecem só aqui — como um blog interno do seu perfil.
+                  </p>
+                ) : (
+                  <ul className="space-y-4">
+                    {aboutPosts.map((post: any) => {
+                      const title = getPostTitle(post);
+                      const lines = htmlToLines(post.content || "");
+                      const excerpt = lines.split("
+").slice(1).join(" ").trim().slice(0, 160);
+                      return (
+                        <li key={post.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const postWithAuthor = {
+                                ...post,
+                                author: post.author || {
+                                  id: profile?.id,
+                                  display_name: profile?.display_name || "",
+                                  username: profile?.username || "",
+                                  avatar_url: profile?.avatar_url || null,
+                                },
+                              };
+                              window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post: postWithAuthor } }));
+                            }}
+                            className="w-full text-left rounded-xl border border-black/[0.06] bg-white/80 p-4 hover:border-black/10 hover:shadow-sm transition-all"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="font-serif text-base font-medium text-[#1A1A1A] leading-snug">
+                                {title}
+                              </h4>
+                              {post.visibility === "followers" && (
+                                <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-[#4A4A4A]/60">
+                                  <UsersIcon className="h-3 w-3" /> Seguidores
+                                </span>
+                              )}
+                            </div>
+                            {excerpt && (
+                              <p className="mt-1.5 text-sm text-[#4A4A4A]/75 line-clamp-2 leading-relaxed">
+                                {excerpt}{excerpt.length >= 160 ? "…" : ""}
+                              </p>
+                            )}
+                            <p className="mt-2 text-[11px] text-[#4A4A4A]/45">
+                              {post.created_at
+                                ? new Date(post.created_at).toLocaleDateString("pt-BR", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : ""}
+                            </p>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
 
               <p className="mt-8 text-[11px] text-[#4A4A4A]/40">

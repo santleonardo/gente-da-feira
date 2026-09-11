@@ -233,6 +233,8 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
   // Salas criadas pelo usuário, exibidas na aba "Sobre"
   const [createdRooms, setCreatedRooms] = useState<any[]>([]);
   const [createdRoomsLoading, setCreatedRoomsLoading] = useState(false);
+  const [aboutPosts, setAboutPosts] = useState<any[]>([]);
+  const [aboutPostsLoading, setAboutPostsLoading] = useState(false);
   const createdRoomsUserIdRef = useRef<string | null>(null);
 
   // Photo viewer state
@@ -287,6 +289,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
     setActiveTab("posts");
     setPostsVisibleCount(8);
     setUserPosts([]);
+    setAboutPosts([]);
     setHeroPhotos([]);
     setFollowList([]);
     setViewerOpen(false);
@@ -347,6 +350,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
         if (cancelled) return;
         const postsData = await postsRes.json();
         if (!cancelled && postsData.posts) setUserPosts(postsData.posts);
+
+        const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about`, { signal });
+        if (cancelled) return;
+        const aboutData = await aboutRes.json();
+        if (!cancelled && aboutData.posts) setAboutPosts(aboutData.posts);
       } catch (err: any) {
         if (err?.name === "AbortError") return;
       } finally {
@@ -477,6 +485,9 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
             if (profileData.user) { setUserData(profileData.user); setPostCount(profileData.user._count?.posts || 0); }
             const postsRes = await fetch(`/api/users/${userId}/posts`);
             const postsData = await postsRes.json();
+            const aboutRes = await fetch(`/api/users/${userId}/posts?postType=about`);
+            const aboutData = await aboutRes.json();
+            if (aboutData.posts) setAboutPosts(aboutData.posts);
             if (postsData.posts) setUserPosts(postsData.posts);
           }
         } else if (data.pending) {
@@ -1336,6 +1347,72 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           >
                             Este perfil ainda não escreveu uma apresentação.
                           </p>
+                        )}
+
+                        {/* Notas / blog interno em Sobre */}
+                        {aboutPosts.length > 0 && (
+                          <div className="mt-10 pt-6 border-t border-black/[0.06]">
+                            <h4 className="font-serif text-base font-medium text-[#1A1A1A] mb-4 flex items-center gap-2">
+                              Notas em Sobre
+                            </h4>
+                            <ul className="space-y-3">
+                              {aboutPosts.map((post: any) => {
+                                const htmlToLines = (html: string) =>
+                                  (html || "")
+                                    .replace(/<(h[1-6]|p|div|li|blockquote|br|hr)\b[^>]*>/gi, "\n")
+                                    .replace(/<\/(h[1-6]|p|div|li|blockquote)>/gi, "\n")
+                                    .replace(/<[^>]+>/g, " ")
+                                    .replace(/[ \t]+/g, " ")
+                                    .replace(/\n[ \t]+/g, "\n")
+                                    .replace(/\n{2,}/g, "\n")
+                                    .trim();
+                                const lines = htmlToLines(post.content || "");
+                                const title = lines.split("\n")[0]?.trim() || "Sem título";
+                                const excerpt = lines.split("\n").slice(1).join(" ").trim().slice(0, 140);
+                                return (
+                                  <li key={post.id}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const postWithAuthor = {
+                                          ...post,
+                                          author: post.author || {
+                                            id: userId,
+                                            display_name: userData.display_name,
+                                            username: userData.username,
+                                            avatar_url: userData.avatar_url,
+                                          },
+                                        };
+                                        window.dispatchEvent(
+                                          new CustomEvent("openPostDetail", { detail: { post: postWithAuthor } })
+                                        );
+                                      }}
+                                      className="w-full text-left rounded-xl border border-black/[0.06] bg-white/80 p-3.5 hover:border-black/10 transition-all"
+                                    >
+                                      <h5 className="font-serif text-[15px] font-medium text-[#1A1A1A] leading-snug">
+                                        {title}
+                                      </h5>
+                                      {excerpt && (
+                                        <p className="mt-1 text-sm text-[#4A4A4A]/70 line-clamp-2">
+                                          {excerpt}{excerpt.length >= 140 ? "…" : ""}
+                                        </p>
+                                      )}
+                                      <p className="mt-1.5 text-[11px] text-[#4A4A4A]/45">
+                                        {post.created_at
+                                          ? new Date(post.created_at).toLocaleDateString("pt-BR", {
+                                              day: "numeric",
+                                              month: "short",
+                                              year: "numeric",
+                                            })
+                                          : ""}
+                                        {post.visibility === "followers" ? " · Só seguidores" : ""}
+                                      </p>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
                         )}
 
                         <p className="mt-6 text-[11px] text-[#4A4A4A]/40">
