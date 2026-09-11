@@ -65,7 +65,7 @@ const MAX_PHOTOS_PER_POST = 1;
 const MAX_ACTIVE_MEDIA_POSTS = CLIENT_UPLOAD_LIMITS.maxActiveMediaPosts;
 const MAX_VIDEO_POSTS_PER_12H = 0; // desabilitado
 const MAX_VIDEO_DURATION = 0;
-const MAX_AUDIO_DURATION = 0;
+const MAX_AUDIO_DURATION = 60;
 const VIDEO_ENABLED = false; // Light: vídeo continua desligado no feed
 const AUDIO_ENABLED = true;  // Áudio reativado
 
