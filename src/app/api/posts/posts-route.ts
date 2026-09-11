@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq("is_deleted", false)
+      .neq("post_type", "about")
       // Posts com mídia expirada não entram no feed (texto tem expires_at null)
       .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
       .order("created_at", { ascending: false })
@@ -311,6 +312,7 @@ export async function POST(req: NextRequest) {
     const styleToStore = isMeaningfulPostStyle(sanitizedStyle) ? sanitizedStyle : null;
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
+    const validPostType = postType === "about" ? "about" : "simple";
     let expiresAt: string | null = null;
 
     if (hasMedia) {
@@ -373,7 +375,7 @@ export async function POST(req: NextRequest) {
         expires_at: expiresAt,
         shared_post_id: validSharedPostId,
         post_style: styleToStore,
-        post_type: "simple",
+        post_type: typeof validPostType !== "undefined" ? validPostType : "simple",
       })
       .select(`
         ${selectCols(POST_COLUMNS)},

@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq("is_deleted", false)
+      .neq("post_type", "about") // posts "about" só aparecem na aba Sobre
       .order("created_at", { ascending: false })
       .limit(limit + 1); // +1 para detectar se há mais páginas
 
@@ -356,6 +357,8 @@ export async function POST(req: NextRequest) {
     const styleToStore = isMeaningfulPostStyle(sanitizedStyle) ? sanitizedStyle : null;
 
     const validVisibility = visibility === "followers" ? "followers" : "public";
+    // post_type: "simple" (feed) | "about" (só na aba Sobre / blog interno)
+    const validPostType = postType === "about" ? "about" : "simple";
     let expiresAt: string | null = null;
 
     if (hasMedia) {
@@ -419,7 +422,7 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
       shared_post_id: validSharedPostId,
       post_style: styleToStore,
-      post_type: "simple",
+      post_type: validPostType,
     };
 
     const { data: inserted, error: insertError } = await supabase

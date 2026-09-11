@@ -18,6 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const isOwnProfile = authUser?.id === id;
+    const postTypeParam = new URL(req.url).searchParams.get("postType"); // "about" | null
 
     // SEC-004: Check bidirectional block
     if (authUser && !isOwnProfile) {
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    const { data: posts, error } = await supabase
+    let postsQuery = supabase
       .from("posts")
       .select(`
         id,
@@ -76,6 +77,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(20);
+
+    // "about" = blog interno (só aba Sobre); default = entradas do perfil/feed
+    if (postTypeParam === "about") {
+      postsQuery = postsQuery.eq("post_type", "about");
+    } else {
+      postsQuery = postsQuery.neq("post_type", "about");
+    }
+
+    const { data: posts, error } = await postsQuery;
 
     if (error) throw error;
 
