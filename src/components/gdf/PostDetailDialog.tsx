@@ -866,7 +866,12 @@ export function PostDetailDialog({ post, open, onOpenChange }: PostDetailDialogP
         role="dialog"
         aria-modal="true"
         aria-label="Post em tela cheia"
-        className="fixed inset-0 z-50 flex flex-col bg-[#F9F8F6] text-card-foreground"
+        // BUG-FIX: regra global em globals.css (@media max-width:767px)
+        // limita QUALQUER [role="dialog"] a max-width:28rem/max-height:92dvh
+        // !important (pensada pros popups pequenos) — sem esses overrides
+        // o dialog não fica fullscreen no celular, vira uma caixa centralizada.
+        // Mesma causa já corrigida no UserProfileDialog.
+        className="fixed inset-0 z-50 flex flex-col bg-[#F9F8F6] text-card-foreground !max-w-none !max-h-none !w-screen"
         style={{ height: "100dvh", maxHeight: "100dvh" }}
       >
           {/* Header fixo */}

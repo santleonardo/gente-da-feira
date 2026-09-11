@@ -124,7 +124,12 @@ export function PhotoViewer({
       aria-modal="true"
       aria-label="Visualizar fotos"
       onClick={onClose}
-      className="fixed inset-0 z-[100] bg-black"
+      // BUG-FIX: regra global em globals.css (@media max-width:767px)
+      // limita QUALQUER [role="dialog"] a max-width:28rem/max-height:92dvh
+      // !important (pensada pros popups pequenos) — sem esses overrides
+      // o viewer não fica fullscreen no celular, vira uma caixa centralizada.
+      // Mesma causa já corrigida no UserProfileDialog.
+      className="fixed inset-0 z-[100] bg-black !max-w-none !max-h-none !w-screen !h-[100dvh]"
     >
       {/* Imagem central */}
       <div
