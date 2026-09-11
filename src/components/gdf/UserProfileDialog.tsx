@@ -431,21 +431,33 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   useEffect(() => {
     if (!userId || !open || privacyInfo.isRestricted || activeTab === "posts") return;
+    const ac = new AbortController();
+    let cancelled = false;
     const fetchList = async () => {
       setListLoading(true);
       try {
-        const res = await fetch(`/api/follows?userId=${userId}`);
+        const res = await fetch(`/api/follows?userId=${userId}`, { signal: ac.signal });
+        if (cancelled) return;
         const data = await res.json();
+        if (cancelled) return;
         if (data.error) { setFollowList([]); } else {
           let list: any[] = [];
           if (activeTab === "followers") list = (data.followers || []).map((f: any) => f.follower).filter(Boolean);
           else if (activeTab === "following") list = (data.following || []).map((f: any) => f.following).filter(Boolean);
           setFollowList(list);
         }
-      } catch { setFollowList([]); }
-      setListLoading(false);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (!cancelled) setFollowList([]);
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
     };
     fetchList();
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
   }, [userId, open, activeTab, privacyInfo.isRestricted]);
 
   const handleFollowToggle = async () => {
@@ -1094,17 +1106,30 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                           const isTextOnly = !hasPhotos && !hasVideo && !hasAudio;
                           const hasPostStyle = post.post_style && typeof post.post_style === "object";
 
+                          const htmlToLines = (html: string): string => {
+                            return html
+                              .replace(/<(h[1-6]|p|div|li|blockquote|br|hr)\b[^>]*>/gi, "\n")
+                              .replace(/<\/(h[1-6]|p|div|li|blockquote)>/gi, "\n")
+                              .replace(/<[^>]+>/g, " ")
+                              .replace(/[ \t]+/g, " ")
+                              .replace(/\n[ \t]+/g, "\n")
+                              .replace(/\n{2,}/g, "\n")
+                              .trim();
+                          };
+
                           const getTitle = () => {
                             if (!post.content) return "Entrada";
-                            const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-                            const first = text.split("\n")[0] || text;
+                            const text = htmlToLines(post.content);
+                            const first = (text.split("\n")[0] || text).trim();
                             return first.length > 70 ? first.slice(0, 70) + "…" : first || "Entrada";
                           };
 
                           const getExcerpt = () => {
                             if (!post.content) return "";
-                            const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-                            return text.length > 160 ? text.slice(0, 160) + "…" : text;
+                            const text = htmlToLines(post.content);
+                            const lines = text.split("\n").filter(Boolean);
+                            const rest = (lines.length > 1 ? lines.slice(1) : lines).join(" ").trim();
+                            return rest.length > 160 ? rest.slice(0, 160) + "…" : rest;
                           };
 
                           return (
