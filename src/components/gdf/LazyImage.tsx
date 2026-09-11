@@ -10,22 +10,22 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Props públicas do LazyImage — mantém compatibilidade com:
- * DMsView (wrapperClassName), FeedView (skeleton), hero (priority).
+ * LazyImage — compatível com FeedView (skeleton), DMsView (wrapperClassName), hero (priority).
  */
 export interface LazyImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "loading"> {
-  /** LCP / acima da dobra: eager + fetchPriority high */
+  /** LCP / acima da dobra: eager + fetchPriority high (sem fade/skeleton) */
   priority?: boolean;
+  /** Classe do placeholder de erro / fundo do skeleton */
   placeholderClassName?: string;
-  /** Fade-in (desligado se priority) */
+  /** Fade-in ao carregar (desligado se priority) */
   fadeIn?: boolean;
-  /** Wrapper em volta da img (ex.: DMsView) */
+  /** Wrapper em volta da img — DMsView: wrapperClassName="max-w-full block" */
   wrapperClassName?: string;
   /**
-   * Quando true, mostra placeholder animado até a imagem carregar.
-   * FeedView usa `skeleton={false}` para desligar.
-   * Default: true (exceto se priority).
+   * Skeleton animado até a imagem carregar.
+   * FeedView: skeleton={false}
+   * Default: true quando não é priority
    */
   skeleton?: boolean;
 }
@@ -46,20 +46,26 @@ export function LazyImage({
   sizes,
   ...rest
 }: LazyImageProps): ReactElement {
-  const showSkeleton = skeleton ?? (!priority && true);
+  const showSkeleton = skeleton !== undefined ? skeleton : !priority;
   const useFade = fadeIn && !priority;
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    setLoaded(false);
+    setError(false);
     const el = ref.current;
     if (el?.complete && el.naturalWidth > 0) setLoaded(true);
   }, [src]);
 
-  // Sem src ou erro → placeholder
+  const wrap = (node: ReactElement): ReactElement => {
+    if (!wrapperClassName) return node;
+    return <span className={wrapperClassName}>{node}</span>;
+  };
+
   if (!src || error) {
-    const placeholder = (
+    return wrap(
       <div
         className={cn(
           "bg-black/[0.04] flex items-center justify-center",
@@ -75,10 +81,6 @@ export function LazyImage({
         aria-hidden
       />
     );
-    if (wrapperClassName) {
-      return <span className={wrapperClassName}>{placeholder}</span>;
-    }
-    return placeholder;
   }
 
   const img = (
@@ -111,26 +113,22 @@ export function LazyImage({
     />
   );
 
-  // Skeleton atrás da imagem até carregar
-  const content =
-    showSkeleton && !loaded ? (
-      <span className={cn("relative inline-block", wrapperClassName)}>
+  if (showSkeleton && !loaded) {
+    return (
+      <span className={cn("relative inline-block max-w-full", wrapperClassName)}>
         <span
           className={cn(
-            "absolute inset-0 bg-black/[0.04] animate-pulse rounded-[inherit]",
+            "absolute inset-0 bg-black/[0.04] animate-pulse rounded-[inherit] pointer-events-none",
             placeholderClassName
           )}
           aria-hidden
         />
         {img}
       </span>
-    ) : wrapperClassName ? (
-      <span className={wrapperClassName}>{img}</span>
-    ) : (
-      img
     );
+  }
 
-  return content as ReactElement;
+  return wrap(img);
 }
 
 /** Preload da imagem LCP (hero/avatar). */
