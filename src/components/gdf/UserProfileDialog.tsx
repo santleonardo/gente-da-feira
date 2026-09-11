@@ -849,7 +849,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               {/* ---- Mobile: hero estilo "blog pessoal" ---- */}
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
                 {/* Foto + faixa do nome na mesma largura */}
-                <div className="mx-auto w-[min(72vw,280px)] max-w-[280px]">
+                <div className="mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px]">
                   {/* Faixa colorida — largura total da foto */}
                   <div
                     className="flex w-full items-center justify-center gap-2 rounded-t-2xl px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -861,7 +861,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       aria-hidden
                     />
                     <h2
-                      className="font-serif text-[20px] font-medium tracking-tight leading-tight break-words min-w-0"
+                      className="font-serif text-[22px] font-medium tracking-tight leading-tight break-words min-w-0"
                       style={{ color: nameBand.text }}
                     >
                       {userData.display_name}
