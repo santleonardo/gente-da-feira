@@ -3318,14 +3318,15 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
   };
 
   // ═══════ Enviar mensagem ═══════
-  const sendMessage = async (mediaData?: { media_url?: string; media_type?: string }) => {
+  const sendMessage = async (mediaData?: { media_url?: string; media_type?: string }, ackText?: string) => {
     if ((!input.trim() && !mediaData) || !profile || !isMember) return;
     const text = input.trim();
     const replyingTo = replyTo;
 
     if (text && !mediaData) {
       const risk = assessTextRisk(text);
-      if (risk.level === "warn" && riskAckText !== text) {
+      const effectiveAck = ackText ?? riskAckText;
+      if (risk.level === "warn" && effectiveAck !== text) {
         setRiskWarning(risk);
         return;
       }
@@ -4857,9 +4858,10 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
                           type="button"
                           className="rounded-full bg-amber-900 text-white text-[11px] font-medium px-3 py-1"
                           onClick={() => {
-                            setRiskAckText(input.trim());
+                            const plain = input.trim();
+                            setRiskAckText(plain);
                             setRiskWarning(null);
-                            void sendMessage();
+                            void sendMessage(undefined, plain);
                           }}
                         >
                           Enviar mesmo assim

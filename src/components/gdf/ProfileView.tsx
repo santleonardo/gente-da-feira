@@ -1255,7 +1255,7 @@ export function ProfileView() {
   };
 
   // ═══════ Publicar post com estilo e mídia ═══════
-  const handlePublish = async () => {
+  const handlePublish = async (ackText?: string) => {
     if (!profile) return;
     const textCheck = validateText(
       editorRef.current?.innerText || textContent || "",
@@ -1270,9 +1270,12 @@ export function ProfileView() {
     const plainForRisk =
       textCheck.normalized ||
       (editorRef.current?.innerText || textContent || "").trim();
+    // Usa o texto de confirmação passado explicitamente (evita depender do
+    // state riskAckText, que ainda não teria sido atualizado neste mesmo clique)
+    const effectiveAck = ackText ?? riskAckText;
     if (plainForRisk) {
       const risk = assessTextRisk(plainForRisk);
-      if (risk.level === "warn" && riskAckText !== plainForRisk) {
+      if (risk.level === "warn" && effectiveAck !== plainForRisk) {
         setRiskWarning(risk);
         return;
       }
@@ -1358,18 +1361,34 @@ export function ProfileView() {
   // ═══════════════════════════════════════════════════════════
   // HELPERS DE CONTEÚDO PARA ESTILO BLOG
   // ═══════════════════════════════════════════════════════════
+  // Converte fim de blocos (h1-h6, p, div, li, br, blockquote) em quebra de
+  // linha ANTES de colapsar espaços, para preservar a separação entre
+  // "primeira linha" (título) e o restante do conteúdo (resumo).
+  const htmlToLines = (html: string): string => {
+    return html
+      .replace(/<(h[1-6]|p|div|li|blockquote|br|hr)\b[^>]*>/gi, "\n")
+      .replace(/<\/(h[1-6]|p|div|li|blockquote)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+  };
+
   const getPostTitle = (post: any): string => {
     if (!post.content) return "Sem título";
-    // Remove HTML tags roughly
-    const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    const firstLine = text.split("\n")[0] || text;
+    const text = htmlToLines(post.content);
+    const firstLine = (text.split("\n")[0] || text).trim();
     return firstLine.length > 80 ? firstLine.slice(0, 80) + "…" : firstLine || "Entrada";
   };
 
   const getPostExcerpt = (post: any): string => {
     if (!post.content) return "";
-    const text = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    return text.length > 180 ? text.slice(0, 180) + "…" : text;
+    const text = htmlToLines(post.content);
+    const lines = text.split("\n").filter(Boolean);
+    // Pula a primeira linha (já mostrada como título) quando houver mais conteúdo
+    const rest = (lines.length > 1 ? lines.slice(1) : lines).join(" ").trim();
+    return rest.length > 180 ? rest.slice(0, 180) + "…" : rest;
   };
 
   return (
@@ -2171,14 +2190,21 @@ export function ProfileView() {
 
             {/* Media + visibility row */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5 shrink-0">
-              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors" title="Fotos">
+              <label
+                className={`p-2 rounded-lg transition-colors ${
+                  canAddPhotos ? "text-[#4A4A4A] hover:bg-black/5 cursor-pointer" : "text-[#4A4A4A]/30 cursor-not-allowed"
+                }`}
+                title="Fotos"
+              >
                 <ImagePlus className="h-4 w-4" />
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   multiple
                   className="hidden"
+                  disabled={!canAddPhotos}
                   onChange={(e) => {
+                    if (!canAddPhotos) return;
                     const files = Array.from(e.target.files || []).slice(0, MAX_PHOTOS_PER_POST);
                     if (files.length) {
                       setSelectedFiles(files);
@@ -2186,17 +2212,27 @@ export function ProfileView() {
                       setSelectedVideo(null);
                       if (videoPreview) URL.revokeObjectURL(videoPreview);
                       setVideoPreview(null);
+                      setSelectedAudio(null);
+                      if (audioPreview) URL.revokeObjectURL(audioPreview);
+                      setAudioPreview(null);
                     }
                   }}
                 />
               </label>
-              <label className="p-2 rounded-lg text-[#4A4A4A] hover:bg-black/5 cursor-pointer transition-colors" title="Vídeo">
+              <label
+                className={`p-2 rounded-lg transition-colors ${
+                  canAddVideo ? "text-[#4A4A4A] hover:bg-black/5 cursor-pointer" : "text-[#4A4A4A]/30 cursor-not-allowed"
+                }`}
+                title="Vídeo"
+              >
                 <Video className="h-4 w-4" />
                 <input
                   type="file"
                   accept="video/mp4,video/webm,video/quicktime"
                   className="hidden"
+                  disabled={!canAddVideo}
                   onChange={(e) => {
+                    if (!canAddVideo) return;
                     const file = e.target.files?.[0];
                     if (!file) return;
                     const url = URL.createObjectURL(file);
@@ -2214,6 +2250,9 @@ export function ProfileView() {
                       setSelectedFiles([]);
                       previewUrls.forEach(revokePreviewUrl);
                       setPreviewUrls([]);
+                      setSelectedAudio(null);
+                      if (audioPreview) URL.revokeObjectURL(audioPreview);
+                      setAudioPreview(null);
                     };
                     video.src = url;
                   }}
@@ -2331,7 +2370,7 @@ export function ProfileView() {
                       const plain = (editorRef.current?.innerText || textContent || "").trim();
                       setRiskAckText(plain);
                       setRiskWarning(null);
-                      void handlePublish();
+                      void handlePublish(plain);
                     }}
                   >
                     Publicar mesmo assim
@@ -2358,7 +2397,7 @@ export function ProfileView() {
               <button
                 type="button"
                 disabled={publishing || textContent.trim().length > TEXT_LIMITS.post || (!textContent.trim() && selectedFiles.length === 0 && !selectedVideo && !selectedAudio)}
-                onClick={handlePublish}
+                onClick={() => void handlePublish()}
                 className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] text-white px-6 py-2.5 text-sm font-medium hover:bg-[#1A1A1A]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {publishing ? (
