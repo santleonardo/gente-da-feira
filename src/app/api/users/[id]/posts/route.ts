@@ -98,7 +98,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (error) throw error;
 
-    const rawList = posts || [];
+    // Cast to any[] — PostgREST type inference fails on nested rename joins
+    const rawList = (posts || []) as any[];
     const hasMore = rawList.length > limit;
     const page = hasMore ? rawList.slice(0, limit) : rawList;
 
@@ -124,10 +125,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     );
     const filtered = filterPostsAuthorNeighborhood(visibilityFiltered, hiddenNeighborhoodIds);
 
-    const nextCursor =
-      hasMore && page.length > 0
-        ? page[page.length - 1].created_at
-        : null;
+    const last = page.length > 0 ? page[page.length - 1] : null;
+    const nextCursor = hasMore && last?.created_at ? String(last.created_at) : null;
 
     return NextResponse.json({
       posts: filtered,
