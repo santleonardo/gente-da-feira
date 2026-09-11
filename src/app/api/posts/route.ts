@@ -453,6 +453,23 @@ export async function POST(req: NextRequest) {
         );
       }
       if (insertError.code === "23514") {
+        // CHECK constraint — costuma ser visibility ou post_type
+        const detail = `${insertError.message || ""} ${insertError.details || ""} ${insertError.hint || ""}`.toLowerCase();
+        if (detail.includes("post_type") || validPostType === "about") {
+          return NextResponse.json(
+            {
+              error:
+                "O banco ainda não aceita notas em Sobre (post_type=about). Rode a migration scripts/20260911_posts_post_type_about.sql no Supabase.",
+            },
+            { status: 400 }
+          );
+        }
+        if (detail.includes("visibility")) {
+          return NextResponse.json(
+            { error: "Visibilidade inválida. Use Público ou Seguidores." },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
           { error: "Dados do post inválidos. Revise o texto e a mídia." },
           { status: 400 }
