@@ -757,14 +757,99 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
           <div className="upd-blog h-[100dvh] w-full max-w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain" style={{WebkitOverflowScrolling: "touch"}}>
             {/* ═══════ HERO ═══════ */}
             <div className="relative">
-              {/* ---- Mobile: hero estilo "blog pessoal" — inspirado nos templates
-                  Wix de blog pessoal: nome no topo, foto em grande destaque logo
-                  abaixo, username, e uma bio pequena centralizada antes das entradas.
-                  As ações (seguir/mensagem/bloquear) ficam no menu do canto
-                  superior esquerdo, não competindo com a foto. ---- */}
+              {/* ---- Perfil privado / bloqueado: layout centrado e limpo ---- */}
+              {isRestricted ? (
+                <div className="px-5 pt-16 sm:pt-10 pb-8 flex flex-col items-center text-center">
+                  {/* Foto — tamanho fixo, centrada (mobile e desktop) */}
+                  <div
+                    className="relative h-36 w-36 sm:h-40 sm:w-40 shrink-0 rounded-2xl p-[4px] shadow-[0_8px_24px_rgba(26,26,26,0.14)]"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
+                    <div className="h-full w-full rounded-[14px] p-[3px] bg-[#F9F8F6]">
+                      <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
+                        <UserAvatar
+                          user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
+                          className="h-full w-full rounded-xl text-3xl"
+                        />
+                        <div className="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/85 text-white shadow-sm">
+                          <Lock className="h-3.5 w-3.5" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nome */}
+                  <div
+                    className="mt-5 inline-flex max-w-full items-center gap-2 rounded-xl px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    style={{ backgroundColor: nameBand.bg }}
+                  >
+                    <h2
+                      className="font-serif text-xl sm:text-2xl font-medium tracking-tight leading-tight break-words"
+                      style={{ color: nameBand.text }}
+                    >
+                      {userData.display_name}
+                    </h2>
+                    {privacyInfo.is_private && !isBlocked && (
+                      <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-sm text-[#4A4A4A]/75">@{userData.username}</p>
+
+                  {/* Aviso + CTA */}
+                  <div className="mt-6 w-full max-w-sm rounded-2xl border border-black/[0.08] bg-white/80 px-5 py-6 shadow-sm">
+                    <Lock className="h-7 w-7 text-[#4A4A4A]/35 mx-auto mb-2.5" />
+                    <p className="text-sm font-medium text-[#1A1A1A]">
+                      {isBlocked
+                        ? "Você não pode ver este perfil"
+                        : "Este perfil é privado"}
+                    </p>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-[#4A4A4A]/75">
+                      {isBlocked
+                        ? "O conteúdo e as conexões não estão disponíveis."
+                        : "Siga para solicitar acesso às entradas, fotos e lista de seguidores."}
+                    </p>
+                    {!isBlocked && (
+                      <div className="mt-4 flex flex-col items-center gap-2">
+                        {renderFollowButton()}
+                        {followData.isPending && (
+                          <p className="text-[11px] text-[#4A4A4A]/55">Aguardando aprovação</p>
+                        )}
+                      </div>
+                    )}
+                    {!isOwnProfile && (
+                      <div className="mt-4 pt-3 border-t border-black/[0.06] flex items-center justify-center gap-2">
+                        {privacyInfo.isBlockedByViewer ? (
+                          <Button size="sm" variant="outline" onClick={handleBlockToggle} disabled={blockLoading} className="rounded-full gap-1.5 text-xs">
+                            <ShieldBan className="h-3.5 w-3.5" /> Desbloquear
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={handleBlockToggle} disabled={blockLoading} className="rounded-full gap-1.5 text-xs text-[#4A4A4A]">
+                            <Ban className="h-3.5 w-3.5" /> Bloquear
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-full gap-1.5 text-xs text-[#4A4A4A]"
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent("openReport", {
+                              detail: { type: "user", id: userId, name: userData.display_name },
+                            }));
+                          }}
+                        >
+                          <Flag className="h-3.5 w-3.5" /> Denunciar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+              {/* ---- Mobile: hero estilo "blog pessoal" ---- */}
               <div className="sm:hidden px-5 pt-16 pb-6 text-center">
                 {/* Foto + faixa do nome na mesma largura */}
-                <div className="mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px]">
+                <div className="mx-auto w-[min(72vw,280px)] max-w-[280px]">
                   {/* Faixa colorida — largura total da foto */}
                   <div
                     className="flex w-full items-center justify-center gap-2 rounded-t-2xl px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
@@ -776,7 +861,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       aria-hidden
                     />
                     <h2
-                      className="font-serif text-[22px] font-medium tracking-tight leading-tight break-words min-w-0"
+                      className="font-serif text-[20px] font-medium tracking-tight leading-tight break-words min-w-0"
                       style={{ color: nameBand.text }}
                     >
                       {userData.display_name}
@@ -800,18 +885,13 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
                         <UserAvatar
                           user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                          className="h-full w-full rounded-xl"
+                          className="h-full w-full rounded-xl text-3xl"
                         />
-                        {(isRestricted || isBlocked) && (
-                          <div className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                            <Lock className="h-4 w-4" />
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Faixa do handle — integrada à foto, mesma largura e cor da faixa do nome */}
+                  {/* Faixa do handle */}
                   <div
                     className="flex w-full items-center justify-center gap-1.5 rounded-b-2xl px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     style={{ backgroundColor: nameBand.bg }}
@@ -822,7 +902,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </div>
                 </div>
 
-                {/* Bairro em chip (handle já está integrado à foto) */}
+                {/* Bairro em chip */}
                 {canSeeNeighborhood && userData.neighborhood && (
                   <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
                     <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-black/[0.03] px-2.5 py-0.5 text-xs text-[#4A4A4A]">
@@ -832,96 +912,74 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </div>
                 )}
 
-                {/* Cartão meta: tagline + contadores — minimalista, largura da foto */}
-                {(!isRestricted || userData.tagline) && (
-                  <div className="mt-4 mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px] text-center">
-                      {userData.tagline && !isRestricted && (
-                        <p
-                          className="text-[13px] leading-snug text-[#3A3A3A]/85"
-                          style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-                        >
-                          {parseInlineContent(userData.tagline, openUserProfileById)}
-                        </p>
-                      )}
-                      {!isRestricted && (
-                        <div className={`grid divide-x divide-black/[0.06] border-t border-black/[0.06] ${userData.tagline ? "mt-3" : ""} ${
-                          [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
-                            ? "grid-cols-3"
-                            : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
-                              ? "grid-cols-2"
-                              : "grid-cols-1"
-                        }`}>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab("posts")}
-                            className="flex flex-col items-center justify-center gap-0.5 py-2 transition-colors hover:bg-black/[0.03]"
-                          >
-                            <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
-                            <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
-                          </button>
-                          {canSeeFollowing && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("following")}
-                              className="flex flex-col items-center justify-center gap-0.5 py-2 transition-colors hover:bg-black/[0.03]"
-                            >
-                              <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
-                              <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
-                            </button>
-                          )}
-                          {canSeeFollowers && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("followers")}
-                              className="flex flex-col items-center justify-center gap-0.5 py-2 transition-colors hover:bg-black/[0.03]"
-                            >
-                              <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
-                              <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                  </div>
-                )}
-                {isRestricted && (
-                  <div className="mt-6 rounded-xl border border-black/10 bg-white/60 px-4 py-5 text-center">
-                    <Lock className="h-8 w-8 text-[#4A4A4A]/30 mx-auto mb-2" />
-                    <p className="text-sm text-[#4A4A4A]">
-                      {isBlocked
-                        ? "Você não pode ver este perfil"
-                        : "Este perfil é privado"}
+                {/* Cartão meta: tagline + contadores */}
+                <div className="mt-4 mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px] text-center">
+                  {userData.tagline && (
+                    <p
+                      className="text-[13px] leading-snug text-[#3A3A3A]/85 mb-3"
+                      style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                    >
+                      {parseInlineContent(userData.tagline, openUserProfileById)}
                     </p>
-                    {!isBlocked && !followData.isFollowing && !followData.isPending && (
-                      <div className="mt-3 flex justify-center">{renderFollowButton()}</div>
+                  )}
+                  <div
+                    className={`grid divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${
+                      [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
+                        ? "grid-cols-3"
+                        : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
+                          ? "grid-cols-2"
+                          : "grid-cols-1"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("posts")}
+                      className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                    >
+                      <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
+                      <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
+                    </button>
+                    {canSeeFollowing && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("following")}
+                        className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                      >
+                        <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
+                        <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
+                      </button>
+                    )}
+                    {canSeeFollowers && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("followers")}
+                        className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                      >
+                        <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
+                        <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
+                      </button>
                     )}
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* ---- Tablet / desktop: layout horizontal original (avatar + ações lado a lado) ---- */}
+              {/* ---- Tablet / desktop: layout horizontal ---- */}
               <div className="hidden sm:block px-6 pt-6 pb-5 relative min-w-0">
                 <div className="flex items-end justify-between gap-3">
-                  {/* Moldura — mesma cor da faixa (desktop) */}
                   <div
-                    className="relative h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl p-[3px] shadow-[0_6px_18px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
+                    className="relative h-24 w-24 shrink-0 rounded-xl p-[3px] shadow-[0_6px_18px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
                     style={{ backgroundColor: nameBand.bg }}
                   >
                     <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
                       <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
                         <UserAvatar
                           user={{ id: userId!, display_name: userData.display_name, avatar_url: userData.avatar_url }}
-                          className="h-full w-full rounded-lg"
+                          className="h-full w-full rounded-lg text-2xl"
                         />
-                        {(isRestricted || isBlocked) && (
-                          <div className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A]/80 text-white">
-                            <Lock className="h-3.5 w-3.5" />
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-1.5 sm:gap-2 pb-1 flex-wrap justify-end max-w-[55%]">
                     {renderFollowButton()}
                     {!isOwnProfile && !isBlocked && (
@@ -973,8 +1031,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  {/* Faixa colorida — tema do perfil */}
+                <div className="mt-4 min-w-0">
                   <div
                     className="flex w-full max-w-xl items-center gap-2.5 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     style={{ backgroundColor: nameBand.bg }}
@@ -999,7 +1056,6 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       aria-hidden
                     />
                   </div>
-                  {/* Handle + bairro em chips */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <span className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-2.5 py-0.5 text-xs font-medium text-[#3A3A3A] shadow-sm">
                       @{userData.username}
@@ -1013,77 +1069,60 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                   </div>
                 </div>
 
-                {/* Cartão meta: tagline + contadores */}
-                {(!isRestricted || userData.tagline) && (
-                  <div className="mt-4 max-w-xl overflow-hidden rounded-2xl border border-black/[0.07] bg-white/70 shadow-sm">
-                    <div className="h-1 w-full" style={{ backgroundColor: nameBand.bg }} aria-hidden />
-                    <div className="px-4 py-3.5 sm:px-5">
-                      {userData.tagline && !isRestricted && (
-                        <p
-                          className="text-base sm:text-[17px] leading-relaxed text-[#3A3A3A]"
-                          style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                <div className="mt-4 max-w-xl overflow-hidden rounded-2xl border border-black/[0.07] bg-white/70 shadow-sm">
+                  <div className="h-1 w-full" style={{ backgroundColor: nameBand.bg }} aria-hidden />
+                  <div className="px-4 py-3.5 sm:px-5">
+                    {userData.tagline && (
+                      <p
+                        className="text-base sm:text-[17px] leading-relaxed text-[#3A3A3A]"
+                        style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+                      >
+                        {parseInlineContent(userData.tagline, openUserProfileById)}
+                      </p>
+                    )}
+                    <div
+                      className={`grid divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${userData.tagline ? "mt-3" : ""} ${
+                        [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
+                          ? "grid-cols-3"
+                          : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
+                            ? "grid-cols-2"
+                            : "grid-cols-1"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("posts")}
+                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
+                      >
+                        <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
+                        <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">entradas</span>
+                      </button>
+                      {canSeeFollowing && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("following")}
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
                         >
-                          {parseInlineContent(userData.tagline, openUserProfileById)}
-                        </p>
+                          <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
+                          <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguindo</span>
+                        </button>
                       )}
-                      {!isRestricted && (
-                        <div
-                          className={`grid divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${userData.tagline ? "mt-3" : ""} ${
-                            [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
-                              ? "grid-cols-3"
-                              : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
-                                ? "grid-cols-2"
-                                : "grid-cols-1"
-                          }`}
+                      {canSeeFollowers && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("followers")}
+                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
                         >
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab("posts")}
-                            className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                          >
-                            <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
-                            <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">entradas</span>
-                          </button>
-                          {canSeeFollowing && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("following")}
-                              className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                            >
-                              <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
-                              <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguindo</span>
-                            </button>
-                          )}
-                          {canSeeFollowers && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab("followers")}
-                              className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
-                            >
-                              <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
-                              <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguidores</span>
-                            </button>
-                          )}
-                        </div>
+                          <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
+                          <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguidores</span>
+                        </button>
                       )}
                     </div>
                   </div>
-                )}
-
-                {isRestricted && (
-                  <div className="mt-6 rounded-xl border border-black/10 bg-white/60 px-4 py-5 text-center">
-                    <Lock className="h-8 w-8 text-[#4A4A4A]/30 mx-auto mb-2" />
-                    <p className="text-sm text-[#4A4A4A]">
-                      {isBlocked
-                        ? "Você não pode ver este perfil"
-                        : "Este perfil é privado"}
-                    </p>
-                    {!isBlocked && !followData.isFollowing && !followData.isPending && (
-                      <div className="mt-3">{renderFollowButton()}</div>
-                    )}
-                  </div>
-                )}
+                </div>
               </div>
+                </>
+              )}
             </div>
 
             {/* ═══════ TABS — faixa colorida no título ativo ═══════ */}
