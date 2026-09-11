@@ -1,5 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 // ProfileHeroSlider — carrossel de fotos do álbum (aba Sobre).
 // Foto de perfil no hero é estática (UserAvatar); o slide fica em "Sobre".
 // Em tela cheia: onSetAsProfilePhoto define o avatar (quando editable).
@@ -7,7 +9,10 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Camera, Loader2 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoViewer } from "./PhotoViewer";
+const PhotoViewer = dynamic(
+  () => import("./PhotoViewer").then((m) => ({ default: m.PhotoViewer })),
+  { ssr: false }
+);
 import { LazyImage } from "./LazyImage";
 
 interface ProfileHeroSliderProps {

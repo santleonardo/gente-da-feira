@@ -3,9 +3,7 @@
 import { useEffect, useState, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
-import { AuthForm } from "@/components/gdf/AuthForm";
 import { FeedView } from "@/components/gdf/FeedView";
-import { DeletionPendingView } from "@/components/gdf/DeletionPendingView";
 import { createClient } from "@/lib/supabase/client";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +38,16 @@ function hideBannerId(id: string) {
 // PERF-002: Lazy-loaded views — chunks carregados sob demanda por tab/ação.
 // FeedView permanece eager pois é a tab padrão (first contentful paint).
 // ═══════════════════════════════════════════════════════════════════════════════
+
+const AuthForm = dynamic(
+  () => import("@/components/gdf/AuthForm").then((m) => ({ default: m.AuthForm })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
+
+const DeletionPendingView = dynamic(
+  () => import("@/components/gdf/DeletionPendingView").then((m) => ({ default: m.DeletionPendingView })),
+  { loading: () => <TabSkeleton />, ssr: false }
+);
 
 const RoomsView = dynamic(
   () => import("@/components/gdf/RoomsView").then((m) => ({ default: m.RoomsView })),

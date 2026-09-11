@@ -44,7 +44,10 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoViewer } from "./PhotoViewer";
+const PhotoViewer = dynamic(
+  () => import("./PhotoViewer").then((m) => ({ default: m.PhotoViewer })),
+  { ssr: false }
+);
 import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
 import {

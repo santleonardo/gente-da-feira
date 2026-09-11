@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoViewer } from "./PhotoViewer";
+const PhotoViewer = dynamic(
+  () => import("./PhotoViewer").then((m) => ({ default: m.PhotoViewer })),
+  { ssr: false }
+);
 import { toast } from "sonner";
 import {
   compressImage,

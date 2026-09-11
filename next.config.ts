@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
       "sonner",
       "clsx",
       "class-variance-authority",
+      "zustand",
+      "date-fns",
     ],
   },
   // All security headers (CSP, HSTS, X-Content-Type-Options, etc.) are

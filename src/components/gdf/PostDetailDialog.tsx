@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import { useStore, Profile } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,10 @@ import {
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
-import { PhotoViewer } from "./PhotoViewer";
+const PhotoViewer = dynamic(
+  () => import("./PhotoViewer").then((m) => ({ default: m.PhotoViewer })),
+  { ssr: false }
+);
 import { toast } from "sonner";
 import { parseInlineFormatting } from "@/lib/link-utils";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
