@@ -53,6 +53,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    const url = new URL(req.url);
+    const cursor = url.searchParams.get("cursor"); // created_at ISO do último item
+    const rawLimit = parseInt(url.searchParams.get("limit") || (postTypeParam === "about" ? "8" : "20"), 10);
+    const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 20 : rawLimit), 30);
+
     let postsQuery = supabase
       .from("posts")
       .select(`
@@ -76,7 +81,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .eq("author_id", id)
       .eq("is_deleted", false)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(limit + 1); // +1 para detectar hasMore
 
     // "about" = blog interno (só aba Sobre); default = entradas do perfil/feed
     if (postTypeParam === "about") {
@@ -85,11 +90,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       postsQuery = postsQuery.neq("post_type", "about");
     }
 
+    if (cursor) {
+      postsQuery = postsQuery.lt("created_at", cursor);
+    }
+
     const { data: posts, error } = await postsQuery;
 
     if (error) throw error;
 
-    const mappedPosts = (posts || []).map((p: any) => ({
+    const rawList = posts || [];
+    const hasMore = rawList.length > limit;
+    const page = hasMore ? rawList.slice(0, limit) : rawList;
+
+    const mappedPosts = page.map((p: any) => ({
       ...p,
       shared_post: p.shared_post && !Array.isArray(p.shared_post) ? p.shared_post : (Array.isArray(p.shared_post) ? p.shared_post[0] : null),
     }));
@@ -111,7 +124,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     );
     const filtered = filterPostsAuthorNeighborhood(visibilityFiltered, hiddenNeighborhoodIds);
 
-    return NextResponse.json({ posts: filtered });
+    const nextCursor =
+      hasMore && page.length > 0
+        ? page[page.length - 1].created_at
+        : null;
+
+    return NextResponse.json({
+      posts: filtered,
+      nextCursor,
+      hasMore: !!nextCursor,
+    });
   } catch (error: any) {
     const { message, status } = safeErrorResponse(error, 500, "[users/posts GET]");
     return NextResponse.json({ error: message }, { status });
