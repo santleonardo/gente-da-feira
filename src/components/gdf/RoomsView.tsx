@@ -1419,7 +1419,7 @@ function DeleteRoomDialog({
         });
         // Aguardar um momento para o broadcast ser enviado antes de remover o canal
         await new Promise((r) => setTimeout(r, 300));
-        supabase.removeAllChannels();
+        supabase.removeChannel(channel);
       } catch { /* silent — broadcast é best-effort */ }
 
       toast.success(`Sala "${roomName}" excluída com sucesso`);
@@ -2535,8 +2535,8 @@ function RoomChat({ room, onBack, onRefreshRooms, openUserProfile }: { room: any
       toast.error(`Esta sala foi excluída pelo criador`, {
         duration: 5000,
       });
-      // Limpar canais e estado
-      supabase.removeAllChannels();
+      // Limpar apenas o canal desta sala (não afetar DMs/presença/outras salas)
+      supabase.removeChannel(channel);
       setSelectedRoom(null);
       onRefreshRooms();
     });
