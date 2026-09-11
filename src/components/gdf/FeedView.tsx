@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo, Fragment } from "react";
 import { useStore, Profile } from "@/lib/store";
 import { parseInlineFormatting } from "@/lib/link-utils";
