@@ -181,10 +181,14 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
     // Detecta hashtag: "#feira" ou "feira" se começar com #
     const tagMatch = q.match(/^#([\p{L}\p{N}_]{2,40})$/u);
     const tagFromHash = tagMatch ? tagMatch[1] : null;
-    const maybeTag = q.startsWith("#")
-      ? q.slice(1).replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 40)
-      : null;
-    const hashtag = (tagFromHash || maybeTag || "").toLowerCase() || null;
+    // Fallback para "#feira algo mais": pega só a sequência válida logo
+    // após o #, parando no primeiro caractere inválido (espaço, pontuação
+    // etc.) — não remove caracteres inválidos de qualquer posição, o que
+    // concatenava palavras erradas (ex.: "#praia bonita" virava "praiabonita").
+    const leadingTagMatch = q.startsWith("#") ? q.slice(1).match(/^[\p{L}\p{N}_]+/u) : null;
+    const maybeTag = leadingTagMatch ? leadingTagMatch[0].slice(0, 40) : null;
+    const hashtag =
+      (tagFromHash || (maybeTag && maybeTag.length >= 2 ? maybeTag : null))?.toLowerCase() ?? null;
 
     try {
       const userQuery = hashtag && q.startsWith("#") ? hashtag : q.replace(/^#/, "");
