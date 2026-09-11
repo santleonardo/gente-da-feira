@@ -1562,29 +1562,29 @@ export function ProfileView() {
                   ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
                   : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
               </p>
-              <div className="w-full border-t border-black/[0.06] divide-y divide-black/[0.06]">
+              <div className="w-full grid grid-cols-3 divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-[#F9F8F6]/90 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setActiveTab("posts")}
-                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                 >
-                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
+                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
                   <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openFollowDialog("following")}
-                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                 >
-                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
+                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followingCount}</span>
                   <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => openFollowDialog("followers")}
-                  className="flex w-full flex-col items-center gap-0.5 py-1.5 transition-colors hover:bg-black/[0.03] rounded-sm"
+                  className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                 >
-                  <span className="text-xs font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
+                  <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followersCount}</span>
                   <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
                 </button>
               </div>

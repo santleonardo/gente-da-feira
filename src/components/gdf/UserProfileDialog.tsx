@@ -923,18 +923,12 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                     </p>
                   )}
                   <div
-                    className={`grid divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${
-                      [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
-                        ? "grid-cols-3"
-                        : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
-                          ? "grid-cols-2"
-                          : "grid-cols-1"
-                    }`}
+                    className="flex w-full divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden"
                   >
                     <button
                       type="button"
                       onClick={() => setActiveTab("posts")}
-                      className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                      className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                     >
                       <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
                       <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">entradas</span>
@@ -943,7 +937,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       <button
                         type="button"
                         onClick={() => setActiveTab("following")}
-                        className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                        className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                       >
                         <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
                         <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguindo</span>
@@ -953,7 +947,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       <button
                         type="button"
                         onClick={() => setActiveTab("followers")}
-                        className="flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors hover:bg-black/[0.03]"
+                        className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors hover:bg-black/[0.03]"
                       >
                         <span className="text-sm font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
                         <span className="text-[9px] uppercase tracking-wide text-[#4A4A4A]/60">seguidores</span>
@@ -1081,18 +1075,12 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                       </p>
                     )}
                     <div
-                      className={`grid divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${userData.tagline ? "mt-3" : ""} ${
-                        [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 3
-                          ? "grid-cols-3"
-                          : [true, canSeeFollowing, canSeeFollowers].filter(Boolean).length === 2
-                            ? "grid-cols-2"
-                            : "grid-cols-1"
-                      }`}
+                      className={`flex w-full divide-x divide-black/[0.06] rounded-xl border border-black/[0.06] bg-[#F9F8F6]/90 overflow-hidden ${userData.tagline ? "mt-3" : ""}`}
                     >
                       <button
                         type="button"
                         onClick={() => setActiveTab("posts")}
-                        className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
+                        className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
                       >
                         <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{postCount}</span>
                         <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">entradas</span>
@@ -1101,7 +1089,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <button
                           type="button"
                           onClick={() => setActiveTab("following")}
-                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
+                          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
                         >
                           <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followingCount}</span>
                           <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguindo</span>
@@ -1111,7 +1099,7 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
                         <button
                           type="button"
                           onClick={() => setActiveTab("followers")}
-                          className="flex flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
+                          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 transition-colors hover:bg-black/[0.03]"
                         >
                           <span className="text-base sm:text-lg font-semibold tabular-nums text-[#1A1A1A]">{followData.followersCount}</span>
                           <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-[#4A4A4A]/70">seguidores</span>
