@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     const neighborhood = searchParams.get("neighborhood");
     const authorId     = searchParams.get("authorId");
     const cursor       = searchParams.get("cursor"); // created_at do último post
+    const contentFlag  = searchParams.get("content_flag"); // aviso | achados_e_perdidos | ...
     const rawHashtag   = searchParams.get("hashtag") || "";
     const hashtag      = rawHashtag
       .replace(/^#/, "")
@@ -104,6 +105,17 @@ export async function GET(req: NextRequest) {
       if (authorId) q = q.eq("author_id", authorId);
       if (neighborhood && neighborhood !== "all") {
         q = q.or(`neighborhood.eq.${neighborhood},neighborhood.is.null`);
+      }
+      // Categoria do post (mesmas opções do composer)
+      const validFlags = new Set([
+        "aviso",
+        "achados_e_perdidos",
+        "pedido_de_ajuda",
+        "publicidade",
+        "outro",
+      ]);
+      if (contentFlag && validFlags.has(contentFlag)) {
+        q = q.eq("content_flag", contentFlag);
       }
       // Hashtag: busca #tag no conteúdo (case-insensitive). Escapa curingas ILIKE.
       if (hashtag) {
