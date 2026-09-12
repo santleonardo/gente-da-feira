@@ -130,6 +130,7 @@ export async function middleware(req: NextRequest) {
     // Exceptions:
     //   - /api/auth
     //   - /api/csp-report
+    //   - /api/geo/reverse — reverse geocode público (cadastro + perfil)
     //   - /api/push/send — Bearer INTERNAL_API_SECRET
     //   - /api/account-cleanup — Bearer INTERNAL_API_SECRET
     //   - /api/cron/* e /api/internal/* — Vercel Cron / jobs internos
@@ -137,6 +138,8 @@ export async function middleware(req: NextRequest) {
     const isAuthRoute = req.nextUrl.pathname.startsWith("/api/auth");
     const isCspReportRoute =
       req.nextUrl.pathname.startsWith("/api/csp-report");
+    const isPublicGeoRoute =
+      req.nextUrl.pathname.startsWith("/api/geo/reverse");
     const isInternalRoute =
       req.nextUrl.pathname.startsWith("/api/push/send") ||
       req.nextUrl.pathname.startsWith("/api/account-cleanup") ||
@@ -147,6 +150,7 @@ export async function middleware(req: NextRequest) {
       isApiRoute &&
       !isAuthRoute &&
       !isCspReportRoute &&
+      !isPublicGeoRoute &&
       !isInternalRoute &&
       !user
     ) {
