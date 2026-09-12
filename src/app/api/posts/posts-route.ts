@@ -29,7 +29,7 @@ import {
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { sanitizePostStyle, isMeaningfulPostStyle } from "@/lib/post-style";
-import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
+import { checkSpam, spamBlockResponse, isValidContentFlag } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
 
@@ -254,8 +254,10 @@ export async function POST(req: NextRequest) {
 
     const {
       content, neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, postType,
-      visibility, sharedPostId, postStyle,
+      visibility, sharedPostId, postStyle, contentFlag,
     } = await req.json();
+
+    const validContentFlag = isValidContentFlag(contentFlag) ? contentFlag : null;
 
     // Light / Free: vídeo continua desabilitado; áudio reativado
     if (videoUrl) {
@@ -350,7 +352,7 @@ export async function POST(req: NextRequest) {
     // MOD-001: checagem de spam via Gemini Flash-Lite.
     // Fail-open: se a IA estiver offline/erro (status "unavailable") → libera.
     // Bloqueia só quando a IA confirma spam com clareza (status "spam").
-    const spamResult = await checkSpam(sanitizedContent);
+    const spamResult = await checkSpam(sanitizedContent, validContentFlag);
     if (spamResult.status === "spam") {
       return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
     }
@@ -362,6 +364,7 @@ export async function POST(req: NextRequest) {
       .from("posts")
       .insert({
         content: sanitizedContent,
+        content_flag: validContentFlag,
         neighborhood: sanitizeShortText(neighborhood || "", 100) || null,
         author_id: user.id,
         image_urls: validatedImageUrls || [],

@@ -35,7 +35,7 @@ import {
 import { getViewerFollowingIds, filterByVisibility } from "@/lib/content-visibility";
 import { isReadOnlyMode, KILL_SWITCH_MESSAGES } from "@/lib/feature-flags";
 import { sanitizePostStyle, isMeaningfulPostStyle } from "@/lib/post-style";
-import { checkSpam, spamBlockResponse } from "@/lib/spam-check";
+import { checkSpam, spamBlockResponse, isValidContentFlag } from "@/lib/spam-check";
 import { autoReportSpam } from "@/lib/auto-report";
 import { validateText, TEXT_LIMITS } from "@/lib/text-validation";
 import {
@@ -299,8 +299,13 @@ export async function POST(req: NextRequest) {
 
     const {
       content, neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, postType,
-      visibility, sharedPostId, postStyle,
+      visibility, sharedPostId, postStyle, contentFlag,
     } = await req.json();
+
+    // MOD-001: contentFlag é autoclassificação opcional do autor
+    // ("aviso" | "achados_e_perdidos" | "pedido_de_ajuda" | "publicidade" | "outro").
+    // Só usamos se for um valor válido — qualquer outra coisa vira null.
+    const validContentFlag = isValidContentFlag(contentFlag) ? contentFlag : null;
 
     // Light / Free: vídeo continua desabilitado; áudio reativado
     if (videoUrl) {
@@ -396,7 +401,7 @@ export async function POST(req: NextRequest) {
     // MOD-001: checagem de spam via Gemini Flash-Lite.
     // Fail-open: se a IA estiver offline/erro (status "unavailable") → libera.
     // Bloqueia só quando a IA confirma spam com clareza (status "spam").
-    const spamResult = await checkSpam(sanitizedContent);
+    const spamResult = await checkSpam(sanitizedContent, validContentFlag);
     if (spamResult.status === "spam") {
       return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
     }
@@ -425,6 +430,7 @@ export async function POST(req: NextRequest) {
       shared_post_id: validSharedPostId,
       post_style: styleToStore,
       post_type: validPostType,
+      content_flag: validContentFlag,
     };
 
     const { data: inserted, error: insertError } = await supabase
@@ -469,6 +475,15 @@ export async function POST(req: NextRequest) {
         if (detail.includes("visibility")) {
           return NextResponse.json(
             { error: "Visibilidade inválida. Use Público ou Seguidores." },
+            { status: 400 }
+          );
+        }
+        if (detail.includes("content_flag")) {
+          return NextResponse.json(
+            {
+              error:
+                "O banco ainda não tem a coluna content_flag. Rode a migration scripts/20260912_posts_content_flag.sql no Supabase.",
+            },
             { status: 400 }
           );
         }
