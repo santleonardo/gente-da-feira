@@ -474,8 +474,6 @@ export function ProfileView() {
   const [headline, setHeadline] = useState(profile?.headline || "");
   const [neighborhood, setNeighborhood] = useState(profile?.neighborhood || "");
   const [detectingGeo, setDetectingGeo] = useState(false);
-  /** Seção "Personalizar perfil" começa recolhida para não poluir o hero */
-  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
@@ -504,7 +502,7 @@ export function ProfileView() {
   const [followListLoading, setFollowListLoading] = useState(false);
 
   // ═══════ Tab state ═══════
-  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "config" | "sobre" | "salas">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "postar" | "personalizar" | "sobre" | "salas">("posts");
 
   // ═══════ Composer state ═══════
   const [postStyle, setPostStyle] = useState<PostStyle>({
@@ -1651,240 +1649,6 @@ export function ProfileView() {
             </button>
           </div>
 
-          {/* ─── Personalizar perfil (UI: Card + Button + Select; recolhido por padrão) ─── */}
-          <Card className="mt-5 sm:mt-6 w-full max-w-2xl border-black/[0.08] bg-white/90 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setCustomizeOpen((v) => !v)}
-              className="flex w-full items-center justify-between gap-3 p-4 sm:p-5 text-left hover:bg-black/[0.02] transition-colors"
-              aria-expanded={customizeOpen}
-              aria-controls="profile-customize-panel"
-              id="profile-customize-toggle"
-            >
-              <CardHeader className="p-0 space-y-1 flex-1 min-w-0">
-                <CardTitle className="text-[13px] sm:text-sm font-semibold uppercase tracking-wider text-[#4A4A4A]/80 font-sans">
-                  Personalizar perfil
-                </CardTitle>
-                <CardDescription className="text-[11px] sm:text-xs">
-                  {customizeOpen
-                    ? "Toque para esconder"
-                    : "Descrição, cores, bairro, configurações e sair"}
-                </CardDescription>
-              </CardHeader>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 shrink-0 rounded-full border-black/10 pointer-events-none"
-                tabIndex={-1}
-                aria-hidden
-              >
-                {customizeOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            </button>
-
-            {customizeOpen && (
-              <CardContent
-                id="profile-customize-panel"
-                role="region"
-                aria-labelledby="profile-customize-toggle"
-                className="space-y-5 border-t border-black/[0.06] pt-4 pb-5"
-              >
-                {/* Descrição curta */}
-                <div className="space-y-2">
-                  <Label htmlFor="profile-tagline" className="text-[11px] font-medium text-[#4A4A4A]/70">
-                    Descrição curta
-                  </Label>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <Input
-                      id="profile-tagline"
-                      value={tagline}
-                      onChange={(e) => setTagline(e.target.value.slice(0, 100))}
-                      placeholder="Uma frase sobre você (até 100 caracteres)"
-                      maxLength={100}
-                      className="flex-1 min-w-0 h-10 rounded-xl border-black/10 bg-[#F9F8F6]"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => handleSave("tagline")}
-                      disabled={fieldSaveStatus.tagline === "saving"}
-                      className={`shrink-0 rounded-full ${
-                        fieldSaveStatus.tagline === "saved"
-                          ? "bg-emerald-600 hover:bg-emerald-600"
-                          : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
-                      }`}
-                    >
-                      {fieldSaveStatus.tagline === "saving" ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : fieldSaveStatus.tagline === "saved" ? (
-                        <>
-                          <Check className="h-3.5 w-3.5" />
-                          Salvo
-                        </>
-                      ) : (
-                        "Salvar"
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    {tagline.length}/100 · a bio longa fica na aba Sobre
-                  </p>
-                </div>
-
-                <Separator className="bg-black/[0.06]" />
-
-                {/* Cores + bairro */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div className="space-y-2">
-                    <Label className="text-[11px] font-medium text-[#4A4A4A]/70">
-                      Cor da faixa do nome
-                    </Label>
-                    <div
-                      className="flex flex-wrap items-center gap-2"
-                      role="group"
-                      aria-label="Cor da faixa do nome"
-                    >
-                      {NAME_BAND_THEMES.map((t) => {
-                        const selected = nameBand.id === t.id;
-                        return (
-                          <button
-                            key={t.id}
-                            type="button"
-                            title={t.label}
-                            aria-label={`Faixa ${t.label}`}
-                            aria-pressed={selected}
-                            onClick={() => handleNameBandTheme(t.id)}
-                            className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#1A1A1A]/40 ${
-                              selected
-                                ? "border-[#1A1A1A] scale-110 shadow-md ring-2 ring-[#1A1A1A]/15"
-                                : "border-white shadow-sm"
-                            }`}
-                            style={{ backgroundColor: t.bg }}
-                          />
-                        );
-                      })}
-                    </div>
-                    <Badge variant="secondary" className="text-[10px] font-medium rounded-full">
-                      {NAME_BAND_THEMES.find((t) => t.id === nameBand.id)?.label || "Navy"}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="profile-neighborhood" className="text-[11px] font-medium text-[#4A4A4A]/70">
-                      Lugar (bairro)
-                    </Label>
-                    <Select
-                      value={neighborhood || undefined}
-                      onValueChange={(v) => setNeighborhood(v === "__none__" ? "" : v)}
-                    >
-                      <SelectTrigger
-                        id="profile-neighborhood"
-                        className="h-10 w-full rounded-xl border-black/10 bg-[#F9F8F6]"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#D96C4A]" />
-                          <SelectValue placeholder="Selecione o bairro…" />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent className="max-h-64 rounded-xl">
-                        <SelectItem value="__none__">Selecione o bairro…</SelectItem>
-                        {neighborhood &&
-                          !(BAIRROS as readonly string[]).includes(neighborhood) && (
-                            <SelectItem value={neighborhood}>{neighborhood}</SelectItem>
-                          )}
-                        {BAIRROS.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDetectNeighborhood}
-                        disabled={detectingGeo}
-                        className="rounded-full border-black/10"
-                        title="Usar GPS para sugerir o bairro"
-                      >
-                        {detectingGeo ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
-                        )}
-                        {detectingGeo ? "Aguardando…" : "Detectar"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleSave("neighborhood")}
-                        disabled={
-                          fieldSaveStatus.neighborhood === "saving" ||
-                          (neighborhood || "") === (profile?.neighborhood || "")
-                        }
-                        className={`rounded-full ${
-                          fieldSaveStatus.neighborhood === "saved"
-                            ? "bg-emerald-600 hover:bg-emerald-600"
-                            : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
-                        }`}
-                      >
-                        {fieldSaveStatus.neighborhood === "saving" ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : fieldSaveStatus.neighborhood === "saved" ? (
-                          <>
-                            <Check className="h-3.5 w-3.5" />
-                            Salvo
-                          </>
-                        ) : (
-                          "Salvar bairro"
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      GPS só sugere o bairro — você confirma e salva.
-                    </p>
-                  </div>
-                </div>
-
-                <Separator className="bg-black/[0.06]" />
-
-                {/* Conta */}
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveTab("config")}
-                    className="rounded-full border-black/10 flex-1 sm:flex-none"
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    Configurações
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLogout}
-                    className="rounded-full border-black/10 flex-1 sm:flex-none hover:bg-[#1A1A1A] hover:text-white hover:border-[#1A1A1A]"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Sair da conta
-                  </Button>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-
-        </div>
-      </section>
-
       {/* ═══════ NAVEGAÇÃO EDITORIAL — faixa no título da aba ativa ═══════ */}
       <nav className="sticky top-0 z-20 bg-[#F9F8F6]/97 sm:bg-[#F9F8F6]/95 sm:backdrop-blur-md border-b border-black/[0.06] w-full max-w-full overflow-x-hidden -mx-0">
         <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain custom-scrollbar px-1 sm:px-0 py-2 scrollbar-none touch-pan-x" style={{WebkitOverflowScrolling: "touch"}}>
@@ -1893,7 +1657,7 @@ export function ProfileView() {
             { id: "sobre" as const, label: "Sobre" },
             { id: "salas" as const, label: "Salas" },
             { id: "postar" as const, label: "Escrever" },
-            { id: "config" as const, label: "Config" },
+            { id: "personalizar" as const, label: "Personalizar" },
           ].map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -3001,10 +2765,195 @@ export function ProfileView() {
         </div>
         )}
 
-        {/* ─── ABA: CONFIG ─── */}
-        {activeTab === "config" && (
-        <div>
-          <SettingsView />
+        {/* ─── ABA: PERSONALIZAR PERFIL ─── */}
+        {activeTab === "personalizar" && (
+        <div className="space-y-6">
+          <Card className="w-full border-black/[0.08] bg-white/90">
+            <CardHeader className="pb-3">
+              <CardTitle className="font-serif text-xl font-medium tracking-tight text-[#1A1A1A]">
+                Personalizar perfil
+              </CardTitle>
+              <CardDescription>
+                Descrição curta, cores da faixa, bairro e conta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="profile-tagline" className="text-[11px] font-medium text-[#4A4A4A]/70">
+                  Descrição curta
+                </Label>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <Input
+                    id="profile-tagline"
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value.slice(0, 100))}
+                    placeholder="Uma frase sobre você (até 100 caracteres)"
+                    maxLength={100}
+                    className="flex-1 min-w-0 h-10 rounded-xl border-black/10 bg-[#F9F8F6]"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleSave("tagline")}
+                    disabled={fieldSaveStatus.tagline === "saving"}
+                    className={`shrink-0 rounded-full ${
+                      fieldSaveStatus.tagline === "saved"
+                        ? "bg-emerald-600 hover:bg-emerald-600"
+                        : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                    }`}
+                  >
+                    {fieldSaveStatus.tagline === "saving" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : fieldSaveStatus.tagline === "saved" ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Salvo
+                      </>
+                    ) : (
+                      "Salvar"
+                    )}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {tagline.length}/100 · a bio longa fica na aba Sobre
+                </p>
+              </div>
+
+              <Separator className="bg-black/[0.06]" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-medium text-[#4A4A4A]/70">
+                    Cor da faixa do nome
+                  </Label>
+                  <div
+                    className="flex flex-wrap items-center gap-2"
+                    role="group"
+                    aria-label="Cor da faixa do nome"
+                  >
+                    {NAME_BAND_THEMES.map((t) => {
+                      const selected = nameBand.id === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          title={t.label}
+                          aria-label={`Faixa ${t.label}`}
+                          aria-pressed={selected}
+                          onClick={() => handleNameBandTheme(t.id)}
+                          className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#1A1A1A]/40 ${
+                            selected
+                              ? "border-[#1A1A1A] scale-110 shadow-md ring-2 ring-[#1A1A1A]/15"
+                              : "border-white shadow-sm"
+                          }`}
+                          style={{ backgroundColor: t.bg }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] font-medium rounded-full">
+                    {NAME_BAND_THEMES.find((t) => t.id === nameBand.id)?.label || "Navy"}
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="profile-neighborhood" className="text-[11px] font-medium text-[#4A4A4A]/70">
+                    Lugar (bairro)
+                  </Label>
+                  <Select
+                    value={neighborhood || undefined}
+                    onValueChange={(v) => setNeighborhood(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger
+                      id="profile-neighborhood"
+                      className="h-10 w-full rounded-xl border-black/10 bg-[#F9F8F6]"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#D96C4A]" />
+                        <SelectValue placeholder="Selecione o bairro…" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64 rounded-xl">
+                      <SelectItem value="__none__">Selecione o bairro…</SelectItem>
+                      {neighborhood &&
+                        !(BAIRROS as readonly string[]).includes(neighborhood) && (
+                          <SelectItem value={neighborhood}>{neighborhood}</SelectItem>
+                        )}
+                      {BAIRROS.map((b) => (
+                        <SelectItem key={b} value={b}>
+                          {b}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDetectNeighborhood}
+                      disabled={detectingGeo}
+                      className="rounded-full border-black/10"
+                      title="Usar GPS para sugerir o bairro"
+                    >
+                      {detectingGeo ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
+                      )}
+                      {detectingGeo ? "Aguardando…" : "Detectar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleSave("neighborhood")}
+                      disabled={
+                        fieldSaveStatus.neighborhood === "saving" ||
+                        (neighborhood || "") === (profile?.neighborhood || "")
+                      }
+                      className={`rounded-full ${
+                        fieldSaveStatus.neighborhood === "saved"
+                          ? "bg-emerald-600 hover:bg-emerald-600"
+                          : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                      }`}
+                    >
+                      {fieldSaveStatus.neighborhood === "saving" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : fieldSaveStatus.neighborhood === "saved" ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          Salvo
+                        </>
+                      ) : (
+                        "Salvar bairro"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    GPS só sugere o bairro — você confirma e salva.
+                  </p>
+                </div>
+              </div>
+
+              <Separator className="bg-black/[0.06]" />
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="rounded-full border-black/10 hover:bg-[#1A1A1A] hover:text-white hover:border-[#1A1A1A]"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Sair da conta
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Privacidade, conta, legal — sem aba Config separada */}
+          <SettingsView embedded />
         </div>
         )}
       </div>
