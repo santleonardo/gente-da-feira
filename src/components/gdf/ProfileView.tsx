@@ -1649,6 +1649,9 @@ export function ProfileView() {
             </button>
           </div>
 
+        </div>
+      </section>
+
       {/* ═══════ NAVEGAÇÃO EDITORIAL — faixa no título da aba ativa ═══════ */}
       <nav className="sticky top-0 z-20 bg-[#F9F8F6]/97 sm:bg-[#F9F8F6]/95 sm:backdrop-blur-md border-b border-black/[0.06] w-full max-w-full overflow-x-hidden -mx-0">
         <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain custom-scrollbar px-1 sm:px-0 py-2 scrollbar-none touch-pan-x" style={{WebkitOverflowScrolling: "touch"}}>
