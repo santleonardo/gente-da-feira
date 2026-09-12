@@ -580,8 +580,8 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
-          <button
-            onClick={() => { setTermsSection("privacy"); setTermsOpen(true); }}
+          <a
+            href="/legal/privacidade"
             className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
           >
             <div className="flex items-center gap-2">
@@ -589,7 +589,7 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
               <span>Política de Privacidade</span>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
+          </a>
           <a
             href="/legal/funcionalidades"
             className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
