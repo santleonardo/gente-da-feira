@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { validatePasswordStrength } from "@/lib/utils";
 import { BAIRROS, TERMS_VERSION } from "@/lib/constants";
+import { detectNeighborhood } from "@/lib/geolocation";
 import { toast } from "sonner";
-import { Eye, EyeOff, FileText, ShieldCheck, ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import { Eye, EyeOff, FileText, ShieldCheck, ArrowLeft, Mail, CheckCircle2, Loader2, Navigation } from "lucide-react";
 
 // PERF-002: TermsDialog usa react-markdown + remark-gfm (~45KB gzipped).
 // Lazy-load: só baixa o chunk quando o usuário clica "Ler Termos".
@@ -39,8 +40,33 @@ export function AuthForm() {
   const [termsSection, setTermsSection] = useState<"privacy" | undefined>(undefined);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [regData, setRegData] = useState({ name: "", username: "", email: "", password: "", neighborhood: "" });
+  const [detectingGeo, setDetectingGeo] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+
+  const handleDetectNeighborhood = async () => {
+    if (detectingGeo) return;
+    setDetectingGeo(true);
+    try {
+      const result = await detectNeighborhood();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setRegData((d) => ({ ...d, neighborhood: result.neighborhood }));
+      if (result.matched) {
+        toast.success(`Bairro detectado: ${result.neighborhood}`);
+      } else {
+        toast.info(
+          result.rawLabel
+            ? `Não encontramos "${result.rawLabel}" na lista. Selecionamos "Outro" — ajuste se quiser.`
+            : `Selecionamos "${result.neighborhood}". Você pode alterar.`
+        );
+      }
+    } finally {
+      setDetectingGeo(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!loginData.email || !loginData.password) { toast.error("Preencha todos os campos"); return; }
@@ -413,6 +439,19 @@ export function AuthForm() {
                             <option key={b} value={b}>{b}</option>
                           ))}
                         </select>
+                        <button
+                          type="button"
+                          onClick={handleDetectNeighborhood}
+                          disabled={detectingGeo}
+                          className="mt-1.5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-[#1A1A1A] hover:bg-black/[0.03] transition-colors disabled:opacity-50"
+                        >
+                          {detectingGeo ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
+                          )}
+                          {detectingGeo ? "Detectando localização…" : "Detectar meu bairro automaticamente"}
+                        </button>
                       </div>
 
                       <div className="space-y-2.5 rounded-xl border border-black/[0.06] bg-[#F9F8F6] p-3.5">

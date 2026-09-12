@@ -62,8 +62,10 @@ import {
   BookOpen,
   Newspaper,
   Settings,
+  Navigation,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
+import { detectNeighborhood } from "@/lib/geolocation";
 import { UserAvatar } from "./UserAvatar";
 // Code-split: só carrega quando a aba correspondente é aberta
 const SettingsView = dynamic(
@@ -462,6 +464,7 @@ export function ProfileView() {
   const [tagline, setTagline] = useState(profile?.tagline || "");
   const [headline, setHeadline] = useState(profile?.headline || "");
   const [neighborhood, setNeighborhood] = useState(profile?.neighborhood || "");
+  const [detectingGeo, setDetectingGeo] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
@@ -1172,6 +1175,30 @@ export function ProfileView() {
     }
   };
 
+  const handleDetectNeighborhood = async () => {
+    if (detectingGeo) return;
+    setDetectingGeo(true);
+    try {
+      const result = await detectNeighborhood();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setNeighborhood(result.neighborhood);
+      if (result.matched) {
+        toast.success(`Bairro detectado: ${result.neighborhood}`);
+      } else {
+        toast.info(
+          result.rawLabel
+            ? `Não encontramos "${result.rawLabel}" na lista. Selecionamos "Outro" — ajuste se quiser.`
+            : `Selecionamos "${result.neighborhood}". Confira e salve.`
+        );
+      }
+    } finally {
+      setDetectingGeo(false);
+    }
+  };
+
   const handleNameBandTheme = async (themeId: NameBandThemeId) => {
     if (!profile || profile.theme === themeId) return;
     // Otimista
@@ -1720,33 +1747,49 @@ export function ProfileView() {
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[#4A4A4A]/50" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSave("neighborhood")}
-                    disabled={
-                      fieldSaveStatus.neighborhood === "saving" ||
-                      (neighborhood || "") === (profile?.neighborhood || "")
-                    }
-                    className={`self-start inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                      fieldSaveStatus.neighborhood === "saved"
-                        ? "bg-emerald-600"
-                        : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
-                    }`}
-                  >
-                    {fieldSaveStatus.neighborhood === "saving" ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : fieldSaveStatus.neighborhood === "saved" ? (
-                      <>
-                        <Check className="h-3.5 w-3.5" />
-                        Salvo
-                      </>
-                    ) : (
-                      "Salvar bairro"
-                    )}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDetectNeighborhood}
+                      disabled={detectingGeo}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-black/10 bg-[#F9F8F6] px-3.5 py-2 text-xs font-semibold text-[#1A1A1A] hover:bg-black/[0.04] transition-colors disabled:opacity-50"
+                      title="Usar GPS para sugerir o bairro"
+                    >
+                      {detectingGeo ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
+                      )}
+                      {detectingGeo ? "Detectando…" : "Detectar automaticamente"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSave("neighborhood")}
+                      disabled={
+                        fieldSaveStatus.neighborhood === "saving" ||
+                        (neighborhood || "") === (profile?.neighborhood || "")
+                      }
+                      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        fieldSaveStatus.neighborhood === "saved"
+                          ? "bg-emerald-600"
+                          : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                      }`}
+                    >
+                      {fieldSaveStatus.neighborhood === "saving" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : fieldSaveStatus.neighborhood === "saved" ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          Salvo
+                        </>
+                      ) : (
+                        "Salvar bairro"
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-1.5 text-[10px] text-[#4A4A4A]/45">
-                  Esconda o bairro no perfil público em Configurações
+                  GPS só sugere o bairro — você confirma e salva. Visibilidade em Configurações.
                 </p>
               </div>
             </div>
