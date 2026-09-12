@@ -394,12 +394,14 @@ export async function POST(req: NextRequest) {
     const sanitizedContent = sanitizeRichContent((content || "").trim());
 
     // MOD-001: checagem de spam via Gemini Flash-Lite.
-    // Fail-open: se a IA estiver offline/erro → libera (checkSpam retorna isSpam: false).
-    // Fail-closed só quando a IA confirma spam com clareza → bloqueia a publicação.
+    // Fail-open: se a IA estiver offline/erro (status "unavailable") → libera.
+    // Bloqueia só quando a IA confirma spam com clareza (status "spam").
     const spamResult = await checkSpam(sanitizedContent);
-    // Fail-closed: spam confirmado OU moderação indisponível (com check ligado)
-    if (spamResult.status === "spam" || spamResult.status === "unavailable") {
+    if (spamResult.status === "spam") {
       return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
+    }
+    if (spamResult.status === "unavailable") {
+      console.warn("[spam-check] moderação indisponível, publicando mesmo assim (fail-open)");
     }
 
     // Insert mínimo (só colunas da tabela) — evita 500 quando o select com

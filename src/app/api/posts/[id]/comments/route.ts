@@ -159,8 +159,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // MOD-001: mesma checagem dos posts — fail-open em erro da IA;
     // bloqueia só quando a IA confirma spam.
     const spamResult = await checkSpam(sanitizedContent);
-    if (spamResult.status === "spam" || spamResult.status === "unavailable") {
+    if (spamResult.status === "spam") {
       return NextResponse.json(spamBlockResponse(spamResult), { status: 422 });
+    }
+    if (spamResult.status === "unavailable") {
+      console.warn("[spam-check] moderação indisponível, publicando mesmo assim (fail-open)");
     }
 
     const { data: comment, error } = await supabase
