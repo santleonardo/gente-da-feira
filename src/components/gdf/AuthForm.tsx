@@ -450,7 +450,7 @@ export function AuthForm() {
                           ) : (
                             <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
                           )}
-                          {detectingGeo ? "Detectando localização…" : "Detectar meu bairro automaticamente"}
+                          {detectingGeo ? "Aguardando permissão do navegador…" : "Detectar meu bairro automaticamente"}
                         </button>
                       </div>
 

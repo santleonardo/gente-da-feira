@@ -1760,7 +1760,7 @@ export function ProfileView() {
                       ) : (
                         <Navigation className="h-3.5 w-3.5 text-[#D96C4A]" />
                       )}
-                      {detectingGeo ? "Detectando…" : "Detectar automaticamente"}
+                      {detectingGeo ? "Aguardando permissão…" : "Detectar automaticamente"}
                     </button>
                     <button
                       type="button"

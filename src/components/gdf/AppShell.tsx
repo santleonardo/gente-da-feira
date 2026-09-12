@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { FeedView } from "@/components/gdf/FeedView";
+import { LocationPermissionBanner } from "@/components/gdf/LocationPermissionBanner";
 import { createClient } from "@/lib/supabase/client";
 import { handleAuthPollingFailure } from "@/lib/session-check";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff, X } from "lucide-react";
@@ -642,6 +643,11 @@ export function AppShell() {
               : "mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl px-2.5 sm:px-4 md:px-6 py-3 sm:py-4 md:py-8 min-w-0 overflow-x-hidden"
           )}
         >
+          {/* Pedido de permissão de localização (só se bairro ainda vazio) */}
+          {!inChat && profile && (
+            <LocationPermissionBanner onlyIfMissingNeighborhood />
+          )}
+
           <div
             key={transitionKey}
             className={cn(
