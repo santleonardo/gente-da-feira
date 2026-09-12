@@ -61,6 +61,7 @@ import {
   Check,
   BookOpen,
   Newspaper,
+  Settings,
 } from "lucide-react";
 import { getInitials, getAvatarColor, timeAgo, BAIRROS } from "@/lib/constants";
 import { UserAvatar } from "./UserAvatar";
@@ -1558,27 +1559,6 @@ export function ProfileView() {
                 />
               </div>
 
-              <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5" role="group" aria-label="Cor da faixa do nome">
-                {NAME_BAND_THEMES.map((t) => {
-                  const selected = nameBand.id === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      title={t.label}
-                      aria-label={`Faixa ${t.label}`}
-                      aria-pressed={selected}
-                      onClick={() => handleNameBandTheme(t.id)}
-                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#1A1A1A]/40 ${
-                        selected ? "border-[#1A1A1A] scale-110 shadow-sm" : "border-white/80 shadow-sm"
-                      }`}
-                      style={{ backgroundColor: t.bg }}
-                    />
-                  );
-                })}
-                <span className="ml-1 text-[10px] text-[#4A4A4A]/55">Cor da faixa</span>
-              </div>
-
               <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
                 <span className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-2.5 py-0.5 text-xs font-medium text-[#3A3A3A] shadow-sm">
                   @{profile?.username}
@@ -1591,27 +1571,17 @@ export function ProfileView() {
                 )}
               </div>
 
-              {/* Tagline no desktop (ao lado da foto) */}
+              {/* Preview da descrição curta (ao lado da foto no desktop / abaixo no mobile) */}
               <p
-                className="hidden sm:block mt-3 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3 max-w-xl"
+                className="mt-3 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3 max-w-xl text-center sm:text-left"
                 style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
               >
                 {(profile?.tagline || tagline)?.trim()
                   ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
-                  : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
+                  : <span className="text-[#4A4A4A]/40">Sem descrição curta — edite abaixo</span>}
               </p>
             </div>
           </div>
-
-          {/* Tagline mobile — largura total, abaixo da foto */}
-          <p
-            className="sm:hidden mt-4 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-4 text-center px-1"
-            style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
-          >
-            {(profile?.tagline || tagline)?.trim()
-              ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
-              : <span className="text-[#4A4A4A]/40">Sem descrição curta</span>}
-          </p>
 
           {/* Contadores — sempre largura total, lado a lado */}
           <div className="profile-stats-row mt-4 divide-x divide-black/[0.06] border border-black/[0.06] rounded-xl bg-white/70 shadow-sm">
@@ -1641,56 +1611,120 @@ export function ProfileView() {
             </button>
           </div>
 
-          {/* Editar descrição curta */}
-          <div className="mt-5 sm:mt-6 max-w-2xl min-w-0 w-full">
-            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
-              <Input
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value.slice(0, 100))}
-                placeholder="Descrição curta (até 100 caracteres)"
-                maxLength={100}
-                className="flex-1 min-w-0 h-10 rounded-xl border-black/10 bg-white/80 text-sm"
-              />
+          {/* ─── Seção unificada: personalizar + conta ─── */}
+          <div className="mt-5 sm:mt-6 w-full max-w-2xl rounded-2xl border border-black/[0.08] bg-white/90 p-3.5 sm:p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+                Personalizar perfil
+              </h2>
+              <span className="text-[10px] text-[#4A4A4A]/40 hidden sm:inline">
+                Tudo em um só lugar
+              </span>
+            </div>
+
+            {/* Descrição curta */}
+            <div>
+              <label className="block text-[11px] font-medium text-[#4A4A4A]/70 mb-1.5">
+                Descrição curta
+              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <Input
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value.slice(0, 100))}
+                  placeholder="Uma frase sobre você (até 100 caracteres)"
+                  maxLength={100}
+                  className="flex-1 min-w-0 h-10 rounded-xl border-black/10 bg-[#F9F8F6] text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSave("tagline")}
+                  disabled={fieldSaveStatus.tagline === "saving"}
+                  className={`shrink-0 inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 sm:py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
+                    fieldSaveStatus.tagline === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                  }`}
+                >
+                  {fieldSaveStatus.tagline === "saving" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : fieldSaveStatus.tagline === "saved" ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      Salvo
+                    </>
+                  ) : (
+                    "Salvar"
+                  )}
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] text-[#4A4A4A]/45">
+                {tagline.length}/100 · a bio longa fica na aba Sobre
+              </p>
+            </div>
+
+            {/* Cores da faixa + lugar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1 border-t border-black/[0.06]">
+              <div>
+                <p className="text-[11px] font-medium text-[#4A4A4A]/70 mb-2">Cor da faixa do nome</p>
+                <div
+                  className="flex flex-wrap items-center gap-1.5"
+                  role="group"
+                  aria-label="Cor da faixa do nome"
+                >
+                  {NAME_BAND_THEMES.map((t) => {
+                    const selected = nameBand.id === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        title={t.label}
+                        aria-label={`Faixa ${t.label}`}
+                        aria-pressed={selected}
+                        onClick={() => handleNameBandTheme(t.id)}
+                        className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#1A1A1A]/40 ${
+                          selected ? "border-[#1A1A1A] scale-110 shadow-md" : "border-white shadow-sm"
+                        }`}
+                        style={{ backgroundColor: t.bg }}
+                      />
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[10px] text-[#4A4A4A]/45">
+                  {NAME_BAND_THEMES.find((t) => t.id === nameBand.id)?.label || "Navy"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[11px] font-medium text-[#4A4A4A]/70 mb-2">Lugar</p>
+                <div className="inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-[#F9F8F6] px-3 py-2 text-sm text-[#1A1A1A]">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#D96C4A]" />
+                  <span className="font-medium">
+                    {profile?.neighborhood?.trim() || "Sem bairro definido"}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[10px] text-[#4A4A4A]/45">
+                  Visibilidade do bairro em Configurações
+                </p>
+              </div>
+            </div>
+
+            {/* Conta: configurações + sair */}
+            <div className="flex flex-col xs:flex-row sm:flex-row flex-wrap items-stretch sm:items-center gap-2 pt-1 border-t border-black/[0.06]">
               <button
                 type="button"
-                onClick={() => handleSave("tagline")}
-                disabled={fieldSaveStatus.tagline === "saving"}
-                className={`shrink-0 inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 sm:py-2 text-xs font-medium text-white transition-colors disabled:opacity-70 ${
-                  fieldSaveStatus.tagline === "saved" ? "bg-emerald-600" : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
-                }`}
+                onClick={() => setActiveTab("config")}
+                className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-full border border-black/10 bg-[#F9F8F6] px-4 py-2.5 sm:py-2 text-xs font-semibold text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
               >
-                {fieldSaveStatus.tagline === "saving" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : fieldSaveStatus.tagline === "saved" ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    Salvo
-                  </>
-                ) : (
-                  "Salvar"
-                )}
+                <Settings className="h-3.5 w-3.5" />
+                Configurações
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-full border border-black/10 bg-[#F9F8F6] px-4 py-2.5 sm:py-2 text-xs font-semibold text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sair da conta
               </button>
             </div>
-            <p className="mt-1 text-[10px] text-[#4A4A4A]/45">{tagline.length}/100 · descrição curta · a bio longa fica em Sobre</p>
-          </div>
-
-          {/* Ações rápidas */}
-          <div className="mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab("config")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
-            >
-              Configurações
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white transition-colors"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Sair da conta
-            </button>
           </div>
 
         </div>
