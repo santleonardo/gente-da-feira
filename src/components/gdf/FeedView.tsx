@@ -633,6 +633,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
 
   // ─── Composer state ────────────────────────────────────
   const [content,            setContent]            = useState("");
+  const [composerExpanded,   setComposerExpanded]   = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const {
     mentionQuery,
@@ -1065,6 +1066,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
         setPosts((prev) => [{ ...data.post, comment_count: data.post.comment_count || 0 }, ...prev]);
         setContent("");
         setContentFlag(null);
+        setComposerExpanded(false);
         clearMedia();
         toast.success("Post publicado!");
       } else if (data.error) { toast.error(data.error); }
@@ -1216,8 +1218,32 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       `}</style>
 
       {/* ═══════ COMPOSER ═══════ */}
-      <div className={`relative z-10 rounded-2xl bg-white p-3.5 sm:p-5 shadow-sm border border-black/[0.08] min-w-0 max-w-full ${menuOpen ? "overflow-visible" : "overflow-x-hidden"}`}>
-        <p className="mb-3 font-serif text-lg font-medium text-[#1A1A1A]">Nova publicação</p>
+      <div className={`relative z-10 rounded-2xl bg-white p-3.5 sm:p-5 shadow-sm border border-black/[0.08] min-w-0 max-w-full transition-[box-shadow] ${menuOpen || composerExpanded ? "overflow-visible shadow-md" : "overflow-x-hidden"} ${composerExpanded ? "ring-1 ring-[#0A4D5C]/15" : ""}`}>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="font-serif text-lg font-medium text-[#1A1A1A]">Nova publicação</p>
+          <button
+            type="button"
+            onClick={() => {
+              setComposerExpanded((v) => !v);
+              setTimeout(() => composerRef.current?.focus(), 0);
+            }}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-[#0A4D5C] hover:bg-[#0A4D5C]/[0.08] active:scale-95 transition-colors"
+            title={composerExpanded ? "Recolher caixa de post" : "Expandir caixa de post"}
+            aria-expanded={composerExpanded}
+          >
+            {composerExpanded ? (
+              <>
+                <ChevronUp className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Recolher</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Expandir</span>
+              </>
+            )}
+          </button>
+        </div>
         <div className="flex items-start gap-3.5">
           <UserAvatar user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }} className="h-12 w-12 shrink-0" />
           <div className="flex-1 space-y-2">
@@ -1266,12 +1292,20 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                     }, 0);
                   });
                 }}
+                onFocus={() => {
+                  // Ao focar com texto já longo, sugere a área expandida
+                  if (!composerExpanded && content.length > 120) setComposerExpanded(true);
+                }}
                 onBlur={() => {
                   // delay para permitir click na sugestão
                   setTimeout(() => closeMentions(), 150);
                 }}
-                className="w-full min-h-[72px] resize-none border-0 bg-transparent p-0 text-sm text-[#1A1A1A] focus:outline-none placeholder:text-[#1A1A1A]/30"
-                rows={2}
+                className={`w-full resize-none border-0 bg-transparent p-0 text-sm text-[#1A1A1A] focus:outline-none placeholder:text-[#1A1A1A]/30 transition-[min-height] duration-200 ${
+                  composerExpanded
+                    ? "min-h-[min(40vh,280px)] sm:min-h-[220px]"
+                    : "min-h-[72px]"
+                }`}
+                rows={composerExpanded ? 10 : 2}
               />
             </div>
 
