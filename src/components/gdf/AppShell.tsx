@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { FeedView } from "@/components/gdf/FeedView";
 import { createClient } from "@/lib/supabase/client";
+import { handleAuthPollingFailure } from "@/lib/session-check";
 import { Home, Users, MessageSquare, Compass, User, Loader2, WifiOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -317,9 +318,15 @@ export function AppShell() {
     if (!profile) return;
     const fetchUnread = () => {
       fetch("/api/notifications")
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) {
+            handleAuthPollingFailure(r.status);
+            return null;
+          }
+          return r.json();
+        })
         .then((data) => {
-          if (typeof data.unreadCount === "number") {
+          if (data && typeof data.unreadCount === "number") {
             useStore.getState().setUnreadNotifications(data.unreadCount);
           }
         })
@@ -336,7 +343,13 @@ export function AppShell() {
     let cancelled = false;
     const loadBanner = () => {
       fetch("/api/banners")
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          if (!r.ok) {
+            handleAuthPollingFailure(r.status);
+            return null;
+          }
+          return r.json();
+        })
         .then((data) => {
           if (cancelled) return;
           const list = Array.isArray(data?.banners) ? data.banners : [];

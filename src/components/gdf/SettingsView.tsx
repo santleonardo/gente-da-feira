@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
+import { handleAuthPollingFailure } from "@/lib/session-check";
 import { clearImageCache, getImageCacheStats, formatCacheSize } from "@/lib/image-cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -104,8 +105,14 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
     if (!profile) return;
     const fetchRequests = () => {
       fetch("/api/follows/requests")
-        .then((r) => r.json())
-        .then((data) => { if (data.requests) setPendingRequests(data.requests); })
+        .then((r) => {
+          if (!r.ok) {
+            handleAuthPollingFailure(r.status);
+            return null;
+          }
+          return r.json();
+        })
+        .then((data) => { if (data?.requests) setPendingRequests(data.requests); })
         .catch(() => {});
     };
     fetchRequests();
@@ -116,8 +123,14 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
   useEffect(() => {
     if (!profile) return;
     fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((data) => { if (data.notifications) setNotifications(data.notifications); })
+      .then((r) => {
+        if (!r.ok) {
+          handleAuthPollingFailure(r.status);
+          return null;
+        }
+        return r.json();
+      })
+      .then((data) => { if (data?.notifications) setNotifications(data.notifications); })
       .catch(() => {});
   }, [profile]);
 
