@@ -9,6 +9,10 @@ import { UserAvatar } from "./UserAvatar";
 import { LazyImage } from "./LazyImage";
 import { toast } from "sonner";
 import { timeAgo } from "@/lib/constants";
+import {
+  CONTENT_FLAG_OPTIONS,
+  type ContentFlagValue,
+} from "@/lib/content-flags";
 
 // ═══════════════════════════════════════════════════════════
 // Bento grid de publicações — vitrine limpa no Descobrir.
@@ -110,12 +114,21 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   const [postsHasMore, setPostsHasMore] = useState(false);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  /** Filtro por categoria (content_flag) — mesmas opções do composer */
+  const [categoryFilter, setCategoryFilter] = useState<ContentFlagValue | "all">("all");
+
+  const buildPostsParams = (opts?: { cursor?: string | null }) => {
+    const params = new URLSearchParams({ limit: "18" });
+    if (opts?.cursor) params.set("cursor", opts.cursor);
+    if (categoryFilter !== "all") params.set("content_flag", categoryFilter);
+    return params;
+  };
 
   const loadMorePosts = async () => {
     if (loadingMorePosts || !postsCursor) return;
     setLoadingMorePosts(true);
     try {
-      const params = new URLSearchParams({ limit: "18", cursor: postsCursor });
+      const params = buildPostsParams({ cursor: postsCursor });
       const res = await fetch(`/api/posts?${params.toString()}`);
       const data = await res.json();
       setDiscoverPosts((prev) => [...prev, ...(data.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id))]);
@@ -160,6 +173,39 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
     };
     init();
   }, []);
+
+  // Recarrega publicações ao mudar a categoria (pula o 1º mount — init já carrega)
+  const categoryMountRef = useRef(true);
+  useEffect(() => {
+    if (categoryMountRef.current) {
+      categoryMountRef.current = false;
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setLoadingPosts(true);
+      try {
+        const params = buildPostsParams();
+        const res = await fetch(`/api/posts?${params.toString()}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setDiscoverPosts(
+          (data.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id))
+        );
+        setPostsCursor(data.nextCursor ?? null);
+        setPostsHasMore(!!data.hasMore);
+      } catch {
+        /* silent */
+      } finally {
+        if (!cancelled) setLoadingPosts(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à categoria
+  }, [categoryFilter]);
 
   const runSearch = async (term: string) => {
     const q = term.trim();
@@ -523,6 +569,47 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
 
             {!collapsedSections.posts && (
             <>
+            {/* Categorias — mesmas do campo de post */}
+            <div
+              className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none touch-pan-x"
+              role="listbox"
+              aria-label="Filtrar por categoria"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={categoryFilter === "all"}
+                onClick={() => setCategoryFilter("all")}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  categoryFilter === "all"
+                    ? "bg-[#1A1A1A] text-white"
+                    : "border border-black/10 bg-white text-[#4A4A4A] hover:bg-black/[0.03]"
+                }`}
+              >
+                Todas
+              </button>
+              {CONTENT_FLAG_OPTIONS.map((opt) => {
+                const active = categoryFilter === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => setCategoryFilter(opt.value)}
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                      active
+                        ? "bg-[#1A1A1A] text-white"
+                        : "border border-black/10 bg-white text-[#4A4A4A] hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    <span aria-hidden>{opt.emoji}</span>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
             {loadingPosts ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[230px]">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -530,7 +617,11 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                 ))}
               </div>
             ) : discoverPosts.length === 0 ? (
-              <p className="text-sm text-[#4A4A4A]/50 py-4">Nenhuma publicação por aqui ainda</p>
+              <p className="text-sm text-[#4A4A4A]/50 py-4">
+                {categoryFilter === "all"
+                  ? "Nenhuma publicação por aqui ainda"
+                  : `Nenhuma publicação em “${CONTENT_FLAG_OPTIONS.find((o) => o.value === categoryFilter)?.label}”`}
+              </p>
             ) : (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[230px] grid-flow-row-dense">
