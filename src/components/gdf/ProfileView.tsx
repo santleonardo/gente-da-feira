@@ -29,6 +29,7 @@ import {
   AlignRight,
   AlignJustify,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Type,
   Plus,
@@ -465,6 +466,8 @@ export function ProfileView() {
   const [headline, setHeadline] = useState(profile?.headline || "");
   const [neighborhood, setNeighborhood] = useState(profile?.neighborhood || "");
   const [detectingGeo, setDetectingGeo] = useState(false);
+  /** Seção "Personalizar perfil" começa recolhida para não poluir o hero */
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
@@ -1640,17 +1643,47 @@ export function ProfileView() {
             </button>
           </div>
 
-          {/* ─── Seção unificada: personalizar + conta ─── */}
-          <div className="mt-5 sm:mt-6 w-full max-w-2xl rounded-2xl border border-black/[0.08] bg-white/90 p-3.5 sm:p-4 shadow-sm space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
-                Personalizar perfil
-              </h2>
-              <span className="text-[10px] text-[#4A4A4A]/40 hidden sm:inline">
-                Tudo em um só lugar
+          {/* ─── Seção unificada: personalizar + conta (recolhida por padrão) ─── */}
+          <div className="mt-5 sm:mt-6 w-full max-w-2xl rounded-2xl border border-black/[0.08] bg-white/90 shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setCustomizeOpen((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-3.5 sm:px-4 py-3 text-left hover:bg-black/[0.02] transition-colors"
+              aria-expanded={customizeOpen}
+              aria-controls="profile-customize-panel"
+              id="profile-customize-toggle"
+            >
+              <div className="min-w-0">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#4A4A4A]/70">
+                  Personalizar perfil
+                </h2>
+                <p className="text-[10px] text-[#4A4A4A]/45 mt-0.5">
+                  {customizeOpen
+                    ? "Toque para esconder"
+                    : "Descrição, cores, bairro, configurações e sair"}
+                </p>
+              </div>
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/10 bg-[#F9F8F6] text-[#1A1A1A]"
+                aria-hidden
+              >
+                {customizeOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </span>
-            </div>
+            </button>
 
+            <div
+              id="profile-customize-panel"
+              role="region"
+              aria-labelledby="profile-customize-toggle"
+              hidden={!customizeOpen}
+              className={customizeOpen ? "space-y-4 border-t border-black/[0.06] px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3" : undefined}
+            >
+            {customizeOpen && (
+            <>
             {/* Descrição curta */}
             <div>
               <label className="block text-[11px] font-medium text-[#4A4A4A]/70 mb-1.5">
@@ -1812,6 +1845,9 @@ export function ProfileView() {
                 <LogOut className="h-3.5 w-3.5" />
                 Sair da conta
               </button>
+            </div>
+            </>
+            )}
             </div>
           </div>
 
