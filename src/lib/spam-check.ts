@@ -1,11 +1,13 @@
 /**
  * MOD-001: Detecção de spam via Gemini Flash-Lite (Google AI Studio).
  *
- * Política FAIL-CLOSED quando a moderação está ligada:
+ * Política quando a moderação está ligada:
  *   - SPAM_CHECK_ENABLED=1 + GEMINI_API_KEY → a checagem é obrigatória
- *   - spam confirmado → bloqueia
- *   - timeout / rede / resposta inválida → também bloqueia
- *     (não publica conteúdo sem parecer da moderação)
+ *   - spam confirmado → bloqueia (fail-closed neste caso)
+ *   - timeout / rede / resposta inválida → status "unavailable"; as rotas
+ *     tratam isso como FAIL-OPEN (publicam mesmo assim), para que uma
+ *     instabilidade da API do Google não derrube a publicação de ninguém.
+ *     Veja o uso de spamResult.status nas rotas de posts/comentários.
  *   - SPAM_CHECK desligado ou sem chave → não checa, libera (moderação off)
  *
  * Ativar com:
@@ -14,7 +16,7 @@
  *   GEMINI_SPAM_MODEL=...        — opcional, default abaixo
  */
 
-const DEFAULT_MODEL = "gemini-flash-lite-latest";
+const DEFAULT_MODEL = "gemini-2.5-flash-lite";
 const TIMEOUT_MS = 5000;
 const MAX_CONTENT_CHARS = 2000;
 
