@@ -123,6 +123,7 @@ export const POST_COLUMNS = [
   "shared_post_id",
   "post_style",
   "post_type",
+  "content_flag",
   "neighborhood",
   "created_at",
 ] as const;

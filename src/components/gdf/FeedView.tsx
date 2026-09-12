@@ -287,6 +287,16 @@ interface Comment {
   reactions: { user_id: string; type: string }[];
 }
 
+type ContentFlagValue = "aviso" | "achados_e_perdidos" | "pedido_de_ajuda" | "publicidade" | "outro" | null;
+
+const CONTENT_FLAG_OPTIONS: { value: Exclude<ContentFlagValue, null>; label: string; emoji: string }[] = [
+  { value: "aviso", label: "Aviso", emoji: "📢" },
+  { value: "achados_e_perdidos", label: "Achados e perdidos", emoji: "🔍" },
+  { value: "pedido_de_ajuda", label: "Pedido de ajuda", emoji: "🙏" },
+  { value: "publicidade", label: "Publicidade", emoji: "🏷️" },
+  { value: "outro", label: "Outro", emoji: "💬" },
+];
+
 interface PostWithAuthor {
   id: string;
   content: string | null;
@@ -301,6 +311,7 @@ interface PostWithAuthor {
   visibility?: "public" | "followers";
   shared_post_id?: string | null;
   shared_post?: PostWithAuthor | null;
+  content_flag?: "aviso" | "achados_e_perdidos" | "pedido_de_ajuda" | "publicidade" | "outro" | null;
   post_style?: {
     font?: string | null;
     bold?: boolean;
@@ -639,6 +650,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
   const [audioDuration,      setAudioDuration]      = useState<number>(0);
   const [visibility,         setVisibility]         = useState<"public" | "followers">("public");
   const [menuOpen,           setMenuOpen]           = useState(false);
+  const [contentFlag,        setContentFlag]        = useState<ContentFlagValue>(null);
 
   // Input refs
   const fileInputRef   = useRef<HTMLInputElement>(null);
@@ -1032,12 +1044,13 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content.trim(), neighborhood: profile.neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, videoDuration, visibility }),
+        body: JSON.stringify({ content: content.trim(), neighborhood: profile.neighborhood, imageUrls, videoUrl, audioUrl, audioDuration, videoDuration, visibility, contentFlag }),
       });
       const data = await res.json();
       if (data.post) {
         setPosts((prev) => [{ ...data.post, comment_count: data.post.comment_count || 0 }, ...prev]);
         setContent("");
+        setContentFlag(null);
         clearMedia();
         toast.success("Post publicado!");
       } else if (data.error) { toast.error(data.error); }
@@ -1310,6 +1323,25 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                 </button>
               </div>
             )}
+
+            {/* CATEGORIA (opcional) — ajuda a moderação automática e sinaliza pra vizinhança */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {CONTENT_FLAG_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setContentFlag((v) => (v === opt.value ? null : opt.value))}
+                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                    contentFlag === opt.value
+                      ? "bg-[#1A1A1A] text-[#F9F8F6]"
+                      : "bg-[#1A1A1A]/[0.06] text-[#1A1A1A]/60 hover:bg-[#1A1A1A]/10"
+                  }`}
+                  title={`Marcar como "${opt.label}"`}
+                >
+                  <span>{opt.emoji}</span>{opt.label}
+                </button>
+              ))}
+            </div>
 
             {/* ACTION BAR */}
             <div className="flex items-center justify-between pt-1">
@@ -1765,6 +1797,12 @@ const PostThread = memo(function PostThread({
               )}
               {isOwnPost && (
                 <span className="inline-flex items-center rounded-full bg-[#f7f75e]/30 px-2 py-0.5 text-[10px] font-medium text-[#1A1A1A]">Seu post</span>
+              )}
+              {post.content_flag && CONTENT_FLAG_OPTIONS.find((o) => o.value === post.content_flag) && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#1A1A1A]/[0.06] px-2 py-0.5 text-[10px] font-medium text-[#1A1A1A]/60">
+                  {CONTENT_FLAG_OPTIONS.find((o) => o.value === post.content_flag)!.emoji}{" "}
+                  {CONTENT_FLAG_OPTIONS.find((o) => o.value === post.content_flag)!.label}
+                </span>
               )}
               <span className="text-[10px] text-[#1A1A1A]/25">·</span>
               <span className="text-[10px] text-[#1A1A1A]/45">{timeAgo(post.created_at)}</span>

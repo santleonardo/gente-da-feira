@@ -20,6 +20,25 @@ const DEFAULT_MODEL = "gemini-2.5-flash-lite";
 const TIMEOUT_MS = 5000;
 const MAX_CONTENT_CHARS = 2000;
 
+/**
+ * Tags que o autor pode escolher no composer antes de publicar.
+ * Servem só de CONTEXTO para o Gemini — o texto ainda é avaliado
+ * normalmente, a tag não bloqueia nem libera nada sozinha.
+ */
+export const CONTENT_FLAGS = {
+  aviso: "Aviso de bairro",
+  achados_e_perdidos: "Achados e perdidos",
+  pedido_de_ajuda: "Pedido de ajuda",
+  publicidade: "Ofertando algo (pequeno negócio do próprio morador)",
+  outro: "Outro",
+} as const;
+
+export type ContentFlag = keyof typeof CONTENT_FLAGS;
+
+export function isValidContentFlag(v: unknown): v is ContentFlag {
+  return typeof v === "string" && Object.prototype.hasOwnProperty.call(CONTENT_FLAGS, v);
+}
+
 export type SpamCheckStatus = "disabled" | "clean" | "spam" | "unavailable";
 
 export interface SpamCheckResult {
@@ -66,7 +85,10 @@ Responda APENAS com um JSON válido, sem markdown, no formato exato:
  * - spam: é spam → bloquear
  * - unavailable: IA falhou com moderação ON → bloquear (fail-closed)
  */
-export async function checkSpam(content: string): Promise<SpamCheckResult> {
+export async function checkSpam(
+  content: string,
+  userFlag?: ContentFlag | null
+): Promise<SpamCheckResult> {
   if (!isSpamCheckEnabled()) {
     return { isSpam: false, status: "disabled", reason: null };
   }
@@ -85,6 +107,14 @@ export async function checkSpam(content: string): Promise<SpamCheckResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_SPAM_MODEL || DEFAULT_MODEL;
 
+  // Contexto opcional: o autor pode ter marcado uma categoria no
+  // composer. Isso NÃO decide nada sozinho — é só um dado a mais
+  // para o modelo aplicar melhor as regras acima (ex.: divulgação
+  // pontual de pequeno negócio do próprio morador não é spam).
+  const flagContext = userFlag && CONTENT_FLAGS[userFlag]
+    ? `\n\nO autor classificou este post como: "${CONTENT_FLAGS[userFlag]}". Considere isso como um indício, mas avalie o texto de qualquer forma — a autoclassificação pode estar errada ou ser usada de má-fé.`
+    : "";
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -101,7 +131,7 @@ export async function checkSpam(content: string): Promise<SpamCheckResult> {
           contents: [
             {
               role: "user",
-              parts: [{ text: `${SYSTEM_PROMPT}\n\nTexto:\n"""${truncated}"""` }],
+              parts: [{ text: `${SYSTEM_PROMPT}${flagContext}\n\nTexto:\n"""${truncated}"""` }],
             },
           ],
           generationConfig: {
