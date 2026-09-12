@@ -140,6 +140,8 @@ export async function middleware(req: NextRequest) {
       req.nextUrl.pathname.startsWith("/api/csp-report");
     const isPublicGeoRoute =
       req.nextUrl.pathname.startsWith("/api/geo/reverse");
+    const isPublicBannersRoute =
+      req.nextUrl.pathname.startsWith("/api/banners");
     const isInternalRoute =
       req.nextUrl.pathname.startsWith("/api/push/send") ||
       req.nextUrl.pathname.startsWith("/api/account-cleanup") ||
@@ -151,6 +153,7 @@ export async function middleware(req: NextRequest) {
       !isAuthRoute &&
       !isCspReportRoute &&
       !isPublicGeoRoute &&
+      !isPublicBannersRoute &&
       !isInternalRoute &&
       !user
     ) {
