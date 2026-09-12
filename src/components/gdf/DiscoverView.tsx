@@ -159,6 +159,13 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   };
 
   const openPost = (post: any) => {
+    if (post?.id) {
+      fetch("/api/ranking/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id, event: "open" }),
+      }).catch(() => {});
+    }
     window.dispatchEvent(new CustomEvent("openPostDetail", { detail: { post } }));
   };
 
