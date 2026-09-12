@@ -32,6 +32,7 @@ import {
   FileText,
   ChevronRight,
   Flag,
+  List,
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { AccountSection } from "./AccountSection";
@@ -589,6 +590,16 @@ export function SettingsView({ embedded }: { embedded?: boolean }) {
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
+          <a
+            href="/legal/funcionalidades"
+            className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-sm transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center gap-2">
+              <List className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Funcionalidades</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </a>
         </CardContent>
       </Card>
 
