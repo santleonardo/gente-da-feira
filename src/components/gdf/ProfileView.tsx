@@ -1117,11 +1117,12 @@ export function ProfileView() {
 
 
   // Indicador de salvamento por campo: "idle" | "saving" | "saved" | "error"
-  type FieldSaveKey = "tagline" | "headline" | "bio";
+  type FieldSaveKey = "tagline" | "headline" | "bio" | "neighborhood";
   const [fieldSaveStatus, setFieldSaveStatus] = useState<Record<FieldSaveKey, "idle" | "saving" | "saved" | "error">>({
     tagline: "idle",
     headline: "idle",
     bio: "idle",
+    neighborhood: "idle",
   });
   const fieldSaveTimers = useRef<Partial<Record<FieldSaveKey, ReturnType<typeof setTimeout>>>>({});
 
@@ -1140,7 +1141,7 @@ export function ProfileView() {
           bio: bio.trim().slice(0, 500),
           tagline: tagline.trim().slice(0, 100),
           headline: headline.trim().slice(0, 40),
-          neighborhood,
+          neighborhood: neighborhood.trim().slice(0, 100),
         }),
       });
       const data = await res.json();
@@ -1153,7 +1154,8 @@ export function ProfileView() {
         updateProfile(data.user);
         if (data.user.tagline !== undefined) setTagline(data.user.tagline || "");
         if (data.user.headline !== undefined) setHeadline(data.user.headline || "");
-        toast.success("Perfil atualizado!");
+        if (data.user.neighborhood !== undefined) setNeighborhood(data.user.neighborhood || "");
+        toast.success(field === "neighborhood" ? "Bairro atualizado!" : "Perfil atualizado!");
         if (field) {
           setFieldSaveStatus((s) => ({ ...s, [field]: "saved" }));
           fieldSaveTimers.current[field] = setTimeout(() => {
@@ -1693,15 +1695,58 @@ export function ProfileView() {
               </div>
 
               <div>
-                <p className="text-[11px] font-medium text-[#4A4A4A]/70 mb-2">Lugar</p>
-                <div className="inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-[#F9F8F6] px-3 py-2 text-sm text-[#1A1A1A]">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#D96C4A]" />
-                  <span className="font-medium">
-                    {profile?.neighborhood?.trim() || "Sem bairro definido"}
-                  </span>
+                <p className="text-[11px] font-medium text-[#4A4A4A]/70 mb-2">Lugar (bairro)</p>
+                <div className="flex flex-col gap-2">
+                  <div className="relative flex items-center">
+                    <MapPin className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-[#D96C4A]" />
+                    <select
+                      id="profile-neighborhood"
+                      value={neighborhood}
+                      onChange={(e) => setNeighborhood(e.target.value)}
+                      className="h-10 w-full appearance-none rounded-xl border border-black/10 bg-[#F9F8F6] pl-9 pr-8 text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#D96C4A]/25"
+                      aria-label="Selecionar bairro"
+                    >
+                      <option value="">Selecione o bairro…</option>
+                      {/* Mantém valor atual se não estiver na lista (ex.: dado legado) */}
+                      {neighborhood &&
+                        !(BAIRROS as readonly string[]).includes(neighborhood) && (
+                          <option value={neighborhood}>{neighborhood}</option>
+                        )}
+                      {BAIRROS.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[#4A4A4A]/50" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSave("neighborhood")}
+                    disabled={
+                      fieldSaveStatus.neighborhood === "saving" ||
+                      (neighborhood || "") === (profile?.neighborhood || "")
+                    }
+                    className={`self-start inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      fieldSaveStatus.neighborhood === "saved"
+                        ? "bg-emerald-600"
+                        : "bg-[#1A1A1A] hover:bg-[#1A1A1A]/90"
+                    }`}
+                  >
+                    {fieldSaveStatus.neighborhood === "saving" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : fieldSaveStatus.neighborhood === "saved" ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Salvo
+                      </>
+                    ) : (
+                      "Salvar bairro"
+                    )}
+                  </button>
                 </div>
                 <p className="mt-1.5 text-[10px] text-[#4A4A4A]/45">
-                  Visibilidade do bairro em Configurações
+                  Esconda o bairro no perfil público em Configurações
                 </p>
               </div>
             </div>
