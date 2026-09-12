@@ -28,6 +28,12 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           </Link>
           <nav className="flex flex-wrap items-center justify-end gap-1 sm:gap-2 text-xs font-semibold">
             <Link
+              href="/legal/privacidade"
+              className="rounded-full px-2.5 py-1.5 text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
+            >
+              Privacidade
+            </Link>
+            <Link
               href="/legal/funcionalidades"
               className="rounded-full px-2.5 py-1.5 text-[#1A1A1A] hover:bg-black/[0.04] transition-colors"
             >
