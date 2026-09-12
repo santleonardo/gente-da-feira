@@ -1516,12 +1516,123 @@ export function ProfileView() {
     <div className="profile-blog w-full max-w-full min-w-0 overflow-x-hidden space-y-0 bg-[#F9F8F6]">
       <ProfileEditorialStyles />
 
-{/* ═══════ HERO DO PERFIL ═══════ */}
+{/* ═══════ HERO DO PERFIL (mesma escala do perfil público) ═══════ */}
       <section className="relative overflow-hidden rounded-none sm:rounded-2xl bg-[#F9F8F6] border-b border-black/[0.06] sm:border sm:border-black/[0.06]">
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
-          {/* Mobile: coluna centrada · Desktop: foto à esquerda + info à direita */}
-          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-5 min-w-0">
-            {/* Foto de perfil — mesmo tamanho/largura do perfil público (h-36 / sm:h-40) */}
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
+          <input
+            ref={albumInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleAlbumPhotoUpload}
+            className="hidden"
+          />
+
+          {/* ---- Mobile: igual ao hero público (foto full-width ~440px) ---- */}
+          <div className="sm:hidden text-center">
+            <div className="upd-hero-photo">
+              <div
+                className="flex w-full items-center justify-center gap-2 rounded-t-2xl px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                style={{ backgroundColor: nameBand.bg }}
+              >
+                <span
+                  className="h-px w-6 shrink-0"
+                  style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
+                <h1
+                  className="font-serif text-[22px] font-medium tracking-tight leading-tight break-words min-w-0"
+                  style={{ color: nameBand.text }}
+                >
+                  {profile?.display_name}
+                </h1>
+                {isPrivate && (
+                  <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
+                )}
+                <span
+                  className="h-px w-6 shrink-0"
+                  style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
+                  aria-hidden
+                />
+              </div>
+
+              <div
+                className="relative aspect-square w-full p-[4px] shadow-xl transition-[background-color] duration-300"
+                style={{ backgroundColor: nameBand.bg }}
+              >
+                <div className="h-full w-full rounded-[14px] p-[4px] bg-[#F9F8F6]">
+                  <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
+                    <UserAvatar
+                      user={{
+                        id: profile?.id || "",
+                        display_name: profile?.display_name || "?",
+                        avatar_url: profile?.avatar_url,
+                      }}
+                      className="h-full w-full rounded-xl text-3xl"
+                      priority
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Alterar foto de perfil"
+                  aria-label="Alterar foto de perfil"
+                  className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-[#1A1A1A] text-white shadow-md transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+              <div
+                className="flex w-full items-center justify-center gap-1.5 rounded-b-2xl px-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                style={{ backgroundColor: nameBand.bg }}
+              >
+                <span
+                  className="text-[12.5px] font-medium tracking-wide"
+                  style={{ color: nameBand.text }}
+                >
+                  @{profile?.username}
+                </span>
+              </div>
+            </div>
+
+            {profile?.neighborhood && (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.06] bg-black/[0.03] px-2.5 py-0.5 text-xs text-[#4A4A4A]">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {profile.neighborhood}
+                </span>
+              </div>
+            )}
+
+            <p
+              className="mt-4 mx-auto w-[min(90vw,calc(100vw-2.5rem))] max-w-[440px] text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3"
+              style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
+            >
+              {(profile?.tagline || tagline)?.trim()
+                ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
+                : (
+                    <span className="text-[#4A4A4A]/40">
+                      Sem descrição curta — edite em Personalizar
+                    </span>
+                  )}
+            </p>
+          </div>
+
+          {/* ---- Desktop: foto no mesmo tamanho do público (h-36 / sm:h-40) + info ---- */}
+          <div className="hidden sm:flex flex-row items-start gap-5 min-w-0">
             <div className="relative shrink-0">
               <div
                 className="relative h-36 w-36 sm:h-40 sm:w-40 rounded-2xl p-[4px] shadow-[0_8px_24px_rgba(26,26,26,0.14)] transition-[background-color] duration-300"
@@ -1533,7 +1644,11 @@ export function ProfileView() {
                 <div className="h-full w-full rounded-[14px] p-[3px] bg-[#F9F8F6]">
                   <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
                     <UserAvatar
-                      user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
+                      user={{
+                        id: profile?.id || "",
+                        display_name: profile?.display_name || "?",
+                        avatar_url: profile?.avatar_url,
+                      }}
                       className="h-full w-full rounded-xl text-3xl"
                       priority
                     />
@@ -1546,7 +1661,7 @@ export function ProfileView() {
                 disabled={uploading}
                 title="Alterar foto de perfil"
                 aria-label="Alterar foto de perfil"
-                className="absolute -bottom-1 -right-1 z-10 flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
+                className="absolute -bottom-1 -right-1 z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F9F8F6] bg-[#1A1A1A] text-white shadow-sm transition-colors hover:bg-[#1A1A1A]/90 disabled:opacity-50"
               >
                 {uploading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1554,35 +1669,20 @@ export function ProfileView() {
                   <Camera className="h-3.5 w-3.5" />
                 )}
               </button>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-              <input
-                ref={albumInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleAlbumPhotoUpload}
-                className="hidden"
-              />
             </div>
 
-            {/* Nome + handle + bairro */}
-            <div className="flex-1 w-full min-w-0 flex flex-col items-center sm:items-start text-center sm:text-left pb-1">
+            <div className="flex-1 w-full min-w-0 flex flex-col items-start text-left pb-1">
               <div
-                className="flex w-full max-w-xl items-center justify-center sm:justify-start gap-2 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="flex w-full max-w-xl items-center justify-start gap-2 rounded-xl px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: nameBand.bg }}
               >
                 <span
-                  className="hidden sm:block h-px w-5 shrink-0"
+                  className="h-px w-5 shrink-0"
                   style={{ background: `linear-gradient(to right, transparent, ${nameBand.line})` }}
                   aria-hidden
                 />
                 <h1
-                  className="font-serif text-xl sm:text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
+                  className="font-serif text-2xl font-medium tracking-tight leading-tight break-words min-w-0"
                   style={{ color: nameBand.text }}
                 >
                   {profile?.display_name}
@@ -1591,13 +1691,13 @@ export function ProfileView() {
                   <Lock className="h-4 w-4 shrink-0 opacity-70" style={{ color: nameBand.text }} />
                 )}
                 <span
-                  className="hidden sm:block h-px flex-1 min-w-[1rem]"
+                  className="h-px flex-1 min-w-[1rem]"
                   style={{ background: `linear-gradient(to left, transparent, ${nameBand.line})` }}
                   aria-hidden
                 />
               </div>
 
-              <div className="mt-2.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+              <div className="mt-2.5 flex flex-wrap items-center justify-start gap-1.5">
                 <span className="inline-flex items-center rounded-full border border-black/[0.08] bg-white/80 px-2.5 py-0.5 text-xs font-medium text-[#3A3A3A] shadow-sm">
                   @{profile?.username}
                 </span>
@@ -1609,14 +1709,17 @@ export function ProfileView() {
                 )}
               </div>
 
-              {/* Preview da descrição curta (ao lado da foto no desktop / abaixo no mobile) */}
               <p
-                className="mt-3 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3 max-w-xl text-center sm:text-left"
+                className="mt-3 text-[13px] leading-snug text-[#3A3A3A]/85 break-words line-clamp-3 max-w-xl text-left"
                 style={{ fontFamily: 'Georgia, "Times New Roman", Times, ui-serif, serif' }}
               >
                 {(profile?.tagline || tagline)?.trim()
                   ? parseInlineContent((profile?.tagline || tagline).trim(), openUserProfileById)
-                  : <span className="text-[#4A4A4A]/40">Sem descrição curta — edite abaixo</span>}
+                  : (
+                      <span className="text-[#4A4A4A]/40">
+                        Sem descrição curta — edite em Personalizar
+                      </span>
+                    )}
               </p>
             </div>
           </div>
