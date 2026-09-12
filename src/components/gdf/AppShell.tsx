@@ -316,42 +316,64 @@ export function AppShell() {
   // ── Notificações não lidas ───────────────────────────────
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     const fetchUnread = () => {
+      if (cancelled) return;
       fetch("/api/notifications")
         .then((r) => {
           if (!r.ok) {
+            // 401 → sessão morta: para o polling e sincroniza logout
+            if (r.status === 401 && interval) {
+              clearInterval(interval);
+              interval = null;
+            }
             handleAuthPollingFailure(r.status);
             return null;
           }
           return r.json();
         })
         .then((data) => {
-          if (data && typeof data.unreadCount === "number") {
+          if (cancelled || !data) return;
+          if (typeof data.unreadCount === "number") {
             useStore.getState().setUnreadNotifications(data.unreadCount);
           }
         })
         .catch(() => {});
     };
+
     fetchUnread();
-    const interval = setInterval(fetchUnread, 60000);
-    return () => clearInterval(interval);
+    interval = setInterval(fetchUnread, 60000);
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, [profile]);
 
   // ── Banner do admin ──────────────────────────────────────
   useEffect(() => {
     if (!profile) return;
     let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     const loadBanner = () => {
+      if (cancelled) return;
       fetch("/api/banners")
         .then((r) => {
           if (!r.ok) {
+            // 401 → sessão morta: para o polling e sincroniza logout
+            if (r.status === 401 && interval) {
+              clearInterval(interval);
+              interval = null;
+            }
             handleAuthPollingFailure(r.status);
             return null;
           }
           return r.json();
         })
         .then((data) => {
-          if (cancelled) return;
+          if (cancelled || !data) return;
           const list = Array.isArray(data?.banners) ? data.banners : [];
           setAdminBanners(
             list
@@ -366,12 +388,13 @@ export function AppShell() {
           }
         });
     };
+
     loadBanner();
     // Revalida a cada 2 min (admin pode ter apagado ou enviado novo)
-    const interval = setInterval(loadBanner, 120000);
+    interval = setInterval(loadBanner, 120000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [profile]);
 
