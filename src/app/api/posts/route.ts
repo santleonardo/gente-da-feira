@@ -1,17 +1,22 @@
 // ============================================================
-// API de Posts — com paginação cursor-based (keyset pagination)
+// API de Posts — paginação cursor-based (keyset) + filtros
 //
 // Parâmetros GET:
 //   neighborhood  — filtra por bairro ("all" ignora o filtro)
 //   limit         — quantos posts retornar (padrão 20, máx 50)
 //   cursor        — created_at do último post visto (ISO 8601)
-//                   Se ausente, retorna os mais recentes.
 //   authorId      — filtra posts de um usuário específico
 //   hashtag       — filtra posts que contêm #hashtag no conteúdo
+//   content_flag  — categoria: aviso | achados_e_perdidos |
+//                   pedido_de_ajuda | publicidade | outro
+//   sort          — recent (padrão) | relevance
+//                   relevance = engajamento + frescor + mesmo bairro
 //
 // Resposta:
-//   { posts, nextCursor, hasMore }
+//   { posts, nextCursor, hasMore, filters }
 //   nextCursor é null quando não há mais posts.
+//   Paginação preenche a página após filtros de visibilidade/
+//   bloqueio/expiração (até algumas rodadas de over-fetch).
 // ============================================================
 
 import { NextRequest, NextResponse, after } from "next/server";
@@ -60,6 +65,9 @@ export async function GET(req: NextRequest) {
     const authorId     = searchParams.get("authorId");
     const cursor       = searchParams.get("cursor"); // created_at do último post
     const contentFlag  = searchParams.get("content_flag"); // aviso | achados_e_perdidos | ...
+    const sortParam    = (searchParams.get("sort") || "recent").toLowerCase();
+    const sortMode: "recent" | "relevance" =
+      sortParam === "relevance" || sortParam === "relevante" ? "relevance" : "recent";
     const rawHashtag   = searchParams.get("hashtag") || "";
     const hashtag      = rawHashtag
       .replace(/^#/, "")
@@ -82,7 +90,17 @@ export async function GET(req: NextRequest) {
     const postCols = selectCols(POST_COLUMNS);
     const sharedPostCols = selectCols(SHARED_POST_COLUMNS);
 
-    const buildQuery = (cols: string) => {
+    const validFlags = new Set([
+      "aviso",
+      "achados_e_perdidos",
+      "pedido_de_ajuda",
+      "publicidade",
+      "outro",
+    ]);
+    const activeContentFlag =
+      contentFlag && validFlags.has(contentFlag) ? contentFlag : null;
+
+    const buildQuery = (cols: string, pageCursor: string | null, pageLimit: number) => {
       let q = supabase
         .from("posts")
         .select(`
@@ -98,24 +116,16 @@ export async function GET(req: NextRequest) {
         .eq("is_deleted", false)
         .neq("post_type", "about") // posts "about" só aparecem na aba Sobre
         .order("created_at", { ascending: false })
-        .limit(limit + 1); // +1 para detectar se há mais páginas
+        .limit(pageLimit + 1); // +1 para detectar se há mais páginas
 
       // Keyset cursor — retorna posts anteriores ao cursor
-      if (cursor) q = q.lt("created_at", cursor);
+      if (pageCursor) q = q.lt("created_at", pageCursor);
       if (authorId) q = q.eq("author_id", authorId);
       if (neighborhood && neighborhood !== "all") {
         q = q.or(`neighborhood.eq.${neighborhood},neighborhood.is.null`);
       }
-      // Categoria do post (mesmas opções do composer)
-      const validFlags = new Set([
-        "aviso",
-        "achados_e_perdidos",
-        "pedido_de_ajuda",
-        "publicidade",
-        "outro",
-      ]);
-      if (contentFlag && validFlags.has(contentFlag)) {
-        q = q.eq("content_flag", contentFlag);
+      if (activeContentFlag) {
+        q = q.eq("content_flag", activeContentFlag);
       }
       // Hashtag: busca #tag no conteúdo (case-insensitive). Escapa curingas ILIKE.
       if (hashtag) {
@@ -125,30 +135,8 @@ export async function GET(req: NextRequest) {
       return q;
     };
 
-    let { data: rawPosts, error } = await buildQuery(postCols);
-
-    // MOD-001/UX: se a migration de content_flag ainda não rodou no banco,
-    // não derruba o feed inteiro — refaz a busca sem essa coluna.
-    if (error && error.code === "42703" && /content_flag/i.test(`${error.message} ${error.details ?? ""}`)) {
-      console.warn("[posts GET] coluna content_flag ausente (rode scripts/20260912_posts_content_flag.sql) — buscando sem ela");
-      const fallbackCols = selectCols(POST_COLUMNS.filter((c) => c !== "content_flag"));
-      ({ data: rawPosts, error } = await buildQuery(fallbackCols));
-    }
-
-    if (error) throw error;
-
-    // Detectar hasMore e nextCursor
-    const hasMore  = (rawPosts?.length ?? 0) > limit;
-    // Cast to any[] — Supabase cannot infer types for complex nested joins
-    const posts    = (hasMore ? rawPosts!.slice(0, limit) : (rawPosts ?? [])) as any[];
-    const nextCursor = hasMore ? posts[posts.length - 1].created_at : null;
-
-    const now = new Date().toISOString();
-
     let viewerFollowingIds = new Set<string>();
-    let blockedUserIds     = new Set<string>();
-
-    // SEC-010: parallelize secondary lookups (following + blocks)
+    let blockedUserIds = new Set<string>();
     if (authUser) {
       const [following, blocked] = await Promise.all([
         getViewerFollowingIds(supabase, authUser.id),
@@ -158,26 +146,143 @@ export async function GET(req: NextRequest) {
       blockedUserIds = blocked;
     }
 
-    const filteredPosts = posts
-      .map((p: any) => ({
-        ...p,
-        comment_count: p.comments?.[0]?.count ?? 0,
-        comments: undefined,
-        shared_post: redactDeletedSharedPost(p.shared_post),
-      }))
-      .filter((p: any) => {
-        if (p.expires_at && p.expires_at < now) return false;
-        // SEC-004: Filter out posts from blocked users
-        if (blockedUserIds.size > 0 && blockedUserIds.has(p.author_id)) return false;
-        if (p.shared_post && blockedUserIds.size > 0 && blockedUserIds.has(p.shared_post.author_id)) return false;
-        // SEC-010: Centralized visibility enforcement
-        // "public" → allowed, "followers" → viewer follows author (accepted), "private" → author only
-        return filterByVisibility([p], authUser?.id ?? null, viewerFollowingIds).length === 1;
+    const now = new Date().toISOString();
+    let useCols = postCols;
+    let contentFlagColumnMissing = false;
+
+    const fetchRawPage = async (pageCursor: string | null, pageLimit: number) => {
+      let { data, error } = await buildQuery(useCols, pageCursor, pageLimit);
+
+      // Coluna content_flag ausente: sem filtro de categoria, lista normal;
+      // com filtro de categoria, não inventa resultados — página vazia.
+      if (error && error.code === "42703" && /content_flag/i.test(`${error.message} ${error.details ?? ""}`)) {
+        contentFlagColumnMissing = true;
+        console.warn(
+          "[posts GET] coluna content_flag ausente (rode scripts/20260912_posts_content_flag.sql)"
+        );
+        if (activeContentFlag) {
+          return { raw: [] as any[], error: null as any, hasMoreRaw: false };
+        }
+        useCols = selectCols(POST_COLUMNS.filter((c) => c !== "content_flag"));
+        ({ data, error } = await buildQuery(useCols, pageCursor, pageLimit));
+      }
+      if (error) throw error;
+      const raw = (data ?? []) as any[];
+      const hasMoreRaw = raw.length > pageLimit;
+      const page = hasMoreRaw ? raw.slice(0, pageLimit) : raw;
+      return { raw: page, error: null, hasMoreRaw };
+    };
+
+    const applyVisibility = (batch: any[]) =>
+      batch
+        .map((p: any) => ({
+          ...p,
+          comment_count: p.comments?.[0]?.count ?? 0,
+          comments: undefined,
+          shared_post: redactDeletedSharedPost(p.shared_post),
+        }))
+        .filter((p: any) => {
+          if (p.expires_at && p.expires_at < now) return false;
+          if (blockedUserIds.size > 0 && blockedUserIds.has(p.author_id)) return false;
+          if (
+            p.shared_post &&
+            blockedUserIds.size > 0 &&
+            blockedUserIds.has(p.shared_post.author_id)
+          )
+            return false;
+          return filterByVisibility([p], authUser?.id ?? null, viewerFollowingIds).length === 1;
+        });
+
+    // Bairro do viewer (bônus de relevância local)
+    let viewerNeighborhood: string | null = null;
+    if (authUser && sortMode === "relevance") {
+      const { data: me } = await supabase
+        .from("profiles")
+        .select("neighborhood")
+        .eq("id", authUser.id)
+        .maybeSingle();
+      viewerNeighborhood = (me as { neighborhood?: string | null } | null)?.neighborhood || null;
+    }
+
+    // Preenche posts visíveis, mantendo filtros e keyset.
+    // Em relevância, busca um pool maior e ordena por score.
+    const MAX_FILL_ROUNDS = sortMode === "relevance" ? 6 : 4;
+    const poolTarget = sortMode === "relevance" ? Math.min(limit * 3, MAX_PAGE_SIZE) : limit;
+    const collected: any[] = [];
+    let walkCursor: string | null = cursor;
+    let hasMore = false;
+    let nextCursor: string | null = null;
+
+    for (let round = 0; round < MAX_FILL_ROUNDS; round++) {
+      const { raw, hasMoreRaw } = await fetchRawPage(walkCursor, limit);
+      if (raw.length === 0) {
+        hasMore = false;
+        nextCursor = null;
+        break;
+      }
+
+      const visible = applyVisibility(raw);
+      for (const p of visible) {
+        if (collected.length >= poolTarget) break;
+        collected.push(p);
+      }
+
+      // Cursor avança pelo último item bruto da rodada (keyset estável)
+      const lastRaw = raw[raw.length - 1];
+      walkCursor = lastRaw?.created_at ?? null;
+
+      if (collected.length >= poolTarget) {
+        hasMore = hasMoreRaw;
+        nextCursor = hasMoreRaw ? walkCursor : null;
+        break;
+      }
+      if (!hasMoreRaw) {
+        hasMore = false;
+        nextCursor = null;
+        break;
+      }
+      // Ainda precisamos de mais itens visíveis: continua com o próximo cursor
+      hasMore = true;
+      nextCursor = walkCursor;
+    }
+
+    const scorePost = (p: any): number => {
+      const reactions = Array.isArray(p.reactions) ? p.reactions.length : 0;
+      const comments = typeof p.comment_count === "number" ? p.comment_count : 0;
+      const created = p.created_at ? new Date(p.created_at).getTime() : Date.now();
+      const hours = Math.max(0, (Date.now() - created) / 3_600_000);
+      // Frescor: ~1.0 nas primeiras horas, cai ao longo de ~3 dias
+      const recency = 1 / (1 + hours / 18);
+      const engagement = Math.log1p(reactions) * 2.2 + Math.log1p(comments) * 3.4;
+      let local = 0;
+      if (viewerNeighborhood && p.neighborhood) {
+        const a = String(viewerNeighborhood).trim().toLowerCase();
+        const b = String(p.neighborhood).trim().toLowerCase();
+        if (a && b && a === b) local = 2.5;
+      }
+      // Leve empurrão se tem mídia (mais útil no Descobrir)
+      const media =
+        (Array.isArray(p.image_urls) && p.image_urls.length > 0 ? 0.35 : 0) +
+        (p.video_url ? 0.25 : 0) +
+        (p.audio_url ? 0.15 : 0);
+      return engagement * 1.15 + recency * 4 + local + media;
+    };
+
+    let ranked = collected;
+    if (sortMode === "relevance" && ranked.length > 1) {
+      ranked = [...ranked].sort((a, b) => {
+        const d = scorePost(b) - scorePost(a);
+        if (d !== 0) return d;
+        // desempate: mais recente
+        return String(b.created_at).localeCompare(String(a.created_at));
       });
+    }
+
+    const pagePosts = ranked.slice(0, limit);
 
     // SEC-009: Batch-fetch privacy flags for all post authors and strip neighborhood
     const allAuthorIds = new Set<string>();
-    for (const post of filteredPosts) {
+    for (const post of pagePosts) {
       if (post.author?.id) allAuthorIds.add(post.author.id);
       if (post.shared_post?.author?.id) allAuthorIds.add(post.shared_post.author.id);
     }
@@ -185,16 +290,26 @@ export async function GET(req: NextRequest) {
       supabase,
       Array.from(allAuthorIds)
     );
-    const privacyFilteredPosts = filterPostsAuthorNeighborhood(filteredPosts, hiddenNeighborhoodIds);
+    const privacyFilteredPosts = filterPostsAuthorNeighborhood(pagePosts, hiddenNeighborhoodIds);
 
     // Não rodar cleanup em todo GET do feed (custa query extra).
-    // ~5% das requisições mantém a faxina sem degradar a listagem.
     if (Math.random() < 0.05) {
       cleanupExpiredPosts().catch(() => {});
     }
 
-    const res = NextResponse.json({ posts: privacyFilteredPosts, nextCursor, hasMore });
-    // Cache curto no browser/CDN edge — feed “quase em tempo real”
+    const res = NextResponse.json({
+      posts: privacyFilteredPosts,
+      nextCursor,
+      hasMore: !!nextCursor && hasMore,
+      filters: {
+        neighborhood: neighborhood || null,
+        authorId: authorId || null,
+        hashtag: hashtag || null,
+        content_flag: activeContentFlag,
+        content_flag_unavailable: contentFlagColumnMissing && !!activeContentFlag,
+        sort: sortMode,
+      },
+    });
     res.headers.set("Cache-Control", "private, max-age=8, stale-while-revalidate=30");
     return res;
   } catch (error: any) {
