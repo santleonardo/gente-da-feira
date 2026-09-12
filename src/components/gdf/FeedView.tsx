@@ -1330,25 +1330,6 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
               </div>
             )}
 
-            {/* CATEGORIA (opcional) — ajuda a moderação automática e sinaliza pra vizinhança */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {CONTENT_FLAG_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setContentFlag((v) => (v === opt.value ? null : opt.value))}
-                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
-                    contentFlag === opt.value
-                      ? "bg-[#1A1A1A] text-[#F9F8F6]"
-                      : "bg-[#1A1A1A]/[0.06] text-[#1A1A1A]/60 hover:bg-[#1A1A1A]/10"
-                  }`}
-                  title={`Marcar como "${opt.label}"`}
-                >
-                  <span>{opt.emoji}</span>{opt.label}
-                </button>
-              ))}
-            </div>
-
             {/* ACTION BAR */}
             <div className="flex items-center justify-between pt-1">
               <div className="relative" ref={menuRef}>
@@ -1358,51 +1339,80 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
                 >
                   <Plus className="h-4 w-4" />
                   <span>Menu</span>
+                  {contentFlag && (
+                    <span title={CONTENT_FLAG_OPTIONS.find((o) => o.value === contentFlag)?.label}>
+                      {CONTENT_FLAG_OPTIONS.find((o) => o.value === contentFlag)?.emoji}
+                    </span>
+                  )}
                   <ChevronDown className={`h-3 w-3 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute left-0 top-full mt-1 flex flex-col items-center gap-0.5 rounded-2xl bg-[#F9F8F6] p-1.5 shadow-lg border border-[#1A1A1A]/10 z-50 animate-in fade-in-0 zoom-in-95">
-                    <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                      <Camera className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => { if (canAddPhotos) fileInputRef.current?.click(); }} disabled={!canAddPhotos} title="Escolher foto"
-                      className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                      <ImagePlus className="h-4 w-4" />
-                    </button>
-                    {/* Vídeo (opcional) / Áudio reativado */}
-                    {VIDEO_ENABLED && (
-                      <>
-                        <div className="w-8 h-px bg-[#1A1A1A]/10" />
-                        <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) cameraVideoRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Gravar vídeo"
-                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                          <Video className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) videoInputRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Escolher vídeo"
-                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#1A1A1A]/70 hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                          <Video className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
-                    {AUDIO_ENABLED && (
-                      <>
-                        <div className="w-8 h-px bg-[#1A1A1A]/10" />
-                        <button onClick={() => { if (canAddAudio && !isRecordingAudio) startAudioRecording(); }} disabled={!canAddAudio || isRecordingAudio} title="Gravar áudio"
-                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio && !isRecordingAudio ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                          <Mic className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => { if (canAddAudio) audioInputRef.current?.click(); }} disabled={!canAddAudio} title="Escolher áudio"
-                          className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
-                          <Music className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
-                    <div className="w-8 h-px bg-[#1A1A1A]/10" />
-                    <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"}
-                      className="flex items-center justify-center rounded-full p-2 text-[#1A1A1A] transition-colors hover:bg-[#f7f75e]/30">
-                      {visibility === "public" ? <Globe className="h-4 w-4" /> : <UsersIcon className="h-4 w-4" />}
-                    </button>
+                  <div className="absolute left-0 top-full mt-1 flex w-52 flex-col gap-1.5 rounded-2xl bg-[#F9F8F6] p-2 shadow-lg border border-[#1A1A1A]/10 z-50 animate-in fade-in-0 zoom-in-95">
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button onClick={() => { if (canAddPhotos) cameraPhotoRef.current?.click(); }} disabled={!canAddPhotos} title="Tirar foto"
+                        className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                        <Camera className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => { if (canAddPhotos) fileInputRef.current?.click(); }} disabled={!canAddPhotos} title="Escolher foto"
+                        className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddPhotos ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                        <ImagePlus className="h-4 w-4" />
+                      </button>
+                      {/* Vídeo (opcional) / Áudio reativado */}
+                      {VIDEO_ENABLED && (
+                        <>
+                          <div className="w-px h-6 bg-[#1A1A1A]/10" />
+                          <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) cameraVideoRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Gravar vídeo"
+                            className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                            <Video className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => { if (canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H) videoInputRef.current?.click(); }} disabled={!canAddVideo || videoPostsInWindow >= MAX_VIDEO_POSTS_PER_12H} title="Escolher vídeo"
+                            className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddVideo && videoPostsInWindow < MAX_VIDEO_POSTS_PER_12H ? "text-[#1A1A1A]/70 hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                            <Video className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                      {AUDIO_ENABLED && (
+                        <>
+                          <div className="w-px h-6 bg-[#1A1A1A]/10" />
+                          <button onClick={() => { if (canAddAudio && !isRecordingAudio) startAudioRecording(); }} disabled={!canAddAudio || isRecordingAudio} title="Gravar áudio"
+                            className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio && !isRecordingAudio ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                            <Mic className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => { if (canAddAudio) audioInputRef.current?.click(); }} disabled={!canAddAudio} title="Escolher áudio"
+                            className={`flex items-center justify-center rounded-full p-2 transition-colors ${canAddAudio ? "text-[#1A1A1A] hover:bg-[#f7f75e]/30" : "text-[#1A1A1A]/25 cursor-not-allowed"}`}>
+                            <Music className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                      <div className="w-px h-6 bg-[#1A1A1A]/10" />
+                      <button onClick={() => setVisibility((v) => v === "public" ? "followers" : "public")} title={visibility === "public" ? "Público" : "Seguidores"}
+                        className="flex items-center justify-center rounded-full p-2 text-[#1A1A1A] transition-colors hover:bg-[#f7f75e]/30">
+                        {visibility === "public" ? <Globe className="h-4 w-4" /> : <UsersIcon className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    {/* CATEGORIA (opcional) — ajuda a moderação automática e sinaliza pra vizinhança */}
+                    <div className="border-t border-[#1A1A1A]/10 pt-1.5">
+                      <p className="px-1 pb-1 text-[9px] font-semibold uppercase tracking-wide text-[#1A1A1A]/35">Categoria (opcional)</p>
+                      <div className="flex flex-wrap gap-1">
+                        {CONTENT_FLAG_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setContentFlag((v) => (v === opt.value ? null : opt.value))}
+                            className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors ${
+                              contentFlag === opt.value
+                                ? "bg-[#1A1A1A] text-[#F9F8F6]"
+                                : "bg-[#1A1A1A]/[0.06] text-[#1A1A1A]/60 hover:bg-[#1A1A1A]/10"
+                            }`}
+                            title={`Marcar como "${opt.label}"`}
+                          >
+                            <span>{opt.emoji}</span>{opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 
