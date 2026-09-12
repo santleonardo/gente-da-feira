@@ -139,6 +139,10 @@ const rules: RateLimitRule[] = [
   { key: "reports:list",         limit: 30,  windowMs: 60_000,    methods: ["GET"],  byUser: true },
   { key: "admin:reports:list",   limit: 60,  windowMs: 60_000,    methods: ["GET"],  byUser: true },
   { key: "admin:reports:update", limit: 60,  windowMs: 60_000,    methods: ["PATCH"], byUser: true },
+
+  // ── Geolocalização (público — cadastro + perfil) ────────────────────
+  // Nominatim ~1 req/s; limitamos por IP para não abusar do serviço.
+  { key: "geo:reverse",          limit: 10,  windowMs: 60_000,    methods: ["GET"],  byUser: false },
 ];
 
 /**
