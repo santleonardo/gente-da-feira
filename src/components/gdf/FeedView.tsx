@@ -725,7 +725,11 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       signal: ac.signal,
       credentials: "same-origin",
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data?.error || `Erro ${r.status} ao carregar o feed`);
+        return data;
+      })
       .then((data) => {
         if (ac.signal.aborted) return;
         setPosts(data.posts || []);
@@ -734,6 +738,7 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
+        toast.error(err?.message || "Não foi possível carregar o feed");
       })
       .finally(() => {
         if (!ac.signal.aborted) setLoading(false);
@@ -749,12 +754,13 @@ export function FeedView({ openUserProfile }: { openUserProfile?: (userId: strin
       const res = await fetch(`/api/posts?neighborhood=all&limit=${FEED_PAGE_SIZE}`, {
         credentials: "same-origin",
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Erro ${res.status} ao atualizar o feed`);
       setPosts(data.posts || []);
       setNextCursor(data.nextCursor ?? null);
       setHasMore(data.hasMore ?? false);
-    } catch {
-      toast.error("Não foi possível atualizar o feed");
+    } catch (err: any) {
+      toast.error(err?.message || "Não foi possível atualizar o feed");
     } finally {
       setRefreshing(false);
     }
