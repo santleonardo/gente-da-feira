@@ -274,6 +274,14 @@ function isMediaPlaceholder(content: string | null): boolean {
   return MEDIA_PLACEHOLDER_EMOJIS.includes(trimmed) || trimmed === "";
 }
 
+/** Detecta textos longos no feed para oferecer expandir/recolher (melhor UX). */
+function isLongContent(content: string | null, charThreshold = 280, lineThreshold = 5): boolean {
+  if (!content) return false;
+  const plain = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const lines = content.split(/\n|<br\s*\/?>/i).filter((l) => l.trim().length > 0).length;
+  return plain.length > charThreshold || lines > lineThreshold;
+}
+
 // ═══════════════════════════════════════════════════════════
 // Interfaces
 // ═══════════════════════════════════════════════════════════
@@ -1590,8 +1598,14 @@ const PostThread = memo(function PostThread({
   const [submitting,      setSubmitting]      = useState(false);
   const [replyTo,         setReplyTo]         = useState<Comment | null>(null);
   const [showReactions,   setShowReactions]   = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
   const shareRef        = useRef<HTMLDivElement>(null);
+
+  const contentIsLong = useMemo(
+    () => isLongContent(post.content),
+    [post.content]
+  );
 
   const reactionGroups = useMemo(
     () => buildReactionGroups(post.reactions || []),
@@ -1825,18 +1839,34 @@ const PostThread = memo(function PostThread({
             </div>
 
             {isTextOnly && post.content && !isMediaPlaceholder(post.content) && (
-              <FormattedText
-                className="mt-1.5 text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#1A1A1A]"
-                content={post.content}
-                openUserProfile={openUserProfile}
-                style={{
-                  fontFamily:  hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
-                  fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
-                  fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
-                  textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
-                  color: (hasPostStyle && post.post_style!.fontColor) ? post.post_style!.fontColor : "#1A1A1A",
-                }}
-              />
+              <div className="mt-1.5">
+                <FormattedText
+                  className={`text-base sm:text-lg leading-snug whitespace-pre-wrap text-[#1A1A1A] ${
+                    contentIsLong && !contentExpanded ? "line-clamp-6" : ""
+                  }`}
+                  content={post.content}
+                  openUserProfile={openUserProfile}
+                  style={{
+                    fontFamily:  hasPostStyle && post.post_style!.font ? `'${post.post_style!.font}', sans-serif` : undefined,
+                    fontWeight:  hasPostStyle && post.post_style!.bold ? 700 : undefined,
+                    fontStyle:   hasPostStyle && post.post_style!.italic ? "italic" : undefined,
+                    textAlign:   hasPostStyle && post.post_style!.alignment ? post.post_style!.alignment : undefined,
+                    color: (hasPostStyle && post.post_style!.fontColor) ? post.post_style!.fontColor : "#1A1A1A",
+                  }}
+                />
+                {contentIsLong && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContentExpanded((v) => !v);
+                    }}
+                    className="mt-1 text-sm font-semibold text-[#0A4D5C] hover:text-[#D96C4A] transition-colors"
+                  >
+                    {contentExpanded ? "Ver menos" : "Ver mais"}
+                  </button>
+                )}
+              </div>
             )}
 
             {post.shared_post && !Array.isArray(post.shared_post) && (post.shared_post as any).removed && (
@@ -1862,7 +1892,25 @@ const PostThread = memo(function PostThread({
                     {post.shared_post?.author?.display_name || "Usuário"}
                   </button>
                 </div>
-                <FormattedText className="text-xs text-[#1A1A1A]/60 leading-relaxed line-clamp-4" content={post.shared_post.content} openUserProfile={openUserProfile} />
+                <FormattedText
+                  className={`text-xs text-[#1A1A1A]/60 leading-relaxed ${
+                    isLongContent(post.shared_post.content, 180, 4) && !contentExpanded ? "line-clamp-4" : ""
+                  }`}
+                  content={post.shared_post.content}
+                  openUserProfile={openUserProfile}
+                />
+                {isLongContent(post.shared_post.content, 180, 4) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContentExpanded((v) => !v);
+                    }}
+                    className="mt-1 text-[11px] font-semibold text-[#0A4D5C] hover:text-[#D96C4A] transition-colors"
+                  >
+                    {contentExpanded ? "Ver menos" : "Ver mais"}
+                  </button>
+                )}
                 {post.shared_post.image_urls && post.shared_post.image_urls.length > 0 && (
                   <div className="mt-1.5 flex gap-1 overflow-x-auto">
                     {post.shared_post.image_urls.slice(0, 2).map((url, i) => (
@@ -1881,7 +1929,9 @@ const PostThread = memo(function PostThread({
             {!isTextOnly && post.content && post.content.trim() && !isMediaPlaceholder(post.content) && (
               <div className="px-1 sm:px-1.5 mt-2">
                 <FormattedText
-                  className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#1A1A1A]"
+                  className={`text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap text-[#1A1A1A] ${
+                    contentIsLong && !contentExpanded ? "line-clamp-5" : ""
+                  }`}
                   content={post.content}
                   openUserProfile={openUserProfile}
                   style={{
@@ -1892,6 +1942,18 @@ const PostThread = memo(function PostThread({
                     color: (hasPostStyle && post.post_style!.fontColor) ? post.post_style!.fontColor : "#1A1A1A",
                   }}
                 />
+                {contentIsLong && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContentExpanded((v) => !v);
+                    }}
+                    className="mt-1 text-xs sm:text-sm font-semibold text-[#0A4D5C] hover:text-[#D96C4A] transition-colors"
+                  >
+                    {contentExpanded ? "Ver menos" : "Ver mais"}
+                  </button>
+                )}
               </div>
             )}
 
