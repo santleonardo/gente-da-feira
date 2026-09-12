@@ -1521,20 +1521,20 @@ export function ProfileView() {
         <div className="px-3 sm:px-6 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 relative min-w-0">
           {/* Mobile: coluna centrada · Desktop: foto à esquerda + info à direita */}
           <div className="flex flex-col items-center sm:flex-row sm:items-start gap-4 sm:gap-5 min-w-0">
-            {/* Foto de perfil */}
+            {/* Foto de perfil — mesmo tamanho/largura do perfil público (h-36 / sm:h-40) */}
             <div className="relative shrink-0">
               <div
-                className="relative h-28 w-28 sm:h-28 sm:w-28 rounded-xl p-[3px] shadow-[0_6px_20px_rgba(26,26,26,0.12)] transition-[background-color] duration-300"
+                className="relative h-36 w-36 sm:h-40 sm:w-40 rounded-2xl p-[4px] shadow-[0_8px_24px_rgba(26,26,26,0.14)] transition-[background-color] duration-300"
                 style={{
                   backgroundColor: nameBand.bg,
-                  boxShadow: `0 6px 20px rgba(26,26,26,0.12), 0 0 0 1px ${nameBand.bg}33`,
+                  boxShadow: `0 8px 24px rgba(26,26,26,0.14), 0 0 0 1px ${nameBand.bg}33`,
                 }}
               >
-                <div className="h-full w-full rounded-[9px] p-[3px] bg-[#F9F8F6]">
-                  <div className="relative h-full w-full overflow-hidden rounded-lg bg-black/[0.04]">
+                <div className="h-full w-full rounded-[14px] p-[3px] bg-[#F9F8F6]">
+                  <div className="relative h-full w-full overflow-hidden rounded-xl bg-black/[0.04]">
                     <UserAvatar
                       user={{ id: profile?.id || "", display_name: profile?.display_name || "?", avatar_url: profile?.avatar_url }}
-                      className="h-full w-full rounded-lg text-2xl"
+                      className="h-full w-full rounded-xl text-3xl"
                       priority
                     />
                   </div>
