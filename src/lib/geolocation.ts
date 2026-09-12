@@ -1,6 +1,11 @@
 /**
  * Geolocalização do navegador + correspondência com bairros de Feira de Santana.
  * Reverse geocode via /api/geo/reverse (Nominatim no servidor).
+ *
+ * Fluxo de permissão:
+ * 1. UI do app explica o motivo (nunca dispare o prompt no page load).
+ * 2. No clique do usuário, chame requestLocationAccess() / detectNeighborhood().
+ * 3. O navegador mostra o prompt nativo só nesse gesto.
  */
 
 import { BAIRROS } from "@/lib/constants";
@@ -14,6 +19,13 @@ export const FEIRA_BOUNDS = {
 } as const;
 
 export type GeoCoords = { lat: number; lon: number };
+
+export type LocationPermissionState =
+  | "granted"
+  | "denied"
+  | "prompt"
+  | "unsupported"
+  | "unknown";
 
 export type DetectErrorCode =
   | "unsupported"
@@ -38,6 +50,8 @@ export type DetectNeighborhoodResult =
       error: string;
       code: DetectErrorCode;
     };
+
+const GEO_PROMPT_DISMISSED_KEY = "gdf_geo_prompt_dismissed";
 
 function stripAccents(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "");
@@ -99,7 +113,6 @@ export function isInsideFeira(lat: number, lon: number): boolean {
   );
 }
 
-/** Mapeia rótulo livre (suburb OSM, etc.) para um item de BAIRROS. */
 export function matchBairroFromLabel(label: string | null | undefined): string | null {
   if (!label) return null;
   const n = normalizeName(label);
@@ -126,10 +139,64 @@ export function matchBairroFromLabel(label: string | null | undefined): string |
   return best;
 }
 
+/**
+ * Consulta o estado da permissão de geolocalização (Permissions API).
+ * Em browsers sem suporte, retorna "unknown" (ainda dá para tentar getCurrentPosition).
+ */
+export async function getLocationPermissionState(): Promise<LocationPermissionState> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    return "unsupported";
+  }
+  try {
+    if (navigator.permissions?.query) {
+      const status = await navigator.permissions.query({
+        name: "geolocation" as PermissionName,
+      });
+      if (status.state === "granted") return "granted";
+      if (status.state === "denied") return "denied";
+      if (status.state === "prompt") return "prompt";
+    }
+  } catch {
+    /* Safari antigo / Firefox: query pode falhar */
+  }
+  return "unknown";
+}
+
+export function wasGeoPromptDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(GEO_PROMPT_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function dismissGeoPrompt(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(GEO_PROMPT_DISMISSED_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearGeoPromptDismissed(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(GEO_PROMPT_DISMISSED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getCurrentPosition(options?: PositionOptions): Promise<GeoCoords> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      reject(Object.assign(new Error("Geolocalização não suportada"), { code: "unsupported" as const }));
+      reject(
+        Object.assign(new Error("Geolocalização não suportada"), {
+          code: "unsupported" as const,
+        })
+      );
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -144,7 +211,11 @@ export function getCurrentPosition(options?: PositionOptions): Promise<GeoCoords
         if (err.code === err.PERMISSION_DENIED) code = "denied";
         else if (err.code === err.POSITION_UNAVAILABLE) code = "unavailable";
         else if (err.code === err.TIMEOUT) code = "timeout";
-        reject(Object.assign(new Error(err.message || "Falha ao obter localização"), { code }));
+        reject(
+          Object.assign(new Error(err.message || "Falha ao obter localização"), {
+            code,
+          })
+        );
       },
       {
         enableHighAccuracy: true,
@@ -154,6 +225,54 @@ export function getCurrentPosition(options?: PositionOptions): Promise<GeoCoords
       }
     );
   });
+}
+
+/**
+ * Dispara o prompt nativo do navegador (deve ser chamado a partir de um clique).
+ * Se já estiver granted, só resolve as coordenadas.
+ */
+export async function requestLocationAccess(
+  options?: PositionOptions
+): Promise<
+  | { ok: true; coords: GeoCoords; permission: LocationPermissionState }
+  | { ok: false; error: string; code: DetectErrorCode; permission: LocationPermissionState }
+> {
+  const permissionBefore = await getLocationPermissionState();
+  if (permissionBefore === "unsupported") {
+    return {
+      ok: false,
+      error: ERROR_MESSAGES.unsupported,
+      code: "unsupported",
+      permission: "unsupported",
+    };
+  }
+  if (permissionBefore === "denied") {
+    return {
+      ok: false,
+      error:
+        "Localização bloqueada neste site. Nas configurações do navegador, permita o acesso à localização para gentedafeira.com e tente de novo.",
+      code: "denied",
+      permission: "denied",
+    };
+  }
+
+  try {
+    const coords = await getCurrentPosition(options);
+    return {
+      ok: true,
+      coords,
+      permission: "granted",
+    };
+  } catch (e: unknown) {
+    const code = ((e as { code?: DetectErrorCode })?.code || "unknown") as DetectErrorCode;
+    const permissionAfter = await getLocationPermissionState();
+    return {
+      ok: false,
+      error: ERROR_MESSAGES[code] || ERROR_MESSAGES.unknown,
+      code: code in ERROR_MESSAGES ? code : "unknown",
+      permission: permissionAfter,
+    };
+  }
 }
 
 export type ReverseGeoResponse = {
@@ -176,16 +295,20 @@ export async function reverseGeocode(coords: GeoCoords): Promise<ReverseGeoRespo
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw Object.assign(new Error((data as { error?: string }).error || "Falha ao resolver endereço"), {
-      code: res.status === 422 ? ("outside" as const) : ("network" as const),
-    });
+    throw Object.assign(
+      new Error((data as { error?: string }).error || "Falha ao resolver endereço"),
+      {
+        code: res.status === 422 ? ("outside" as const) : ("network" as const),
+      }
+    );
   }
   return res.json();
 }
 
 const ERROR_MESSAGES: Record<DetectErrorCode, string> = {
-  unsupported: "Seu navegador não suporta geolocalização.",
-  denied: "Permissão de localização negada. Ative nas configurações do navegador.",
+  unsupported: "Seu navegador ou dispositivo não suporta geolocalização.",
+  denied:
+    "Permissão de localização negada. Ative em Configurações do navegador/app e tente de novo.",
   unavailable: "Não foi possível obter sua localização agora.",
   timeout: "Tempo esgotado ao obter localização. Tente de novo.",
   outside: "Localização fora de Feira de Santana. Selecione o bairro manualmente.",
@@ -193,11 +316,15 @@ const ERROR_MESSAGES: Record<DetectErrorCode, string> = {
   unknown: "Não foi possível detectar o bairro automaticamente.",
 };
 
-/** Fluxo completo: GPS → reverse geocode → bairro da lista. */
+/** Fluxo completo: pede permissão (gesto do usuário) → GPS → reverse → bairro. */
 export async function detectNeighborhood(): Promise<DetectNeighborhoodResult> {
   try {
-    const coords = await getCurrentPosition();
-    const geo = await reverseGeocode(coords);
+    const access = await requestLocationAccess();
+    if (!access.ok) {
+      return { ok: false, error: access.error, code: access.code };
+    }
+
+    const geo = await reverseGeocode(access.coords);
 
     if (!geo.inCity) {
       return {
@@ -217,7 +344,7 @@ export async function detectNeighborhood(): Promise<DetectNeighborhoodResult> {
     return {
       ok: true,
       neighborhood: final,
-      coords,
+      coords: access.coords,
       rawLabel: geo.rawLabel || undefined,
       matched: final !== "Outro",
       inCity: true,
