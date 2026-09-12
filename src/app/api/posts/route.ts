@@ -81,43 +81,48 @@ export async function GET(req: NextRequest) {
     const postCols = selectCols(POST_COLUMNS);
     const sharedPostCols = selectCols(SHARED_POST_COLUMNS);
 
-    let query = supabase
-      .from("posts")
-      .select(`
-        ${postCols},
-        author:profiles(${authorCols}),
-        reactions(user_id, type),
-        comments(count),
-        shared_post:posts!shared_post_id(
-          ${sharedPostCols},
-          author:profiles(${authorCols})
-        )
-      `)
-      .eq("is_deleted", false)
-      .neq("post_type", "about") // posts "about" só aparecem na aba Sobre
-      .order("created_at", { ascending: false })
-      .limit(limit + 1); // +1 para detectar se há mais páginas
+    const buildQuery = (cols: string) => {
+      let q = supabase
+        .from("posts")
+        .select(`
+          ${cols},
+          author:profiles(${authorCols}),
+          reactions(user_id, type),
+          comments(count),
+          shared_post:posts!shared_post_id(
+            ${sharedPostCols},
+            author:profiles(${authorCols})
+          )
+        `)
+        .eq("is_deleted", false)
+        .neq("post_type", "about") // posts "about" só aparecem na aba Sobre
+        .order("created_at", { ascending: false })
+        .limit(limit + 1); // +1 para detectar se há mais páginas
 
-    // Keyset cursor — retorna posts anteriores ao cursor
-    if (cursor) {
-      query = query.lt("created_at", cursor);
+      // Keyset cursor — retorna posts anteriores ao cursor
+      if (cursor) q = q.lt("created_at", cursor);
+      if (authorId) q = q.eq("author_id", authorId);
+      if (neighborhood && neighborhood !== "all") {
+        q = q.or(`neighborhood.eq.${neighborhood},neighborhood.is.null`);
+      }
+      // Hashtag: busca #tag no conteúdo (case-insensitive). Escapa curingas ILIKE.
+      if (hashtag) {
+        const escaped = hashtag.replace(/[%_\\]/g, "\\$&");
+        q = q.ilike("content", `%#${escaped}%`);
+      }
+      return q;
+    };
+
+    let { data: rawPosts, error } = await buildQuery(postCols);
+
+    // MOD-001/UX: se a migration de content_flag ainda não rodou no banco,
+    // não derruba o feed inteiro — refaz a busca sem essa coluna.
+    if (error && error.code === "42703" && /content_flag/i.test(`${error.message} ${error.details ?? ""}`)) {
+      console.warn("[posts GET] coluna content_flag ausente (rode scripts/20260912_posts_content_flag.sql) — buscando sem ela");
+      const fallbackCols = selectCols(POST_COLUMNS.filter((c) => c !== "content_flag"));
+      ({ data: rawPosts, error } = await buildQuery(fallbackCols));
     }
 
-    if (authorId) {
-      query = query.eq("author_id", authorId);
-    }
-
-    if (neighborhood && neighborhood !== "all") {
-      query = query.or(`neighborhood.eq.${neighborhood},neighborhood.is.null`);
-    }
-
-    // Hashtag: busca #tag no conteúdo (case-insensitive). Escapa curingas ILIKE.
-    if (hashtag) {
-      const escaped = hashtag.replace(/[%_\\]/g, "\\$&");
-      query = query.ilike("content", `%#${escaped}%`);
-    }
-
-    const { data: rawPosts, error } = await query;
     if (error) throw error;
 
     // Detectar hasMore e nextCursor
@@ -433,11 +438,27 @@ export async function POST(req: NextRequest) {
       content_flag: validContentFlag,
     };
 
-    const { data: inserted, error: insertError } = await supabase
+    let { data: inserted, error: insertError } = await supabase
       .from("posts")
       .insert(insertPayload)
       .select("id")
       .single();
+
+    // Mesmo fallback do GET: se a migration de content_flag não rodou,
+    // não bloqueia a publicação — tenta de novo sem essa coluna.
+    if (
+      insertError &&
+      insertError.code === "42703" &&
+      /content_flag/i.test(`${insertError.message} ${insertError.details ?? ""}`)
+    ) {
+      console.warn("[posts POST] coluna content_flag ausente (rode scripts/20260912_posts_content_flag.sql) — publicando sem ela");
+      const { content_flag, ...payloadWithoutFlag } = insertPayload;
+      ({ data: inserted, error: insertError } = await supabase
+        .from("posts")
+        .insert(payloadWithoutFlag)
+        .select("id")
+        .single());
+    }
 
     if (insertError) {
       console.error("[posts POST] insert failed:", {
@@ -501,8 +522,15 @@ export async function POST(req: NextRequest) {
       throw insertError;
     }
 
+    if (!inserted) {
+      return NextResponse.json(
+        { error: "Não foi possível confirmar a publicação. Tente de novo." },
+        { status: 500 }
+      );
+    }
+
     // Busca o post completo (com joins) em request separada
-    const { data: post, error: selectError } = await supabase
+    let { data: post, error: selectError } = await supabase
       .from("posts")
       .select(`
         ${selectCols(POST_COLUMNS)},
@@ -515,6 +543,22 @@ export async function POST(req: NextRequest) {
       `)
       .eq("id", inserted.id)
       .single();
+
+    if (selectError && selectError.code === "42703" && /content_flag/i.test(`${selectError.message} ${selectError.details ?? ""}`)) {
+      ({ data: post, error: selectError } = await supabase
+        .from("posts")
+        .select(`
+          ${selectCols(POST_COLUMNS.filter((c) => c !== "content_flag"))},
+          author:profiles(${authorCols}),
+          reactions(user_id, type),
+          shared_post:posts!shared_post_id(
+            ${selectCols(SHARED_POST_COLUMNS)},
+            author:profiles(${authorCols})
+          )
+        `)
+        .eq("id", inserted.id)
+        .single());
+    }
 
     if (selectError || !post) {
       console.error("[posts POST] select after insert failed:", selectError?.message || "no row");
