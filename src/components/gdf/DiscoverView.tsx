@@ -116,26 +116,46 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   /** Filtro por categoria (content_flag) — mesmas opções do composer */
   const [categoryFilter, setCategoryFilter] = useState<ContentFlagValue | "all">("all");
+  /** Ordenação: recentes (data) ou relevância (engajamento + frescor + bairro) */
+  const [sortMode, setSortMode] = useState<"recent" | "relevance">("recent");
+
+  const postsFetchSeqRef = useRef(0);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const buildPostsParams = (opts?: { cursor?: string | null }) => {
     const params = new URLSearchParams({ limit: "18" });
     if (opts?.cursor) params.set("cursor", opts.cursor);
     if (categoryFilter !== "all") params.set("content_flag", categoryFilter);
+    params.set("sort", sortMode === "relevance" ? "relevance" : "recent");
     return params;
   };
 
+  const mergePostsUnique = (prev: any[], incoming: any[]) => {
+    const seen = new Set(prev.map((p) => p.id));
+    const extra = incoming.filter((p) => p?.id && !seen.has(p.id));
+    return extra.length ? [...prev, ...extra] : prev;
+  };
+
   const loadMorePosts = async () => {
-    if (loadingMorePosts || !postsCursor) return;
+    if (loadingMorePosts || !postsHasMore || !postsCursor) return;
     setLoadingMorePosts(true);
+    const seq = postsFetchSeqRef.current;
     try {
       const params = buildPostsParams({ cursor: postsCursor });
       const res = await fetch(`/api/posts?${params.toString()}`);
       const data = await res.json();
-      setDiscoverPosts((prev) => [...prev, ...(data.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id))]);
+      if (seq !== postsFetchSeqRef.current) return; // filtro mudou no meio
+      const batch = (data.posts || []).filter(
+        (p: any) => !blockedUserIds.has(p.author_id)
+      );
+      setDiscoverPosts((prev) => mergePostsUnique(prev, batch));
       setPostsCursor(data.nextCursor ?? null);
-      setPostsHasMore(!!data.hasMore);
-    } catch { /* silent */ }
-    finally { setLoadingMorePosts(false); }
+      setPostsHasMore(!!data.hasMore && !!data.nextCursor);
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingMorePosts(false);
+    }
   };
 
   const openPost = (post: any) => {
@@ -181,31 +201,49 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
       categoryMountRef.current = false;
       return;
     }
+    const seq = ++postsFetchSeqRef.current;
     let cancelled = false;
     const run = async () => {
       setLoadingPosts(true);
+      setPostsCursor(null);
+      setPostsHasMore(false);
       try {
         const params = buildPostsParams();
         const res = await fetch(`/api/posts?${params.toString()}`);
         const data = await res.json();
-        if (cancelled) return;
+        if (cancelled || seq !== postsFetchSeqRef.current) return;
         setDiscoverPosts(
           (data.posts || []).filter((p: any) => !blockedUserIds.has(p.author_id))
         );
         setPostsCursor(data.nextCursor ?? null);
-        setPostsHasMore(!!data.hasMore);
+        setPostsHasMore(!!data.hasMore && !!data.nextCursor);
       } catch {
         /* silent */
       } finally {
-        if (!cancelled) setLoadingPosts(false);
+        if (!cancelled && seq === postsFetchSeqRef.current) setLoadingPosts(false);
       }
     };
     run();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à categoria
-  }, [categoryFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- categoria e ordenação
+  }, [categoryFilter, sortMode]);
+
+  // Scroll infinito — “Ver mais” também continua disponível
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || !postsHasMore) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMorePosts();
+      },
+      { rootMargin: "240px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postsHasMore, postsCursor, categoryFilter, sortMode, loadingMorePosts]);
 
   const runSearch = async (term: string) => {
     const q = term.trim();
@@ -569,6 +607,41 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
 
             {!collapsedSections.posts && (
             <>
+            {/* Ordenação + categorias */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#4A4A4A]/50">
+                Ordenar
+              </span>
+              <div
+                className="inline-flex rounded-full border border-black/10 bg-white p-0.5"
+                role="group"
+                aria-label="Ordenação das publicações"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSortMode("recent")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    sortMode === "recent"
+                      ? "bg-[#1A1A1A] text-white"
+                      : "text-[#4A4A4A] hover:bg-black/[0.03]"
+                  }`}
+                >
+                  Recentes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortMode("relevance")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    sortMode === "relevance"
+                      ? "bg-[#1A1A1A] text-white"
+                      : "text-[#4A4A4A] hover:bg-black/[0.03]"
+                  }`}
+                >
+                  Relevantes
+                </button>
+              </div>
+            </div>
+
             {/* Categorias — mesmas do campo de post */}
             <div
               className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none touch-pan-x"
@@ -709,7 +782,7 @@ export function DiscoverView({ openUserProfile }: { openUserProfile?: (userId: s
                 </div>
 
                 {postsHasMore && (
-                  <div className="flex justify-center mt-4">
+                  <div ref={loadMoreRef} className="flex justify-center mt-4">
                     <Button
                       variant="outline"
                       onClick={loadMorePosts}
