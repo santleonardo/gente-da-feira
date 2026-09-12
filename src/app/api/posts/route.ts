@@ -49,6 +49,7 @@ import {
   MEDIA_EXPIRATION_HOURS,
 } from "@/lib/upload-limits";
 import { safeErrorResponse } from "@/lib/safe-error";
+import { rankPosts, RANKING_MODEL_VERSION } from "@/lib/ranking";
 
 // ── Versão Light / Supabase Free ─────────────────────────────
 // Limites agressivos para beta público em plano gratuito
@@ -246,39 +247,21 @@ export async function GET(req: NextRequest) {
       nextCursor = walkCursor;
     }
 
-    const scorePost = (p: any): number => {
-      const reactions = Array.isArray(p.reactions) ? p.reactions.length : 0;
-      const comments = typeof p.comment_count === "number" ? p.comment_count : 0;
-      const created = p.created_at ? new Date(p.created_at).getTime() : Date.now();
-      const hours = Math.max(0, (Date.now() - created) / 3_600_000);
-      // Frescor: ~1.0 nas primeiras horas, cai ao longo de ~3 dias
-      const recency = 1 / (1 + hours / 18);
-      const engagement = Math.log1p(reactions) * 2.2 + Math.log1p(comments) * 3.4;
-      let local = 0;
-      if (viewerNeighborhood && p.neighborhood) {
-        const a = String(viewerNeighborhood).trim().toLowerCase();
-        const b = String(p.neighborhood).trim().toLowerCase();
-        if (a && b && a === b) local = 2.5;
-      }
-      // Leve empurrão se tem mídia (mais útil no Descobrir)
-      const media =
-        (Array.isArray(p.image_urls) && p.image_urls.length > 0 ? 0.35 : 0) +
-        (p.video_url ? 0.25 : 0) +
-        (p.audio_url ? 0.15 : 0);
-      return engagement * 1.15 + recency * 4 + local + media;
-    };
-
-    let ranked = collected;
-    if (sortMode === "relevance" && ranked.length > 1) {
-      ranked = [...ranked].sort((a, b) => {
-        const d = scorePost(b) - scorePost(a);
-        if (d !== 0) return d;
-        // desempate: mais recente
-        return String(b.created_at).localeCompare(String(a.created_at));
+    let pagePosts: any[];
+    if (sortMode === "relevance" && collected.length > 1) {
+      const ranked = rankPosts(collected, {
+        viewerId: authUser?.id ?? null,
+        viewerNeighborhood,
+        followingIds: viewerFollowingIds,
+        activeContentFlag,
       });
+      pagePosts = ranked.slice(0, limit).map((p) => {
+        const { _rank_score, _rank_model, ...rest } = p as any;
+        return rest;
+      });
+    } else {
+      pagePosts = collected.slice(0, limit);
     }
-
-    const pagePosts = ranked.slice(0, limit);
 
     // SEC-009: Batch-fetch privacy flags for all post authors and strip neighborhood
     const allAuthorIds = new Set<string>();
@@ -308,6 +291,7 @@ export async function GET(req: NextRequest) {
         content_flag: activeContentFlag,
         content_flag_unavailable: contentFlagColumnMissing && !!activeContentFlag,
         sort: sortMode,
+        ranking_model: sortMode === "relevance" ? RANKING_MODEL_VERSION : null,
       },
     });
     res.headers.set("Cache-Control", "private, max-age=8, stale-while-revalidate=30");
