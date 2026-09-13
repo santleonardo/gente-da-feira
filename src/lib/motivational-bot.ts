@@ -5,8 +5,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Limite diário para não poluir o feed */
-export const MAX_MOTIVATIONAL_POSTS_PER_DAY = 4;
+/** Limite diário (1 post/hora → no máx. 24/dia) */
+export const MAX_MOTIVATIONAL_POSTS_PER_DAY = 24;
 
 let _cachedMotivationalBotId: string | null | undefined;
 
@@ -101,18 +101,18 @@ export const MOTIVATIONAL_PHRASES: readonly string[] = [
 ];
 
 /**
- * Escolhe uma frase de forma determinística por dia + slot,
- * para evitar repetir a mesma no mesmo dia em múltiplas execuções.
+ * Escolhe uma frase de forma determinística por dia + hora (UTC),
+ * para não repetir a mesma frase na mesma hora e variar ao longo do dia.
  */
 export function pickPhrase(slot: number = 0): string {
   const now = new Date();
-  // Dia do ano (UTC) + slot → índice estável
   const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
   const dayOfYear = Math.floor(
     (now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)
   );
-  const idx =
-    (dayOfYear * 7 + slot + now.getUTCHours()) % MOTIVATIONAL_PHRASES.length;
+  // slot = hora UTC (0–23) quando chamado pelo cron horário
+  const hour = slot >= 0 && slot <= 23 ? slot : now.getUTCHours();
+  const idx = (dayOfYear * 24 + hour) % MOTIVATIONAL_PHRASES.length;
   return MOTIVATIONAL_PHRASES[idx] ?? MOTIVATIONAL_PHRASES[0];
 }
 

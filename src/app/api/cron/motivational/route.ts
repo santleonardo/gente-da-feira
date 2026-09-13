@@ -17,12 +17,10 @@ import {
  *
  * Auth: Authorization: Bearer <INTERNAL_API_SECRET> (ou CRON_SECRET)
  *
- * Agendamento sugerido (Supabase pg_cron + pg_net), horário BRT:
- *   - Manhã:   0 11 * * *   → ~08h BRT
- *   - Tarde:   0 18 * * *   → ~15h BRT
- *   - Noite:   0 22 * * *   → ~19h BRT
+ * Agendamento sugerido (Supabase pg_cron + pg_net):
+ *   "0 * * * *"  → a cada hora (minuto 0 UTC)
  *
- * Limite diário: MAX_MOTIVATIONAL_POSTS_PER_DAY (padrão 4).
+ * Limite diário: MAX_MOTIVATIONAL_POSTS_PER_DAY (padrão 24 = 1/hora).
  */
 
 export async function GET(req: NextRequest) {
@@ -57,11 +55,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Slot baseado na hora UTC para variar a frase entre execuções do dia
+    // 1 frase por hora UTC — evita duplicata na mesma hora
     const hour = new Date().getUTCHours();
-    const slot = Math.floor(hour / 6); // 0–3 ao longo do dia
-    const phrase = pickPhrase(slot);
-    const externalId = `motiv-${new Date().toISOString().slice(0, 10)}-s${slot}`;
+    const phrase = pickPhrase(hour);
+    const externalId = `motiv-${new Date().toISOString().slice(0, 10)}-h${String(hour).padStart(2, "0")}`;
 
     const published = await publishMotivationalPost(admin, phrase, externalId);
 
@@ -71,6 +68,7 @@ export async function GET(req: NextRequest) {
       postId: published.ok ? published.postId : undefined,
       reason: published.ok ? undefined : published.reason,
       phrase: published.ok ? phrase : undefined,
+      hourUtc: hour,
       todayCount: published.ok ? todayCount + 1 : todayCount,
       durationMs: Date.now() - startedAt,
     });
