@@ -13,7 +13,7 @@ function isValidSubscription(sub: any): boolean {
     sub.keys &&
     typeof sub.keys === "object" &&
     typeof sub.keys.p256dh === "string" &&
-    sub.keys.auth === "string"
+    typeof sub.keys.auth === "string"
   );
 }
 
