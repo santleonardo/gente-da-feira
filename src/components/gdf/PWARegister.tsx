@@ -12,14 +12,15 @@ interface BeforeInstallPromptEvent extends Event {
 
 // ── Push Subscription Logic (SEC-001 hardened) ────────────────────────────────
 
-/** Converte chave VAPID (base64url) para Uint8Array exigido pela Push API. */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+/** Converte chave VAPID (base64url) para ArrayBuffer exigido pela Push API. */
+function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);
-  const output = new Uint8Array(raw.length);
+  const buffer = new ArrayBuffer(raw.length);
+  const output = new Uint8Array(buffer);
   for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-  return output;
+  return buffer;
 }
 
 // Registra ou re-registra a push subscription para o usuário atual.
@@ -48,7 +49,7 @@ async function registerPushSubscription(registration: ServiceWorkerRegistration)
 
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      applicationServerKey: urlBase64ToArrayBuffer(vapidKey),
     });
 
     await fetch("/api/push/subscribe", {
