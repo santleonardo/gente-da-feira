@@ -11,8 +11,12 @@ Copie os valores para `.env.local`:
 ```env
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public key gerada>
 VAPID_PRIVATE_KEY=<private key gerada>
-VAPID_SUBJECT=mailto:contato@gentedafeira.app
+VAPID_MAILTO=mailto:contato@gentedafeira.app
+INTERNAL_API_SECRET=<openssl rand -hex 32>
+NEXT_PUBLIC_APP_URL=https://seu-dominio.com
 ```
+
+> O código usa `VAPID_MAILTO` (não `VAPID_SUBJECT`).
 
 ## 2. Criar tabela no Supabase
 
@@ -48,7 +52,7 @@ npm install -D @types/web-push
 import webpush from "web-push";
 
 webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
+  process.env.VAPID_MAILTO!,
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 );
